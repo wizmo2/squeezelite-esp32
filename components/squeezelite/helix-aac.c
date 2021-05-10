@@ -160,6 +160,7 @@ static int read_mp4_header(unsigned long *samplerate_p, unsigned char *channels_
 			info.nChans = (*ptr & 0x7f) >> 3;
 			*channels_p = info.nChans;				
 			// Note that 24 bits frequencies are not handled	
+#if AAC_ENABLE_SBR			
 			if (AOT == 5 || AOT == 29) {
 				*samplerate_p = rates[((ptr[0] & 0x03) << 1) | (ptr[1] >> 7)];
 				LOG_WARN("AAC stream with SBR => high CPU required (use LMS proxied mode)");									
@@ -172,6 +173,9 @@ static int read_mp4_header(unsigned long *samplerate_p, unsigned char *channels_
 				*samplerate_p = 44100;
 				LOG_ERROR("AAC audio object type %d not handled", AOT);									
 			}	
+#else			
+			*samplerate_p = info.sampRateCore;
+#endif			
 			HAAC(a, SetRawBlockParams, a->hAac, 0, &info); 
 			LOG_DEBUG("playable aac track: %u (p:%x, r:%d, c:%d, desc_len:%d)", trak, AOT, info.sampRateCore, info.nChans, desc_len);
 			play = trak;

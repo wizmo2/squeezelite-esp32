@@ -419,7 +419,11 @@ static int _i2s_write_frames(frames_t out_frames, bool silence, s32_t gainL, s32
 		memcpy(obuf + oframes * BYTES_PER_FRAME, silencebuf, out_frames * BYTES_PER_FRAME);
 	}
 
-	output_visu_export(obuf + oframes * BYTES_PER_FRAME, out_frames, output.current_sample_rate, silence, (gainL + gainR) / 2);
+	// don't update visu if we don't have enough data in buffer
+	if (_buf_used(outputbuf) > outputbuf->size >> 2) {
+		output_visu_export(obuf + oframes * BYTES_PER_FRAME, out_frames, output.current_sample_rate, silence, (gainL + gainR) / 2);
+	}	
+		
 	oframes += out_frames;
 	
 	return out_frames;

@@ -22,7 +22,7 @@
 
 #include "squeezelite.h"
 
-#define VISUEXPORT_SIZE	2048
+#define VISUEXPORT_SIZE	512
 
 EXT_BSS struct visu_export_s visu_export;
 static struct visu_export_s *visu = &visu_export;
@@ -37,7 +37,7 @@ void output_visu_export(void *frames, frames_t out_frames, u32_t rate, bool sile
 		return;
 	}	
 	
-	// do not block, try to stuff data put wait for consumer to have used them
+	// do not block, try to stuff data but wait for consumer to have used them
 	if (!pthread_mutex_trylock(&visu->mutex)) {
 		// don't mix sample rates
 		if (visu->rate != rate) visu->level = 0;
