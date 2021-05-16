@@ -47,10 +47,13 @@ my @ledvisualizers = (
 	{ desc => ['VISUALIZER_SPECTRUM_ANALYZER'],
 	  params => [$VISUALIZER_SPECTRUM_ANALYZER, 0],
     },
+	{ desc => ['VISUALIZER_SPECTRUM_ANALYZER','2'],
+	  params => [$VISUALIZER_SPECTRUM_ANALYZER, 1],
+    },
 	{ desc => ['PLUGIN_SQUEEZEESP32_WAVEFORM'],
 	  params => [$VISUALIZER_WAVEFORM, 0],
     },
-	{ desc => ['PLUGIN_SQUEEZEESP32_WAVEFORM','PLUGIN_SQUEEZEESP32_VISUALIZER_COMET'],
+	{ desc => ['PLUGIN_SQUEEZEESP32_WAVEFORM','2'],
 	  params => [$VISUALIZER_WAVEFORM, 1],
     },
 );
@@ -106,7 +109,7 @@ sub ledVisualModeOptions {
 		for (my $j = 0; $j < scalar @$desc; $j++) {
 
 			$display->{$i} .= ' ' if ($j > 0);
-			$display->{$i} .= string(@{$desc}[$j]);
+			$display->{$i} .= string(@{$desc}[$j]) || @{$desc}[$j];
 		}
 	}
 
@@ -176,7 +179,10 @@ sub onNotification {
 	my $request = shift;
 	my $client  = $request->client || return;
 	
-	updateLED($client) if ($client->hasLED);
+	foreach my $player ($client->syncGroupActiveMembers) {
+		next unless $player->isa('Plugins::SqueezeESP32::Player');
+		updateLED($player) if $player->hasLED;
+	}
 }
 
 1;

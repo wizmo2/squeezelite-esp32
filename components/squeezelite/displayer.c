@@ -1073,7 +1073,7 @@ static void displayer_update(void) {
 				*p = led_visu.bars[i].current;
 				p++;
 			}
-			led_vu_spectrum(led_data, led_visu.max, led_visu.n);
+			led_vu_spectrum(led_data, led_visu.max, led_visu.n, led_visu.style);
 			free(led_data);
 		} else if (led_visu.mode == VISU_WAVEFORM) {
 			led_vu_spin_dial(led_visu.bars[1].current, led_visu.bars[(led_visu.n/2)+1].current * 50 / led_visu.max , led_visu.style);

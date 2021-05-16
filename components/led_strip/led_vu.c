@@ -185,7 +185,7 @@ void led_vu_data(uint8_t* data, uint16_t offset, uint16_t length) {
  * offset - starting position
  * length - size of array
  */
-void led_vu_spectrum(uint8_t* data, uint8_t bright, uint16_t length) {
+void led_vu_spectrum(uint8_t* data, int bright, int length, int style) {
     if (!led_display) return;
     uint8_t gain,r,g,b;
     int width = strip.length / length;
@@ -194,8 +194,14 @@ void led_vu_spectrum(uint8_t* data, uint8_t bright, uint16_t length) {
 	for (int i=0; i<length; i++) {
 		gain = *p;
         r = gain*gain/bright;
-        g = 0;
-        b = gain;
+        if (!style) {
+            g = 0;
+            b = gain;
+        } else {
+            g = r;
+            r = 0;
+            b = gain * (bright-gain)/bright;
+        }
         for (int j=0; j<width; j++) {
             led_strip_set_pixel_rgb(led_display, pos, r, g, b);
             pos++;
