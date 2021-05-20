@@ -331,7 +331,7 @@ static void *stream_thread() {
 					if (stream.meta_interval) {
 						space = min(space, stream.meta_next);
 					}
-					
+
 					n = _recv(ssl, fd, streambuf->writep, space, 0);
 					if (n == 0) {
 						LOG_INFO("end of stream (%u bytes)", stream.bytes);

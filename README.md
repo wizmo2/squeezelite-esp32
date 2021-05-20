@@ -44,6 +44,8 @@ Now, when I did the porting of squeezelite to esp32, I've also made the core 16 
 The esp32 must run at 240 MHz, with Quad-SPI I/O at 80 MHz and a clock of 40 Mhz. Still, it's a lot to run, especially knowing that it has a serial Flash and PSRAM, so kudos to Espressif for their chipset optimization. Now, to have all the decoding, resampling, equalizing, gain, display, spectrum/vu is a very (very) delicate equilibrium between use of internal /external RAM, tasks priorities and buffer handling. It is not perfect and the more you push the system to the limit, the higher the risk that some files would not play (see below). In general, the display will always have the lowest priority and you'll notice slowdown in scrolling and VU/Spectrum refresh rates. Now, even display thread has some critical section and impacts the capabilities. For example, a 16 bits-depth color display with low SPI speed might prevent 24/96 flac to work but still work with pcm 24/96
 
 In 16 bits mode, although 192 kHz is reported as max rate, it's highly recommended to limit reported sampling rate to 96k (-Z 96000). Note that some high-speed 24/96k on-line streams might stutter because of TCP/IP stack performances. It is usually due to the fact that the server sends small packets of data and the esp32 cannot receive encoded audio fast enough, regardless of task priority settings (I've tried to tweak that a fair bit). The best option in that case is to let LMS proxy the stream as it will provide larger chunks and a "smoother" stream that can then be handled.
+
+Note as well that some codecs consume more CPU than others or have not been optimized as much. I've done my best to tweak these, but that level of optimization includes writing some assembly which is painful. One very demanding codec is AAC when files are encoded with SBR. It allows reconstruction of upper part of spectrum and thus higher sampling rate, but the codec spec is such that this is optional, you can decode simply lower band and accept lower sampling rate - See the AAC_DISABLE_SBR option below.
 ## Supported Hardware
 Any esp32-based hardware with at least 4MB of flash and 4MB of PSRAM will be capable of running squeezelite-esp32 and there are various boards that include such chip. A few are mentionned below, but any should work. You can find various help & instructions [here](https://forums.slimdevices.com/showthread.php?112697-ANNOUNCE-Squeezelite-ESP32-(dedicated-thread))
 
@@ -359,9 +361,9 @@ The benefit of the "raw" mode is that you can build a player which is as close a
 There is no good or bad option, it's your choice. Use the NVS parameter "lms_ctrls_raw" to change that option
 
 ### Battery / ADC
-The NVS parameter "bat_config" sets the ADC1 channel used to measure battery/DC voltage. Scale is a float ratio applied to every sample of the 12 bits ADC. A measure is taken every 10s and an average is made every 5 minutes (not a sliding window). Syntax is
+The NVS parameter "bat_config" sets the ADC1 channel used to measure battery/DC voltage. The "atten" value attenuates the input voltage to the ADC input (the read value maintains a 0-1V rage) where: 0=no attenuation(0..800mV), 1=2.5dB attenuation(0..1.1V), 2=6dB attenuation(0..1.35V), 3=11dB attenuation(0..2.6V). Scale is a float ratio applied to every sample of the 12 bits ADC. A measure is taken every 10s and an average is made every 5 minutes (not a sliding window). Syntax is
 ```
-channel=0..7,scale=<scale>,cells=<2|3>
+channel=0..7,scale=<scale>,cells=<2|3>,[atten=<0|1|2|3>]
 ```
 NB: Set parameter to empty to disable battery reading. For well-known configuration, this is ignored (except for SqueezeAMP where number of cells is required)
 # Configuration
@@ -449,7 +451,7 @@ Create and tweak your config using `idf.py menuconfig` then build binaries using
 ```
 Use `idf.py monitor` to monitor the application (see esp-idf documentation)
 
-Note: You can use `idf.py build -DDEPTH=32` to build the 32 bits version and add the `-DVERSION=<your_version>` to add a custom version name (it will be 0.0-<your_version>). If you want to change the whole version string, see squeezelite.h
+Note: You can use `idf.py build -DDEPTH=32` to build the 32 bits version and add the `-DVERSION=<your_version>` to add a custom version name (it will be 0.0-<your_version>). If you want to change the whole version string, see squeezelite.h. You can also disable the SBR extension of AAC codecs as it consumes a lot of CPU and might overload the esp32. Use `-DAAC_DISABLE_SBR=1` for that
 
 If you have already cloned the repository and you are getting compile errors on one of the submodules (e.g. telnet), run the following git command in the root of the repository location: `git submodule update --init --recursive`
 ### Rebuild codecs (highly recommended to NOT try that)

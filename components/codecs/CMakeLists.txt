@@ -2,10 +2,10 @@ idf_component_register(
 	   INCLUDE_DIRS .  ./inc  inc/alac inc/FLAC  inc/helix-aac inc/mad inc/ogg inc/opus inc/opusfile inc/resample16 inc/soxr inc/vorbis
 )
 
-if (DEFINED AAC_ENABLE_SBR)
-add_prebuilt_library(libhelix-aac 	lib/libhelix-aac-sbr.a ) 
-else ()
+if (DEFINED AAC_DISABLE_SBR)
 add_prebuilt_library(libhelix-aac 	lib/libhelix-aac.a ) 
+else ()
+add_prebuilt_library(libhelix-aac 	lib/libhelix-aac-sbr.a ) 
 endif()
 
 add_prebuilt_library(libmad 		lib/libmad.a)

@@ -357,8 +357,8 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 	{
 		static DRAM_ATTR StaticTask_t xTaskBuffer __attribute__ ((aligned (4)));
 		static DRAM_ATTR StackType_t xStack[OUTPUT_THREAD_STACK_SIZE] __attribute__ ((aligned (4)));
-		output_i2s_task = xTaskCreateStatic( (TaskFunction_t) output_thread_i2s, "output_i2s", OUTPUT_THREAD_STACK_SIZE, 
-											  NULL, CONFIG_ESP32_PTHREAD_TASK_PRIO_DEFAULT + 1, xStack, &xTaskBuffer );
+		output_i2s_task = xTaskCreateStaticPinnedToCore( (TaskFunction_t) output_thread_i2s, "output_i2s", OUTPUT_THREAD_STACK_SIZE, 
+											  NULL, CONFIG_ESP32_PTHREAD_TASK_PRIO_DEFAULT + 1, xStack, &xTaskBuffer, 0 );
 	}
 	
 	// do we want stats
@@ -420,9 +420,9 @@ static int _i2s_write_frames(frames_t out_frames, bool silence, s32_t gainL, s32
 	}
 
 	// don't update visu if we don't have enough data in buffer
-	if (_buf_used(outputbuf) > outputbuf->size >> 2) {
+	if (silence || _buf_used(outputbuf) > outputbuf->size >> 2) {
 		output_visu_export(obuf + oframes * BYTES_PER_FRAME, out_frames, output.current_sample_rate, silence, (gainL + gainR) / 2);
-	}	
+	}
 		
 	oframes += out_frames;
 	

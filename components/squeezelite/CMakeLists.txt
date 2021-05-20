@@ -38,7 +38,7 @@ else()
 	add_definitions(-DRESAMPLE16 -DBYTES_PER_FRAME=4)
 endif()	
 
-if (DEFINED AAC_ENABLE_SBR)
+if (NOT DEFINED AAC_DISABLED_SBR)
 	add_definitions(-DAAC_ENABLE_SBR)
 endif()	
 

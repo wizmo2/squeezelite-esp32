@@ -359,7 +359,7 @@ bool sb_displayer_init(void) {
 		
 	// create displayer management task
 	displayer.mutex = xSemaphoreCreateMutex();
-	displayer.task = xTaskCreateStatic( (TaskFunction_t) displayer_task, "displayer_thread", SCROLL_STACK_SIZE, NULL, ESP_TASK_PRIO_MIN + 1, xStack, &xTaskBuffer);
+	displayer.task = xTaskCreateStatic( (TaskFunction_t) displayer_task, "squeeze_displayer", SCROLL_STACK_SIZE, NULL, ESP_TASK_PRIO_MIN + 1, xStack, &xTaskBuffer);
 	
 	// chain handlers
 	slimp_handler_chain = slimp_handler;

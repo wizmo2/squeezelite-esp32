@@ -33,11 +33,12 @@ static struct {
 	int channel;
 	float sum, avg, scale;
 	int count;
-	int cells;
+	int cells, attenuation;
 	TimerHandle_t timer;
 } battery = {
 	.channel = CONFIG_BAT_CHANNEL,
 	.cells = 2,
+	.attenuation = ADC_ATTEN_DB_0,
 };	
 
 /****************************************************************************************
@@ -82,6 +83,7 @@ void battery_svc_init(void) {
 #ifndef CONFIG_BAT_LOCKED		
 		if ((p = strcasestr(nvs_item, "channel")) != NULL) battery.channel = atoi(strchr(p, '=') + 1);
 		if ((p = strcasestr(nvs_item, "scale")) != NULL) battery.scale = atof(strchr(p, '=') + 1);
+		if ((p = strcasestr(nvs_item, "atten")) != NULL) battery.attenuation = atoi(strchr(p, '=') + 1);
 #endif		
 		if ((p = strcasestr(nvs_item, "cells")) != NULL) battery.cells = atof(strchr(p, '=') + 1);		
 		free(nvs_item);
@@ -89,7 +91,7 @@ void battery_svc_init(void) {
 
 	if (battery.channel != -1) {
 		adc1_config_width(ADC_WIDTH_BIT_12);
-		adc1_config_channel_atten(battery.channel, ADC_ATTEN_DB_0);
+		adc1_config_channel_atten(battery.channel, battery.attenuation);
 
 		battery.avg = adc1_get_raw(battery.channel) * battery.scale / 4095.0;    
 		battery.timer = xTimerCreate("battery", BATTERY_TIMER / portTICK_RATE_MS, pdTRUE, NULL, battery_callback);

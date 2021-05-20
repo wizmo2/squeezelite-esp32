@@ -135,7 +135,7 @@ void display_init(char *welcome) {
 		displayer.by = 2;
 		displayer.pause = 3600;
 		displayer.speed = 33;
-		displayer.task = xTaskCreateStatic( (TaskFunction_t) displayer_task, "displayer_thread", DISPLAYER_STACK_SIZE, NULL, ESP_TASK_PRIO_MIN + 1, xStack, &xTaskBuffer);
+		displayer.task = xTaskCreateStatic( (TaskFunction_t) displayer_task, "common_displayer", DISPLAYER_STACK_SIZE, NULL, ESP_TASK_PRIO_MIN + 1, xStack, &xTaskBuffer);
 		
 		// set lines for "fixed" text mode
 		GDS_TextSetFontAuto(display, 1, GDS_FONT_LINE_1, -3);
