@@ -244,16 +244,17 @@ See §**set_GPIO** for how to set the green and red LEDs. In addition, their bri
 ```
 NB: For well-known configuration, this is ignored
 
-## LED Strip
-One LED strip with up to 255 addressable LEDs can be configured to offer enhanced visualizations.  The LED strip can also be controlled remotely though the LMS server using the CLI interface.  Currently only WS2812B LEDs are supported.  Set the LED Strip configuration (or NVS led_vu_config) to `WS2812,length=<n>,gpio=<gpio>, where <n> is the number of leds in the strip (1..255), and <gpio> is the data pin.`  
+### LED Strip
+One LED strip with up to 255 addressable LEDs can be configured to offer enhanced visualizations.  The LED strip can also be controlled remotely though the LMS server (using the CLI interface).  Currently only WS2812B LEDs are supported.  Set the LED Strip configuration (or NVS led_vu_config) to `WS2812,length=<n>,gpio=<gpio>, where <n> is the number of leds in the strip (1..255), and <gpio> is the data pin.`  
 
-The latest LMS plugin update is required to set the visualizer mode and brightness in the ESP32 settings page for the player.  The plugin also adds the following CLI command options
+The latest LMS plugin update is required to set the visualizer mode and brightness, in the ESP32 settings page for the player.  The plugin also adds the following CLI command options
 ```
 <playerid> led_visual [<mode>] [brightness(1-255)]
-  toggles or selects the visulaizer mode.  The visualizer brighness can be controled using the optional <brighness> tag.
+  Toggles or selects the visulaizer mode.
+  The visualizer brighness can be controled using the optional <brighness> tag.
 
 <playerid> dmx <R,G,B|R,G,B,R,G,B ... R,G,B> [<offset>]
-  sets the LED at position "offset" to the any RGB color where "R"(red),"G"(green), and "B"(blue) are values from 0(off) to 255(max brightness).
+  Sets the LED at position "offset" to any RGB color where "R"(red),"G"(green), and "B"(blue) are values from 0(off) to 255(max brightness).
   Add additional RGB values to the delimited string to set multiple LEDs. 
 ```
 
