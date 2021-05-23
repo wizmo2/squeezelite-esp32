@@ -420,7 +420,7 @@ static int _i2s_write_frames(frames_t out_frames, bool silence, s32_t gainL, s32
 	}
 
 	// don't update visu if we don't have enough data in buffer
-	if (silence || _buf_used(outputbuf) > outputbuf->size >> 2) {
+	if (silence || output.external || _buf_used(outputbuf) > outputbuf->size >> 2 ) {
 		output_visu_export(obuf + oframes * BYTES_PER_FRAME, out_frames, output.current_sample_rate, silence, (gainL + gainR) / 2);
 	}
 		
