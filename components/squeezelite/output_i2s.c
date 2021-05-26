@@ -169,7 +169,7 @@ static void jack_handler(bool inserted) {
 static void set_amp_gpio(int gpio, char *value) {
 	char *p;
 	
-	if (!strcasecmp(value, "amp")) {
+	if (strcasestr(value, "amp")) {
 		amp_control.gpio = gpio;
 		if ((p = strchr(value, ':')) != NULL) amp_control.active = atoi(p + 1);
 		
