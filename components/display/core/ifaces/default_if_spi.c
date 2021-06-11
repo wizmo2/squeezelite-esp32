@@ -41,6 +41,7 @@ bool GDS_SPIAttachDevice( struct GDS_Device* Device, int Width, int Height, int 
     NullCheck( Device, return false );
 	
 	if (CSPin >= 0) {
+        gpio_pad_select_gpio( CSPin ); // ToDo: This entire section probably not needed as handled by SPIDecive api
 		ESP_ERROR_CHECK_NONFATAL( gpio_set_direction( CSPin, GPIO_MODE_OUTPUT ), return false );
 		ESP_ERROR_CHECK_NONFATAL( gpio_set_level( CSPin, 0 ), return false );
 	}	
@@ -50,6 +51,7 @@ bool GDS_SPIAttachDevice( struct GDS_Device* Device, int Width, int Height, int 
     SPIDeviceConfig.clock_speed_hz = Speed > 0 ? Speed : SPI_MASTER_FREQ_8M;
     SPIDeviceConfig.spics_io_num = CSPin;
     SPIDeviceConfig.queue_size = 1;
+    SPIDeviceConfig.mode = 2;
 	SPIDeviceConfig.flags = SPI_DEVICE_NO_DUMMY;
 
     ESP_ERROR_CHECK_NONFATAL( spi_bus_add_device( SPIHost, &SPIDeviceConfig, &SPIDevice ), return false );
@@ -65,6 +67,7 @@ bool GDS_SPIAttachDevice( struct GDS_Device* Device, int Width, int Height, int 
 	Device->Height = Height;
 	
 	if ( RSTPin >= 0 ) {
+        gpio_pad_select_gpio( RSTPin);
         ESP_ERROR_CHECK_NONFATAL( gpio_set_direction( RSTPin, GPIO_MODE_OUTPUT ), return false );
         ESP_ERROR_CHECK_NONFATAL( gpio_set_level( RSTPin, 0 ), return false );
 		GDS_Reset( Device );
