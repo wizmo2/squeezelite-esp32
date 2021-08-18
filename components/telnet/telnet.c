@@ -240,12 +240,7 @@ void process_received_data(const char * buffer, size_t size){
 	const char * c=buffer;
 
 	// scrub from any escape command
-	if(*c == '\e'){
-		while(*(c++) !='n'){
-			--size;
-		};
-		--size;
-	}
+	if(*c == '\e') while (size && size-- && *c++ != '\n');
 	memcpy(command,c,size);
 	command[size]='\0';
 	if(command[0]!='\r' && command[0]!='\n'){

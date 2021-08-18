@@ -10,6 +10,7 @@
  
 #pragma once
 
+void equalizer_init(void);
 void equalizer_open(u32_t sample_rate);
 void equalizer_close(void);
 void equalizer_update(s8_t *gain);

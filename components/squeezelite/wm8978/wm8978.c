@@ -62,7 +62,7 @@ static bool init(char *config, int i2c_port, i2s_config_t *i2s_config) {
 	i2c_write_shadow(49, 102);
 	
 	// Configure system clk to GPIO0 for DAC MCLK input
-    ESP_LOGI(TAG, "Configuring MCLK on pin:%d", 0);
+    ESP_LOGI(TAG, "Configuring MCLK on GPIO0");
 	PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0_CLK_OUT1);
    	REG_WRITE(PIN_CTRL, 0xFFFFFFF0);
 	

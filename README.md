@@ -23,23 +23,25 @@ Other features include
  - Full web interface for further configuration/management
  - Firmware over-the-air update 
 
+To control the equalizer or use the display on LMS, a new player model is required and this is provided through a plugin that can be found [here]( https://raw.githubusercontent.com/sle118/squeezelite-esp32/master/plugin/repo.xml)
+
 ## Performances 
 *(opinions presented here so I = @philippe44)*
 The main build of squeezelite-esp32 is a 16 bits internal core with all calculations in 32 bits or float precision. This is a design choice I've made to preserve CPU performances (it is already stretching a lot the esp32 chipset) and optimize memory usage as we only have 4MB of usable RAM. Some might correctly comment that the WROVER module have 8MB of RAM, but the processor is only able to address 4MB and the remaining 4MB must be paginated by smaller blocks and I don't have patience to that. 
 
 Now, when I did the porting of squeezelite to esp32, I've also made the core 16 or 32 bits compatible at compile-time. So far, it works in 32 bits but less tests have been done. You can chose to compile it in 32 bits mode. I'm not very interested above 16 bits samples because it does not bring anything (I have an engineering background in theory of information). 
 
-| Capability                 |16 bits|32 bits| comment         						         |	
-|----------------------------|-------|-------|-------------------------------------------------------------------|
-| max sampling rate          |  192k |  96k  | 192k is very challenging, especially when combined with display   |
-| max bit depth              |  16   |  24   | 24 bits are truncated in 16 bits mode                             | 
-| spdif			     |16 bits|20 bits|		                                                         |
-| mp3, aac, opus, ogg/vorbis |  48k  |  48k  |		                                                         |
-| alac, flac, ogg/flac       |  96k  |  96k  | 		                                                         |
-| pcm, wav, aif              |  192k |  96k  |		                                                         |
-| equalizer                  |   Y   |   N   | 48kHz max (after resampling) - equalization skipped on 96k tracks |
-| resampling                 |   Y   |   N   |		                                                         |
-| cross-fade                 |  10s  |  <5s  | depends on buffer size and sampling rate		                 |
+| Capability                 |16 bits|32 bits| comment         						          |	
+|----------------------------|-------|-------|--------------------------------------------------------------------|
+| max sampling rate          |  192k |  96k  | 192k is very challenging, especially when combined with display    |
+| max bit depth              |  16   |  24   | 24 bits are truncated in 16 bits mode                              | 
+| spdif			     |16 bits|20 bits|		                                                          |
+| mp3, aac, opus, ogg/vorbis |  48k  |  48k  |		                                                          |
+| alac, flac, ogg/flac       |  96k  |  96k  | 		                                                          |
+| pcm, wav, aif              |  192k |  96k  |		                                                          |
+| equalizer                  |   Y   |   N   | 48kHz max (after resampling) - equalization skipped on >48k tracks |
+| resampling                 |   Y   |   N   |		                                                          |
+| cross-fade                 |  10s  |  <5s  | depends on buffer size and sampling rate		                  |
 
 The esp32 must run at 240 MHz, with Quad-SPI I/O at 80 MHz and a clock of 40 Mhz. Still, it's a lot to run, especially knowing that it has a serial Flash and PSRAM, so kudos to Espressif for their chipset optimization. Now, to have all the decoding, resampling, equalizing, gain, display, spectrum/vu is a very (very) delicate equilibrium between use of internal /external RAM, tasks priorities and buffer handling. It is not perfect and the more you push the system to the limit, the higher the risk that some files would not play (see below). In general, the display will always have the lowest priority and you'll notice slowdown in scrolling and VU/Spectrum refresh rates. Now, even display thread has some critical section and impacts the capabilities. For example, a 16 bits-depth color display with low SPI speed might prevent 24/96 flac to work but still work with pcm 24/96
 
@@ -68,7 +70,7 @@ NB: You can use the pre-build binaries SqueezeAMP4MBFlash which has all the hard
 - spdif_config: bck=33,ws=25,do=15
 
 ### ESP32-A1S
-Works with [ESP32-A1S](https://docs.ai-thinker.com/esp32-a1s) module that includes audio codec and headset output. You still need to use a demo board like [this](https://www.aliexpress.com/item/4000765857347.html?spm=2114.12010615.8148356.11.5d963cd0j669ns) or an external amplifier if you want direct speaker connection. 
+Works with [ESP32-A1S](https://docs.ai-thinker.com/esp32-a1s) module that includes audio codec and headset output. You still need to use a demo board like [this](https://www.aliexpress.com/item/4001060963585.html) or an external amplifier if you want direct speaker connection. Note that there is a version with AC101 codec and another one with ES8388 (see below)
 
 The board shown above has the following IO set
 - amplifier: GPIO21
@@ -85,11 +87,15 @@ The board shown above has the following IO set
 
 So a possible config would be
 - set_GPIO: 21=amp,22=green:0,39=jack:0
-- dac_config: model=AC101,bck=27,ws=26,do=25,di=35,sda=33,scl=32
 - a button mapping: 
 ```
 [{"gpio":5,"normal":{"pressed":"ACTRLS_TOGGLE"}},{"gpio":18,"pull":true,"shifter_gpio":5,"normal":{"pressed":"ACTRLS_VOLUP"}, "shifted":{"pressed":"ACTRLS_NEXT"}}, {"gpio":23,"pull":true,"shifter_gpio":5,"normal":{"pressed":"ACTRLS_VOLDOWN"},"shifted":{"pressed":"ACTRLS_PREV"}}]
 ```
+for AC101
+- dac_config: model=AC101,bck=27,ws=26,do=25,di=35,sda=33,scl=32
+ 
+for ES8388
+- dac_config: model=ES8388,bck=5,ws=25,do=26,sda=18,scl=23,i2c=16
 ### T-WATCH2020 by LilyGo
 This is a fun [smartwatch](http://www.lilygo.cn/prod_view.aspx?TypeId=50036&Id=1290&FId=t3:50036:3) based on ESP32. It has a 240x240 ST7789 screen and onboard audio. Not very useful to listen to anything but it works. This is an example of a device that requires an I2C set of commands for its dac (see below). There is a build-option if you decide to rebuild everything by yourself, otherwise the I2S default option works with the following parameters
 
@@ -136,11 +142,11 @@ data=<gpio>,clk=<gpio>[,dc=<gpio>][,host=1|2]
 ### DAC/I2S
 The NVS parameter "dac_config" set the gpio used for i2s communication with your DAC. You can define the defaults at compile time but nvs parameter takes precedence except for SqueezeAMP and A1S where these are forced at runtime. Syntax is
 ```
-bck=<gpio>,ws=<gpio>,do=<gpio>[,mute=<gpio>[:0|1][,model=TAS57xx|TAS5713|AC101|I2S][,sda=<gpio>,scl=gpio[,i2c=<addr>]]
+bck=<gpio>,ws=<gpio>,do=<gpio>[,mck][,mute=<gpio>[:0|1][,model=TAS57xx|TAS5713|AC101|I2S][,sda=<gpio>,scl=gpio[,i2c=<addr>]]
 ```
-if "model" is not set or is not recognized, then default "I2S" is used. I2C parameters are optional an only needed if your dac requires an I2C control (See 'dac_controlset' below). Note that "i2c" parameters are decimal, hex notation is not allowed.
+if "model" is not set or is not recognized, then default "I2S" is used. The option "mck" is used for some codecs that require a master clock (although they should not). Only GPIO0 can be used as MCLK. I2C parameters are optional an only needed if your dac requires an I2C control (See 'dac_controlset' below). Note that "i2c" parameters are decimal, hex notation is not allowed.
 
-The parameter "dac_controlset" allows definition of simple commands to be sent over i2c for init, power on and off using a JSON syntax:
+So far, TAS75xx, TAS5714, AC101 and ES8388 are recognized models where the proper init sequence/volume/power controls are sent. For other codecs that might require an I2C commands, please use the parameter "dac_controlset" that allows definition of simple commands to be sent over i2c for init, power on and off using a JSON syntax:
 ```
 { init: [ {"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"}, ... {{"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"} ],
   poweron: [ {"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"}, ... {{"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"} ],
@@ -148,7 +154,7 @@ The parameter "dac_controlset" allows definition of simple commands to be sent o
 ```
 This is standard JSON notation, so if you are not familiar with it, Google is your best friend. Be aware that the '...' means you can have as many entries as you want, it's not part of the syntax. Every section is optional, but it does not make sense to set i2c in the 'dac_config' parameter and not setting anything here. The parameter 'mode' allows to *or* the register with the value or to *and* it. Don't set 'mode' if you simply want to write. **Note that all values must be decimal**. You can use a validator like [this](https://jsonlint.com) to verify your syntax
 
-NB: For well-known configuration, this is ignored
+NB: For specific builds (all except I2S), all this is ignored. For know codecs, the built-in sequences can be overwritten using dac_controlset
 
 <strong>Please note that you can not use the same GPIO or port as the I2C</strong>
 ### SPDIF
@@ -188,16 +194,16 @@ SPI,width=<pixels>,height=<pixels>,cs=<gpio>[,back=<gpio>][,reset=<gpio>][,speed
 - Default speed is 8000000 (8MHz) but SPI can work up to 26MHz or even 40MHz
 - SH1106 is 128x64 monochrome I2C/SPI [here]((https://www.waveshare.com/wiki/1.3inch_OLED_HAT))
 - SSD1306 is 128x32 monochrome I2C/SPI [here](https://www.buydisplay.com/i2c-blue-0-91-inch-oled-display-module-128x32-arduino-raspberry-pi)
-- SSD1322 is 128x128 16-level grayscale SPI [here](https://www.amazon.com/gp/product/B079N1LLG8/ref=ox_sc_act_title_1?smid=A1N6DLY3NQK2VM&psc=1) - artwork can be up to 96x96 with vertical vu-meter/spectrum
-- SSD1351 is 128x128 65k/262k color SPI [here](https://www.waveshare.com/product/displays/lcd-oled/lcd-oled-3/1.5inch-rgb-oled-module.htm)
+- SSD1322 is 256x64 grayscale 16-levels SPI in multiple sizes [here](https://www.buydisplay.com/oled-display/oled-display-module?resolution=159) - it is very nice
 - SSD1326 is 256x32 monochrome or grayscale 16-levels SPI [here](https://www.aliexpress.com/item/32833603664.html?spm=a2g0o.productlist.0.0.2d19776cyQvsBi&algo_pvid=c7a3db92-e019-4095-8a28-dfdf0a087f98&algo_expid=c7a3db92-e019-4095-8a28-dfdf0a087f98-1&btsid=0ab6f81e15955375483301352e4208&ws_ab_test=searchweb0_0,searchweb201602_,searchweb201603_)
-- SSD1327 is 256x64 grayscale 16-levels SPI in multiple sizes [here](https://www.buydisplay.com/oled-display/oled-display-module?resolution=159) - it is very nice
+- SSD1327 is 128x128 16-level grayscale SPI [here](https://www.amazon.com/gp/product/B079N1LLG8/ref=ox_sc_act_title_1?smid=A1N6DLY3NQK2VM&psc=1) - artwork can be up to 96x96 with vertical vu-meter/spectrum
+- SSD1351 is 128x128 65k/262k color SPI [here](https://www.waveshare.com/product/displays/lcd-oled/lcd-oled-3/1.5inch-rgb-oled-module.htm)
 - SSD1675 is an e-ink paper and is experimental as e-ink is really not suitable for LMS du to its very low refresh rate
 - ST7735 is a 128x160 65k color SPI [here](https://www.waveshare.com/product/displays/lcd-oled/lcd-oled-3/1.8inch-lcd-module.htm). This needs a backlight control
 - ST7789 is a 240x320 65k (262k not enabled) color SPI [here](https://www.waveshare.com/product/displays/lcd-oled/lcd-oled-3/2inch-lcd-module.htm). It also exist with 240x240 displays. See **rotate** for use in portrait mode
 - ILI9341 is another 240x320 65k (262k capable) color SPI. I've not used it much, the driver it has been provided by one external contributor to the project
 
-To use the display on LMS, add repository https://raw.githubusercontent.com/sle118/squeezelite-esp32/master/plugin/repo.xml. You will then be able to tweak how the vu-meter and spectrum analyzer are displayed, as well as size of artwork. You can also install the excellent plugin "Music Information Screen" which is super useful to tweak the layout.
+You can tweak how the vu-meter and spectrum analyzer are displayed, as well as size of artwork through a dedicated menu in player's settings (don't forget to add the plugin).
 
 The NVS parameter "metadata_config" sets how metadata is displayed for AirPlay and Bluetooth. Syntax is
 ```
@@ -316,10 +322,11 @@ Where (all parameters are optionals except gpio)
 Where \<action\> is either the name of another configuration to load (remap) or one amongst
 
 ```
-ACTRLS_NONE, ACTRLS_VOLUP, ACTRLS_VOLDOWN, ACTRLS_TOGGLE, ACTRLS_PLAY, 
+ACTRLS_NONE, ACTRLS_POWER, ACTRLS_VOLUP, ACTRLS_VOLDOWN, ACTRLS_TOGGLE, ACTRLS_PLAY, 
 ACTRLS_PAUSE, ACTRLS_STOP, ACTRLS_REW, ACTRLS_FWD, ACTRLS_PREV, ACTRLS_NEXT, 
-BCTRLS_UP, BCTRLS_DOWN, BCTRLS_LEFT, BCTRLS_RIGHT,
-KNOB_LEFT, KNOB_RIGHT, KNOB_PUSH
+BCTRLS_UP, BCTRLS_DOWN, BCTRLS_LEFT, BCTRLS_RIGHT, 
+BCTRLS_PS1, BCTRLS_PS2, BCTRLS_PS3, BCTRLS_PS4, BCTRLS_PS5, BCTRLS_PS6,
+KNOB_LEFT, KNOB_RIGHT, KNOB_PUSH,	
 ```
 				
 One you've created such a string, use it to fill a new NVS parameter with any name below 16(?) characters. You can have as many of these configs as you can. Then set the config parameter "actrls_config" with the name of your default config

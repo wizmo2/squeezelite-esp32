@@ -169,14 +169,38 @@ const actrls_t LMS_controls = {
 /****************************************************************************************
  * 
  */
+static void connect_cli_socket(void) {
+	struct sockaddr_in addr = {
+		.sin_family = AF_INET,
+		.sin_addr.s_addr = server_ip,
+		.sin_port = htons(server_cport),
+	};
+	socklen_t addrlen = sizeof(addr);
+	
+	cli_sock = socket(AF_INET, SOCK_STREAM, 0);
+	
+	if (connect(cli_sock, (struct sockaddr *) &addr, addrlen) < 0) {
+		LOG_ERROR("unable to connect to server %s:%hu with cli", inet_ntoa(server_ip), server_cport);
+		closesocket(cli_sock);
+		cli_sock = -1;
+	}
+}
+
+/****************************************************************************************
+ * 
+ */
 static void cli_send_cmd(char *cmd) {
 	char packet[96];
 	int len;
 	
 	len = sprintf(packet, "%02x:%02x:%02x:%02x:%02x:%02x %s\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], cmd);
 	LOG_DEBUG("sending command %s at %s:%hu", packet, inet_ntoa(server_ip), server_cport);
-		
+	
+	if (cli_sock < 0) connect_cli_socket();
+
 	if (send(cli_sock, packet, len, MSG_DONTWAIT) < 0) {
+		closesocket(cli_sock);
+		cli_sock = -1;
 		LOG_WARN("cannot send CLI %s", packet);
 	}
 	
@@ -188,26 +212,14 @@ static void cli_send_cmd(char *cmd) {
  * Notification when server changes
  */
 static void notify(in_addr_t ip, u16_t hport, u16_t cport) {
-	struct sockaddr_in addr;
-	socklen_t addrlen = sizeof(addr);
-	
 	server_ip = ip;
 	server_hport = hport;
 	server_cport = cport;
 	
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = server_ip;
-	addr.sin_port = htons(server_cport);
-	
 	// close existing CLI connection and open new one
 	if (cli_sock >= 0) closesocket(cli_sock);
 	cli_sock = socket(AF_INET, SOCK_STREAM, 0);
-
-	if (connect(cli_sock, (struct sockaddr *) &addr, addrlen) < 0) {
-		LOG_ERROR("unable to connect to server %s:%hu with cli", inet_ntoa(server_ip), server_cport);
-		closesocket(cli_sock);
-		cli_sock = -1;
-	}
+	connect_cli_socket();
 	
 	LOG_INFO("notified server %s hport %hu cport %hu", inet_ntoa(ip), hport, cport);
 	

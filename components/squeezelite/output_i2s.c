@@ -573,10 +573,11 @@ static void output_thread_i2s(void *arg) {
 		SET_MIN_MAX( TIME_MEASUREMENT_GET(timer_start),i2s_time);
 		
 	}
-	
-	vTaskDelete(NULL);
+
 	if (spdif.enabled) free(spdif.buf);
 	ended = true;
+
+	vTaskDelete(NULL);	
 }
 
 /****************************************************************************************

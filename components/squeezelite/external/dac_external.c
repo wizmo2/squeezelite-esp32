@@ -32,6 +32,21 @@ const struct adac_s dac_external = { "i2s", init, adac_deinit, power, speaker, h
 static cJSON *i2c_json;
 static int i2c_addr;
 
+static struct {
+	char *model;
+	bool mclk;
+	char *controlset;
+} codecs[] = {
+	{ "es8388", true,
+		"{\"init\":[ 																						\
+			{\"reg\":8,\"val\":0}, {\"reg\":2,\"val\":243}, {\"reg\":43,\"val\":128}, {\"reg\":0,\"val\":5}, 		\
+			{\"reg\":1,\"val\":64}, {\"reg\":4,\"val\":60}, {\"reg\":23,\"val\":24}, {\"reg\":24,\"val\":2},		\
+			{\"reg\":26,\"val\":0}, {\"reg\":27,\"val\":0}, {\"reg\":25,\"val\":50}, {\"reg\":38,\"val\":0},		\
+			{\"reg\":39,\"val\":184}, {\"reg\":42,\"val\":184}, {\"reg\":46,\"val\":30}, {\"reg\":47,\"val\":30},	\
+			{\"reg\":48,\"val\":30}, {\"reg\":49,\"val\":30}, {\"reg\":2,\"val\":170}]}" },
+	{ NULL, false, NULL }		
+};
+
 /****************************************************************************************
  * init
  */
@@ -44,10 +59,22 @@ static bool init(char *config, int i2c_port_num, i2s_config_t *i2s_config) {
 	ESP_LOGI(TAG, "DAC on I2C @%d", i2c_addr);
 	
 	p = config_alloc_get_str("dac_controlset", CONFIG_DAC_CONTROLSET, NULL);
+
+	if ((!p || !*p) && (p = strcasestr(config, "model")) != NULL) {
+		char model[32] = "";
+		int i;
+		sscanf(p, "%*[^=]=%31[^,]", model);
+		for (i = 0; *model && ((p = codecs[i].controlset) != NULL) && strcasecmp(codecs[i].model, model); i++);
+		if (p && codecs[i].mclk) {
+			ESP_LOGI(TAG, "Configuring MCLK on GPIO0");
+			PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0_CLK_OUT1);
+			REG_WRITE(PIN_CTRL, 0xFFFFFFF0);
+		}		
+	}	
+
 	i2c_json = cJSON_Parse(p);
 	
 	if (!i2c_json) {
-		if (p) free(p);
 		ESP_LOGW(TAG, "no i2c controlset found");
 		return true;
 	}	
@@ -56,7 +83,7 @@ static bool init(char *config, int i2c_port_num, i2s_config_t *i2s_config) {
 		ESP_LOGE(TAG, "could not intialize DAC");
 		return false;
 	}	
-	
+
 	return true;
 }	
 

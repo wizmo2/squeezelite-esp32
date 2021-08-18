@@ -328,6 +328,9 @@ void register_default_nvs(){
 	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "bypass_wm", "0");
 	config_set_default(NVS_TYPE_STR, "bypass_wm", "0", 0);
 
+	ESP_LOGD(TAG,"Registering default value for equalizer");
+	config_set_default(NVS_TYPE_STR, "equalizer", "", 0);
+
 	ESP_LOGD(TAG,"Registering default Audio control board type %s, value ","actrls_config");
 	config_set_default(NVS_TYPE_STR, "actrls_config", "", 0);
 	

@@ -367,8 +367,7 @@ module.exports = merge(common, {
             filename: 'test',
             minify: false,
             excludeChunks: ['index'],
-        }),        
-        new SpriteLoaderPlugin({plainSprite: true})
+        })
 
     ],
 });

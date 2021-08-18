@@ -73,10 +73,14 @@ void output_init_embedded(log_level level, char *device, unsigned output_buf_siz
 	slimp_handler_chain = slimp_handler;
 	slimp_handler = handler;
 	
+	// init equalizer before backends
+	equalizer_init();
+	
 	memset(&output, 0, sizeof(output));
 	output_init_common(level, device, output_buf_size, rates, idle);
 	output.start_frames = FRAME_BLOCK;
 	output.rate_delay = rate_delay;
+	
 	
 	if (strcasestr(device, "BT ") || !strcasecmp(device, "BT")) {
 		LOG_INFO("init Bluetooth");

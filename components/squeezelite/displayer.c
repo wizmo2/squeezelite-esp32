@@ -666,7 +666,14 @@ void draw_VU(struct GDS_Device * display, const uint8_t *data, int level, int x,
  * Process graphic display data
  */
 static void grfe_handler( u8_t *data, int len) {
-		
+	struct grfe_packet *pkt = (struct grfe_packet*) data;		
+	
+	// we don't support transition, simply claim we're done
+	if (pkt->transition != 'c') {
+		LOG_INFO("Transition %c requested with offset %hu, param %d", pkt->transition, pkt->offset, pkt->param);
+		sendANIC(ANIM_TRANSITION);
+	}
+	
 	xSemaphoreTake(displayer.mutex, portMAX_DELAY);
 	
 	scroller.active = false;

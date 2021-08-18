@@ -1085,15 +1085,15 @@ window.setURL = function(button) {
 
 function rssiToIcon(rssi) {
   if (rssi >= -55) {
-    return `#signal-wifi-fill`;
+    return `signal-wifi-fill`;
   } else if (rssi >= -60) {
-    return `#signal-wifi-3-fill`;
+    return `signal-wifi-3-fill`;
   } else if (rssi >= -65) {
-    return `#signal-wifi-2-fill`;
+    return `signal-wifi-2-fill`;
   } else if (rssi >= -70) {
-    return `#signal-wifi-1-fill`;
+    return `signal-wifi-1-fill`;
   } else {   
-    return `#signal-wifi-line`;
+    return `signal-wifi-line`;
   }
 }
 

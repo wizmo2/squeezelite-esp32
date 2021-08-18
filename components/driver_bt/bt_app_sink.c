@@ -133,12 +133,14 @@ static void bt_next(bool pressed) {
 }
 
 const static actrls_t controls = {
+	NULL, // power
 	bt_volume_up, bt_volume_down,	// volume up, volume down
 	bt_toggle, bt_play,	// toggle, play
 	bt_pause, bt_stop,	// pause, stop
 	NULL, NULL,			// rew, fwd
 	bt_prev, bt_next,	// prev, next
 	NULL, NULL, NULL, NULL, // left, right, up, down
+	NULL, NULL, NULL, NULL, NULL, NULL, // pre1-6
 	bt_volume_down, bt_volume_up, bt_toggle// knob left, knob_right, knob push
 };
 
@@ -648,10 +650,12 @@ void bt_sink_init(bt_cmd_vcb_t cmd_cb, bt_data_cb_t data_cb)
 
 void bt_sink_deinit(void)
 {
-	/* this still does not work, can't figure out how to stop properly this BT stack */
 	bt_app_task_shut_down();
 	ESP_LOGD(BT_AV_TAG, "bt_app_task shutdown successfully");
 	if (esp_bluedroid_disable() != ESP_OK) return;
+	// this disable has a sleep timer BTA_DISABLE_DELAY in bt_target.h and 
+	// if we don't wait for it then disable crashes... don't know why
+	vTaskDelay(2*200 / portTICK_PERIOD_MS);	
     ESP_LOGD(BT_AV_TAG, "esp_bluedroid_disable called successfully");
     if (esp_bluedroid_deinit() != ESP_OK) return;
     ESP_LOGD(BT_AV_TAG, "esp_bluedroid_deinit called successfully");

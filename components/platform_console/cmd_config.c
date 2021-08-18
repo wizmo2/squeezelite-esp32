@@ -316,6 +316,7 @@ static int do_bt_source_cmd(int argc, char **argv){
 	}
 	if(nerrors >0){
 		arg_print_errors(f,bt_source_args.end,desc_bt_source);
+		fclose(f);
 		return 1;
 	}
 
@@ -426,6 +427,7 @@ static int do_audio_cmd(int argc, char **argv){
 	}
 	if(nerrors >0){
 		arg_print_errors(f,audio_args.end,desc_audio);
+		fclose(f);
 		return 1;
 	}
 
@@ -489,6 +491,7 @@ static int do_spdif_cmd(int argc, char **argv){
 	}
 	if(nerrors >0){
 		arg_print_errors(f,spdif_args.end,desc_dac);
+		fclose(f);
 		return 1;
 	}
 	nerrors+=is_output_gpio(spdif_args.clock, f, &i2s_dac_pin.pin.bck_io_num, true);
@@ -527,6 +530,7 @@ static int do_rotary_cmd(int argc, char **argv){
 	}
 	if(nerrors >0){
 		arg_print_errors(f,rotary_args.end,desc_rotary);
+		fclose(f);
 		return 1;
 	}
 	nerrors+=is_gpio(rotary_args.A, f, &rotary.A, true,false);
@@ -640,6 +644,7 @@ static int do_i2s_cmd(int argc, char **argv)
 	}
 	if(nerrors >0){
 		arg_print_errors(f,i2s_args.end,desc_dac);
+		fclose(f);
 		return 1;
 	}
 	nerrors+=is_output_gpio(i2s_args.clock, f, &i2s_dac_pin.pin.bck_io_num, true);
@@ -878,6 +883,7 @@ cJSON * squeezelite_cb(){
 			argv = (char **) calloc(22, sizeof(char *));
 			if (argv == NULL) {
 				FREE_AND_NULL(nvs_config);
+				fclose(f);
 				return values;
 			}
 			size_t argc = esp_console_split_argv(nvs_config, argv,22);

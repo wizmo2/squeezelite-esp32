@@ -89,7 +89,12 @@ static bool init(char *config, int i2c_port, i2s_config_t *i2s_config) {
 	adac_write_word(AC101_ADDR, I2S_SR_CTRL,  BIN(0111,0000,0000,0000));		// 44.1kHz
 	 
 	// analogue config
+#if BYTES_PER_FRAME == 8
+	adac_write_word(AC101_ADDR, I2S1LCK_CTRL, 	 BIN(1000,1000,0111,0000));	// Slave, BCLK=I2S/8,LRCK=32,24bits,I2Smode, Stereo
+	i2s_config->bits_per_sample = 24;
+#else
 	adac_write_word(AC101_ADDR, I2S1LCK_CTRL, 	 BIN(1000,1000,0101,0000));	// Slave, BCLK=I2S/8,LRCK=32,16bits,I2Smode, Stereo
+#endif
 	adac_write_word(AC101_ADDR, I2S1_SDOUT_CTRL, BIN(1100,0000,0000,0000));	// I2S1ADC (R&L) 	
 	adac_write_word(AC101_ADDR, I2S1_SDIN_CTRL,  BIN(1100,0000,0000,0000));	// IS21DAC (R&L)
 	adac_write_word(AC101_ADDR, I2S1_MXR_SRC, 	 BIN(0010,0010,0000,0000));	// ADCL, ADCR

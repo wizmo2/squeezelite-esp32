@@ -43,6 +43,11 @@ static const struct tas57xx_cmd_s tas57xx_init_sequence[] = {
 	{ 0x25, 0x08 },		// ignore SCK halt 
 	{ 0x08, 0x10 },		// Mute control enable (from TAS5780)
 	{ 0x54, 0x02 },		// Mute output control (from TAS5780)
+#if BYTES_PER_FRAME == 8
+	{ 0x28, 0x03 },		// I2S length 32 bits
+#else	
+	{ 0x28, 0x00 },		// I2S length 16 bits
+#endif
 	{ 0x02, 0x00 },		// restart
 	{ 0xff, 0xff }		// end of table
 };

@@ -49,49 +49,39 @@ menu "Squeezelite-ESP32"
 				select I2C_LOCKED
 				select LED_LOCKED
 				select SPKFAULT_LOCKED
-			config A1S
-				   bool "ESP32-A1S module"				
-				select I2C_LOCKED
-			config DAC32
-					bool "DAC32 module"				
+			config BASIC_I2C_BT
+				bool "Generic I2S & Bluetooth"				
 			config TWATCH2020	
 				bool "T-WATCH2020 by LilyGo"				
 				select I2C_LOCKED				
-			   config BASIC_I2C_BT
-				   bool "Generic I2S & Bluetooth"
 		endchoice	
 		config RELEASE_API
         	string "Software update URL"
-			default "https://api.github.com/repos/sle118/squeezelite-esp32/releases" if !DAC32
-			default "https://yourdomain/api/releases" if DAC32
+			default "https://api.github.com/repos/sle118/squeezelite-esp32/releases"
         	help
         		Set the URL of the API that the front-end UI will use to fetch software updates 
 		config SQUEEZELITE_ESP32_RELEASE_URL
 			string "Release URL"
-			default "https://github.com/sle118/squeezelite-esp32/releases" if !DAC32
-			default "https://yourdomain/releases" if DAC32
+			default "https://github.com/sle118/squeezelite-esp32/releases"
 			help
 				Set the URL where users can see a list of releases
+		# you can't change default values once they are set so changing "Target" will not reset
+		# project name if they are visible config - they have to be silent strings	
 		config PROJECT_NAME
-			string "Project Name"
-			default "Squeezelite-A1S" if A1S
+			string
 			default "SqueezeAMP" if SQUEEZEAMP
-			default "DAC32" if DAC32
 			default "Squeezelite-TWATCH" if TWATCH2020
-			default "Squeezelite-ESP32" if !A1S && !SQUEEZEAMP && !DAC32 && !TWATCH2020
+			default "Squeezelite-ESP32"
 		config FW_PLATFORM_NAME
-			string "Hardware Platform Name"
+			string 
 			default "SqueezeAmp" if SQUEEZEAMP
-			default "DAC32" if DAC32
-			default "ESP32-A1S" if A1S
 			default "TWATCH" if TWATCH2020
-			default "I2S-4MFlash" if !A1S && !SQUEEZEAMP && !DAC32 && !TWATCH2020
+			default "ESP32"
 		# AGGREGATES - begin
 		# these parameters are "aggregates"	that take precedence. They must have a default value	
 		config DAC_CONFIG
 			string 
 			default "model=TAS57xx,bck=33,ws=25,do=32,sda=27,scl=26,mute=14:0" if SQUEEZEAMP
-			default "model=AC101,bck=27,ws=26,do=25,di=35,sda=33,scl=32" if A1S
 			default "model=I2S,bck=26,ws=25,do=33,i2c=53,sda=21,scl=22" if TWATCH2020
 			default ""
 		config SPDIF_CONFIG		
@@ -138,7 +128,7 @@ menu "Squeezelite-ESP32"
 						I2S data output gpio pin to use.
 				config I2S_DI_IO         
 					int "I2S Data Input GPIO number. "
-					default -1 if !A1S
+					default -1
 					help
 						I2S data input gpio pin to use (not used mostly, leave it to -1).					
 			endmenu
@@ -188,16 +178,7 @@ menu "Squeezelite-ESP32"
 				help
 		            I2S data output IO use to simulate SPDIF
 		endmenu
-		
-		menu "SPDIF settings" 
-			visible if A1S
-		    config SPDIF_DO_IO         
-		        int "SPDIF Data I/O GPIO number"
-				default -1
-				help
-		            I2S data output IO use to simulate SPDIF
-		endmenu
-				
+			
 		menu "A2DP settings"
 		    config A2DP_SINK_NAME
 		        string "Name of Bluetooth A2DP device"

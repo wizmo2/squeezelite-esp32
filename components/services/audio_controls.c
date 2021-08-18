@@ -55,6 +55,7 @@ static const actrls_config_map_t actrls_config_map[] =
 		};
 
 // BEWARE: the actions below need to stay aligned with the corresponding enum to properly support json parsing
+//   along with the actrls_t controls in LMS_controls, bt_sink and raop_sink
 #define EP(x) [x] = #x  /* ENUM PRINT */
 static const char * actrls_action_s[ ] = { EP(ACTRLS_POWER),EP(ACTRLS_VOLUP),EP(ACTRLS_VOLDOWN),EP(ACTRLS_TOGGLE),EP(ACTRLS_PLAY),
 									EP(ACTRLS_PAUSE),EP(ACTRLS_STOP),EP(ACTRLS_REW),EP(ACTRLS_FWD),EP(ACTRLS_PREV),EP(ACTRLS_NEXT),

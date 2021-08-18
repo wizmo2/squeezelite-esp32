@@ -324,6 +324,7 @@ static int do_i2c_set_display(int argc, char **argv)
 	}
 	if(nerrors>0){
 		arg_print_errors(f,i2cdisp_args.end,desc_display);
+		fclose(f);
 		return 1;
 	}
 	/* Check "--type" option */
@@ -446,6 +447,7 @@ static int do_spiconfig_cmd(int argc, char **argv){
 	}
 	if(nerrors>0){
 		arg_print_errors(f,spiconfig_args.end,desc_spiconfig);
+		fclose(f);
 		return 1;
 	}	
 	/* Check "--clk" option */
@@ -520,6 +522,7 @@ static int do_i2cconfig_cmd(int argc, char **argv)
 	}
 	if(nerrors>0){
 		arg_print_errors(f,i2cconfig_args.end,desc_i2c);
+		fclose(f);
 		return 1;
 	}
 	/* Check "--port" option */
