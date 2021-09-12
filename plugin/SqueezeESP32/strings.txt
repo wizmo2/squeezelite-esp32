@@ -107,8 +107,8 @@ PLUGIN_SQUEEZEESP32_ARTWORK_Y
 	EN	Y
 
 PLUGIN_SQUEEZEESP32_EQUALIZER
-	DE	Parametrischer Equalizer
-	EN	Parametric equalizer
+	DE	Grafischer Equalizer
+	EN	Graphic equalizer
 
 PLUGIN_SQUEEZEESP32_EQUALIZER_SAVE
 	DE	Bitte speichern Sie die Equalizer Einstellungen, falls das Gerät diese dauerhaft verwenden soll. Ansonsten werden sie beim nächsten Start zurückgesetzt.

@@ -238,10 +238,7 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 	set_i2s_pin(spdif_config, &i2s_spdif_pin);										
 	set_i2s_pin(dac_config, &i2s_dac_pin);										
 
-	/* BEWARE: i2s. must be patched to set tx_msb_right/rx_msb_right to 1
-	 * or SPDIF will not work. These settings are not accessible from
-	 * userland and I don't know why
-	 */
+	/* BEWARE: i2s.c must be patched otherwise L/R are swapped in 32 bits mode */
 	 
 	// common I2S initialization
 	i2s_config.mode = I2S_MODE_MASTER | I2S_MODE_TX;
