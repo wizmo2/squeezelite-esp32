@@ -928,8 +928,8 @@ static esp_err_t i2s_param_config(i2s_port_t i2s_num, const i2s_config_t *i2s_co
 
     if (i2s_config->mode & I2S_MODE_TX) {
 		// PATCH
-        I2S[i2s_num]->conf.tx_msb_right = i2s_config->bits_per_sample == 32 ? 0 : 1;
-        I2S[i2s_num]->conf.tx_right_first = 0;
+		I2S[i2s_num]->conf.tx_msb_right = i2s_config->bits_per_sample == 32 ? 0 : 1;
+        I2S[i2s_num]->conf.tx_right_first = ~I2S[i2s_num]->conf.tx_msb_right;
 
         I2S[i2s_num]->conf.tx_slave_mod = 0; // Master
         I2S[i2s_num]->fifo_conf.tx_fifo_mod_force_en = 1;
@@ -940,8 +940,7 @@ static esp_err_t i2s_param_config(i2s_port_t i2s_num, const i2s_config_t *i2s_co
     }
 
     if (i2s_config->mode & I2S_MODE_RX) {
-		// PATCH
-        I2S[i2s_num]->conf.rx_msb_right = i2s_config->bits_per_sample == 32 ? 0 : 1;	
+		I2S[i2s_num]->conf.rx_msb_right = 1;			
         I2S[i2s_num]->conf.rx_right_first = 0;
         I2S[i2s_num]->conf.rx_slave_mod = 0; // Master
         I2S[i2s_num]->fifo_conf.rx_fifo_mod_force_en = 1;
