@@ -23,7 +23,7 @@ Other features include
  - Full web interface for further configuration/management
  - Firmware over-the-air update 
 
-To control the equalizer or use the display on LMS, a new player model is required and this is provided through a plugin that can be found [here]( https://raw.githubusercontent.com/sle118/squeezelite-esp32/master/plugin/repo.xml)
+To control the equalizer or use the display on LMS, a new player model is required and this is provided through a plugin that is part of LMS' 3rd party repositories
 
 ## Performances 
 *(opinions presented here so I = @philippe44)*
