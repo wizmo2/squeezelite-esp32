@@ -84,7 +84,6 @@ SemaphoreHandle_t wifi_manager_json_mutex = NULL;
 SemaphoreHandle_t wifi_manager_sta_ip_mutex = NULL;
 char *wifi_manager_sta_ip = NULL;
 #define STA_IP_LEN sizeof(char) * IP4ADDR_STRLEN_MAX
-bool bHasConnected=false;
 uint16_t ap_num = MAX_AP_NUM;
 wifi_ap_record_t *accessp_records=NULL;
 cJSON * accessp_cjson=NULL;
@@ -107,6 +106,9 @@ static const char TAG[] = "wifi_manager";
 
 /* @brief task handle for the main wifi_manager task */
 static TaskHandle_t task_wifi_manager = NULL;
+
+#define STA_POLLING_MIN	(15*1000)
+#define STA_POLLING_MAX	(10*60*1000)
 
 /**
  * The actual WiFi settings in use
@@ -266,7 +268,6 @@ void wifi_manager_init_wifi(){
 	/* event handler and event group for the wifi driver */
 	ESP_LOGD(TAG,   "Initializing wifi.  Creating event group");
 	wifi_manager_event_group = xEventGroupCreate();
-	bHasConnected=false;
 	// Now Initialize the Wifi Stack
 	ESP_LOGD(TAG,   "Initializing wifi. Initializing tcp_ip adapter");
     tcpip_adapter_init();
@@ -303,6 +304,9 @@ static void connect_notify(in_addr_t ip, u16_t hport, u16_t cport) {
 	wifi_manager_update_status();
 }
 
+static void polling_STA(void* timer_id) {
+	wifi_manager_send_message(ORDER_CONNECT_STA, (void*)CONNECTION_REQUEST_AUTO_RECONNECT);
+}
 
 void wifi_manager_start(){
 
@@ -1215,6 +1219,11 @@ void wifi_manager( void * pvParameters ){
 	EventBits_t uxBits;
 	uint8_t	retries = 0;
 	esp_err_t err=ESP_OK;
+	TimerHandle_t STA_timer;
+	uint32_t STA_duration = STA_POLLING_MIN;
+	
+	/* create timer for background STA connection */
+	STA_timer = xTimerCreate("background STA", pdMS_TO_TICKS(STA_duration), pdFALSE, NULL, polling_STA);		
 
 	/* start http server */
 	http_server_start();
@@ -1520,23 +1529,38 @@ void wifi_manager( void * pvParameters ){
 
 					if(retries < WIFI_MANAGER_MAX_RETRY){
 						ESP_LOGD(TAG,   "Issuing ORDER_CONNECT_STA to retry connection.");
-						if(!bHasConnected) retries++;
+						retries++;
 						wifi_manager_send_message(ORDER_CONNECT_STA, (void*)CONNECTION_REQUEST_AUTO_RECONNECT);
 					}
 					else{
 						/* In this scenario the connection was lost beyond repair: kick start the AP! */
 						retries = 0;
+						wifi_mode_t mode;
 						ESP_LOGW(TAG,   "All connect retry attempts failed.");
-
+						
+						/* put us in softAP mode first */
+						esp_wifi_get_mode(&mode);
 						/* if it was a restore attempt connection, we clear the bit */
 						xEventGroupClearBits(wifi_manager_event_group, WIFI_MANAGER_REQUEST_RESTORE_STA_BIT);
-
-						ESP_LOGD(TAG,   "Issuing ORDER_START_AP to trigger AP start.");
-						/* start SoftAP */
-						wifi_manager_send_message(ORDER_START_AP, NULL);
+						
+						if(WIFI_MODE_APSTA != mode){
+							/* call directly config_ap because we don't want to scan so the message has no benefit */
+							ESP_LOGD(TAG,   "Starting AP directly.");
+							wifi_manager_config_ap();		
+							STA_duration = STA_POLLING_MIN;							
+							/* manual callback if needed */
+							if(cb_ptr_arr[ORDER_START_AP]) (*cb_ptr_arr[ORDER_START_AP])(NULL);
+						}
+						else if(STA_duration < STA_POLLING_MAX) {
+							STA_duration *= 1.25;
+						}	
+						
+						xTimerChangePeriod(STA_timer, pdMS_TO_TICKS(STA_duration), portMAX_DELAY);
+						xTimerStart(STA_timer, portMAX_DELAY);						
+						ESP_LOGD(TAG,   "STA search slow polling of %d", STA_duration);
 					}
 				}
-
+								
 				/* callback */
 				if(cb_ptr_arr[msg.code]) (*cb_ptr_arr[msg.code])(NULL);
 			}
@@ -1588,7 +1612,9 @@ void wifi_manager( void * pvParameters ){
 				/* bring down DNS hijack */
 				ESP_LOGD(TAG,  "Stopping dns server.");
 				dns_server_stop();
-				bHasConnected=true;
+				
+				/* stop AP mode */
+				esp_wifi_set_mode(WIFI_MODE_STA);
 
 				/* callback */
 				if(cb_ptr_arr[msg.code]) (*cb_ptr_arr[msg.code])(NULL);
