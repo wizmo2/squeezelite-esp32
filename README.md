@@ -479,7 +479,7 @@ If you have already cloned the repository and you are getting compile errors on 
 	- per mad & few others, edit configure and change $ac_link to add -c (faking link)
 	- change ac_files to remove ''
 	- add DEPS_CFLAGS and DEPS_LIBS to avoid pkg-config to be required
-	- stack consumption can be very high with some codec variants, so set NONTHREADSAFE_PSEUDOSTACK and GLOBAL_STACK_SIZE=40000 and unset VAR_ARRAYS in config.h
+	- stack consumption can be very high with some codec variants, so set NONTHREADSAFE_PSEUDOSTACK and GLOBAL_STACK_SIZE=48000 and unset VAR_ARRAYS in config.h
 - libmad has been patched to avoid using a lot of stack and is not provided here. There is an issue with sync detection in 1.15.1b from where the original stack patch was done but since a few fixes have been made wrt sync detection. This 1.15.1b-10 found on debian fixes the issue where mad thinks it has reached sync but has not and so returns a wrong sample rate. It comes at the expense of 8KB (!) of code where a simple check in squeezelite/mad.c that next_frame[0] is 0xff and next_frame[1] & 0xf0 is 0xf0 does the trick ...
 
 # Footnotes
