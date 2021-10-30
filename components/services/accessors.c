@@ -143,6 +143,23 @@ const i2s_platform_config_t * config_get_i2s_from_str(char * dac_config ){
 }
 
 /****************************************************************************************
+ * Get eth config structure from config string
+ */
+const eth_config_t * config_get_eth_from_str(char * eth_config ){
+	static eth_config_t eth_pin = {
+		.mdc = -1,
+		.mdio = -1,
+		.rst = -1,
+	};
+	char * p=NULL;
+
+	if ((p = strcasestr(eth_config, "mdc")) != NULL) eth_pin.mdc = atoi(strchr(p, '=') + 1);
+	if ((p = strcasestr(eth_config, "mdio")) != NULL) eth_pin.mdio = atoi(strchr(p, '=') + 1);
+	if ((p = strcasestr(eth_config, "rst")) != NULL) eth_pin.rst = atoi(strchr(p, '=') + 1);
+	return &eth_pin;
+}
+
+/****************************************************************************************
  * Get spdif config structure 
  */
 const i2s_platform_config_t * config_spdif_get( ){
@@ -162,6 +179,18 @@ const i2s_platform_config_t * config_dac_get(){
 	memcpy(&i2s_dac_config, config_get_i2s_from_str(spdif_config), sizeof(i2s_dac_config));
 	free(spdif_config);
 	return &i2s_dac_config;
+}
+
+/****************************************************************************************
+ * Get ethernet config structure 
+ */
+const eth_config_t * config_eth_get( ){
+	char * config = config_alloc_get_str("eth_config", CONFIG_ETH_CONFIG, "mdc=" STR(CONFIG_MDC_IO) 
+											",mdio=" STR(CONFIG_MDIO_IO) ",do=" STR(CONFIG_PHY_RST_IO));
+	static eth_config_t eth_config;
+	memcpy(&eth_config, config_get_eth_from_str(config), sizeof(eth_config));
+	free(config);
+	return &eth_config;
 }
 
 /****************************************************************************************

@@ -14,6 +14,7 @@ But squeezelite-esp32 is highly extensible and you can add
 - Buttons and Rotary Encoder and map/combine them to various functions (play, pause, volume, next ...)
 - IR receiver (no pullup resistor or capacitor needed, just the 38kHz receiver)
 - Monochrome, GrayScale or Color displays using SPI or I2C (supported drivers are SH1106, SSD1306, SSD1322, SSD1326/7, SSD1351, ST7735, ST7789 and ILI9341).
+- Ethernet using a LAN6270 with RMII interface
 
 Other features include
 
@@ -370,6 +371,25 @@ The benefit of the "raw" mode is that you can build a player which is as close a
 There is no good or bad option, it's your choice. Use the NVS parameter "lms_ctrls_raw" to change that option
 	
 **Note that gpio 36 and 39 are input only and cannot use interrupt. When using them for a button, a 100ms polling is started which is expensive. Long press is also likely to not work very well**
+### Ethernet (coming soon)
+Wired ethernet is supported by esp32 with various options but squeezelite is only supporting a LAN8270 with a RMII interface like [this](https://www.aliexpress.com/item/32858432526.html). The esp32 has a strict set of wires required to use the RMII interface.
+	
+- RMII PHY wiring is fixed and can not be changed
+
+| GPIO   | RMII Signal | Notes        |
+| ------ | ----------- | ------------ |
+| GPIO21 | TX_EN       | EMAC_TX_EN   |
+| GPIO19 | TX0         | EMAC_TXD0    |
+| GPIO22 | TX1         | EMAC_TXD1    |
+| GPIO25 | RX0         | EMAC_RXD0    |
+| GPIO26 | RX1         | EMAC_RXD1    |
+| GPIO27 | CRS_DV      | EMAC_RX_DRV  |
+
+- SMI (Serial Management Interface) wiring is not fixed and you can change it either in the configuration or using "ethernet_config" parameter with the following syntax:
+```
+MDC=<gpio>,MDIO=<gpio>[,RST=gpio>]
+```
+** THIS IS NOT AVAILABLE YET, SO MORE TO COME ON HOW TO USE WIRED ETHERNET***
 ### Battery / ADC
 The NVS parameter "bat_config" sets the ADC1 channel used to measure battery/DC voltage. The "atten" value attenuates the input voltage to the ADC input (the read value maintains a 0-1V rage) where: 0=no attenuation(0..800mV), 1=2.5dB attenuation(0..1.1V), 2=6dB attenuation(0..1.35V), 3=11dB attenuation(0..2.6V). Scale is a float ratio applied to every sample of the 12 bits ADC. A measure is taken every 10s and an average is made every 5 minutes (not a sliding window). Syntax is
 ```

@@ -96,12 +96,36 @@ menu "Squeezelite-ESP32"
 			string
 			default "SPI,driver=ST7789,width=240,height=240,cs=5,back=12,speed=16000000,HFlip,VFlip" if TWATCH2020
 			default ""
+		config ETH_CONFIG
+			string
+			default "" 
 		config DAC_CONTROLSET
 			string
 			default "{ \"init\": [ {\"reg\":41, \"val\":128}, {\"reg\":18, \"val\":255} ], \"poweron\": [ {\"reg\":18, \"val\":64, \"mode\":\"or\"} ], \"poweroff\": [ {\"reg\":18, \"val\":191, \"mode\":\"and\"} ] }" if TWATCH2020
 			default ""		
 		# AGGREGATES - end				
 	endmenu
+
+	menu "Ethernet Options"
+		visible if BASIC_I2C_BT && ETH_USE_ESP32_EMAC	
+		config ETH_MDC_IO
+            int "SMI MDC GPIO number"
+            default 23
+			help
+				Set the GPIO number used by SMI MDC.		
+        config ETH_MDIO_IO
+            int "SMI MDIO GPIO number"
+            default 18
+			help
+				Set the GPIO number used by SMI MDIO.		
+		config ETH_PHY_RST_IO
+			int "PHY Reset GPIO number"
+			default 4
+			help
+				Set the GPIO number used to reset PHY chip.
+				Set to -1 to disable PHY chip hardware reset.
+	endmenu
+	
 	menu "Audio settings"
 		menu "DAC settings" 
 			visible if BASIC_I2C_BT
