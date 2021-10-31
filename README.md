@@ -14,7 +14,7 @@ But squeezelite-esp32 is highly extensible and you can add
 - Buttons and Rotary Encoder and map/combine them to various functions (play, pause, volume, next ...)
 - IR receiver (no pullup resistor or capacitor needed, just the 38kHz receiver)
 - Monochrome, GrayScale or Color displays using SPI or I2C (supported drivers are SH1106, SSD1306, SSD1322, SSD1326/7, SSD1351, ST7735, ST7789 and ILI9341).
-- Ethernet using a LAN8270 with RMII interface
+- Ethernet using a Microchip LAN8720 with RMII interface or Davicom DM9051 over SPI.
 
 Other features include
 
@@ -138,8 +138,9 @@ sda=<gpio>,scl=<gpio>[,port=0|1][,speed=<speed>]
 ### SPI
 The NVS parameter "spi_config" set the spi's gpio used for generic purpose (e.g. display). Leave it blank to disable SPI usage. The DC parameter is needed for displays. Syntax is
 ```
-data=<gpio>,clk=<gpio>[,dc=<gpio>][,host=1|2]
+data|mosi=<gpio>,clk=<gpio>[,dc=<gpio>][,host=1|2][miso=<gpio>]
 ``` 
+The "miso" parameter is only used when SPI bus is to be shared with other peripheral (e.g. ethernet, see below), otherwise it can be omitted. Note that "data" can also be named "mosi". 
 ### DAC/I2S
 The NVS parameter "dac_config" set the gpio used for i2s communication with your DAC. You can define the defaults at compile time but nvs parameter takes precedence except for SqueezeAMP and A1S where these are forced at runtime. Syntax is
 ```
@@ -372,8 +373,9 @@ There is no good or bad option, it's your choice. Use the NVS parameter "lms_ctr
 	
 **Note that gpio 36 and 39 are input only and cannot use interrupt. When using them for a button, a 100ms polling is started which is expensive. Long press is also likely to not work very well**
 ### Ethernet (coming soon)
-Wired ethernet is supported by esp32 with various options but squeezelite is only supporting a LAN8270 with a RMII interface like [this](https://www.aliexpress.com/item/32858432526.html). The esp32 has a strict set of wires required to use the RMII interface.
+Wired ethernet is supported by esp32 with various options but squeezelite is only supporting a LAN8270 with a RMII interface like [this](https://www.aliexpress.com/item/32858432526.html) or DM9051 over SPI like [that](https://www.amazon.com/dp/B08JLFWX9Z).
 	
+#### RMII (LAN8720)	
 - RMII PHY wiring is fixed and can not be changed
 
 | GPIO   | RMII Signal | Notes        |
@@ -385,14 +387,29 @@ Wired ethernet is supported by esp32 with various options but squeezelite is onl
 | GPIO26 | RX1         | EMAC_RXD1    |
 | GPIO27 | CRS_DV      | EMAC_RX_DRV  |
 
-- SMI (Serial Management Interface) wiring is not fixed and you can change it either in the configuration or using "ethernet_config" parameter with the following syntax:
+- SMI (Serial Management Interface) wiring is not fixed and you can change it either in the configuration or using "eth_config" parameter with the following syntax:
 ```
-mdc=<gpio>,mdio=<gpio>[,rst=gpio>]
+model=lan8720,mdc=<gpio>,mdio=<gpio>[,rst=<gpio>]
 ```
 Default value are mdc=23,mdio=18,rst=4. Note that connecting a reset pin for the LAN8270 is optional but recommended to avoid GPIO0 to be stuck in download mode at boot time.
 - Clock
 	
 The APLL of the esp32 is required for the audio codec, so we **need** a LAN8270 that provides a 50MHz clock. That clock **must** be connected to GPIO0, there is no alternative. This means that if your DAC requires an MCLK, then you are out of luck. It is not possible to have both to work together. There might be some workaround using CLK_OUT2 and GPIO3, but I don't have time for this.
+#### SPI (DM9051)
+Ethernet over SPI is supported as well and requires less GPIOs but is obvsiously slower. Another benefit is that SPI bus can be shared with the display, but it's also possible to have a dedicated SPI interface (the esp32 has 3 different SPI but SPI0 is reserved for external Flash/RAM). The "eth_config" parameter syntax becomes:
+```
+model=dm9051,host=<-1|1|2>[,rst=<gpio>],cs=<gpio>,speed=<clk_in_Hz>,intr=<gpio>[mosi=<gpio>,miso=<gpio>,clk=<gpio>]
+```
+- To use the system SPI, shared with display (see spi_config) "host" must be set to -1. Any other value will reserve the SPI interface (careful of conflict with spi_config)
+- When not using system SPI, bi-directional transfer requires "mosi" for data out, "miso" for data in and "clk"
+- The esp32 has a special I/O multiplexer for faster speed (up to 80 MHz) but that requires using specific GPIOs, depending on SPI bus (See [here](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/spi_master.html))
+
+| Pin Name | SPI2 | SPI3 |
+| -------- | ---- | ---- |		
+| CS0*     |  15  |  5   |
+| SCLK	   |  14  |  18  |
+| MISO	   |  12  |  19  |
+| MOSI	   |  13  |  23  |
 	
 ** THIS IS NOT AVAILABLE YET, SO MORE TO COME ON HOW TO USE WIRED ETHERNET***
 ### Battery / ADC
