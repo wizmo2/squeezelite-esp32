@@ -25,10 +25,10 @@
 #define CONFIG_AIRPLAY_NAME		"ESP32-AirPlay"
 #endif
 
-typedef struct {
+static EXT_RAM_ATTR struct raop_cb_s {
 	raop_cmd_vcb_t cmd;
 	raop_data_cb_t data;
-} raop_cb_t;
+} raop_cbs;
 
 log_level	raop_loglevel = lINFO;
 log_level	util_loglevel;
@@ -204,10 +204,8 @@ static bool raop_sink_start(raop_cmd_vcb_t cmd_cb, raop_data_cb_t data_cb) {
  * Airplay sink timer handler
  */
 static void raop_start_handler( TimerHandle_t xTimer ) {
-	raop_cb_t *cbs = (raop_cb_t*) pvTimerGetTimerID (xTimer);
-	if (raop_sink_start(cbs->cmd, cbs->data)) {
+	if (raop_sink_start(raop_cbs.cmd, raop_cbs.data)) {
 		xTimerDelete(xTimer, portMAX_DELAY);
-		free(cbs);
 	}	
 }	
 
@@ -216,10 +214,9 @@ static void raop_start_handler( TimerHandle_t xTimer ) {
  */
 void raop_sink_init(raop_cmd_vcb_t cmd_cb, raop_data_cb_t data_cb) {
 	if (!raop_sink_start(cmd_cb, data_cb)) {
-		raop_cb_t *cbs = (raop_cb_t*) malloc(sizeof(raop_cb_t));
-		cbs->cmd = cmd_cb;
-		cbs->data = data_cb;
-		TimerHandle_t timer = xTimerCreate("raopStart", 1000 / portTICK_RATE_MS, pdTRUE, cbs, raop_start_handler);
+		raop_cbs.cmd = cmd_cb;
+		raop_cbs.data = data_cb;
+		TimerHandle_t timer = xTimerCreate("raopStart", 5000 / portTICK_RATE_MS, pdTRUE, NULL, raop_start_handler);
 		xTimerStart(timer, portMAX_DELAY);
 		LOG_INFO( "delaying AirPlay start");		
 	}	

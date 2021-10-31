@@ -31,9 +31,13 @@ typedef struct {
 } display_config_t;
 
 typedef struct {
-	int mdc;
-	int mdio;
+	bool rmii;
+	char model[16];
 	int rst;
+	int mdc, mdio;
+	int host;
+	int cs, mosi, miso, intr, clk;
+	int speed;
 } eth_config_t;
 
 typedef struct {
