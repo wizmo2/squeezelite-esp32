@@ -514,7 +514,8 @@ void app_main()
 	else {
 		ESP_LOGI(TAG,"Starting Wifi Manager");
 		wifi_manager_start();
-		wifi_manager_set_callback(EVENT_STA_GOT_IP, &cb_connection_got_ip);
+		//wifi_manager_set_callback(EVENT_STA_GOT_IP, &cb_connection_got_ip);
+		wifi_manager_set_callback(EVENT_ETH_GOT_IP, &cb_connection_got_ip);
 		wifi_manager_set_callback(EVENT_STA_DISCONNECTED, &cb_connection_sta_disconnected);
 		/* Start the telnet service after we are certain that the network stack has been properly initialized.
 		 * This can be either after we're started the AP mode, or after we've started the STA mode  */

@@ -192,7 +192,8 @@ typedef enum message_code_t {
 	ORDER_RESTART_OTA_URL = 17,
 	ORDER_RESTART = 18,
 	ORDER_UPDATE_STATUS = 19,
-	MESSAGE_CODE_COUNT = 20 /* important for the callback array */
+	EVENT_ETH_GOT_IP = 20,
+	MESSAGE_CODE_COUNT = 21 /* important for the callback array */
 
 }message_code_t;
 
