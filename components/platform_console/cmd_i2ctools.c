@@ -76,6 +76,7 @@ static struct {
 
 static struct {
     struct arg_int *data;
+	struct arg_int *miso;
     struct arg_int *clk;
     struct arg_int *dc;
     struct arg_int *host;
@@ -453,6 +454,7 @@ static int do_spiconfig_cmd(int argc, char **argv){
 	/* Check "--clk" option */
 	nerrors+=is_output_gpio(spiconfig_args.clk, f, &spi_config.sclk_io_num, true);
 	nerrors+=is_output_gpio(spiconfig_args.data, f, &spi_config.mosi_io_num, true);
+	nerrors+=is_output_gpio(spiconfig_args.miso, f, &spi_config.miso_io_num, true);
 	nerrors+=is_output_gpio(spiconfig_args.dc, f, &dc, true);
 	nerrors+=is_output_gpio(spiconfig_args.host, f, &host, true);
 
@@ -1030,7 +1032,8 @@ static void register_spiconfig(void)
 {
 	spiconfig_args.clear = arg_lit0(NULL, "clear", "Clear configuration");
 	spiconfig_args.clk = arg_int0("k", "clk", "<n>", "Clock GPIO");
-	spiconfig_args.data = arg_int0("d","data", "<n>","Data GPIO");
+	spiconfig_args.data = arg_int0("d","data", "<n>","Data OUT GPIO");
+	spiconfig_args.miso = arg_int0("d","miso", "<n>","Data IN GPIO");
 	spiconfig_args.dc = arg_int0("c","dc", "<n>", "DC GPIO");
 	spiconfig_args.host= arg_int0("h", "host", "1|2", "SPI Host Number");
 	spiconfig_args.end = arg_end(4);
