@@ -387,8 +387,13 @@ Wired ethernet is supported by esp32 with various options but squeezelite is onl
 
 - SMI (Serial Management Interface) wiring is not fixed and you can change it either in the configuration or using "ethernet_config" parameter with the following syntax:
 ```
-MDC=<gpio>,MDIO=<gpio>[,RST=gpio>]
+mdc=<gpio>,mdio=<gpio>[,rst=gpio>]
 ```
+Default value are mdc=23,mdio=18,rst=4. Note that connecting a reset pin for the LAN8270 is optional but recommended to avoid GPIO0 to be stuck in download mode at boot time.
+- Clock
+	
+The APLL of the esp32 is required for the audio codec, so we **need** a LAN8270 that provides a 50MHz clock. That clock **must** be connected to GPIO0, there is no alternative. This means that if your DAC requires an MCLK, then you are out of luck. It is not possible to have both to work together. There might be some workaround using CLK_OUT2 and GPIO3, but I don't have time for this.
+	
 ** THIS IS NOT AVAILABLE YET, SO MORE TO COME ON HOW TO USE WIRED ETHERNET***
 ### Battery / ADC
 The NVS parameter "bat_config" sets the ADC1 channel used to measure battery/DC voltage. The "atten" value attenuates the input voltage to the ADC input (the read value maintains a 0-1V rage) where: 0=no attenuation(0..800mV), 1=2.5dB attenuation(0..1.1V), 2=6dB attenuation(0..1.35V), 3=11dB attenuation(0..2.6V). Scale is a float ratio applied to every sample of the 12 bits ADC. A measure is taken every 10s and an average is made every 5 minutes (not a sliding window). Syntax is
