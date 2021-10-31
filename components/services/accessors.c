@@ -391,7 +391,7 @@ esp_err_t config_spi_set(const spi_bus_config_t * config, int host, int dc){
 	esp_err_t err = ESP_OK;
 	char * config_buffer=calloc(buffer_size,1);
 	if(config_buffer)  {
-		snprintf(config_buffer,buffer_size,"data=%u,clk=%u,dc=%u,host=%u",config->mosi_io_num,config->sclk_io_num,dc,host);
+		snprintf(config_buffer,buffer_size,"data=%u,clk=%u,dc=%u,host=%u,miso=%d",config->mosi_io_num,config->sclk_io_num,dc,host,config->miso_io_num);
 		log_send_messaging(MESSAGING_INFO,"Updating SPI configuration to %s",config_buffer);
 		err = config_set_value(NVS_TYPE_STR, "spi_config", config_buffer);
 		if(err!=ESP_OK){
@@ -561,7 +561,7 @@ const set_GPIO_struct_t * get_gpio_struct(){
  */
 const spi_bus_config_t * config_spi_get(spi_host_device_t * spi_host) {
 	char *nvs_item, *p;
-	static spi_bus_config_t spi = {
+	static EXT_RAM_ATTR spi_bus_config_t spi = {
 		.mosi_io_num = -1,
         .sclk_io_num = -1,
         .miso_io_num = -1,
@@ -572,6 +572,8 @@ const spi_bus_config_t * config_spi_get(spi_host_device_t * spi_host) {
 	nvs_item = config_alloc_get_str("spi_config", CONFIG_SPI_CONFIG, NULL);
 	if (nvs_item) {
 		if ((p = strcasestr(nvs_item, "data")) != NULL) spi.mosi_io_num = atoi(strchr(p, '=') + 1);
+		if ((p = strcasestr(nvs_item, "mosi")) != NULL) spi.mosi_io_num = atoi(strchr(p, '=') + 1);
+		if ((p = strcasestr(nvs_item, "miso")) != NULL) spi.miso_io_num = atoi(strchr(p, '=') + 1);
 		if ((p = strcasestr(nvs_item, "clk")) != NULL) spi.sclk_io_num = atoi(strchr(p, '=') + 1);
 		if ((p = strcasestr(nvs_item, "dc")) != NULL) spi_system_dc_gpio = atoi(strchr(p, '=') + 1);
 		if ((p = strcasestr(nvs_item, "host")) != NULL) spi_system_host = atoi(strchr(p, '=') + 1);
