@@ -98,7 +98,7 @@ menu "Squeezelite-ESP32"
 			default ""
 		config ETH_CONFIG
 			string
-			default "" 
+			default ""
 		config DAC_CONTROLSET
 			string
 			default "{ \"init\": [ {\"reg\":41, \"val\":128}, {\"reg\":18, \"val\":255} ], \"poweron\": [ {\"reg\":18, \"val\":64, \"mode\":\"or\"} ], \"poweroff\": [ {\"reg\":18, \"val\":191, \"mode\":\"and\"} ] }" if TWATCH2020
@@ -107,23 +107,57 @@ menu "Squeezelite-ESP32"
 	endmenu
 
 	menu "Ethernet Options"
-		visible if BASIC_I2C_BT && ETH_USE_ESP32_EMAC	
-		config ETH_MDC_IO
-            int "SMI MDC GPIO number"
-            default 23
-			help
-				Set the GPIO number used by SMI MDC.		
-        config ETH_MDIO_IO
-            int "SMI MDIO GPIO number"
-            default 18
-			help
-				Set the GPIO number used by SMI MDIO.		
+		visible if BASIC_I2C_BT && (ETH_USE_ESP32_EMAC || ETH_USE_SPI_ETHERNET)
+		choice 
+			prompt "Ethernet Chipset"
+			default ETH_NODRIVER
+			config ETH_NODRIVER
+				bool "Defined in NVS"			   
+			config ETH_LAN8720
+				bool "Microchip LAN8720 (RMII)"
+			config ETH_DM9051
+				bool "Davicom 9051 (SPI)"				
+		endchoice	
 		config ETH_PHY_RST_IO
-			int "PHY Reset GPIO number"
-			default 4
+			int "PHY Reset GPIO number" if !ETH_NODRIVER
+			default -1
 			help
 				Set the GPIO number used to reset PHY chip.
-				Set to -1 to disable PHY chip hardware reset.
+				Set to -1 to disable PHY chip hardware reset.		
+		config ETH_MDC_IO
+			int "SMI MDC GPIO number" if ETH_LAN8720
+			default -1
+			help
+				Set the GPIO number used by SMI MDC.		
+		config ETH_MDIO_IO
+			int "SMI MDIO GPIO number" if ETH_LAN8720
+			default -1
+			help
+				Set the GPIO number used by SMI MDIO.		
+		config ETH_SPI_HOST
+			int "SPI host number (-1,1 or 2)" if ETH_DM9051
+			default -1
+			help
+				Set to -1 to use system's SPI config (see Various I/O)
+				Set to 2 or 3 to use a dedicated bus 
+		config ETH_SPI_INTR_IO
+			int "interrupt" if ETH_DM9051
+			default -1													
+		config ETH_SPI_CS_IO
+			int "Chip Select" if ETH_DM9051
+			default -1								
+		config ETH_SPI_CLK_IO
+			int "SPI clock" if ETH_SPI_HOST != -1 && ETH_DM9051
+			default -1
+		config ETH_SPI_MOSI_IO
+			int "Data Out" if ETH_SPI_HOST != -1 && ETH_DM9051
+			default -1				
+		config ETH_SPI_MISO_IO
+			int "Data In"  if ETH_SPI_HOST != -1 && ETH_DM9051
+			default -1
+		config ETH_SPI_SPEED
+			int "SPI speed (Hz)" if ETH_SPI_HOST != -1 && ETH_DM9051
+			default 20000000
 	endmenu
 	
 	menu "Audio settings"

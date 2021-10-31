@@ -295,6 +295,94 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
     }
 }
 
+static void eth_init(void) {
+	esp_eth_mac_t *mac;
+	esp_eth_phy_t *phy;
+	esp_err_t err = ESP_OK;
+	eth_config_t const *eth = config_eth_get( );
+		
+	// quick check if we have a valid ethernet configuration
+	if ((eth->mdc == -1 && eth->mosi == -1) || !*eth->model) {
+		ESP_LOGI(TAG, "No ethernet");
+		return;
+	}	
+	
+    tcpip_adapter_set_default_eth_handlers();
+    esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL);
+
+    eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
+    eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
+    phy_config.phy_addr = 1;
+    phy_config.reset_gpio_num = eth->rst;
+
+	if (eth->rmii) {
+#ifdef CONFIG_ETH_USE_ESP32_EMAC		
+		mac_config.smi_mdc_gpio_num = eth->mdc;
+		mac_config.smi_mdio_gpio_num = eth->mdio;
+		mac = esp_eth_mac_new_esp32(&mac_config);
+		phy = esp_eth_phy_new_lan8720(&phy_config);
+		ESP_LOGI(TAG, "Adding ethernet RMII with mdc %d and mdio %d", eth->mdc, eth->mdio);
+#else
+		ESP_LOGE(TAG, "Ethernet RMII set but not included in compilation");
+		return;
+#endif
+	} else {
+#ifdef CONFIG_ETH_SPI_ETHERNET_DM9051		
+		spi_device_handle_t spi_handle = NULL;
+		spi_host_device_t host = SPI3_HOST;
+		
+		if (eth->host != -1) {
+			// don't use system's shared SPI
+			spi_bus_config_t buscfg = {
+				.miso_io_num = eth->miso,
+				.mosi_io_num = eth->mosi,
+				.sclk_io_num = eth->clk,
+				.quadwp_io_num = -1,
+				.quadhd_io_num = -1,
+			};
+			
+			// can't use SPI0
+			if (eth->host == 1) host = SPI2_HOST;
+			err |= spi_bus_initialize(host, &buscfg, 1);
+		} else {
+			// when we use shared SPI, we assume it has been initialized
+			host = spi_system_host;
+		}	
+		
+		spi_device_interface_config_t devcfg = {
+			.command_bits = 1,
+			.address_bits = 7,
+			.mode = 0,
+			.clock_speed_hz = eth->speed,
+			.spics_io_num = eth->cs,
+			.queue_size = 20
+		};
+		
+		err |= spi_bus_add_device(host, &devcfg, &spi_handle);
+		
+		// dm9051 ethernet driver is based on spi driver
+		eth_dm9051_config_t dm9051_config = ETH_DM9051_DEFAULT_CONFIG(spi_handle);
+		// we assume that isr has been installed already
+		dm9051_config.int_gpio_num = eth->intr;
+		mac = esp_eth_mac_new_dm9051(&dm9051_config, &mac_config);
+		phy = esp_eth_phy_new_dm9051(&phy_config);
+		ESP_LOGI(TAG, "Adding ethernet SPI on host %d with mosi %d and miso %d", host, eth->mosi, eth->miso);
+#else
+		ESP_LOGE(TAG, "Ethernet SPI set but not included in compilation");
+		return;
+#endif
+	}	
+
+    esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
+    esp_eth_handle_t eth_handle = NULL;
+    err |= esp_eth_driver_install(&config, &eth_handle);
+    err |= esp_eth_start(eth_handle);	
+	
+	if (err != ESP_OK) {
+		ESP_LOGE(TAG, "Can't install Ethernet driver %d", err);
+	}
+}
+
 void wifi_manager_init_wifi(){
 	/* event handler and event group for the wifi driver */
 	ESP_LOGD(TAG,   "Initializing wifi.  Creating event group");
@@ -317,31 +405,7 @@ void wifi_manager_init_wifi(){
     ESP_LOGD(TAG,   "Initializing wifi. Starting wifi");
     ESP_ERROR_CHECK( esp_wifi_start() );
 	
-	//ETH
-	
-	eth_config_t const *eth =	config_eth_get( );
-	ESP_LOGE(TAG, "ETH MDC %d", eth->mdc);
-	ESP_LOGE(TAG, "ETH MDIO %d", eth->mdio);
-	ESP_LOGE(TAG, "ETH RST %d", eth->rst);
-	
-    ESP_ERROR_CHECK(tcpip_adapter_set_default_eth_handlers());
-    ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL));
-
-    eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
-    eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
-    phy_config.phy_addr = 1;
-    phy_config.reset_gpio_num = eth->rst;
-
-    mac_config.smi_mdc_gpio_num = eth->mdc;
-    mac_config.smi_mdio_gpio_num = eth->mdio;
-    esp_eth_mac_t *mac = esp_eth_mac_new_esp32(&mac_config);
-    esp_eth_phy_t *phy = esp_eth_phy_new_lan8720(&phy_config);
-
-    esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
-    esp_eth_handle_t eth_handle = NULL;
-    ESP_ERROR_CHECK(esp_eth_driver_install(&config, &eth_handle));
-    ESP_ERROR_CHECK(esp_eth_start(eth_handle));	
-	//END_ETH
+	eth_init();
 
     taskYIELD();
     ESP_LOGD(TAG,   "Initializing wifi. done");
