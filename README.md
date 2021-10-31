@@ -14,7 +14,7 @@ But squeezelite-esp32 is highly extensible and you can add
 - Buttons and Rotary Encoder and map/combine them to various functions (play, pause, volume, next ...)
 - IR receiver (no pullup resistor or capacitor needed, just the 38kHz receiver)
 - Monochrome, GrayScale or Color displays using SPI or I2C (supported drivers are SH1106, SSD1306, SSD1322, SSD1326/7, SSD1351, ST7735, ST7789 and ILI9341).
-- Ethernet using a LAN6270 with RMII interface
+- Ethernet using a LAN8270 with RMII interface
 
 Other features include
 
