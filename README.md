@@ -391,10 +391,10 @@ Wired ethernet is supported by esp32 with various options but squeezelite is onl
 ```
 model=lan8720,mdc=<gpio>,mdio=<gpio>[,rst=<gpio>]
 ```
-Default value are mdc=23,mdio=18,rst=4. Note that connecting a reset pin for the LAN8270 is optional but recommended to avoid GPIO0 to be stuck in download mode at boot time.
+Connecting a reset pin for the LAN8720 is optional but recommended to avoid that GPIO0 (50MHz input clock) locks the esp32 in download mode at boot time.
 - Clock
 	
-The APLL of the esp32 is required for the audio codec, so we **need** a LAN8270 that provides a 50MHz clock. That clock **must** be connected to GPIO0, there is no alternative. This means that if your DAC requires an MCLK, then you are out of luck. It is not possible to have both to work together. There might be some workaround using CLK_OUT2 and GPIO3, but I don't have time for this.
+The APLL of the esp32 is required for the audio codec, so we **need** a LAN8720 that provides a 50MHz clock. That clock **must** be connected to GPIO0, there is no alternative. This means that if your DAC requires an MCLK, then you are out of luck. It is not possible to have both to work together. There might be some workaround using CLK_OUT2 and GPIO3, but I don't have time for this.
 #### SPI (DM9051)
 Ethernet over SPI is supported as well and requires less GPIOs but is obvsiously slower. Another benefit is that SPI bus can be shared with the display, but it's also possible to have a dedicated SPI interface (the esp32 has 3 different SPI but SPI0 is reserved for external Flash/RAM). The "eth_config" parameter syntax becomes:
 ```
