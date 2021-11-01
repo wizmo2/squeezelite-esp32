@@ -398,7 +398,7 @@ The APLL of the esp32 is required for the audio codec, so we **need** a LAN8270 
 #### SPI (DM9051)
 Ethernet over SPI is supported as well and requires less GPIOs but is obvsiously slower. Another benefit is that SPI bus can be shared with the display, but it's also possible to have a dedicated SPI interface (the esp32 has 3 different SPI but SPI0 is reserved for external Flash/RAM). The "eth_config" parameter syntax becomes:
 ```
-model=dm9051,host=<-1|1|2>[,rst=<gpio>],cs=<gpio>,speed=<clk_in_Hz>,intr=<gpio>[mosi=<gpio>,miso=<gpio>,clk=<gpio>]
+model=dm9051,host=<-1|1|2>,cs=<gpio>,speed=<clk_in_Hz>,intr=<gpio>[,rst=<gpio>][,mosi=<gpio>,miso=<gpio>,clk=<gpio>]
 ```
 - To use the system SPI, shared with display (see spi_config) "host" must be set to -1. Any other value will reserve the SPI interface (careful of conflict with spi_config)
 - When not using system SPI, bi-directional transfer requires "mosi" for data out, "miso" for data in and "clk"
