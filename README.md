@@ -138,7 +138,7 @@ sda=<gpio>,scl=<gpio>[,port=0|1][,speed=<speed>]
 ### SPI
 The NVS parameter "spi_config" set the spi's gpio used for generic purpose (e.g. display). Leave it blank to disable SPI usage. The DC parameter is needed for displays. Syntax is
 ```
-data|mosi=<gpio>,clk=<gpio>[,dc=<gpio>][,host=1|2][miso=<gpio>]
+data|mosi=<gpio>,clk=<gpio>[,dc=<gpio>][,host=1|2][,miso=<gpio>]
 ``` 
 The "miso" parameter is only used when SPI bus is to be shared with other peripheral (e.g. ethernet, see below), otherwise it can be omitted. Note that "data" can also be named "mosi". 
 ### DAC/I2S
@@ -415,7 +415,7 @@ model=dm9051,host=<-1|1|2>,cs=<gpio>,speed=<clk_in_Hz>,intr=<gpio>[,rst=<gpio>][
 ### Battery / ADC
 The NVS parameter "bat_config" sets the ADC1 channel used to measure battery/DC voltage. The "atten" value attenuates the input voltage to the ADC input (the read value maintains a 0-1V rage) where: 0=no attenuation(0..800mV), 1=2.5dB attenuation(0..1.1V), 2=6dB attenuation(0..1.35V), 3=11dB attenuation(0..2.6V). Scale is a float ratio applied to every sample of the 12 bits ADC. A measure is taken every 10s and an average is made every 5 minutes (not a sliding window). Syntax is
 ```
-channel=0..7,scale=<scale>,cells=<2|3>,[atten=<0|1|2|3>]
+channel=0..7,scale=<scale>,cells=<2|3>[,atten=<0|1|2|3>]
 ```
 NB: Set parameter to empty to disable battery reading. For well-known configuration, this is ignored (except for SqueezeAMP where number of cells is required)
 # Configuration
