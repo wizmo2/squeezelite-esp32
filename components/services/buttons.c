@@ -47,14 +47,14 @@ static EXT_RAM_ATTR struct button_s {
 	TimerHandle_t timer;
 } buttons[MAX_BUTTONS];
 
-static struct {
+static EXT_RAM_ATTR struct {
 	int gpio, level;
 	struct button_s *button;
 } polled_gpio[] = { {36, -1, NULL}, {39, -1, NULL}, {-1, -1, NULL} };
 
 static TimerHandle_t polled_timer;
 
-static struct {
+static EXT_RAM_ATTR struct {
 	QueueHandle_t queue;
 	void *client;
 	rotary_encoder_info_t info;
@@ -62,7 +62,7 @@ static struct {
 	rotary_handler handler;
 } rotary;
 
-static struct {
+static EXT_RAM_ATTR struct {
 	RingbufHandle_t rb;
 	infrared_handler handler;
 } infrared;

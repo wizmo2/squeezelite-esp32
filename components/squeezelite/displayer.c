@@ -244,8 +244,7 @@ static void visu_handler(u8_t *data, int len);
 static void dmxt_handler(u8_t *data, int len);
 static void displayer_task(void* arg);
 
-// PLACEHOLDER
-void *led_display = 0x1000;
+void *led_display;
 
 /* scrolling undocumented information
 	grfs	
@@ -537,7 +536,8 @@ static void show_display_buffer(char *ddram) {
 	char *line2;
 
 	memset(line1, 0, LINELEN+1);
-	strncpy(line1, ddram, LINELEN);
+	strncpy(line1, ddram, LINELEN+1);
+	line1[LINELEN] = '\0';
 	line2 = &(ddram[LINELEN]);
 	line2[LINELEN] = '\0';
 
