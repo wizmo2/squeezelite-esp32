@@ -611,6 +611,7 @@ static int do_i2s_cmd(int argc, char **argv)
 	}
 	if(i2s_args.model_name->count>0 && strlen(i2s_args.model_name->sval[0])>0){
 		strncpy(i2s_dac_pin.model,i2s_args.model_name->sval[0],sizeof(i2s_dac_pin.model));
+		i2s_dac_pin.model[sizeof(i2s_dac_pin.model) - 1] = '\0';
 	}
 	if(!nerrors ){
 		fprintf(f,"Storing i2s parameters.\n");

@@ -413,6 +413,7 @@ void wifi_manager_init_wifi(){
 
 void set_lms_server_details(in_addr_t ip, u16_t hport, u16_t cport){
 	strncpy(lms_server_ip,inet_ntoa(ip),sizeof(lms_server_ip));
+	lms_server_ip[sizeof(lms_server_ip)-1]='\0';
 	ESP_LOGI(TAG,"LMS IP: %s, hport: %d, cport: %d",lms_server_ip, hport, cport);
 	lms_server_port = hport;
 	lms_server_cport = cport;

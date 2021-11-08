@@ -14,7 +14,7 @@ But squeezelite-esp32 is highly extensible and you can add
 - Buttons and Rotary Encoder and map/combine them to various functions (play, pause, volume, next ...)
 - IR receiver (no pullup resistor or capacitor needed, just the 38kHz receiver)
 - Monochrome, GrayScale or Color displays using SPI or I2C (supported drivers are SH1106, SSD1306, SSD1322, SSD1326/7, SSD1351, ST7735, ST7789 and ILI9341).
-- Ethernet using a LAN6270 with RMII interface
+- Ethernet using a Microchip LAN8720 with RMII interface or Davicom DM9051 over SPI.
 
 Other features include
 
@@ -136,18 +136,19 @@ sda=<gpio>,scl=<gpio>[,port=0|1][,speed=<speed>]
 ```
 <strong>Please note that you can not use the same GPIO or port as the DAC</strong>
 ### SPI
-The NVS parameter "spi_config" set the spi's gpio used for generic purpose (e.g. display). Leave it blank to disable SPI usage. The DC parameter is needed for displays. Syntax is
+The esp32 has 4 SPI sub-systems, one is unaccessible so numbering is 0..2 and SPI0 is reserved for Flash/PSRAM. The NVS parameter "spi_config" set the spi's gpio used for generic purpose (e.g. display). Leave it blank to disable SPI usage. The DC parameter is needed for displays. Syntax is
 ```
-data=<gpio>,clk=<gpio>[,dc=<gpio>][,host=1|2]
+data|mosi=<gpio>,clk=<gpio>[,dc=<gpio>][,host=1|2][,miso=<gpio>]
 ``` 
+Default "host" is 1. The "miso" parameter is only used when SPI bus is to be shared with other peripheral (e.g. ethernet, see below), otherwise it can be omitted. Note that "data" can also be named "mosi". 
 ### DAC/I2S
 The NVS parameter "dac_config" set the gpio used for i2s communication with your DAC. You can define the defaults at compile time but nvs parameter takes precedence except for SqueezeAMP and A1S where these are forced at runtime. Syntax is
 ```
 bck=<gpio>,ws=<gpio>,do=<gpio>[,mck][,mute=<gpio>[:0|1][,model=TAS57xx|TAS5713|AC101|I2S][,sda=<gpio>,scl=gpio[,i2c=<addr>]]
 ```
-if "model" is not set or is not recognized, then default "I2S" is used. The option "mck" is used for some codecs that require a master clock (although they should not). Only GPIO0 can be used as MCLK. I2C parameters are optional an only needed if your dac requires an I2C control (See 'dac_controlset' below). Note that "i2c" parameters are decimal, hex notation is not allowed.
+if "model" is not set or is not recognized, then default "I2S" is used. The option "mck" is used for some codecs that require a master clock (although they should not). Only GPIO0 can be used as MCLK and be aware that this cannot coexit with RMII Ethernet (see ethernet section below). I2C parameters are optional and only needed if your DAC requires an I2C control (See 'dac_controlset' below). Note that "i2c" parameters are decimal, hex notation is not allowed.
 
-So far, TAS75xx, TAS5714, AC101 and ES8388 are recognized models where the proper init sequence/volume/power controls are sent. For other codecs that might require an I2C commands, please use the parameter "dac_controlset" that allows definition of simple commands to be sent over i2c for init, power on and off using a JSON syntax:
+So far, TAS57xx, TAS5713, AC101, WM8978 and ES8388 are recognized models where the proper init sequence/volume/power controls are sent. For other codecs that might require an I2C commands, please use the parameter "dac_controlset" that allows definition of simple commands to be sent over i2c for init, power on and off using a JSON syntax:
 ```
 { init: [ {"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"}, ... {{"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"} ],
   poweron: [ {"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"}, ... {{"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"} ],
@@ -372,8 +373,9 @@ There is no good or bad option, it's your choice. Use the NVS parameter "lms_ctr
 	
 **Note that gpio 36 and 39 are input only and cannot use interrupt. When using them for a button, a 100ms polling is started which is expensive. Long press is also likely to not work very well**
 ### Ethernet (coming soon)
-Wired ethernet is supported by esp32 with various options but squeezelite is only supporting a LAN8270 with a RMII interface like [this](https://www.aliexpress.com/item/32858432526.html). The esp32 has a strict set of wires required to use the RMII interface.
+Wired ethernet is supported by esp32 with various options but squeezelite is only supporting a Microchip LAN8720 with a RMII interface like [this](https://www.aliexpress.com/item/32858432526.html) or Davicom DM9051 over SPI like [that](https://www.amazon.com/dp/B08JLFWX9Z).
 	
+#### RMII (LAN8720)	
 - RMII PHY wiring is fixed and can not be changed
 
 | GPIO   | RMII Signal | Notes        |
@@ -385,15 +387,35 @@ Wired ethernet is supported by esp32 with various options but squeezelite is onl
 | GPIO26 | RX1         | EMAC_RXD1    |
 | GPIO27 | CRS_DV      | EMAC_RX_DRV  |
 
-- SMI (Serial Management Interface) wiring is not fixed and you can change it either in the configuration or using "ethernet_config" parameter with the following syntax:
+- SMI (Serial Management Interface) wiring is not fixed and you can change it either in the configuration or using "eth_config" parameter with the following syntax:
 ```
-MDC=<gpio>,MDIO=<gpio>[,RST=gpio>]
+model=lan8720,mdc=<gpio>,mdio=<gpio>[,rst=<gpio>]
 ```
+Connecting a reset pin for the LAN8720 is optional but recommended to avoid that GPIO0 (50MHz input clock) locks the esp32 in download mode at boot time.
+- Clock
+	
+The APLL of the esp32 is required for the audio codec, so we **need** a LAN8720 that provides a 50MHz clock. That clock **must** be connected to GPIO0, there is no alternative. This means that if your DAC requires an MCLK, then you are out of luck. It is not possible to have both to work together. There might be some workaround using CLK_OUT2 and GPIO3, but I don't have time for this.
+#### SPI (DM9051)
+Ethernet over SPI is supported as well and requires less GPIOs but is obvsiously slower. Another benefit is that the SPI bus can be shared with the display, but it's also possible to have a dedicated SPI interface. The esp32 has 4 SPI sub-systems, one is unaccessible so numbering is 0..2 and SPI0 is reserved for Flash/PSRAM. The "eth_config" parameter syntax becomes:
+```
+model=dm9051,cs=<gpio>,speed=<clk_in_Hz>,intr=<gpio>[,host=<-1|1|2>][,rst=<gpio>][,mosi=<gpio>,miso=<gpio>,clk=<gpio>]
+```
+- To use the system SPI, shared with display (see spi_config) "host" must be set to -1. Any other value will reserve the SPI interface (careful of conflict with spi_config). The default "host" is 2 to avoid conflicting wiht default "spi_config" settings.
+- When not using system SPI, "mosi" for data out, "miso" for data in and "clk" **must** be set
+- The esp32 has a special I/O multiplexer for faster speed (up to 80 MHz) but that requires using specific GPIOs, which depends on SPI bus (See [here](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/spi_master.html) for more details)
+
+| Pin Name | SPI2 | SPI3 |
+| -------- | ---- | ---- |		
+| CS0*     |  15  |  5   |
+| SCLK	   |  14  |  18  |
+| MISO	   |  12  |  19  |
+| MOSI	   |  13  |  23  |
+	
 ** THIS IS NOT AVAILABLE YET, SO MORE TO COME ON HOW TO USE WIRED ETHERNET***
 ### Battery / ADC
 The NVS parameter "bat_config" sets the ADC1 channel used to measure battery/DC voltage. The "atten" value attenuates the input voltage to the ADC input (the read value maintains a 0-1V rage) where: 0=no attenuation(0..800mV), 1=2.5dB attenuation(0..1.1V), 2=6dB attenuation(0..1.35V), 3=11dB attenuation(0..2.6V). Scale is a float ratio applied to every sample of the 12 bits ADC. A measure is taken every 10s and an average is made every 5 minutes (not a sliding window). Syntax is
 ```
-channel=0..7,scale=<scale>,cells=<2|3>,[atten=<0|1|2|3>]
+channel=0..7,scale=<scale>,cells=<2|3>[,atten=<0|1|2|3>]
 ```
 NB: Set parameter to empty to disable battery reading. For well-known configuration, this is ignored (except for SqueezeAMP where number of cells is required)
 # Configuration

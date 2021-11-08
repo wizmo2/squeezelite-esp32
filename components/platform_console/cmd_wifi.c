@@ -117,8 +117,10 @@ static bool wifi_join(const char *ssid, const char *pass, int timeout_ms)
     initialise_wifi();
     wifi_config_t wifi_config = { 0 };
     strncpy((char *) wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid));
+	wifi_config.sta.ssid[sizeof(wifi_config.sta.ssid) - 1] = '\0';
     if (pass) {
         strncpy((char *) wifi_config.sta.password, pass, sizeof(wifi_config.sta.password));
+		wifi_config.sta.password[sizeof(wifi_config.sta.password) - 1] = '\0';		
     }
 
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
