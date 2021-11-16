@@ -3,6 +3,10 @@
 #include "freertos/ringbuf.h"
 #include "cJSON.h"
 #pragma once
+#ifdef __cplusplus
+extern "C" {
+
+#endif
 typedef enum {
 	MESSAGING_INFO,
 	MESSAGING_WARNING,
@@ -48,3 +52,6 @@ messaging_post_message(y, MESSAGING_CLASS_SYSTEM,  ##__VA_ARGS__); }
 #define LOG_SEND_WARN( ...) LOG_SEND(MESSAGING_WARNING,##__VA_ARGS__)
 
 
+#ifdef __cplusplus
+} 
+#endif

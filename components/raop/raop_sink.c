@@ -5,8 +5,7 @@
 
 #include "mdns.h"
 #include "nvs.h"
-#include "tcpip_adapter.h"
-// IDF-V4++ #include "esp_netif.h"
+#include "esp_netif.h"
 #include "esp_log.h"
 #include "esp_console.h"
 #include "esp_pthread.h"

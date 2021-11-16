@@ -19,7 +19,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-@file wifi_manager.h
+@file network_manager.h
 @author Tony Pottier
 @brief Defines all functions necessary for esp32 to connect to a wifi/scan wifis
 
@@ -41,8 +41,10 @@ extern "C" {
 #include "esp_wifi_types.h"
 #include "squeezelite-ota.h"
 #include "cJSON.h"
-
-
+#include "esp_eth.h"
+#include "freertos/event_groups.h"
+#include "state_machine.h"
+#include "state_machine.h"
 /**
  * @brief Defines the maximum size of a SSID name. 32 is IEEE standard.
  * @warning limit is also hard coded in wifi_config_t. Never extend this value.
@@ -158,9 +160,6 @@ extern "C" {
  */
 #define JSON_ONE_APP_SIZE					99
 
-
-
-
 /**
  * @brief Defines the complete list of all messages that the wifi_manager can process.
  *
@@ -186,25 +185,51 @@ typedef enum message_code_t {
 	ORDER_START_DNS_HIJACK = 11,
 	EVENT_STA_DISCONNECTED = 12,
 	EVENT_SCAN_DONE = 13,
-	EVENT_STA_GOT_IP = 14,
+	EVENT_GOT_IP = 14,
 	ORDER_RESTART_OTA = 15,
 	ORDER_RESTART_RECOVERY = 16,
 	ORDER_RESTART_OTA_URL = 17,
 	ORDER_RESTART = 18,
 	ORDER_UPDATE_STATUS = 19,
 	EVENT_ETH_GOT_IP = 20,
-	MESSAGE_CODE_COUNT = 21 /* important for the callback array */
-
+	EVENT_ETH_TIMEOUT = 21,
+	EVENT_ETH_LINK_UP = 22,
+	EVENT_ETH_LINK_DOWN = 23,
+	MESSAGE_CODE_COUNT = 24 /* important for the callback array */
 }message_code_t;
 
-typedef enum reboot_type_t{
-	OTA,
-	RECOVERY,
-	RESTART,
-} reboot_type_t;
-void wifi_manager_reboot(reboot_type_t rtype);
-void wifi_manager_reboot_ota(char * url);
-void wifi_manager_update_status();
+
+
+/* @brief indicate that the ESP32 is currently connected. */
+extern const int WIFI_MANAGER_WIFI_CONNECTED_BIT;
+
+extern const int WIFI_MANAGER_AP_STA_CONNECTED_BIT;
+
+/* @brief Set automatically once the SoftAP is started */
+extern const int WIFI_MANAGER_AP_STARTED_BIT;
+
+/* @brief When set, means a client requested to connect to an access point.*/
+extern const int WIFI_MANAGER_REQUEST_STA_CONNECT_BIT;
+
+/* @brief This bit is set automatically as soon as a connection was lost */
+extern const int WIFI_MANAGER_STA_DISCONNECT_BIT ;
+
+/* @brief When set, means the wifi manager attempts to restore a previously saved connection at startup. */
+extern const int WIFI_MANAGER_REQUEST_RESTORE_STA_BIT ;
+
+/* @brief When set, means a client requested to disconnect from currently connected AP. */
+extern const int WIFI_MANAGER_REQUEST_WIFI_DISCONNECT_BIT ;
+
+/* @brief When set, means a scan is in progress */
+extern const int WIFI_MANAGER_SCAN_BIT ;
+
+/* @brief When set, means user requested for a disconnect */
+extern const int WIFI_MANAGER_REQUEST_DISCONNECT_BIT ;
+
+/* @brief When set, means user requested connecting to a new network and it failed */
+extern const int WIFI_MANAGER_REQUEST_STA_CONNECT_FAILED_BIT ;
+
+void network_manager_reboot_ota(char * url);
 
 
 /**
@@ -218,6 +243,7 @@ typedef enum update_reason_code_t {
 	UPDATE_USER_DISCONNECT = 2,
 	UPDATE_LOST_CONNECTION = 3,
 	UPDATE_FAILED_ATTEMPT_AND_RESTORE = 4,
+	UPDATE_ETHERNET_CONNECTED = 5
 
 }update_reason_code_t;
 
@@ -226,6 +252,7 @@ typedef enum connection_request_made_by_code_t{
 	CONNECTION_REQUEST_USER = 1,
 	CONNECTION_REQUEST_AUTO_RECONNECT = 2,
 	CONNECTION_REQUEST_RESTORE_CONNECTION = 3,
+	CONNECTION_REQUEST_MAX_FAILED = 4,
 	CONNECTION_REQUEST_MAX = 0x7fffffff /*force the creation of this enum as a 32 bit int */
 }connection_request_made_by_code_t;
 
@@ -240,25 +267,24 @@ typedef enum connection_request_made_by_code_t{
 //};
 //extern struct wifi_settings_t wifi_settings;
 
-/**
- * @brief Structure used to store one message in the queue.
- */
-typedef struct{
-	message_code_t code;
-	void *param;
-} queue_message;
+// /**
+//  * @brief Structure used to store one message in the queue.
+//  */
+// typedef struct{
+// 	message_code_t code;
+// 	void *param;
+// } queue_message;
 
 
 
-/**
- * Allocate heap memory for the wifi manager and start the wifi_manager RTOS task
- */
-void wifi_manager_start();
+
+
+
 
 /**
  * Frees up all memory allocated by the wifi_manager and kill the task.
  */
-void wifi_manager_destroy();
+void network_manager_destroy();
 
 /**
  * Filters the AP scan list to unique SSIDs
@@ -268,26 +294,13 @@ void  filter_unique( wifi_ap_record_t * aplist, uint16_t * ap_num);
 /**
  * Main task for the wifi_manager
  */
-void wifi_manager( void * pvParameters );
+void network_manager( void * pvParameters );
 
 
 char* wifi_manager_alloc_get_ap_list_json();
-char* wifi_manager_alloc_get_ip_info_json();
 cJSON * wifi_manager_clear_ap_list_json(cJSON **old);
 
-/**
- * @brief saves the current STA wifi config to flash ram storage.
- */
-esp_err_t wifi_manager_save_sta_config();
 
-
-/**
- * @brief fetch a previously STA wifi config in the flash ram storage.
- * @return true if a previously saved config was found, false otherwise.
- */
-bool wifi_manager_fetch_wifi_sta_config();
-
-wifi_config_t* wifi_manager_get_wifi_sta_config();
 
 /**
  * @brief A standard wifi event handler as recommended by Espressif
@@ -297,70 +310,12 @@ esp_err_t wifi_manager_event_handler(void *ctx, system_event_t *event);
 
 
 /**
- * @brief Registers handler for wifi and ip events
- */
-void wifi_manager_register_handlers();
-
-
-/**
- * @brief requests a connection to an access point that will be process in the main task thread.
- */
-void wifi_manager_connect_async();
-
-/**
- * @brief requests a wifi scan
- */
-void wifi_manager_scan_async();
-
-/**
- * @brief requests to disconnect and forget about the access point.
- */
-void wifi_manager_disconnect_async();
-
-/**
- * @brief Tries to get access to json buffer mutex.
- *
- * The HTTP server can try to access the json to serve clients while the wifi manager thread can try
- * to update it. These two tasks are synchronized through a mutex.
- *
- * The mutex is used by both the access point list json and the connection status json.\n
- * These two resources should technically have their own mutex but we lose some flexibility to save
- * on memory.
- *
- * This is a simple wrapper around freeRTOS function xSemaphoreTake.
- *
- * @param xTicksToWait The time in ticks to wait for the semaphore to become available.
- * @return true in success, false otherwise.
- */
-bool wifi_manager_lock_json_buffer(TickType_t xTicksToWait);
-
-/**
- * @brief Releases the json buffer mutex.
- */
-void wifi_manager_unlock_json_buffer();
-
-/**
- * @brief Generates the connection status json: ssid and IP addresses.
- * @note This is not thread-safe and should be called only if wifi_manager_lock_json_buffer call is successful.
- */
-void wifi_manager_generate_ip_info_json(update_reason_code_t update_reason_code);
-/**
  * @brief Clears the connection status json.
  * @note This is not thread-safe and should be called only if wifi_manager_lock_json_buffer call is successful.
  */
 cJSON * wifi_manager_clear_ip_info_json(cJSON **old);
 cJSON * wifi_manager_get_new_json(cJSON **old);
-/**
- * @brief Generates the list of access points after a wifi scan.
- * @note This is not thread-safe and should be called only if wifi_manager_lock_json_buffer call is successful.
- */
-void wifi_manager_generate_access_points_json(cJSON ** ap_list);
 
-/**
- * @brief Clear the list of access points.
- * @note This is not thread-safe and should be called only if wifi_manager_lock_json_buffer call is successful.
- */
-void wifi_manager_clear_access_points_json();
 
 
 /**
@@ -369,19 +324,6 @@ void wifi_manager_clear_access_points_json();
 void wifi_manager_initialise_mdns();
 
 
-bool wifi_manager_lock_sta_ip_string(TickType_t xTicksToWait);
-void wifi_manager_unlock_sta_ip_string();
-
-/**
- * @brief gets the string representation of the STA IP address, e.g.: "192.168.1.69"
- */
-char* wifi_manager_get_sta_ip_string();
-
-/**
- * @brief thread safe char representation of the STA IP update
- */
-void wifi_manager_safe_update_sta_ip_string(struct ip4_addr * ip4);
-
 
 /**
  * @brief Register a callback to a custom function when specific event message_code happens.
@@ -389,8 +331,9 @@ void wifi_manager_safe_update_sta_ip_string(struct ip4_addr * ip4);
 void wifi_manager_set_callback(message_code_t message_code, void (*func_ptr)(void*) );
 
 
-BaseType_t wifi_manager_send_message(message_code_t code, void *param);
-BaseType_t wifi_manager_send_message_to_front(message_code_t code, void *param);
+bool network_manager_is_flag_set(EventBits_t bit);
+void network_manager_set_flag(EventBits_t bit);
+void network_manager_clear_flag(EventBits_t bit);
 
 #ifdef __cplusplus
 }

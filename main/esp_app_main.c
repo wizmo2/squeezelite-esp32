@@ -30,7 +30,7 @@
 #include "lwip/netdb.h"
 #include "nvs_utilities.h"
 #include "trace.h"
-#include "wifi_manager.h"
+#include "network_manager.h"
 #include "squeezelite-ota.h"
 #include <math.h>
 #include "audio_controls.h"
@@ -256,164 +256,91 @@ const char * get_certificate(){
 }
 
 #define DEFAULT_NAME_WITH_MAC(var,defval) char var[strlen(defval)+sizeof(macStr)]; strcpy(var,defval); strcat(var,macStr)
+void register_default_string_val(const char * key, char * value){
+	char * existing =(char *)config_alloc_get(NVS_TYPE_STR,key );
+	ESP_LOGD(TAG,"Register default called with:  %s= %s",key,value );
+	if(!existing) {
+		ESP_LOGI(TAG,"Registering default value for key %s, value %s",key,value );
+		config_set_default(NVS_TYPE_STR, key,value, 0);
+	}
+	else {
+		ESP_LOGD(TAG,"Value found for %s: %s",key,existing );
+	}
+	FREE_AND_NULL(existing);
+}
+
+void register_default_with_mac(const char* key,  char* defval) {
+    uint8_t mac[6];
+    char macStr[LOCAL_MAC_SIZE + 1];
+    char* fullvalue = NULL;
+    esp_read_mac((uint8_t*)&mac, ESP_MAC_WIFI_STA);
+    snprintf(macStr, LOCAL_MAC_SIZE - 1, "-%x%x%x", mac[3], mac[4], mac[5]);
+	fullvalue = malloc(strlen(defval)+sizeof(macStr)+1);
+	if(fullvalue){
+		strcpy(fullvalue, defval);
+		strcat(fullvalue, macStr);
+		register_default_string_val(key,fullvalue);
+		FREE_AND_NULL(fullvalue);
+	}
+	else {
+		ESP_LOGE(TAG,"Memory allocation failed when registering default value for %s", key);
+	}
+	
+}
+
 void register_default_nvs(){
-	uint8_t mac[6];
-	char macStr[LOCAL_MAC_SIZE+1];
-	char default_command_line[strlen(CONFIG_DEFAULT_COMMAND_LINE)+sizeof(macStr)];
 
-	esp_read_mac((uint8_t *)&mac, ESP_MAC_WIFI_STA);
-	snprintf(macStr, LOCAL_MAC_SIZE-1,"-%x%x%x", mac[3], mac[4], mac[5]);
-
-	DEFAULT_NAME_WITH_MAC(default_bt_name,CONFIG_BT_NAME);
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "bt_name", default_bt_name);
-	config_set_default(NVS_TYPE_STR, "bt_name", default_bt_name, 0);
-
-	DEFAULT_NAME_WITH_MAC(default_host_name,DEFAULT_HOST_NAME);
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "host_name", default_host_name);
-	config_set_default(NVS_TYPE_STR, "host_name", default_host_name, 0);
-
-	DEFAULT_NAME_WITH_MAC(default_airplay_name,CONFIG_AIRPLAY_NAME);
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "airplay_name",default_airplay_name);
-	config_set_default(NVS_TYPE_STR, "airplay_name",default_airplay_name , 0);
-
-	DEFAULT_NAME_WITH_MAC(default_ap_name,CONFIG_DEFAULT_AP_SSID);
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "ap_ssid", default_ap_name);
-	config_set_default(NVS_TYPE_STR, "ap_ssid",default_ap_name , 0);
-
-	strncpy(default_command_line, CONFIG_DEFAULT_COMMAND_LINE,sizeof(default_command_line)-1);
-	strncat(default_command_line, " -n ",sizeof(default_command_line)-1);
-	strncat(default_command_line, default_host_name,sizeof(default_command_line)-1);
-
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "autoexec", "1");
-	config_set_default(NVS_TYPE_STR,"autoexec","1", 0);
-
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "autoexec1",default_command_line);
-	config_set_default(NVS_TYPE_STR,"autoexec1",default_command_line,0);
-
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "a2dp_sink_name", CONFIG_A2DP_SINK_NAME);
-	config_set_default(NVS_TYPE_STR, "a2dp_sink_name", CONFIG_A2DP_SINK_NAME, 0);
-
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "a2dp_sink_name", STR(CONFIG_A2DP_SINK_NAME));
-	config_set_default(NVS_TYPE_STR, "a2dp_ctmt", STR(CONFIG_A2DP_CONNECT_TIMEOUT_MS), 0);
-	
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "a2dp_ctmt", STR(CONFIG_A2DP_CONNECT_TIMEOUT_MS));
-	config_set_default(NVS_TYPE_STR, "a2dp_ctrld", STR(CONFIG_A2DP_CONTROL_DELAY_MS), 0);
-	
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "release_url", CONFIG_SQUEEZELITE_ESP32_RELEASE_URL);
-	config_set_default(NVS_TYPE_STR, "release_url", CONFIG_SQUEEZELITE_ESP32_RELEASE_URL, 0);
-	
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s","ap_ip_address",CONFIG_DEFAULT_AP_IP );
-	config_set_default(NVS_TYPE_STR, "ap_ip_address",CONFIG_DEFAULT_AP_IP , 0);
-
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "ap_ip_gateway",CONFIG_DEFAULT_AP_GATEWAY );
-	config_set_default(NVS_TYPE_STR, "ap_ip_gateway",CONFIG_DEFAULT_AP_GATEWAY , 0);
-
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s","ap_ip_netmask",CONFIG_DEFAULT_AP_NETMASK );
-	config_set_default(NVS_TYPE_STR, "ap_ip_netmask",CONFIG_DEFAULT_AP_NETMASK , 0);
-
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "ap_channel",STR(CONFIG_DEFAULT_AP_CHANNEL));
-	config_set_default(NVS_TYPE_STR, "ap_channel",STR(CONFIG_DEFAULT_AP_CHANNEL) , 0);
-
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "ap_pwd", CONFIG_DEFAULT_AP_PASSWORD);
-	config_set_default(NVS_TYPE_STR, "ap_pwd", CONFIG_DEFAULT_AP_PASSWORD, 0);
-
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "airplay_port", CONFIG_AIRPLAY_PORT);
-	config_set_default(NVS_TYPE_STR, "airplay_port", CONFIG_AIRPLAY_PORT, 0);
-
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "a2dp_dev_name", CONFIG_A2DP_DEV_NAME);
-	config_set_default(NVS_TYPE_STR, "a2dp_dev_name", CONFIG_A2DP_DEV_NAME, 0);
-
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "bypass_wm", "0");
-	config_set_default(NVS_TYPE_STR, "bypass_wm", "0", 0);
-
-	ESP_LOGD(TAG,"Registering default value for equalizer");
-	config_set_default(NVS_TYPE_STR, "equalizer", "", 0);
-
-	ESP_LOGD(TAG,"Registering default Audio control board type %s, value ","actrls_config");
-	config_set_default(NVS_TYPE_STR, "actrls_config", "", 0);
-	
-	ESP_LOGD(TAG,"Registering default value for key %s", "lms_ctrls_raw");
-	config_set_default(NVS_TYPE_STR, "lms_ctrls_raw", "n", 0);
-	
-	ESP_LOGD(TAG,"Registering default Audio control board type %s, value %s", "rotary_config", CONFIG_ROTARY_ENCODER);
-	config_set_default(NVS_TYPE_STR, "rotary_config", CONFIG_ROTARY_ENCODER, 0);
-
+	register_default_with_mac("bt_name", CONFIG_BT_NAME);
+	register_default_with_mac("host_name", DEFAULT_HOST_NAME);
+	register_default_with_mac("airplay_name", CONFIG_AIRPLAY_NAME);
+	register_default_with_mac("ap_ssid", CONFIG_DEFAULT_AP_SSID);
+	register_default_string_val("autoexec","1");
+	register_default_with_mac("autoexec1",CONFIG_DEFAULT_COMMAND_LINE " -n " DEFAULT_HOST_NAME);	
+	register_default_string_val("a2dp_sink_name", CONFIG_A2DP_SINK_NAME);
+	register_default_string_val("a2dp_ctmt", STR(CONFIG_A2DP_CONNECT_TIMEOUT_MS));
+	register_default_string_val("a2dp_ctrld", STR(CONFIG_A2DP_CONTROL_DELAY_MS));
+	register_default_string_val("release_url", CONFIG_SQUEEZELITE_ESP32_RELEASE_URL);
+	register_default_string_val("ap_ip_address",CONFIG_DEFAULT_AP_IP);
+	register_default_string_val("ap_ip_gateway",CONFIG_DEFAULT_AP_GATEWAY );
+	register_default_string_val("ap_ip_netmask",CONFIG_DEFAULT_AP_NETMASK);
+	register_default_string_val("ap_channel",STR(CONFIG_DEFAULT_AP_CHANNEL));
+	register_default_string_val("ap_pwd", CONFIG_DEFAULT_AP_PASSWORD);
+	register_default_string_val("airplay_port", CONFIG_AIRPLAY_PORT);
+	register_default_string_val("a2dp_dev_name", CONFIG_A2DP_DEV_NAME);
+	register_default_string_val("bypass_wm", "0");
+	register_default_string_val("equalizer", "");
+	register_default_string_val("actrls_config", "");	
+	register_default_string_val("lms_ctrls_raw", "n");	
+	register_default_string_val("rotary_config", CONFIG_ROTARY_ENCODER);
 	char number_buffer[101] = {};
 	snprintf(number_buffer,sizeof(number_buffer)-1,"%u",OTA_FLASH_ERASE_BLOCK);
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "ota_erase_blk", number_buffer);
-	config_set_default(NVS_TYPE_STR, "ota_erase_blk", number_buffer, 0);
-
+	register_default_string_val( "ota_erase_blk", number_buffer);
 	snprintf(number_buffer,sizeof(number_buffer)-1,"%u",OTA_STACK_SIZE);
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "ota_stack", number_buffer);
-	config_set_default(NVS_TYPE_STR, "ota_stack", number_buffer, 0);
-
+	register_default_string_val( "ota_stack", number_buffer);
 	snprintf(number_buffer,sizeof(number_buffer)-1,"%d",OTA_TASK_PRIOTITY);
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "ota_prio", number_buffer);
-	config_set_default(NVS_TYPE_STR, "ota_prio", number_buffer, 0);
-
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "enable_bt_sink", STR(CONFIG_BT_SINK));
-	config_set_default(NVS_TYPE_STR, "enable_bt_sink", STR(CONFIG_BT_SINK), 0);
-
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "bt_sink_pin", STR(CONFIG_BT_SINK_PIN));
-	config_set_default(NVS_TYPE_STR, "bt_sink_pin", STR(CONFIG_BT_SINK_PIN), 0);
-	
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "bt_sink_volume", "127");
-	config_set_default(NVS_TYPE_STR, "bt_sink_volume", "127", 0);
-	
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "enable_airplay", STR(CONFIG_AIRPLAY_SINK));
-	config_set_default(NVS_TYPE_STR, "enable_airplay", STR(CONFIG_AIRPLAY_SINK), 0);
-
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "display_config", CONFIG_DISPLAY_CONFIG);
-	config_set_default(NVS_TYPE_STR, "display_config", CONFIG_DISPLAY_CONFIG, 0);
-	
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "eth_config", CONFIG_ETH_CONFIG);
-	config_set_default(NVS_TYPE_STR, "eth_config", CONFIG_ETH_CONFIG, 0);
-	
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "i2c_config", CONFIG_I2C_CONFIG);
-	config_set_default(NVS_TYPE_STR, "i2c_config", CONFIG_I2C_CONFIG, 0);
-	
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "spi_config", CONFIG_SPI_CONFIG);
-	config_set_default(NVS_TYPE_STR, "spi_config", CONFIG_SPI_CONFIG, 0);
-	
-	ESP_LOGD(TAG,"Registering default value for key %s, value %s", "set_GPIO", CONFIG_SET_GPIO);
-	config_set_default(NVS_TYPE_STR, "set_GPIO", CONFIG_SET_GPIO, 0);
-	
-	ESP_LOGD(TAG,"Registering default value for key %s", "led_brightness");
-	config_set_default(NVS_TYPE_STR, "led_brightness", "", 0);
-	
-	ESP_LOGD(TAG,"Registering default value for key %s", "spdif_config");
-	config_set_default(NVS_TYPE_STR, "spdif_config", "", 0);
-	
-	ESP_LOGD(TAG,"Registering default value for key %s", "dac_config");
-	config_set_default(NVS_TYPE_STR, "dac_config", "", 0);
-	//todo: add dac_config for known targets
-	ESP_LOGD(TAG,"Registering default value for key %s", "dac_controlset");
-	config_set_default(NVS_TYPE_STR, "dac_controlset", "", 0);
-	
-	ESP_LOGD(TAG,"Registering default value for key %s", "jack_mutes_amp");
-	config_set_default(NVS_TYPE_STR, "jack_mutes_amp", "n", 0);
-	
-	ESP_LOGD(TAG,"Registering default value for key %s", "bat_config");
-	config_set_default(NVS_TYPE_STR, "bat_config", "", 0);
-			
-	ESP_LOGD(TAG,"Registering default value for key %s", "metadata_config");
-	config_set_default(NVS_TYPE_STR, "metadata_config", "", 0);
-	
-	ESP_LOGD(TAG,"Registering default value for key %s", "telnet_enable");
-	config_set_default(NVS_TYPE_STR, "telnet_enable", "", 0);
-
-	ESP_LOGD(TAG,"Registering default value for key %s", "telnet_buffer");
-	config_set_default(NVS_TYPE_STR, "telnet_buffer", "40000", 0);
-
-	ESP_LOGD(TAG,"Registering default value for key %s", "telnet_block");
-	config_set_default(NVS_TYPE_STR, "telnet_block", "500", 0);
-	
-	ESP_LOGD(TAG,"Registering default value for key %s", "stats");
-	config_set_default(NVS_TYPE_STR, "stats", "n", 0);
-
-	ESP_LOGD(TAG,"Registering default value for key %s", "rel_api");
-	config_set_default(NVS_TYPE_STR, "rel_api", CONFIG_RELEASE_API, 0);
-
+	register_default_string_val( "ota_prio", number_buffer);
+	register_default_string_val( "enable_bt_sink", STR(CONFIG_BT_SINK));
+	register_default_string_val( "bt_sink_pin", STR(CONFIG_BT_SINK_PIN));
+	register_default_string_val( "bt_sink_volume", "127");
+	register_default_string_val( "enable_airplay", STR(CONFIG_AIRPLAY_SINK));
+	register_default_string_val( "display_config", CONFIG_DISPLAY_CONFIG);
+	register_default_string_val( "eth_config", CONFIG_ETH_CONFIG);
+	register_default_string_val( "i2c_config", CONFIG_I2C_CONFIG);
+	register_default_string_val( "spi_config", CONFIG_SPI_CONFIG);
+	register_default_string_val( "set_GPIO", CONFIG_SET_GPIO);
+	register_default_string_val( "led_brightness", "");
+	register_default_string_val( "spdif_config", "");
+	register_default_string_val( "dac_config", "");
+	register_default_string_val( "dac_controlset", "");
+	register_default_string_val( "jack_mutes_amp", "n");
+	register_default_string_val( "bat_config", "");
+	register_default_string_val( "metadata_config", "");
+	register_default_string_val( "telnet_enable", "");
+	register_default_string_val( "telnet_buffer", "40000");
+	register_default_string_val( "telnet_block", "500");
+	register_default_string_val( "stats", "n");
+	register_default_string_val( "rel_api", CONFIG_RELEASE_API);
+	register_default_string_val("wifi_smode", "A");
 	wait_for_commit();
 	ESP_LOGD(TAG,"Done setting default values in nvs.");
 }
@@ -507,13 +434,11 @@ void app_main()
 	led_blink_pushed(LED_GREEN, 250, 250);
 
 	if(bypass_wifi_manager){
-		ESP_LOGW(TAG,"*******************************************************************************************");
-		ESP_LOGW(TAG,"* wifi manager is disabled. Please use wifi commands to connect to your wifi access point.");
-		ESP_LOGW(TAG,"*******************************************************************************************");
+		ESP_LOGW(TAG,"wifi manager is disabled. Use command line for wifi control.");
 	}
 	else {
 		ESP_LOGI(TAG,"Starting Wifi Manager");
-		wifi_manager_start();
+		network_manager_start();
 		//wifi_manager_set_callback(EVENT_STA_GOT_IP, &cb_connection_got_ip);
 		wifi_manager_set_callback(EVENT_ETH_GOT_IP, &cb_connection_got_ip);
 		wifi_manager_set_callback(EVENT_STA_DISCONNECTED, &cb_connection_sta_disconnected);

@@ -20,8 +20,7 @@
 #include "cmd_system.h"
 #include "esp_err.h"
 #include "squeezelite-ota.h"
-#include "tcpip_adapter.h"
-// IDF-V4++ #include "esp_netif.h"
+#include "esp_netif.h"
 #include "platform_config.h"
 #include <time.h>
 #include <sys/time.h>

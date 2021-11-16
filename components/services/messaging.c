@@ -238,7 +238,16 @@ void messaging_post_message(messaging_types type,messaging_classes msg_class, co
 	message->type = type;
 	message->msg_class = msg_class;
 	message->sent_time = esp_timer_get_time() / 1000;
-	ESP_LOGD(tag,"Post: %s",message->message);
+	if(type==MESSAGING_WARNING) {
+		ESP_LOGW(tag,"%s",message->message);	
+	}
+	else if(type==MESSAGING_ERROR) {
+		ESP_LOGE(tag,"%s",message->message);	
+	}
+	else {
+		ESP_LOGD(tag,"Post: %s",message->message);
+	}
+
 	while(cur){
 		messaging_post_to_queue(get_handle_ptr(cur),  message, msg_size);
 		cur = get_struct_ptr(cur->next);

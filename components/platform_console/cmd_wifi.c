@@ -8,7 +8,7 @@
 */
 
 // cmd_wifi has been replaced by wifi-manager
-/* Console example — WiFi commands
+/* Console example ï¿½ WiFi commands
 
    This example code is in the Public Domain (or CC0 licensed, at your option.)
 
@@ -29,7 +29,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "esp_wifi.h"
-#include "tcpip_adapter.h"
+#include "esp_netif.h"
 #include "esp_event.h"
 #include "led.h"
 extern bool bypass_wifi_manager;
@@ -98,7 +98,7 @@ static void initialise_wifi(void)
     if (initialized) {
         return;
     }
-    tcpip_adapter_init();
+    esp_netif_init();
     // Now moved to esp_app_main: wifi_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();

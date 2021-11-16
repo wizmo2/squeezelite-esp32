@@ -38,7 +38,7 @@ function to process requests, decode URLs, serve files, etc. etc.
 #include <stdlib.h>
 #include <stdbool.h>
 #include "esp_http_server.h"
-#include "wifi_manager.h"
+#include "network_manager.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"

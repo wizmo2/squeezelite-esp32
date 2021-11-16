@@ -13,7 +13,7 @@
 #ifdef WIN32
 #include <iphlpapi.h>
 #else
-#include "tcpip_adapter.h"
+#include "esp_netif.h"
 // IDF-V4++ #include "esp_netif.h"
 #include <ctype.h>
 #endif

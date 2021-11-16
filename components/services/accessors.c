@@ -15,7 +15,6 @@
 #include "accessors.h"
 #include "globdefs.h"
 #include "display.h"
-#include "display.h"
 #include "cJSON.h"
 #include "driver/gpio.h"
 #include "stdbool.h"
@@ -118,13 +117,8 @@ static void set_i2s_pin(char *config, i2s_pin_config_t *pin_config) {
  * Get i2s config structure from config string
  */
 const i2s_platform_config_t * config_get_i2s_from_str(char * dac_config ){
-	static EXT_RAM_ATTR i2s_platform_config_t i2s_dac_pin = {
-		.i2c_addr = -1,
-		.sda= -1,
-		.scl = -1,
-		.mute_gpio = -1,
-		.mute_level = -1
-	};
+	static EXT_RAM_ATTR i2s_platform_config_t i2s_dac_pin;
+	memset(&i2s_dac_pin, 0xFF, sizeof(i2s_dac_pin));
 	set_i2s_pin(dac_config, &i2s_dac_pin.pin);
 	strcpy(i2s_dac_pin.model, "i2s");
 	char * p=NULL;
@@ -146,11 +140,12 @@ const i2s_platform_config_t * config_get_i2s_from_str(char * dac_config ){
  * Get eth config structure from config string
  */
 const eth_config_t * config_get_eth_from_str(char * eth_config ){
-	static EXT_RAM_ATTR eth_config_t eth_pin = {
-		.rmii = false,
-		.model = "",
-	};
 	char * p=NULL;
+	static EXT_RAM_ATTR eth_config_t eth_pin; 
+	memset(&eth_pin, 0xFF, sizeof(eth_pin));
+	memset(&eth_pin.model, 0xFF, sizeof(eth_pin.model));
+	eth_pin.spi = false;		
+	eth_pin.rmii = false;
 
 	if ((p = strcasestr(eth_config, "model")) != NULL) sscanf(p, "%*[^=]=%15[^,]", eth_pin.model);
 	if ((p = strcasestr(eth_config, "mdc")) != NULL) eth_pin.mdc = atoi(strchr(p, '=') + 1);
@@ -163,9 +158,16 @@ const eth_config_t * config_get_eth_from_str(char * eth_config ){
 	if ((p = strcasestr(eth_config, "speed")) != NULL) eth_pin.speed = atoi(strchr(p, '=') + 1);
 	if ((p = strcasestr(eth_config, "clk")) != NULL) eth_pin.clk = atoi(strchr(p, '=') + 1);
 	if ((p = strcasestr(eth_config, "host")) != NULL) eth_pin.host = atoi(strchr(p, '=') + 1);
+	eth_pin.valid = eth_pin.model && strlen(eth_pin.model)>0 && GPIO_IS_VALID_GPIO(eth_pin.mdio) && GPIO_IS_VALID_GPIO(eth_pin.mdc);
 	
-	if (strcasestr(eth_pin.model, "lan8720")) eth_pin.rmii = true;
-	
+	if(strcasestr(eth_pin.model, "LAN8720")){
+		eth_pin.rmii = true;
+	}
+	else {
+		eth_pin.spi = true;
+		/* here we must also check that we have at least a CS gpio */
+		eth_pin.valid = eth_pin.valid && GPIO_IS_VALID_GPIO(eth_pin.cs);
+	}
 	return &eth_pin;
 }
 
@@ -196,21 +198,36 @@ const i2s_platform_config_t * config_dac_get(){
  */
 const eth_config_t * config_eth_get( ){
 	char * config = config_alloc_get_str("eth_config", CONFIG_ETH_CONFIG, "rst=" STR(CONFIG_ETH_PHY_RST_IO) 
-#if defined(CONFIG_ETH_LAN8720)	
-										 ",model=lan8720"
-#elif defined(CONFIG_ETH_DM9051)									
+	#if defined(ETH_LAN8720)
+	#else 
+#if defined(CONFIG_ETH_USE_SPI_ETHERNET)
+#if defined(CONFIG_ETH_DM9051)
 										 ",model=dm9051"
-#endif										 
-										 ",mdc=" STR(CONFIG_ETH_MDC_IO) ",mdio=" STR(CONFIG_ETH_MDIO_IO) 
+#elif defined(CONFIG_ETH_W5500)
+										 ",model=w5500"
+#endif
 										 ",host=" STR(CONFIG_ETH_SPI_HOST) ",cs=" STR(CONFIG_ETH_SPI_CS_IO)
 										 ",mosi=" STR(CONFIG_ETH_SPI_MOSI_IO) ",miso=" STR(CONFIG_ETH_SPI_MISO_IO) 
 										 ",intr=" STR(CONFIG_ETH_SPI_INTR_IO)
-										 ",clk=" STR(CONFIG_ETH_SPI_CLK_IO) ",speed=" STR(CONFIG_ETH_SPI_SPEED) );
+										 ",clk=" STR(CONFIG_ETH_SPI_CLK_IO) ",speed=" STR(CONFIG_ETH_SPI_SPEED) 
+
+#elif defined(CONFIG_ETH_PHY_INTERFACE_RMII)
+										 ",model=lan8720, tx_en=21, tx0=19, tx1=22, rx0=25, rx1=26, crs_dv=27"
+#endif
+#endif
+										",mdc=" STR(CONFIG_ETH_MDC_IO) ",mdio=" STR(CONFIG_ETH_MDIO_IO)) ;
 	static EXT_RAM_ATTR eth_config_t eth_config;
 	ESP_LOGD(TAG, "Ethernet config string %s", config);	
 	memcpy(&eth_config, config_get_eth_from_str(config), sizeof(eth_config));
 	free(config);
 	return &eth_config;
+}
+/****************************************************************************************
+ * Get ethernet config structure and assign to eth config structure
+ */
+void config_eth_init( eth_config_t *  target ){
+	const eth_config_t * source =  config_eth_get();
+	memcpy(target,source,sizeof(eth_config_t));
 }
 
 /****************************************************************************************
@@ -561,14 +578,9 @@ const set_GPIO_struct_t * get_gpio_struct(){
  */
 const spi_bus_config_t * config_spi_get(spi_host_device_t * spi_host) {
 	char *nvs_item, *p;
-	static EXT_RAM_ATTR spi_bus_config_t spi = {
-		.mosi_io_num = -1,
-        .sclk_io_num = -1,
-        .miso_io_num = -1,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1
-    };
-
+	static EXT_RAM_ATTR spi_bus_config_t spi;
+	memset(&spi, 0xFF, sizeof(spi));
+	
 	nvs_item = config_alloc_get_str("spi_config", CONFIG_SPI_CONFIG, NULL);
 	if (nvs_item) {
 		if ((p = strcasestr(nvs_item, "data")) != NULL) spi.mosi_io_num = atoi(strchr(p, '=') + 1);
@@ -769,6 +781,46 @@ cJSON * get_SPI_GPIO(cJSON * list){
 	}
 	return llist;
 }
+
+/****************************************************************************************
+ *
+ */
+cJSON * get_eth_GPIO(cJSON * list){
+	cJSON * llist = list;
+	if(!llist){
+		llist = cJSON_CreateArray();
+	}	
+	spi_host_device_t spi_host;
+	const eth_config_t * eth_config = config_eth_get(&spi_host);
+	#if defined(CONFIG_ETH_CONFIG)
+		bool fixed = strlen(CONFIG_ETH_CONFIG)>0;
+	#else
+		bool fixed =false;
+	#endif 
+	if(eth_config->valid ){
+		add_gpio_for_value(llist,"mdc",eth_config->mdc,"ethernet",fixed);
+		add_gpio_for_value(llist,"rst",eth_config->rst,"ethernet",fixed);
+		add_gpio_for_value(llist,"mdio",eth_config->mdio,"ethernet",fixed);
+		if(eth_config->rmii){
+			add_gpio_for_value(llist,"tx_en", 21,"ethernet",true);
+			add_gpio_for_value(llist,"tx0",   19 ,"ethernet",true);
+			add_gpio_for_value(llist,"tx1",   22 ,"ethernet",true);
+			add_gpio_for_value(llist,"rx0",   25 ,"ethernet",true);
+			add_gpio_for_value(llist,"rx1",   26 ,"ethernet",true);
+			add_gpio_for_value(llist,"crs_dv",27 ,"ethernet",true);
+		}
+		else if(eth_config->spi) {
+			/* SPI ethernet */
+			add_gpio_for_value(llist,"cs",eth_config->cs,"ethernet",fixed);
+			add_gpio_for_value(llist,"mosi",eth_config->mosi,"ethernet",fixed);
+			add_gpio_for_value(llist,"miso",eth_config->miso,"ethernet",fixed);
+			add_gpio_for_value(llist,"intr",eth_config->intr,"ethernet",fixed);
+			add_gpio_for_value(llist,"clk",eth_config->clk,"ethernet",fixed);
+		}
+	}
+	return llist;
+}
+
 
 /****************************************************************************************
  *
@@ -1013,5 +1065,6 @@ cJSON * get_gpio_list(bool refresh) {
 	gpio_list=get_I2C_GPIO(gpio_list);
 	gpio_list=get_DAC_GPIO(gpio_list);
 	gpio_list=get_psram_gpio_list(gpio_list);
+	gpio_list=get_eth_GPIO(gpio_list);
 	return gpio_list;
 }

@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 #include "esp_err.h"
-#include "tcpip_adapter.h"
+#include "esp_netif.h"
 // IDF-V4++ #include "esp_netif.h"
 
 #ifdef CONFIG_EXAMPLE_CONNECT_ETHERNET

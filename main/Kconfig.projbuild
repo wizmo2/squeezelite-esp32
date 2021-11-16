@@ -1,12 +1,12 @@
 menu "Squeezelite-ESP32"
 	menu "Logging"
 		config LOGGING_SLIMPROTO
-        	string "logging level for slimproto "
+        	string "logging level for slimproto"
         	default "info"
         	help
         		Set logging level info|debug|sdebug
 		config LOGGING_STREAM
-        	string "logging level for stream "
+        	string "logging level for stream"
         	default "info"
         	help
         		Set logging level info|debug|sdebug
@@ -101,63 +101,9 @@ menu "Squeezelite-ESP32"
 			default ""
 		config DAC_CONTROLSET
 			string
-			default "{ \"init\": [ {\"reg\":41, \"val\":128}, {\"reg\":18, \"val\":255} ], \"poweron\": [ {\"reg\":18, \"val\":64, \"mode\":\"or\"} ], \"poweroff\": [ {\"reg\":18, \"val\":191, \"mode\":\"and\"} ] }" if TWATCH2020
+			default '{ "init": [ {"reg":41, "val":128}, {"reg":18, "val":255} ], "poweron": [ {"reg":18, "val":64, "mode":"or"} ], "poweroff": [ {"reg":18, "val":191, "mode":"and" } ] }' if TWATCH2020
 			default ""		
 		# AGGREGATES - end				
-	endmenu
-
-	menu "Ethernet Options"
-		visible if BASIC_I2C_BT && (ETH_USE_ESP32_EMAC || ETH_USE_SPI_ETHERNET)
-		choice 
-			prompt "Ethernet Chipset"
-			default ETH_NODRIVER
-			config ETH_NODRIVER
-				bool "Defined in NVS"			   
-			config ETH_LAN8720
-				bool "Microchip LAN8720 (RMII)"
-			config ETH_DM9051
-				bool "Davicom 9051 (SPI)"				
-		endchoice	
-		config ETH_PHY_RST_IO
-			int "PHY Reset GPIO number" if !ETH_NODRIVER
-			default -1
-			help
-				Set the GPIO number used to reset PHY chip.
-				Set to -1 to disable PHY chip hardware reset.		
-		config ETH_MDC_IO
-			int "SMI MDC GPIO number" if ETH_LAN8720
-			default -1
-			help
-				Set the GPIO number used by SMI MDC.		
-		config ETH_MDIO_IO
-			int "SMI MDIO GPIO number" if ETH_LAN8720
-			default -1
-			help
-				Set the GPIO number used by SMI MDIO.		
-		config ETH_SPI_HOST
-			int "SPI host number (-1,1 or 2)" if ETH_DM9051
-			default -1
-			help
-				Set to -1 to use system's SPI config (see Various I/O)
-				Set to 2 or 3 to use a dedicated bus 
-		config ETH_SPI_INTR_IO
-			int "interrupt" if ETH_DM9051
-			default -1													
-		config ETH_SPI_CS_IO
-			int "Chip Select" if ETH_DM9051
-			default -1								
-		config ETH_SPI_CLK_IO
-			int "SPI clock" if ETH_SPI_HOST != -1 && ETH_DM9051
-			default -1
-		config ETH_SPI_MOSI_IO
-			int "Data Out" if ETH_SPI_HOST != -1 && ETH_DM9051
-			default -1				
-		config ETH_SPI_MISO_IO
-			int "Data In"  if ETH_SPI_HOST != -1 && ETH_DM9051
-			default -1
-		config ETH_SPI_SPEED
-			int "SPI speed (Hz)" if ETH_SPI_HOST != -1 && ETH_DM9051
-			default 20000000
 	endmenu
 	
 	menu "Audio settings"
@@ -165,39 +111,39 @@ menu "Squeezelite-ESP32"
 			visible if BASIC_I2C_BT
 			menu "I2S settings"
 				config I2S_NUM         
-					int "I2S channel (0 or 1). "
+					int "I2S channel (0 or 1)."
 					default 0
 					help
 						I2S dma channel to use.  
 				config I2S_BCK_IO         
-					int "I2S Bit clock GPIO number. "
+					int "I2S Bit clock GPIO number."
 					default -1 
 					help
 						I2S Bit Clock gpio pin to use.  
 				config I2S_WS_IO         
-					int "I2S Word Select GPIO number. "
+					int "I2S Word Select GPIO number."
 					default -1 
 					help
 						I2S Word Select gpio pin to use.
 				config I2S_DO_IO         
-					int "I2S Data Output GPIO number. "
+					int "I2S Data Output GPIO number."
 					default -1
 					help
 						I2S data output gpio pin to use.
 				config I2S_DI_IO         
-					int "I2S Data Input GPIO number. "
+					int "I2S Data Input GPIO number."
 					default -1
 					help
 						I2S data input gpio pin to use (not used mostly, leave it to -1).					
 			endmenu
 			menu "I2C settings"	
 				config I2C_SDA
-					int "I2C SDA GPIO number for DAC control. "
+					int "I2C SDA GPIO number for DAC control."
 					default -1
 					help
 						I2C data gpio pin to use with DAC (not used mostly, leave it to -1).										
 				config I2C_SCL
-					int "I2C SCL GPIO number for DAC control. "
+					int "I2C SCL GPIO number for DAC control."
 					default -1
 					help
 						I2C clock gpio pin to use with DAC (not used mostly, leave it to -1).															
@@ -249,7 +195,7 @@ menu "Squeezelite-ESP32"
 		        help
 		            This is the name of the device that the Bluetooth speaker will see when it is connected to.
 		    config A2DP_CONTROL_DELAY_MS
-		        int "Control loop delay. "
+		        int "Control loop delay."
 		        default 500
 		        help
 		            Decreasing this will lead to a more responsive BT control, but might lead to noisy log files if debug is enabled.
@@ -289,7 +235,7 @@ menu "Squeezelite-ESP32"
 		config AIRPLAY_PORT
 			depends on AIRPLAY_SINK
 			string "AirPlay listening port"
-				default 5000
+				default "5000"
 		    help
 				AirPlay service listening port
 	endmenu	
@@ -401,5 +347,9 @@ menu "Squeezelite-ESP32"
 			help
 				Set the scaling factor for this 12 bits ADC
 	endmenu	
-	
+	config DEFAULT_COMMAND_LINE
+        string "Default command line to execute"
+        default "squeezelite -o I2S -b 500:2000 -d all=info -C 30"
+        help
+        This is the command to run when starting the device
 endmenu

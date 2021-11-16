@@ -31,8 +31,10 @@ typedef struct {
 } display_config_t;
 
 typedef struct {
-	bool rmii;
 	char model[16];
+	bool valid;
+	bool rmii;
+	bool spi;
 	int rst;
 	int mdc, mdio;
 	int host;
@@ -86,6 +88,7 @@ typedef struct {
 
 const display_config_t * 	config_display_get();
 const eth_config_t * 		config_eth_get( );
+void 						config_eth_init( eth_config_t *  target );
 esp_err_t 					config_display_set(const display_config_t * config);
 esp_err_t 					config_i2c_set(const i2c_config_t * config, int port);
 esp_err_t 					config_i2s_set(const i2s_platform_config_t * config, const char * nvs_name);

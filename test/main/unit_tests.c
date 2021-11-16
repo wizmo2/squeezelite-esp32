@@ -43,7 +43,7 @@
 #include "lwip/netdb.h"
 #include "nvs_utilities.h"
 #include "trace.h"
-#include "wifi_manager.h"
+#include "network_manager.h"
 #include "squeezelite-ota.h"
 #include <math.h>
 #include "audio_controls.h"

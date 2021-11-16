@@ -28,7 +28,7 @@
 #include "driver/i2s.h"
 #include "driver/rtc_io.h"
 #include "driver/dac.h"
-#include <adc1_i2s_private.h>
+#include "adc1_private.h"
 
 #include "esp_intr_alloc.h"
 #include "esp_err.h"
@@ -880,7 +880,7 @@ static esp_err_t i2s_param_config(i2s_port_t i2s_num, const i2s_config_t *i2s_co
         //initialize the specific ADC channel.
         //in the current stage, we only support ADC1 and single channel mode.
         //In default data mode, the ADC data is in 12-bit resolution mode.
-        adc_power_always_on();
+        // todo: fix this - adc_power_always_on();
     }
     // configure I2S data port interface.
     i2s_reset_fifo(i2s_num);
@@ -974,35 +974,36 @@ static esp_err_t i2s_param_config(i2s_port_t i2s_num, const i2s_config_t *i2s_co
         I2S[i2s_num]->pdm_conf.rx_pdm_en = 0;
         I2S[i2s_num]->pdm_conf.tx_pdm_en = 0;
     }
-    if (i2s_config->communication_format & I2S_COMM_FORMAT_I2S) {
-        I2S[i2s_num]->conf.tx_short_sync = 0;
-        I2S[i2s_num]->conf.rx_short_sync = 0;
-        I2S[i2s_num]->conf.tx_msb_shift = 1;
-        I2S[i2s_num]->conf.rx_msb_shift = 1;
-        if (i2s_config->communication_format & I2S_COMM_FORMAT_I2S_LSB) {
-            if (i2s_config->mode & I2S_MODE_TX) {
-                I2S[i2s_num]->conf.tx_msb_shift = 0;
-            }
-            if (i2s_config->mode & I2S_MODE_RX) {
-                I2S[i2s_num]->conf.rx_msb_shift = 0;
-            }
-        }
-    }
+    // todo: fix this below!!
+    // if (i2s_config->communication_format & I2S_COMM_FORMAT_I2S) {
+    //     I2S[i2s_num]->conf.tx_short_sync = 0;
+    //     I2S[i2s_num]->conf.rx_short_sync = 0;
+    //     I2S[i2s_num]->conf.tx_msb_shift = 1;
+    //     I2S[i2s_num]->conf.rx_msb_shift = 1;
+    //     if (i2s_config->communication_format & I2S_COMM_FORMAT_I2S_LSB) {
+    //         if (i2s_config->mode & I2S_MODE_TX) {
+    //             I2S[i2s_num]->conf.tx_msb_shift = 0;
+    //         }
+    //         if (i2s_config->mode & I2S_MODE_RX) {
+    //             I2S[i2s_num]->conf.rx_msb_shift = 0;
+    //         }
+    //     }
+    // }
 
-    if (i2s_config->communication_format & I2S_COMM_FORMAT_PCM) {
-        I2S[i2s_num]->conf.tx_msb_shift = 0;
-        I2S[i2s_num]->conf.rx_msb_shift = 0;
-        I2S[i2s_num]->conf.tx_short_sync = 0;
-        I2S[i2s_num]->conf.rx_short_sync = 0;
-        if (i2s_config->communication_format & I2S_COMM_FORMAT_PCM_SHORT) {
-            if (i2s_config->mode & I2S_MODE_TX) {
-                I2S[i2s_num]->conf.tx_short_sync = 1;
-            }
-            if (i2s_config->mode & I2S_MODE_RX) {
-                I2S[i2s_num]->conf.rx_short_sync = 1;
-            }
-        }
-    }
+    // if (i2s_config->communication_format & I2S_COMM_FORMAT_PCM) {
+    //     I2S[i2s_num]->conf.tx_msb_shift = 0;
+    //     I2S[i2s_num]->conf.rx_msb_shift = 0;
+    //     I2S[i2s_num]->conf.tx_short_sync = 0;
+    //     I2S[i2s_num]->conf.rx_short_sync = 0;
+    //     if (i2s_config->communication_format & I2S_COMM_FORMAT_PCM_SHORT) {
+    //         if (i2s_config->mode & I2S_MODE_TX) {
+    //             I2S[i2s_num]->conf.tx_short_sync = 1;
+    //         }
+    //         if (i2s_config->mode & I2S_MODE_RX) {
+    //             I2S[i2s_num]->conf.rx_short_sync = 1;
+    //         }
+    //     }
+    // }
     if ((p_i2s_obj[i2s_num]->mode & I2S_MODE_RX) &&  (p_i2s_obj[i2s_num]->mode & I2S_MODE_TX)) {
         I2S[i2s_num]->conf.sig_loopback = 1;
         if (p_i2s_obj[i2s_num]->mode & I2S_MODE_MASTER) {
@@ -1217,7 +1218,7 @@ esp_err_t i2s_adc_enable(i2s_port_t i2s_num)
     I2S_CHECK((p_i2s_obj[i2s_num] != NULL), "Not initialized yet", ESP_ERR_INVALID_STATE);
     I2S_CHECK((p_i2s_obj[i2s_num]->mode & I2S_MODE_ADC_BUILT_IN), "i2s built-in adc not enabled", ESP_ERR_INVALID_STATE);
 
-    adc1_i2s_mode_acquire();
+    // todo: fix this adc1_i2s_mode_acquire();
     _i2s_adc_mode_recover();
     return i2s_set_clk(i2s_num, p_i2s_obj[i2s_num]->sample_rate, p_i2s_obj[i2s_num]->bits_per_sample, p_i2s_obj[i2s_num]->channel_num);
 }

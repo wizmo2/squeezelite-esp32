@@ -21,7 +21,10 @@
 #ifndef STR_OR_ALT
 #define STR_OR_ALT(str,alt) (str?str:alt)
 #endif
-
+#define ENUM_TO_STRING(g) \
+    case g:     \
+        return STR(g);    \
+        break;
 extern const char unknown_string_placeholder[];
 extern const char * str_or_unknown(const char * str);
 extern const char * str_or_null(const char * str);

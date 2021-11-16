@@ -55,6 +55,8 @@ function to process requests, decode URLs, serve files, etc. etc.
 #include "platform_console.h"
 #include "accessors.h"
 #include "webapp/webpack.h"
+#include "network_wifi.h"
+#include "network_status.h"
  
 #define HTTP_STACK_SIZE	(5*1024)
 const char str_na[]="N/A";
@@ -437,7 +439,7 @@ esp_err_t ap_scan_handler(httpd_req_t *req){
     	// todo:  redirect to login page
     	// return ESP_OK;
     }
-	wifi_manager_scan_async();
+	network_manager_async_scan();
 	esp_err_t err = set_content_type_from_req(req);
 	if(err == ESP_OK){
 		httpd_resp_send(req, (const char *)empty, HTTPD_RESP_USE_STRLEN);
@@ -728,7 +730,7 @@ esp_err_t config_post_handler(httpd_req_t *req){
 			ESP_LOGW_LOC(TAG,   "Restarting system to process OTA for url %s",otaURL);
 		}
 
-		wifi_manager_reboot_ota(otaURL);
+		network_manager_reboot_ota(otaURL);
 		free(otaURL);
 	}
     return err;
@@ -789,8 +791,8 @@ esp_err_t connect_post_handler(httpd_req_t *req){
 		if(password){
 			strlcpy((char *)config->sta.password, password, sizeof(config->sta.password)+1);
 		}
-		ESP_LOGD_LOC(TAG,   "http_server_netconn_serve: wifi_manager_connect_async() call, with ssid: %s, password: %s", config->sta.ssid, config->sta.password);
-		wifi_manager_connect_async();
+		ESP_LOGD_LOC(TAG,   "http_server_netconn_serve: network_manager_async_scan() call, with ssid: %s, password: %s", config->sta.ssid, config->sta.password);
+		network_manager_async_scan();
 		httpd_resp_send(req, (const char *)success, strlen(success));
 	}
 	else {
@@ -814,7 +816,7 @@ esp_err_t connect_delete_handler(httpd_req_t *req){
 		return err;
 	}
 	httpd_resp_send(req, (const char *)success, strlen(success));
-	wifi_manager_disconnect_async();
+	network_manager_async_disconnect();
 
     return ESP_OK;
 }
@@ -831,7 +833,7 @@ esp_err_t reboot_ota_post_handler(httpd_req_t *req){
 	}
 
 	httpd_resp_send(req, (const char *)success, strlen(success));
-	wifi_manager_reboot(OTA);
+	network_manager_async_reboot(OTA);
     return ESP_OK;
 }
 esp_err_t reboot_post_handler(httpd_req_t *req){
@@ -846,7 +848,7 @@ esp_err_t reboot_post_handler(httpd_req_t *req){
 		return err;
 	}
 	httpd_resp_send(req, (const char *)success, strlen(success));
-	wifi_manager_reboot(RESTART);
+	network_manager_async_reboot(RESTART);
 	return ESP_OK;
 }
 esp_err_t recovery_post_handler(httpd_req_t *req){
@@ -861,7 +863,7 @@ esp_err_t recovery_post_handler(httpd_req_t *req){
 		return err;
 	}
 	httpd_resp_send(req, (const char *)success, strlen(success));
-	wifi_manager_reboot(RECOVERY);
+	network_manager_async_reboot(RECOVERY);
 	return ESP_OK;
 }
 
@@ -1162,7 +1164,7 @@ esp_err_t status_get_handler(httpd_req_t *req){
 		httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR , "Error retrieving status object");
 	}
 	// update status for next status call
-	wifi_manager_update_status();
+	network_manager_async_update_status();
 
 	return ESP_OK;
 }

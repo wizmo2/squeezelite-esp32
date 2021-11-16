@@ -1,67 +1,121 @@
-menu "Wifi Manager Configuration"
+menu "Network Manager Configuration"
+    
+    menu "WiFi Options"
+        config WIFI_MANAGER_TASK_PRIORITY
+            int "RTOS Task Priority for the wifi_manager"
+            default 1
+            help
+            Tasks spawn by the manager will have a priority of WIFI_MANAGER_TASK_PRIORITY-1. For this particular reason, minimum recommended task priority is 2.
 
-config WIFI_MANAGER_TASK_PRIORITY
-    int "RTOS Task Priority for the wifi_manager"
-    default 1
-    help
-	Tasks spawn by the manager will have a priority of WIFI_MANAGER_TASK_PRIORITY-1. For this particular reason, minimum recommended task priority is 2.
+        config WIFI_MANAGER_MAX_RETRY
+            int "Max Retry on failed connection"
+            default 2
+            help
+            Defines when a connection is lost/attempt to connect is made, how many retries should be made before giving up.
+            
+        config DEFAULT_AP_SSID
+            string "Access Point SSID"
+            default "esp32"
+            help
+            SSID (network name) the the esp32 will broadcast.
 
-config WIFI_MANAGER_MAX_RETRY
-	int "Max Retry on failed connection"
-    default 2
-    help
-	Defines when a connection is lost/attempt to connect is made, how many retries should be made before giving up.
-	
-config DEFAULT_AP_SSID
-    string "Access Point SSID"
-    default "esp32"
-    help
-	SSID (network name) the the esp32 will broadcast.
+        config DEFAULT_AP_PASSWORD
+            string "Access Point Password"
+            default "esp32pwd"
+            help
+            Password used for the Access Point. Leave empty and set AUTH MODE to WIFI_AUTH_OPEN for no password.
 
-config DEFAULT_AP_PASSWORD
-    string "Access Point Password"
-    default "esp32pwd"
-    help
-	Password used for the Access Point. Leave empty and set AUTH MODE to WIFI_AUTH_OPEN for no password.
-
-config DEFAULT_AP_CHANNEL
-    int "Access Point WiFi Channel"
-    default 1
-    help
-	Be careful you might not see the access point if you use a channel not allowed in your country.
-	
-config DEFAULT_AP_IP
-    string "Access Point IP Address"
-    default "10.10.0.1"
-    help
-	This is used for the redirection to the captive portal. It is recommended to leave unchanged.
-	
-config DEFAULT_AP_GATEWAY
-    string "Access Point IP Gateway"
-    default "10.10.0.1"
-    help
-	This is used for the redirection to the captive portal. It is recommended to leave unchanged.
-	
-config DEFAULT_AP_NETMASK
-    string "Access Point Netmask"
-    default "255.255.255.0"
-    help
-	This is used for the redirection to the captive portal. It is recommended to leave unchanged.
-	
-config DEFAULT_AP_MAX_CONNECTIONS
-    int "Access Point Max Connections"
-    default 4
-    help
-	Max is 4.
-	
-config DEFAULT_AP_BEACON_INTERVAL
-    int "Access Point Beacon Interval (ms)"
-    default 100
-    help
-	100ms is the recommended default.
-config DEFAULT_COMMAND_LINE
-    string "Default command line to execute"
-    default "squeezelite -o I2S -b 500:2000 -d all=info -C 30"
-    help
-	This is the command to run when starting the device
+        config DEFAULT_AP_CHANNEL
+            int "Access Point WiFi Channel"
+            default 1
+            help
+            Be careful you might not see the access point if you use a channel not allowed in your country.
+            
+        config DEFAULT_AP_IP
+            string "Access Point IP Address"
+            default "10.10.0.1"
+            help
+            This is used for the redirection to the captive portal. It is recommended to leave unchanged.
+            
+        config DEFAULT_AP_GATEWAY
+            string "Access Point IP Gateway"
+            default "10.10.0.1"
+            help
+            This is used for the redirection to the captive portal. It is recommended to leave unchanged.
+            
+        config DEFAULT_AP_NETMASK
+            string "Access Point Netmask"
+            default "255.255.255.0"
+            help
+            This is used for the redirection to the captive portal. It is recommended to leave unchanged.
+            
+        config DEFAULT_AP_MAX_CONNECTIONS
+            int "Access Point Max Connections"
+            default 4
+            help
+            Max is 4.
+            
+        config DEFAULT_AP_BEACON_INTERVAL
+            int "Access Point Beacon Interval (ms)"
+            default 100
+            help
+            100ms is the recommended default.
+    endmenu
+    menu "Ethernet Options"
+		visible if BASIC_I2C_BT && (ETH_USE_ESP32_EMAC || ETH_USE_SPI_ETHERNET)
+		choice 
+			prompt "Ethernet Chipset"
+			default ETH_NODRIVER
+			config ETH_NODRIVER
+				bool "Defined in NVS"			   
+			config ETH_LAN8720
+				bool "Microchip LAN8720 (RMII)"
+			config ETH_DM9051
+				bool "Davicom 9051 (SPI)"				
+			config ETH_W5500
+				bool "WIZnet 5500 (SPI)"
+		endchoice	
+        comment  "LAN8720 is an RMII interface and most of the required GPIOs aren't user selectable. They are defined as follow tx_en=21, tx0=19, tx1=22, rx0=25, rx1=26, crs_dv=27"
+            depends on ETH_LAN8720        
+		config ETH_PHY_RST_IO
+			int "PHY Reset GPIO number" if !ETH_NODRIVER
+			default -1
+			help
+				Set the GPIO number used to reset PHY chip.
+				Set to -1 to disable PHY chip hardware reset.		
+		config ETH_MDC_IO
+			int "SMI MDC GPIO number" if ETH_LAN8720
+			default -1
+			help
+				Set the GPIO number used by SMI MDC.		
+		config ETH_MDIO_IO
+			int "SMI MDIO GPIO number" if ETH_LAN8720
+			default -1
+			help
+				Set the GPIO number used by SMI MDIO.		
+		config ETH_SPI_HOST
+			int "SPI host number (-1,1 or 2)" if ETH_DM9051 || ETH_W5500
+			default -1
+			help
+				Set to -1 to use system's SPI config (see Various I/O)
+				Set to 2 or 3 to use a dedicated bus 
+		config ETH_SPI_INTR_IO
+			int "interrupt" if ETH_DM9051 || ETH_W5500
+			default -1													
+		config ETH_SPI_CS_IO
+			int "Chip Select" if ETH_DM9051 || ETH_W5500
+			default -1								
+		config ETH_SPI_CLK_IO
+			int "SPI clock" if ETH_SPI_HOST != -1 && (ETH_DM9051 || ETH_W5500)
+			default -1
+		config ETH_SPI_MOSI_IO
+			int "Data Out" if ETH_SPI_HOST != -1 && (ETH_DM9051 || ETH_W5500)
+			default -1				
+		config ETH_SPI_MISO_IO
+			int "Data In"  if ETH_SPI_HOST != -1 && (ETH_DM9051 || ETH_W5500)
+			default -1
+		config ETH_SPI_SPEED
+			int "SPI speed (Hz)" if ETH_SPI_HOST != -1 && (ETH_DM9051 || ETH_W5500)
+			default 20000000
+	endmenu    
 endmenu

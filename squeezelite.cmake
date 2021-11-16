@@ -1,17 +1,13 @@
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 function(___register_flash partition_name sub_type)
-
     message(STATUS "Adding new build target (from build folder): ninja ${partition_name}-flash")
 	partition_table_get_partition_info(otaapp_offset "--partition-type app --partition-subtype ${sub_type}" "offset")
-	esptool_py_flash_project_args(${partition_name} ${otaapp_offset} ${build_dir}/${partition_name}.bin FLASH_IN_PROJECT )
-	esptool_py_custom_target(${partition_name}-flash ${partition_name} "${build_dir}/${partition_name}.bin")
-## IDF-V4.2+ 	idf_component_get_property(main_args esptool_py FLASH_ARGS)
-## IDF-V4.2+ 	idf_component_get_property(sub_args esptool_py FLASH_SUB_ARGS)
-## IDF-V4.2+    esptool_py_flash_target(${target_name}-flash "${main_args}" "${sub_args}")
-## IDF-V4.2+ 	esptool_py_flash_target_image(${target_name}-flash ${target_name} "${otaapp_offset}" "${build_dir}/${target_name}.bin")
-## IDF-V4.2+ 	esptool_py_flash_target_image(flash ${target_name} "${otaapp_offset}" "${build_dir}/${target_name}.bin")
-	
+	idf_component_get_property(main_args esptool_py FLASH_ARGS)
+	idf_component_get_property(sub_args esptool_py FLASH_SUB_ARGS)
+	esptool_py_flash_target(${partition_name}-flash "${main_args}" "${sub_args}")
+	esptool_py_flash_target_image(${partition_name}-flash ${partition_name} "${otaapp_offset}" "${build_dir}/${partition_name}.bin")
+	esptool_py_flash_target_image(flash ${partition_name} "${otaapp_offset}" "${build_dir}/${partition_name}.bin")
 endfunction()
 #
 # Removes the specified compile flag from the specified target.

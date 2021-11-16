@@ -53,7 +53,7 @@ Contains the freeRTOS task for the DNS server that processes the requests.
 
 #include <byteswap.h>
 #include "squeezelite-ota.h"
-#include "wifi_manager.h"
+#include "network_manager.h"
 
 static const char TAG[] = "dns_server";
 static TaskHandle_t task_dns_server = NULL;
