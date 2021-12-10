@@ -3,9 +3,9 @@ name: Cross-Build
 
 on:
   push:
-    branches-ignore: [ master ethernet_idf4.3]
+    branches: [ ethernet_idf4.3 ]
   pull_request:
-    branches-ignore: [ master ethernet_idf4.3 ]
+    branches-ignore: [ ethernet_idf4.3 ]
 
 jobs:
   job1:
@@ -43,7 +43,7 @@ jobs:
         path: |
           build
           /var/lib/docker
-        key: ${{ runner.os }}-${{ matrix.node }}-${{ matrix.depth }}
+        key: idf4.3-${{ runner.os }}-${{ matrix.node }}-${{ matrix.depth }}
     - name: Set build parameters
       run: |
         git update-index --chmod=+x ./server_certs/getcert.sh
@@ -84,7 +84,7 @@ jobs:
       run: |
         env | grep "artifact\|tag\|GITHUB\|version\|NUMBER\|TARGET" >${TARGET_BUILD_NAME}-env.txt
         echo "${tag}" >version.txt
-        docker pull sle118/idf:release-v4.0 
+        docker pull espressif/idf:release-v4.3
         docker info 
         docker run --env-file=${TARGET_BUILD_NAME}-env.txt  -v $PWD:/project -w /project sle118/idf:release-v4.0 /bin/bash -c "cp build-scripts/${TARGET_BUILD_NAME}-sdkconfig.defaults sdkconfig  && idf.py build -DDEPTH=${{ matrix.depth }} -DBUILD_NUMBER=${BUILD_NUMBER}-${{ matrix.depth }} && zip -r build_output.zip build && zip build/${artifact_file_name} partitions*.csv build/*.bin build/bootloader/bootloader.bin build/partition_table/partition-table.bin build/flash_project_args build/size_*.txt"
     # - name: Build Mock firmware
@@ -153,4 +153,4 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
         asset_path: build/${{ env.artifact_file_name }}
         asset_name: ${{ env.artifact_file_name }}
-        asset_content_type: application/octet-stream                
+        asset_content_type: application/octet-stream          
