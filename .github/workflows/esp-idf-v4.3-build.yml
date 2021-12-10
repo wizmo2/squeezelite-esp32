@@ -1,11 +1,11 @@
 # This is a basic workflow to help you get started with Actions
-name: Cross-Build
+name: ESP-IDF v4.3
 
 on:
   push:
     branches: [ ethernet_idf4.3 ]
   pull_request:
-    branches-ignore: [ ethernet_idf4.3 ]
+    branches: [ ethernet_idf4.3 ]
 
 jobs:
   job1:
