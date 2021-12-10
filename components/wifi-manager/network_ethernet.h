@@ -16,10 +16,11 @@ typedef struct {
     esp_eth_handle_t handle;
     esp_netif_config_t * cfg_netif;
     spi_device_interface_config_t * devcfg;
-    // esp_eth_mac_t* (*mac_new)(spi_device_handle_t spi_handle, eth_config_t * eth_config);
-    // esp_eth_phy_t *(*phy_new)( eth_config_t* eth_config);
-    esp_err_t (*start)(spi_device_handle_t spi_handle,eth_config_t *ethernet_config);
+    // This function is called when the network interface is started
+    // and performs any initialization that requires a valid ethernet 
+    // configuration .
     void (*init_config)(eth_config_t * eth_config);
+    esp_err_t (*start)(spi_device_handle_t spi_handle,eth_config_t *ethernet_config);
 } network_ethernet_driver_t;
 typedef network_ethernet_driver_t* network_ethernet_detect_func_t(const char* Driver);
 network_ethernet_driver_t* network_ethernet_driver_autodetect(const char* Driver);

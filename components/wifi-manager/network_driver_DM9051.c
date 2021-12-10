@@ -22,14 +22,13 @@ static esp_err_t start(spi_device_handle_t spi_handle, eth_config_t* ethernet_co
 
 static void init_config(eth_config_t* ethernet_config) {
     DM9051.start = start;
-    DM9051.rmii = true;
-    DM9051.spi = false;
-    DM9051.valid = true;
 }
 
 network_ethernet_driver_t* DM9051_Detect(char* Driver) {
     if (!strcasestr(Driver, "DM9051"))
         return NULL;
+    DM9051.rmii = true;
+    DM9051.spi = false;
 #ifdef CONFIG_ETH_SPI_ETHERNET_DM9051
     DM9051.valid = true;
 #else

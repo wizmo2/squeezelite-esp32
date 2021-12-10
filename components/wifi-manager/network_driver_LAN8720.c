@@ -23,8 +23,6 @@ static esp_err_t start(spi_device_handle_t spi_handle, eth_config_t* ethernet_co
 
 static void init_config(eth_config_t* ethernet_config) {
     LAN8720.start = start;
-    LAN8720.rmii = true;
-    LAN8720.spi = false;
 }
 
 network_ethernet_driver_t* LAN8720_Detect(char* Driver) {
@@ -35,6 +33,8 @@ network_ethernet_driver_t* LAN8720_Detect(char* Driver) {
 #else
     LAN8720.valid = false;
 #endif        
+    LAN8720.rmii = true;
+    LAN8720.spi = false;
     LAN8720.init_config = init_config;
     return &LAN8720;
 }

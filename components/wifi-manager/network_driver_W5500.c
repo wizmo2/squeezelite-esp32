@@ -25,6 +25,9 @@ static esp_err_t start(spi_device_handle_t spi_handle, eth_config_t* ethernet_co
 #endif
 }
 static void init_config(eth_config_t* ethernet_config) {
+    // This function is called when the network interface is started
+    // and performs any initialization that requires a valid ethernet 
+    // configuration .
     esp_netif_inherent_config_t loc_esp_netif_config = ESP_NETIF_INHERENT_DEFAULT_ETH();
     devcfg.command_bits = 16;  // Actually it's the address phase in W5500 SPI frame
     devcfg.address_bits = 8;   // Actually it's the control phase in W5500 SPI frame
@@ -38,14 +41,14 @@ static void init_config(eth_config_t* ethernet_config) {
     W5500.cfg_netif = &cfg_spi;
     W5500.devcfg = &devcfg;
     W5500.start = start;
-    W5500.spi = true;
-    W5500.rmii = false;
 
 }
 network_ethernet_driver_t* W5500_Detect(char* Driver, network_ethernet_driver_t* Device) {
     if (!strcasestr(Driver, "W5500"))
         return NULL;
     W5500.init_config = init_config;        
+    W5500.spi = true;
+    W5500.rmii = false;
 #ifdef CONFIG_ETH_SPI_ETHERNET_W5500
     W5500.valid = true;
 #else

@@ -1,0 +1,51 @@
+[
+{
+	"name": "ESP32A1S Old Model config 1 (AC101)",
+	"config": [{
+			"dac_config": "model=AC101,bck=27,ws=26,do=25,di=35,sda=33,scl=32"
+		}, {
+			"dac_controlset": ""
+		}, {
+			"set_GPIO": "21=amp,22=green:0,39=jack:0"
+		}, {
+			"spdif_config": ""
+		}
+	]
+}, {
+	"name": "ESP32A1S Old Model config 2 (AC101)",
+	"config": [{
+			"dac_config": "model=AC101,bck=27,ws=26,do=25,di=35,sda=33,scl=32"
+		}, {
+			"dac_controlset": ""
+		}, {
+			"set_GPIO": "21=amp,22=green:0,5=jack:0"
+		}, {
+			"spdif_config": ""
+		}
+	]
+}, {
+	"name": "ESP32A1S V2.2+ variant 1 (ES8388)",
+	"config": [{
+			"dac_config": "model=ES8388,bck=27,ws=25,do=26,sda=33,scl=32,di=35,i2c=16"
+		}, {
+			"dac_controlset": ""
+		}, {
+			"set_GPIO": "21=amp,22=green:0,39=jack:0"
+		}, {
+			"spdif_config": ""
+		}
+	]
+}, {
+	"name": "ESP32A1S V2.2+ variant 2 (ES8388)",
+	"config": [{
+			"dac_config": "model=ES8388,bck=5,ws=25,do=26,sda=18,scl=23,i2c=16"
+		}, {
+			"dac_controlset": ""
+		}, {
+			"set_GPIO": "21=amp,22=green:0,39=jack:0"
+		}, {
+			"spdif_config": ""
+		}
+	]
+}
+]

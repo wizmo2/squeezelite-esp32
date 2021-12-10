@@ -1,3 +1,6 @@
+#ifdef NETWORK_HTTP_SERVER_LOG_LEVEL
+#define LOG_LOCAL_LEVEL NETWORK_HTTP_SERVER_LOG_LEVEL
+#endif
 /*
  *  Squeezelite for esp32
  *
@@ -139,7 +142,7 @@ esp_err_t http_server_start()
     strlcpy(rest_context->base_path, "/res/", sizeof(rest_context->base_path));
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 25;
+    config.max_uri_handlers = 30;
     config.max_open_sockets = 8;
     config.uri_match_fn = httpd_uri_match_wildcard;
 	config.task_priority = ESP_TASK_PRIO_MIN;

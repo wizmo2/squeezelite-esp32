@@ -21,6 +21,7 @@
 #include "display.h"
 #include "config.h"
 #include "globdefs.h"
+#include "adac.h"
 
 #define I2C_MASTER_TX_BUF_DISABLE 0 /*!< I2C master doesn't need buffer */
 #define I2C_MASTER_RX_BUF_DISABLE 0 /*!< I2C master doesn't need buffer */
@@ -123,124 +124,131 @@ bool is_i2c_started(i2c_port_t port){
 
 typedef struct {
 	uint8_t address;
-	char * description;
+	const char * description;
 } i2c_db_t;
 
 
 // the list was taken from https://i2cdevices.org/addresses
 // on 2020-01-16
+
 static const i2c_db_t i2c_db[] = {
-		{ .address = 0x00, .description = "Unknown"},
-		{ .address = 0x01, .description = "Unknown"},
-		{ .address = 0x02, .description = "Unknown"},
-		{ .address = 0x03, .description = "Unknown"},
-		{ .address = 0x04, .description = "Unknown"},
-		{ .address = 0x05, .description = "Unknown"},
-		{ .address = 0x06, .description = "Unknown"},
-		{ .address = 0x07, .description = "Unknown"},
-		{ .address = 0x0c, .description = "AK8975"},
-		{ .address = 0x0d, .description = "AK8975"},
-		{ .address = 0x0e, .description = "MAG3110 AK8975 IST-8310"},
-		{ .address = 0x0f, .description = "AK8975"},
-		{ .address = 0x10, .description = "VEML7700 VML6075"},
-		{ .address = 0x11, .description = "Si4713 SAA5246 SAA5243P/K SAA5243P/L SAA5243P/E SAA5243P/H"},
-		{ .address = 0x13, .description = "VCNL40x0"},
-		{ .address = 0x18, .description = "MCP9808 LIS3DH LSM303"},
-		{ .address = 0x19, .description = "MCP9808 LIS3DH LSM303"},
-		{ .address = 0x1a, .description = "MCP9808"},
-		{ .address = 0x1b, .description = "MCP9808"},
-		{ .address = 0x1c, .description = "MCP9808 MMA845x FXOS8700"},
-		{ .address = 0x1d, .description = "MCP9808 MMA845x ADXL345 FXOS8700"},
-		{ .address = 0x1e, .description = "MCP9808 FXOS8700 HMC5883 LSM303 LSM303"},
-		{ .address = 0x1f, .description = "MCP9808 FXOS8700"},
-		{ .address = 0x20, .description = "FXAS21002 MCP23008 MCP23017 Chirp!"},
-		{ .address = 0x21, .description = "FXAS21002 MCP23008 MCP23017 SAA4700"},
-		{ .address = 0x22, .description = "MCP23008 MCP23017 PCA1070"},
-		{ .address = 0x23, .description = "MCP23008 MCP23017 SAA4700"},
-		{ .address = 0x24, .description = "MCP23008 MCP23017 PCD3311C PCD3312C"},
-		{ .address = 0x25, .description = "MCP23008 MCP23017 PCD3311C PCD3312C"},
-		{ .address = 0x26, .description = "MCP23008 MCP23017"},
-		{ .address = 0x27, .description = "MCP23008 MCP23017"},
-		{ .address = 0x28, .description = "BNO055 CAP1188"},
-		{ .address = 0x29, .description = "BNO055 CAP1188 TCS34725 TSL2591 VL53L0x VL6180X"},
-		{ .address = 0x2a, .description = "CAP1188"},
-		{ .address = 0x2b, .description = "CAP1188"},
-		{ .address = 0x2c, .description = "CAP1188 AD5248 AD5251 AD5252 CAT5171"},
-		{ .address = 0x2d, .description = "CAP1188 AD5248 AD5251 AD5252 CAT5171"},
-		{ .address = 0x2e, .description = "AD5248 AD5251 AD5252"},
-		{ .address = 0x2f, .description = "AD5248 AD5243 AD5251 AD5252"},
-		{ .address = 0x30, .description = "SAA2502"},
-		{ .address = 0x31, .description = "SAA2502"},
-		{ .address = 0x38, .description = "FT6x06 VEML6070 BMA150 SAA1064"},
-		{ .address = 0x39, .description = "TSL2561 APDS-9960 VEML6070 SAA1064"},
-		{ .address = 0x3a, .description = "PCF8577C SAA1064"},
-		{ .address = 0x3b, .description = "SAA1064 PCF8569"},
-		{ .address = 0x3c, .description = "SSD1305 SSD1306 PCF8578 PCF8569 SH1106"},
-		{ .address = 0x3d, .description = "SSD1305 SSD1306 PCF8578 SH1106"},
-		{ .address = 0x40, .description = "HTU21D-F TMP007 PCA9685 NE5751 TDA8421 INA260 TEA6320 TEA6330 TMP006 TEA6300 Si7021 INA219 TDA9860"},
-		{ .address = 0x41, .description = "TMP007 PCA9685 STMPE811 TDA8424 NE5751 TDA8421 INA260 STMPE610 TDA8425 TMP006 INA219 TDA9860 TDA8426"},
-		{ .address = 0x42, .description = "HDC1008 TMP007 TMP006 PCA9685 INA219 TDA8415 TDA8417 INA260"},
-		{ .address = 0x43, .description = "HDC1008 TMP007 TMP006 PCA9685 INA219 INA260"},
-		{ .address = 0x44, .description = "TMP007 TMP006 PCA9685 INA219 STMPE610 SHT31 ISL29125 STMPE811 TDA4688 TDA4672 TDA4780 TDA4670 TDA8442 TDA4687 TDA4671 TDA4680 INA260"},
-		{ .address = 0x45, .description = "TMP007 TMP006 PCA9685 INA219 SHT31 TDA8376 INA260"},
-		{ .address = 0x46, .description = "TMP007 TMP006 PCA9685 INA219 TDA9150 TDA8370 INA260"},
-		{ .address = 0x47, .description = "TMP007 TMP006 PCA9685 INA219 INA260"},
-		{ .address = 0x48, .description = "PCA9685 INA219 PN532 TMP102 INA260 ADS1115"},
-		{ .address = 0x49, .description = "TSL2561 PCA9685 INA219 TMP102 INA260 ADS1115 AS7262"},
-		{ .address = 0x4a, .description = "PCA9685 INA219 TMP102 ADS1115 MAX44009 INA260"},
-		{ .address = 0x4b, .description = "PCA9685 INA219 TMP102 ADS1115 MAX44009 INA260"},
-		{ .address = 0x4c, .description = "PCA9685 INA219 INA260"},
-		{ .address = 0x4d, .description = "PCA9685 INA219 INA260"},
-		{ .address = 0x4e, .description = "PCA9685 INA219 INA260"},
-		{ .address = 0x4f, .description = "PCA9685 INA219 INA260"},
-		{ .address = 0x50, .description = "PCA9685 MB85RC"},
-		{ .address = 0x51, .description = "PCA9685 MB85RC"},
-		{ .address = 0x52, .description = "PCA9685 MB85RC Nunchuck controller APDS-9250"},
-		{ .address = 0x53, .description = "ADXL345 PCA9685 MB85RC"},
-		{ .address = 0x54, .description = "PCA9685 MB85RC"},
-		{ .address = 0x55, .description = "PCA9685 MB85RC"},
-		{ .address = 0x56, .description = "PCA9685 MB85RC"},
-		{ .address = 0x57, .description = "PCA9685 MB85RC MAX3010x"},
-		{ .address = 0x58, .description = "PCA9685 TPA2016 SGP30"},
-		{ .address = 0x59, .description = "PCA9685"},
-		{ .address = 0x5a, .description = "PCA9685 CCS811 MLX90614 DRV2605 MPR121"},
-		{ .address = 0x5b, .description = "PCA9685 CCS811 MPR121"},
-		{ .address = 0x5c, .description = "PCA9685 AM2315 MPR121"},
-		{ .address = 0x5d, .description = "PCA9685 MPR121"},
-		{ .address = 0x5e, .description = "PCA9685"},
-		{ .address = 0x5f, .description = "PCA9685 HTS221"},
-		{ .address = 0x60, .description = "PCA9685 MPL115A2 MPL3115A2 Si5351A Si1145 MCP4725A0 TEA5767 TSA5511 SAB3037 SAB3035 MCP4725A1"},
-		{ .address = 0x61, .description = "PCA9685 Si5351A MCP4725A0 TEA6100 TSA5511 SAB3037 SAB3035 MCP4725A1"},
-		{ .address = 0x62, .description = "PCA9685 MCP4725A1 TSA5511 SAB3037 SAB3035 UMA1014T"},
-		{ .address = 0x63, .description = "Si4713 PCA9685 MCP4725A1 TSA5511 SAB3037 SAB3035 UMA1014T"},
-		{ .address = 0x64, .description = "PCA9685 MCP4725A2 MCP4725A1"},
-		{ .address = 0x65, .description = "PCA9685 MCP4725A2 MCP4725A1"},
-		{ .address = 0x66, .description = "PCA9685 MCP4725A3 IS31FL3731 MCP4725A1"},
-		{ .address = 0x67, .description = "PCA9685 MCP4725A3 MCP4725A1"},
-		{ .address = 0x68, .description = "PCA9685 AMG8833 DS1307 PCF8523 DS3231 MPU-9250 ITG3200 PCF8573 MPU6050"},
-		{ .address = 0x69, .description = "PCA9685 AMG8833 MPU-9250 ITG3200 PCF8573 SPS30 MPU6050"},
-		{ .address = 0x6a, .description = "PCA9685 L3GD20H PCF8573"},
-		{ .address = 0x6b, .description = "PCA9685 L3GD20H PCF8573"},
-		{ .address = 0x6c, .description = "PCA9685"},
-		{ .address = 0x6d, .description = "PCA9685"},
-		{ .address = 0x6e, .description = "PCA9685"},
-		{ .address = 0x6f, .description = "PCA9685"},
-		{ .address = 0x70, .description = "PCA9685 TCA9548 HT16K33"},
-		{ .address = 0x71, .description = "PCA9685 TCA9548 HT16K33"},
-		{ .address = 0x72, .description = "PCA9685 TCA9548 HT16K33"},
-		{ .address = 0x73, .description = "PCA9685 TCA9548 HT16K33"},
-		{ .address = 0x74, .description = "PCA9685 TCA9548 HT16K33"},
-		{ .address = 0x75, .description = "PCA9685 TCA9548 HT16K33"},
-		{ .address = 0x76, .description = "PCA9685 TCA9548 HT16K33 BME280 BMP280 MS5607 MS5611 BME680"},
-		{ .address = 0x77, .description = "PCA9685 TCA9548 HT16K33 IS31FL3731 BME280 BMP280 MS5607 BMP180 BMP085 BMA180 MS5611 BME680"},
-		{ .address = 0x78, .description = "PCA9685"},
-		{ .address = 0x79, .description = "PCA9685"},
-		{ .address = 0x7a, .description = "PCA9685"},
-		{ .address = 0x7b, .description = "PCA9685"},
-		{ .address = 0x7c, .description = "PCA9685"},
-		{ .address = 0x7d, .description = "PCA9685"},
-		{ .address = 0x7e, .description = "PCA9685"},
-		{ .address = 0x7f, .description = "PCA9685"},
+{ .address = 0x00, .description="Unknown"},
+{ .address = 0x01, .description="Unknown"},
+{ .address = 0x02, .description="Unknown"},
+{ .address = 0x03, .description="Unknown"},
+{ .address = 0x04, .description="Unknown"},
+{ .address = 0x05, .description="Unknown"},
+{ .address = 0x06, .description="Unknown"},
+{ .address = 0x07, .description="Unknown"},
+{ .address = 0x08, .description="Unknown"},
+{ .address = 0x0c, .description="AK8975"},
+{ .address = 0x0d, .description="AK8975"},
+{ .address = 0x0e, .description="MAG3110 AK8975 IST-8310"},
+{ .address = 0x0f, .description="AK8975"},
+{ .address = 0x10, .description="VEML7700 VML6075 VEML6075"},
+{ .address = 0x11, .description="Si4713 SAA5246 SAA5243P/K SAA5243P/L SAA5243P/E SAA5243P/H"},
+{ .address = 0x12, .description="SEN-17374"},
+{ .address = 0x13, .description="VCNL40x0 SEN-17374"},
+{ .address = 0x18, .description="MCP9808 LIS3DH LSM303 COM-15093"},
+{ .address = 0x19, .description="MCP9808 LIS3DH LSM303 COM-15093"},
+{ .address = 0x20, .description="ES8388"},
+{ .address = 0x1a, .description="AC101 MCP9808"},
+{ .address = 0x1b, .description="MCP9808"},
+{ .address = 0x1c, .description="MCP9808 MMA845x FXOS8700"},
+{ .address = 0x1d, .description="MCP9808 MMA845x ADXL345 FXOS8700"},
+{ .address = 0x1e, .description="HMC5883 LSM303 MCP9808 LSM303 FXOS8700"},
+{ .address = 0x1f, .description="MCP9808 FXOS8700"},
+{ .address = 0x20, .description="TCA9554 MCP23008 MA12070P MCP23017 Chirp! FXAS21002"},
+{ .address = 0x21, .description="FXAS21002 MCP23008 MCP23017 SAA4700 MA12070P TCA9554"},
+{ .address = 0x22, .description="ES8388 MCP23008 MCP23017 PCA1070 MA12070P TCA9554"},
+{ .address = 0x23, .description="MCP23008 MCP23017 SAA4700 MA12070P TCA9554"},
+{ .address = 0x24, .description="TCA9554 MCP23008 PCD3312C MCP23017 PCD3311C"},
+{ .address = 0x25, .description="TCA9554 MCP23008 PCD3312C MCP23017 PCD3311C"},
+{ .address = 0x26, .description="MCP23008 MCP23017 TCA9554"},
+{ .address = 0x27, .description="MCP23008 MCP23017 HIH6130 TCA9554"},
+{ .address = 0x28, .description="BNO055 CAP1188"},
+{ .address = 0x29, .description="BNO055 VL53L0x VL6180X CAP1188 TCS34725 TSL2591"},
+{ .address = 0x2a, .description="CAP1188"},
+{ .address = 0x2b, .description="CAP1188"},
+{ .address = 0x2c, .description="CAP1188 AD5248 AD5251 AD5252 CAT5171"},
+{ .address = 0x2d, .description="CAP1188 AD5248 AD5251 AD5252 CAT5171"},
+{ .address = 0x2e, .description="AD5248 AD5251 AD5252 LPS22HB"},
+{ .address = 0x2f, .description="AD5248 AD5243 AD5251 AD5252"},
+{ .address = 0x30, .description="SAA2502"},
+{ .address = 0x31, .description="SAA2502"},
+{ .address = 0x33, .description="MLX90640"},
+{ .address = 0x38, .description="FT6x06 VEML6070 BMA150 SAA1064 SEN-15892 PCF8574AP"},
+{ .address = 0x39, .description="TSL2561 APDS-9960 VEML6070 SAA1064 PCF8574AP"},
+{ .address = 0x3a, .description="PCF8577C SAA1064 PCF8574AP"},
+{ .address = 0x3b, .description="SAA1064 PCF8569 PCF8574AP"},
+{ .address = 0x3c, .description="SSD1305 SSD1306 PCF8578 PCF8569 SH1106 PCF8574AP"},
+{ .address = 0x3d, .description="SSD1305 SSD1306 PCF8578 SH1106 PCF8574AP"},
+{ .address = 0x3e, .description="PCF8574AP"},
+{ .address = 0x3f, .description="PCF8574AP"},
+{ .address = 0x40, .description="Si7021 HTU21D-F TMP007 TMP006 PCA9685 INA219 TEA6330 TEA6300 TDA9860 TEA6320 TDA8421 NE5751 INA260 PCF8574"},
+{ .address = 0x41, .description="TMP007 TDA8421 TDA8424 STMPE610 PCF8574 STMPE811 NE5751 INA260 TDA8425 TMP006 TDA9860 PCA9685 INA219 TDA8426"},
+{ .address = 0x42, .description="TMP007 TDA8417 HDC1008 PCF8574 INA260 TDA8415 TMP006 PCA9685 INA219"},
+{ .address = 0x43, .description="TMP007 HDC1008 PCF8574 INA260 TMP006 PCA9685 INA219"},
+{ .address = 0x44, .description="TMP007 TMP006 PCA9685 INA219 STMPE610 SHT31 ISL29125 STMPE811 TDA4688 TDA4672 TDA4780 TDA4670 TDA8442 TDA4687 TDA4671 TDA4680 INA260 PCF8574"},
+{ .address = 0x45, .description="TMP007 TDA7433 PCF8574 TDA8376 INA260 TMP006 PCA9685 INA219 SHT31"},
+{ .address = 0x46, .description="TMP007 PCF8574 TDA8370 INA260 TMP006 PCA9685 INA219 TDA9150"},
+{ .address = 0x47, .description="TMP007 PCF8574 INA260 TMP006 PCA9685 INA219"},
+{ .address = 0x48, .description="PCA9685 INA219 PN532 TMP102 INA260 ADS1115 PCF8574 ADS7828"},
+{ .address = 0x49, .description="TSL2561 PCA9685 INA219 TMP102 INA260 ADS1115 AS7262 PCF8574 ADS7828"},
+{ .address = 0x4a, .description="ADS7828 PCF8574 ADS1115 INA260 PCA9685 MAX44009 INA219 TMP102"},
+{ .address = 0x4b, .description="ADS7828 PCF8574 ADS1115 INA260 PCA9685 MAX44009 INA219 TMP102"},
+{ .address = 0x4c, .description="PCA9685 INA219 INA260 PCF8574"},
+{ .address = 0x4d, .description="PCA9685 INA219 INA260 PCF8574"},
+{ .address = 0x4e, .description="PCA9685 INA219 INA260 PCF8574"},
+{ .address = 0x4f, .description="PCA9685 INA219 INA260 PCF8574"},
+{ .address = 0x50, .description="PCA9685 MB85RC"},
+{ .address = 0x51, .description="PCA9685 MB85RC VCNL4200"},
+{ .address = 0x52, .description="PCA9685 MB85RC Nunchuck controller APDS-9250 SI1133"},
+{ .address = 0x53, .description="ADXL345 PCA9685 MB85RC"},
+{ .address = 0x54, .description="PCA9685 MB85RC"},
+{ .address = 0x55, .description="PCA9685 MB85RC MAX30101 SI1133"},
+{ .address = 0x56, .description="PCA9685 MB85RC"},
+{ .address = 0x57, .description="PCA9685 MB85RC MAX3010x"},
+{ .address = 0x58, .description="PCA9685 TPA2016 SGP30"},
+{ .address = 0x59, .description="PCA9685"},
+{ .address = 0x5a, .description="MPR121 MLX90614 CCS811 PCA9685 DRV2605"},
+{ .address = 0x5b, .description="PCA9685 CCS811 MPR121"},
+{ .address = 0x5c, .description="PCA9685 AM2315 MPR121"},
+{ .address = 0x5d, .description="PCA9685 MPR121"},
+{ .address = 0x5e, .description="PCA9685"},
+{ .address = 0x5f, .description="PCA9685 HTS221"},
+{ .address = 0x60, .description="SI1132 Si5351A ATECC608A TSA5511 ATECC508A SAB3035 MCP4725A0 SAB3037 PCA9685 MCP4725A1 TEA5767 MPL3115A2 MPL115A2 Si1145"},
+{ .address = 0x61, .description="Si5351A TSA5511 SAB3035 MCP4725A0 SAB3037 TEA6100 PCA9685 MCP4725A1"},
+{ .address = 0x62, .description="SCD40-D-R2 TSA5511 SAB3035 UMA1014T SAB3037 PCA9685 MCP4725A1"},
+{ .address = 0x63, .description="Si4713 TSA5511 SAB3035 UMA1014T SAB3037 PCA9685 MCP4725A1"},
+{ .address = 0x64, .description="PCA9685 MCP4725A2 MCP4725A1"},
+{ .address = 0x65, .description="PCA9685 MCP4725A2 MCP4725A1"},
+{ .address = 0x66, .description="PCA9685 MCP4725A3 IS31FL3731 MCP4725A1"},
+{ .address = 0x67, .description="PCA9685 MCP4725A3 MCP4725A1"},
+{ .address = 0x68, .description="MPU-9250 ICM-20948 MPU6050 AMG8833 DS3231 PCA9685 PCF8573 PCF8523 DS1307 ITG3200"},
+{ .address = 0x69, .description="MPU-9250 ICM-20948 MPU6050 AMG8833 PCA9685 PCF8573 ITG3200 SPS30"},
+{ .address = 0x6a, .description="PCA9685 L3GD20H PCF8573"},
+{ .address = 0x6b, .description="PCA9685 L3GD20H PCF8573"},
+{ .address = 0x6c, .description="PCA9685"},
+{ .address = 0x6d, .description="PCA9685"},
+{ .address = 0x6e, .description="PCA9685"},
+{ .address = 0x6f, .description="PCA9685 MCP7940N"},
+{ .address = 0x70, .description="PCA9685 TCA9548 HT16K33 SHTC3"},
+{ .address = 0x71, .description="PCA9685 TCA9548 HT16K33"},
+{ .address = 0x72, .description="PCA9685 TCA9548 HT16K33"},
+{ .address = 0x73, .description="PCA9685 TCA9548 HT16K33"},
+{ .address = 0x74, .description="PCA9685 TCA9548 HT16K33"},
+{ .address = 0x75, .description="PCA9685 TCA9548 HT16K33"},
+{ .address = 0x76, .description="BME688 BME680 MS5611 MS5607 HT16K33 PCA9685 BME280 BMP280 TCA9548"},
+{ .address = 0x77, .description="PCA9685 TCA9548 HT16K33 IS31FL3731 BME280 BMP280 MS5607 BMP180 BMP085 BMA180 MS5611 BME680 BME688"},
+{ .address = 0x78, .description="PCA9685"},
+{ .address = 0x79, .description="PCA9685"},
+{ .address = 0x7a, .description="PCA9685"},
+{ .address = 0x7b, .description="PCA9685"},
+{ .address = 0x7c, .description="PCA9685"},
+{ .address = 0x7d, .description="PCA9685"},
+{ .address = 0x7e, .description="PCA9685"},
+{ .address = 0x7f, .description="PCA9685"},
 		{ .address = 0, .description = NULL}
 };
 
@@ -793,7 +801,67 @@ static int do_i2cget_cmd(int argc, char **argv)
 	FREE_AND_NULL(buf);
     return 0;
 }
+esp_err_t cmd_i2ctools_scan_bus(FILE *f,int sda, int scl){
+	uint8_t matches[128]={};
+	int last_match=0;
+	esp_err_t ret = ESP_OK;
+	
+	if(!GPIO_IS_VALID_GPIO(scl) || !GPIO_IS_VALID_GPIO(sda)){
+		fprintf(f,"Invalid GPIO. Cannot scan bus\n");
+		return 1;
+	}
+	
+	// configure i2c
+	i2c_config_t i2c_config = {
+			.mode = I2C_MODE_MASTER,
+			.sda_io_num = -1,
+			.sda_pullup_en = GPIO_PULLUP_ENABLE,
+			.scl_io_num = -1,
+			.scl_pullup_en = GPIO_PULLUP_ENABLE,
+			.master.clk_speed = 250000,
+		};
 
+	i2c_config.sda_io_num = sda;
+	i2c_config.scl_io_num = scl;
+	// we have an I2C configured	
+	i2c_port_t i2c_port = 0;
+	// make sure that we don't have an i2c driver running
+	i2c_driver_delete(i2c_port);
+	ret = i2c_param_config(i2c_port, &i2c_config);
+	if (ret != ESP_OK) {
+		fprintf(f,"I2C Param Config failed %s\n", esp_err_to_name(ret));
+		return ret;
+	}
+	ret=i2c_driver_install(i2c_port, I2C_MODE_MASTER, false, false, false);
+	if (ret != ESP_OK) {
+		fprintf(f,"I2C driver install failed %s\n", esp_err_to_name(ret));
+		return ret;
+	}
+    for (int i = 0; i < 128 ; i ++) {
+
+            i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+            i2c_master_start(cmd);
+            i2c_master_write_byte(cmd, (i << 1) | WRITE_BIT, ACK_CHECK_EN);
+            i2c_master_stop(cmd);
+            ret = i2c_master_cmd_begin(i2c_port, cmd, 50 / portTICK_RATE_MS);
+            i2c_cmd_link_delete(cmd);
+            if (ret == ESP_OK) {
+                matches[++last_match-1] = i;
+            } 
+    }
+	i2c_driver_delete(i2c_port);
+    if(last_match) {
+    	fprintf(f,"i2c device detected (names provided by https://i2cdevices.org/addresses).\n");
+		for(int i=0;i<last_match;i++){
+			fprintf(f,"%u [%02xh]- %s\n", matches[i], matches[i], i2c_get_description(matches[i]));
+		}
+    }
+	else {	
+		fprintf(f,"No i2c devices found with scl-%d and sda-%d\n",scl,sda);
+	}
+
+    return 0;
+}
 static int do_i2cdetect_cmd(int argc, char **argv)
 {
 	uint8_t matches[128]={};

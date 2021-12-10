@@ -20,6 +20,7 @@
 #include "adac.h"
 #include "globdefs.h"
 #include "cJSON.h"
+#include "cmd_i2ctools.h"
 
 const char * desc_squeezelite ="Squeezelite Options";
 const char * desc_dac= "DAC Options";
@@ -48,11 +49,9 @@ extern const struct adac_s *dac_set[];
 #define CODECS_DSD  ""
 #endif
 #define CODECS_MP3  "|mad|mpg"
-#ifdef CONFIG_SQUEEZEAMP 
-static const char * known_configs = "";
-#else
-static const char * known_configs_string = "[{\"name\":\"ESP32A1S Old Model config 1 (AC101)\",\"config\":[{\"dac_config\":\"AC101,bck=27,ws=26,do=25,di=35,sda=33,scl=32\"},{\"dac_controlset\":\"\"},{\"set_GPIO\":\"\"},{\"spdif_config\":\"21=amp,22=green:0,39=jack:0\"}]},{\"name\":\"ESP32A1S Old Model config 2 (AC101)\",\"config\":[{\"dac_config\":\"AC101,bck=27,ws=26,do=25,di=35,sda=33,scl=32\"},{\"dac_controlset\":\"\"},{\"set_GPIO\":\"\"},{\"spdif_config\":\"21=amp,22=green:0,5=jack:0\"}]},{\"name\":\"ESP32A1S V2.2+ variant 1 (ES8388)\",\"config\":[{\"dac_config\":\"model=ES8388,bck=27,ws=25,do=26,sda=33,scl=32,di=35,i2c=16\"},{\"dac_controlset\":\"\"},{\"set_GPIO\":\"21=amp,22=green:0,39=jack:0\"},{\"spdif_config\":\"\"}]},{\"name\":\"ESP32A1S V2.2+ variant 2 (ES8388)\",\"config\":[{\"dac_config\":\"model=ES8388,bck=5,ws=25,do=26,sda=18,scl=23,i2c=16\"},{\"dac_controlset\":\"\"},{\"set_GPIO\":\"21=amp,22=green:0,39=jack:0\"},{\"spdif_config\":\"\"}]}]";
-#endif
+extern const uint8_t _presets_json_start[] asm("_binary_presets_json_start");
+extern const uint8_t _presets_json__end[] asm("_binary_presets_json__end");
+
 
 
 #if !defined(MODEL_NAME)
@@ -948,8 +947,14 @@ void replace_char_in_string(char * str, char find, char replace){
 }
 
 static cJSON * get_known_configurations(FILE * f){
+#ifndef CONFIG_SQUEEZEAMP 
 	#define err1_msg "Failed to parse known_configs json.  %s\nError at:\n%s"
 	#define err2_msg "Known configs should be an array and it is not: \n%s"
+
+//extern const uint8_t _presets_json_start[] asm("_binary_presets_json_start");
+//extern const uint8_t _presets_json__end[] asm("_binary_presets_json__end");
+	const char * known_configs_string = (const char *)_presets_json_start;
+	
 	if(!known_configs_string || strlen(known_configs_string)==0){
 		return NULL;
 	}
@@ -977,7 +982,10 @@ static cJSON * get_known_configurations(FILE * f){
 		
 	}
 	return known_configs_json;
-	
+#else
+	return NULL;
+#endif
+
 }
 
 static  cJSON * find_known_model_name(cJSON * root,const char * name, FILE * f, bool * found){
@@ -1006,9 +1014,6 @@ static esp_err_t is_known_model_name(const char * name, FILE * f, bool * found){
 	if(found){
 		*found = false;
 	}
-	if(!known_configs_string || strlen(known_configs_string)==0){
-		return err;
-	}
 	cJSON * known_configs_json = get_known_configurations(f);
 	if(known_configs_json){
 		cJSON * known_item = find_known_model_name(known_configs_json,name,f,found);
@@ -1023,9 +1028,7 @@ static esp_err_t is_known_model_name(const char * name, FILE * f, bool * found){
 static esp_err_t save_known_config(const char * name, FILE * f){
 	esp_err_t err = ESP_OK;
 	char * json_string=NULL;
-	if(!known_configs_string || strlen(known_configs_string)==0){
-		return err;
-	}
+
 	cJSON * known_configs_json = get_known_configurations(f);
 	if(known_configs_json){
 		bool found = false;
@@ -1144,6 +1147,14 @@ static int do_register_known_templates_config(int argc, char **argv){
 		if(nerrors==0 && found){
 			fprintf(f,"Appling template configuration for %s\n",known_model_args.model_name->sval[0]);
 			nerrors+=((err=save_known_config(known_model_args.model_name->sval[0],f))!=ESP_OK);
+		}
+		if(nerrors==0){
+			const i2s_platform_config_t * i2s_config= config_dac_get();
+			if(i2s_config->scl!=-1 && i2s_config->sda!=-1 && GPIO_IS_VALID_GPIO(i2s_config->scl) && GPIO_IS_VALID_GPIO(i2s_config->sda)){
+				fprintf(f,"Scanning i2c bus for devices\n");
+				cmd_i2ctools_scan_bus(f,i2s_config->sda, i2s_config->scl);
+			}
+
 		}
 
         if(err!=ESP_OK){
