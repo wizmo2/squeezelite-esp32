@@ -54,7 +54,7 @@
 		"current_time":	147319
 	},
 	{
-		"message":	"Wifi connected",
+		"message":	"Network connected",
 		"type":	"MESSAGING_INFO",
 		"class":	"MESSAGING_CLASS_SYSTEM",
 		"sent_time":	141256,

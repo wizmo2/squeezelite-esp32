@@ -6,7 +6,6 @@
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, either express or implied.
 */
-//#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include <stdio.h>
 #include "cmd_config.h"
 #include "argtable3/argtable3.h"
@@ -18,14 +17,19 @@
 #include "trace.h"
 #include "messaging.h"
 #include "accessors.h"
+#include "adac.h"
+#include "globdefs.h"
+#include "cJSON.h"
 
 const char * desc_squeezelite ="Squeezelite Options";
 const char * desc_dac= "DAC Options";
+const char * desc_preset= "Preset Options";
 const char * desc_spdif= "SPDIF Options";
 const char * desc_audio= "General Audio Options";
 const char * desc_bt_source= "Bluetooth Audio Output Options";
 const char * desc_rotary= "Rotary Control";
 
+extern const struct adac_s *dac_set[];
 
 #define CODECS_BASE "flac|pcm|mp3|ogg"
 #if NO_FAAD
@@ -44,6 +48,11 @@ const char * desc_rotary= "Rotary Control";
 #define CODECS_DSD  ""
 #endif
 #define CODECS_MP3  "|mad|mpg"
+#ifdef CONFIG_SQUEEZEAMP 
+static const char * known_configs = "";
+#else
+static const char * known_configs_string = "[{\"name\":\"ESP32A1S Old Model config 1 (AC101)\",\"config\":[{\"dac_config\":\"AC101,bck=27,ws=26,do=25,di=35,sda=33,scl=32\"},{\"dac_controlset\":\"\"},{\"set_GPIO\":\"\"},{\"spdif_config\":\"21=amp,22=green:0,39=jack:0\"}]},{\"name\":\"ESP32A1S Old Model config 2 (AC101)\",\"config\":[{\"dac_config\":\"AC101,bck=27,ws=26,do=25,di=35,sda=33,scl=32\"},{\"dac_controlset\":\"\"},{\"set_GPIO\":\"\"},{\"spdif_config\":\"21=amp,22=green:0,5=jack:0\"}]},{\"name\":\"ESP32A1S V2.2+ variant 1 (ES8388)\",\"config\":[{\"dac_config\":\"model=ES8388,bck=27,ws=25,do=26,sda=33,scl=32,di=35,i2c=16\"},{\"dac_controlset\":\"\"},{\"set_GPIO\":\"21=amp,22=green:0,39=jack:0\"},{\"spdif_config\":\"\"}]},{\"name\":\"ESP32A1S V2.2+ variant 2 (ES8388)\",\"config\":[{\"dac_config\":\"model=ES8388,bck=5,ws=25,do=26,sda=18,scl=23,i2c=16\"},{\"dac_controlset\":\"\"},{\"set_GPIO\":\"21=amp,22=green:0,39=jack:0\"},{\"spdif_config\":\"\"}]}]";
+#endif
 
 
 #if !defined(MODEL_NAME)
@@ -57,6 +66,7 @@ const char * desc_rotary= "Rotary Control";
 #ifndef MODEL_NAME_STRING
 #define MODEL_NAME_STRING STR(MODEL_NAME)
 #endif
+
 
 #define CODECS CODECS_BASE CODECS_AAC CODECS_FF CODECS_DSD CODECS_MP3
 #define NOT_OUTPUT "has input capabilities only"
@@ -85,7 +95,10 @@ static struct {
 	struct arg_lit *clear;
     struct arg_end *end;
 } i2s_args;
-
+static struct {
+	struct arg_str *model_name;
+    struct arg_end *end;
+} known_model_args;
 static struct {
 	struct arg_rem * rem;
 	struct arg_int * A;
@@ -189,9 +202,8 @@ int check_missing_parm(struct arg_int * int_parm, FILE * f){
 }
 char * strip_bt_name(char * opt_str)
 {
-    char *result = malloc(strlen(opt_str)+1);
-    memset(result, 0x00, strlen(opt_str)+1);
-    char *str = strdup(opt_str);
+    char *result = malloc_init_external(strlen(opt_str)+1);
+    char *str = strdup_psram(opt_str);
     const char * output_marker=" -o";
     
     if(!result ){
@@ -555,7 +567,18 @@ static int do_rotary_cmd(int argc, char **argv){
 	FREE_AND_NULL(buf);
 	return (nerrors==0 && err==ESP_OK)?0:1;
 }
-
+static int is_valid_gpio_number(int gpio, const char * name, FILE *f, bool mandatory, struct arg_int * target, bool output){
+	bool invalid = (!GPIO_IS_VALID_GPIO(gpio) ||(output && !GPIO_IS_VALID_OUTPUT_GPIO(gpio))) ;
+	if(invalid && mandatory && gpio!=-1){
+		fprintf(f,"Error: Invalid mandatory gpio %d for %s\n",gpio,name);
+		return 1;
+	}
+	if(target && !invalid){
+		target->count=1;
+		target->ival[0]=gpio;
+	}
+	return 0;
+}
 static int do_i2s_cmd(int argc, char **argv)
 {
 	i2s_platform_config_t i2s_dac_pin = {
@@ -570,6 +593,7 @@ static int do_i2s_cmd(int argc, char **argv)
 		return 1;
 	}
 	strcpy(i2s_dac_pin.model, "I2S");
+	ESP_LOGD(TAG,"Processing i2s command %s with %d parameters",argv[0],argc);
 
 	esp_err_t err=ESP_OK;
 	int nerrors = arg_parse(argc, argv,(void **)&i2s_args);
@@ -583,39 +607,39 @@ static int do_i2s_cmd(int argc, char **argv)
 	size_t buf_size = 0;
 	FILE *f = open_memstream(&buf, &buf_size);
 	if (f == NULL) {
+		ESP_LOGE(TAG, "do_i2s_cmd: Failed to open memstream");
 		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.\n");
 		return 1;
 	}
 	if(nerrors >0){
+		ESP_LOGE(TAG,"do_i2s_cmd: %d errors parsing arguments",nerrors);
 		arg_print_errors(f,i2s_args.end,desc_dac);
-		fclose(f);
-		return 1;
 	}
-	nerrors+=is_output_gpio(i2s_args.clock, f, &i2s_dac_pin.pin.bck_io_num, true);
-	nerrors+=is_output_gpio(i2s_args.wordselect, f, &i2s_dac_pin.pin.ws_io_num, true);
-	nerrors+=is_output_gpio(i2s_args.data, f, &i2s_dac_pin.pin.data_out_num, true);
-	nerrors+=is_output_gpio(i2s_args.mute_gpio, f, &i2s_dac_pin.mute_gpio, false);
-	if(i2s_dac_pin.mute_gpio>0){
-		i2s_dac_pin.mute_level = i2s_args.mute_level->count>0?1:0;
-	}
-	if(i2s_args.dac_sda->count>0 && i2s_args.dac_sda->ival[0]>=0){
-		// if SDA specified, then SDA and SCL are both mandatory
-		nerrors+=is_output_gpio(i2s_args.dac_sda, f, &i2s_dac_pin.sda, false);
-		nerrors+=is_output_gpio(i2s_args.dac_scl, f, &i2s_dac_pin.scl, false);
-	}
-	if(i2s_args.dac_sda->count==0&& i2s_args.dac_i2c->count>0){
-		fprintf(f,"warning: ignoring i2c address, since dac i2c gpios config is incomplete\n");
-	}
-	else if(i2s_args.dac_i2c->count>0){
-		i2s_dac_pin.i2c_addr = i2s_args.dac_i2c->ival[0];
-	}
-	if(i2s_args.model_name->count>0 && strlen(i2s_args.model_name->sval[0])>0){
+	else {
 		strncpy(i2s_dac_pin.model,i2s_args.model_name->sval[0],sizeof(i2s_dac_pin.model));
 		i2s_dac_pin.model[sizeof(i2s_dac_pin.model) - 1] = '\0';
-	}
-	if(!nerrors ){
-		fprintf(f,"Storing i2s parameters.\n");
-		 nerrors+=(config_i2s_set(&i2s_dac_pin, "dac_config")!=ESP_OK);
+		nerrors += is_output_gpio(i2s_args.clock, f, &i2s_dac_pin.pin.bck_io_num, true);
+		nerrors += is_output_gpio(i2s_args.wordselect, f, &i2s_dac_pin.pin.ws_io_num, true);
+		nerrors += is_output_gpio(i2s_args.data, f, &i2s_dac_pin.pin.data_out_num, true);
+		nerrors += is_output_gpio(i2s_args.mute_gpio, f, &i2s_dac_pin.mute_gpio, false);
+		if (i2s_dac_pin.mute_gpio >= 0) {
+			i2s_dac_pin.mute_level = i2s_args.mute_level->count > 0 ? 1 : 0;
+		}
+		if (i2s_args.dac_sda->count > 0 && i2s_args.dac_sda->ival[0] >= 0) {
+			// if SDA specified, then SDA and SCL are both mandatory
+			nerrors += is_output_gpio(i2s_args.dac_sda, f, &i2s_dac_pin.sda, false);
+			nerrors += is_output_gpio(i2s_args.dac_scl, f, &i2s_dac_pin.scl, false);
+		}
+		if (i2s_args.dac_sda->count == 0 && i2s_args.dac_i2c->count > 0) {
+			fprintf(f, "warning: ignoring i2c address, since dac i2c gpios config is incomplete\n");
+		} else if (i2s_args.dac_i2c->count > 0) {
+			i2s_dac_pin.i2c_addr = i2s_args.dac_i2c->ival[0];
+		}
+
+		if (!nerrors) {
+			fprintf(f, "Storing i2s parameters.\n");
+			nerrors += (config_i2s_set(&i2s_dac_pin, "dac_config") != ESP_OK);
+		}
 	}
 	if(!nerrors ){
 		fprintf(f,"Done.\n");
@@ -647,40 +671,58 @@ cJSON * example_cb(){
 	return values;
 }
 
-//const i2s_pin_config_t * 	config_get_spdif_pin_struct( );
+cJSON * known_model_cb(){
+	const char * key="board_model";
+	cJSON * values = cJSON_CreateObject();
+	if(!values){
+		ESP_LOGE(TAG,"known_model_cb: Failed to create JSON object");
+		return NULL;
+	}
+	char * name = config_alloc_get_default(NVS_TYPE_STR,key,"",0);
+	if(!name){
+		ESP_LOGE(TAG,"Failed to get board model from nvs key %s ",key);
+	}
+	else {
+		cJSON_AddStringToObject(values,known_model_args.model_name->hdr.longopts,name);
+	}
+
+	return values;
+}
 
 cJSON * i2s_cb(){
 	cJSON * values = cJSON_CreateObject();
+
 	const i2s_platform_config_t * i2s_conf= 	config_dac_get( );
+	
 	if(i2s_conf->pin.bck_io_num>0 ) {
-		cJSON_AddNumberToObject(values,"clock",i2s_conf->pin.bck_io_num);
+		cJSON_AddNumberToObject(values,i2s_args.clock->hdr.longopts,i2s_conf->pin.bck_io_num);
 	}
 	if(i2s_conf->pin.ws_io_num>=0 ) {
-		cJSON_AddNumberToObject(values,"wordselect",i2s_conf->pin.ws_io_num);
+		cJSON_AddNumberToObject(values,i2s_args.wordselect->hdr.longopts,i2s_conf->pin.ws_io_num);
 	}
 	if(i2s_conf->pin.data_out_num>=0 ) {
-		cJSON_AddNumberToObject(values,"data",i2s_conf->pin.data_out_num);
+		cJSON_AddNumberToObject(values,i2s_args.data->hdr.longopts,i2s_conf->pin.data_out_num);
 	}
 	if(i2s_conf->sda>=0 ) {
-		cJSON_AddNumberToObject(values,"dac_sda",i2s_conf->sda);
+		cJSON_AddNumberToObject(values,i2s_args.dac_sda->hdr.longopts,i2s_conf->sda);
 	}
 	if(i2s_conf->scl>=0 ) {
-		cJSON_AddNumberToObject(values,"dac_scl",i2s_conf->scl);
+		cJSON_AddNumberToObject(values,i2s_args.dac_scl->hdr.longopts,i2s_conf->scl);
 	}	
 	if(i2s_conf->i2c_addr>=0 ) {
-		cJSON_AddNumberToObject(values,"dac_i2c",i2s_conf->i2c_addr);
+		cJSON_AddNumberToObject(values,i2s_args.dac_i2c->hdr.longopts,i2s_conf->i2c_addr);
 	}		
 	if(i2s_conf->mute_gpio>=0 ) {
-		cJSON_AddNumberToObject(values,"mute_gpio",i2s_conf->mute_gpio);
+		cJSON_AddNumberToObject(values,i2s_args.mute_gpio->hdr.longopts,i2s_conf->mute_gpio);
 	}		
 	if(i2s_conf->mute_level>=0 ) {
-		cJSON_AddBoolToObject(values,"mute_level",i2s_conf->mute_level>0);
+		cJSON_AddBoolToObject(values,i2s_args.mute_level->hdr.longopts,i2s_conf->mute_level>0);
 	}		
 	if(strlen(i2s_conf->model)>0){
-		cJSON_AddStringToObject(values,"model_name",i2s_conf->model);
+		cJSON_AddStringToObject(values,i2s_args.model_name->hdr.longopts,i2s_conf->model);
 	}
 	else {
-		cJSON_AddStringToObject(values,"model_name","I2S");
+		cJSON_AddStringToObject(values,i2s_args.model_name->hdr.longopts,"I2S");
 	}
 	
 	return values;
@@ -862,17 +904,288 @@ static char * get_log_level_options(const char * longname){
 	char * options = NULL;
 	int len = snprintf(NULL,0,template,longname,longname,longname);
 	if(len>0){
-		options = malloc(len+1);
+		options = malloc_init_external(len+1);
 		snprintf(options,len,template,longname,longname,longname);
 	}
 	return options;
 }
+
+// loop through dac_set and concatenate model name separated with |
+static char * get_dac_list(){
+	const char * ES8388_MODEL_NAME = "ES8388|";
+	char * dac_list=NULL;
+	size_t total_len=0;
+	for(int i=0;dac_set[i];i++){
+		if(dac_set[i]->model && strlen(dac_set[i]->model)>0){
+			total_len+=strlen(dac_set[i]->model)+1;
+		}
+		else {
+			break;
+		}
+	}
+	total_len+=strlen(ES8388_MODEL_NAME);
+	dac_list = malloc_init_external(total_len+1);
+	if(dac_list){
+		for(int i=0;dac_set[i];i++){
+			if(dac_set[i]->model && strlen(dac_set[i]->model)>0){
+				strcat(dac_list,dac_set[i]->model);
+				strcat(dac_list,"|");
+			}
+			else {
+				break;
+			}
+		}
+		strcat(dac_list,ES8388_MODEL_NAME);
+	}
+	return dac_list;
+}
+void replace_char_in_string(char * str, char find, char replace){
+	for(int i=0;str[i];i++){
+		if(str[i]==find){
+			str[i]=replace;
+		}
+	}
+}
+
+static cJSON * get_known_configurations(FILE * f){
+	#define err1_msg "Failed to parse known_configs json.  %s\nError at:\n%s"
+	#define err2_msg "Known configs should be an array and it is not: \n%s"
+	if(!known_configs_string || strlen(known_configs_string)==0){
+		return NULL;
+	}
+	cJSON * known_configs_json = cJSON_Parse(known_configs_string);
+	if(!known_configs_json){
+		if(f){
+			fprintf(f,err1_msg,known_configs_string,STR_OR_BLANK(cJSON_GetErrorPtr()));
+		}
+		else {
+			ESP_LOGE(TAG,err1_msg,known_configs_string,STR_OR_BLANK(cJSON_GetErrorPtr()));
+		}
+		return NULL;
+	}
+	else {
+		if(!cJSON_IsArray(known_configs_json)){
+			if(f){
+				fprintf(f,err2_msg,STR_OR_BLANK(cJSON_GetErrorPtr()));
+			}
+			else {
+				ESP_LOGE(TAG,err2_msg,STR_OR_BLANK(cJSON_GetErrorPtr()));
+			}
+			cJSON_Delete(known_configs_json);
+			return NULL;
+		}
+		
+	}
+	return known_configs_json;
+	
+}
+
+static  cJSON * find_known_model_name(cJSON * root,const char * name, FILE * f, bool * found){
+	if(found){
+		*found = false;
+	}
+	if(!root){
+		return NULL;
+	}
+	cJSON * item;
+	cJSON_ArrayForEach(item, root){
+		if(cJSON_IsObject(item)){
+			cJSON * model = cJSON_GetObjectItem(item,"name");
+			if(model && cJSON_IsString(model) && strcmp(cJSON_GetStringValue(model),name)==0){
+				if(found){
+					*found = true;
+				}
+				return item;
+			}
+		}
+	}
+	return NULL;
+}
+static esp_err_t is_known_model_name(const char * name, FILE * f, bool * found){
+	esp_err_t err = ESP_OK;
+	if(found){
+		*found = false;
+	}
+	if(!known_configs_string || strlen(known_configs_string)==0){
+		return err;
+	}
+	cJSON * known_configs_json = get_known_configurations(f);
+	if(known_configs_json){
+		cJSON * known_item = find_known_model_name(known_configs_json,name,f,found);
+		if(known_item && found){
+			*found = true;
+		}
+		cJSON_Delete(known_configs_json);
+	}
+	return err;
+}
+	
+static esp_err_t save_known_config(const char * name, FILE * f){
+	esp_err_t err = ESP_OK;
+	char * json_string=NULL;
+	if(!known_configs_string || strlen(known_configs_string)==0){
+		return err;
+	}
+	cJSON * known_configs_json = get_known_configurations(f);
+	if(known_configs_json){
+		bool found = false;
+		cJSON * known_item = find_known_model_name(known_configs_json,name,f,&found);
+		if(known_item && found){
+			json_string = cJSON_Print(known_item);
+			ESP_LOGD(TAG,"known_item_string: %s",STR_OR_BLANK(json_string));
+			FREE_AND_NULL(json_string);
+			cJSON * kvp=NULL;
+			cJSON * config_array = cJSON_GetObjectItem(known_item,"config");
+			if(config_array && cJSON_IsArray(config_array)){
+				json_string = cJSON_Print(config_array);
+				ESP_LOGD(TAG,"config_array: %s",STR_OR_BLANK(json_string));
+				FREE_AND_NULL(json_string);
+				cJSON_ArrayForEach(kvp, config_array){
+					cJSON * kvp_value=kvp->child;
+					if(!kvp_value){
+						ESP_LOGE(TAG,"config entry is not an object!");
+						err=ESP_FAIL;
+						continue;
+					}
+					char * key = kvp_value->string;
+					char * value = kvp_value->valuestring;
+					if(!key || !value || strlen(key)==0){
+						ESP_LOGE(TAG,"Invalid config entry %s:%s",STR_OR_BLANK(key),STR_OR_BLANK(value));
+						err=ESP_FAIL;
+						continue;
+					}
+					
+					fprintf(f,"Storing %s=%s\n",key,value);
+					err = config_set_value(NVS_TYPE_STR,key,value);
+					if(err){
+						fprintf(f,"Failed: %s\n",esp_err_to_name(err));
+						break;
+					}
+				}
+			}
+			else {
+				json_string = cJSON_Print(config_array);
+				char * known_item_string = cJSON_Print(known_item);
+				fprintf(f,"Failed to parse config array. %s\n%s\nKnown item found: %s\n",config_array?cJSON_IsArray(config_array)?"":"NOT AN ARRAY":"config entry not found",STR_OR_BLANK(json_string),STR_OR_BLANK(known_item_string));
+				FREE_AND_NULL(json_string);
+				FREE_AND_NULL(known_item_string);
+				err = ESP_FAIL;
+			}
+		}
+		if(err==ESP_OK){
+			err = config_set_value(NVS_TYPE_STR,"board_model",name);
+			if(err!=ESP_OK){
+				fprintf(f,"Failed to save board model %s\n",name);
+			}
+		} 
+		cJSON_Delete(known_configs_json);
+	}
+	return err;
+}
+
+char * config_dac_alloc_print_known_config(){
+	cJSON * item=NULL;
+	char * dac_list=NULL;
+	size_t total_len=0;
+	cJSON * object = get_known_configurations(NULL);
+	if(!object){
+		return strdup_psram("");
+	}
+	// loop through all items, and concatenate model name separated with |
+	
+	cJSON_ArrayForEach(item, object){
+		if(cJSON_IsObject(item)){
+			cJSON * model = cJSON_GetObjectItem(item,"name");
+			if(model && cJSON_IsString(model)){
+				total_len+=strlen(model->valuestring)+1;
+			}
+		}
+	}
+	if(total_len==0){
+		ESP_LOGI(TAG,"No known configs found");
+		cJSON_Delete(object);
+		return NULL;
+	}
+	dac_list = malloc_init_external(total_len+1);
+	if(dac_list){
+		cJSON_ArrayForEach(item, object){
+			if(cJSON_IsObject(item)){
+				cJSON * model = cJSON_GetObjectItem(item,"name");
+				if(model && cJSON_IsString(model)){
+					strcat(dac_list,model->valuestring);
+					strcat(dac_list,"|");
+				}
+			}
+		}
+	}
+	dac_list[strlen(dac_list)-1]='\0';
+	cJSON_Delete(object);
+	return dac_list;
+}
+static int do_register_known_templates_config(int argc, char **argv){
+	esp_err_t err=ESP_OK;
+	int nerrors = arg_parse(argc, argv,(void **)&known_model_args);
+	char *buf = NULL;
+	size_t buf_size = 0;
+	FILE *f = open_memstream(&buf, &buf_size);
+	if (f == NULL) {
+		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.\n");
+		return 1;
+	}
+	if(nerrors >0){
+		arg_print_errors(f,known_model_args.end,desc_preset);
+	}
+	else {
+		bool found=false;
+    
+        if(nerrors +=(is_known_model_name(known_model_args.model_name->sval[0],f,&found)!=ESP_OK)){
+			fprintf(f,"Error registering known config %s. The model was not found.\n",known_model_args.model_name->sval[0]);
+		}
+		if(nerrors==0 && found){
+			fprintf(f,"Appling template configuration for %s\n",known_model_args.model_name->sval[0]);
+			nerrors+=((err=save_known_config(known_model_args.model_name->sval[0],f))!=ESP_OK);
+		}
+
+        if(err!=ESP_OK){
+            nerrors++;
+            fprintf(f,"Error registering known config %s.\n",known_model_args.model_name->sval[0]);
+        }
+        else {
+            fprintf(f,"Registered known config %s.\n",known_model_args.model_name->sval[0]);
+        }        
+    }
+	
+	if(!nerrors ){
+		fprintf(f,"Done.\n");
+	}
+	fflush (f);
+	cmd_send_messaging(argv[0],nerrors>0?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
+	fclose(f);
+	FREE_AND_NULL(buf);
+	return (nerrors==0 && err==ESP_OK)?0:1;
+}
+static void register_known_templates_config(){
+	char * known_models = config_dac_alloc_print_known_config();
+	known_model_args.model_name = arg_str1(NULL,"model_name",known_models,"Known Board Name.\nFor known boards, several systems parameters will be updated");
+	known_model_args.end = arg_end(1);
+	 const esp_console_cmd_t cmd = {
+        .command = CFG_TYPE_HW("preset"),
+        .help = desc_preset,
+        .hint = NULL,
+        .func = &do_register_known_templates_config,
+        .argtable = &known_model_args
+    };
+    cmd_to_json_with_cb(&cmd,&known_model_cb);
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
+	FREE_AND_NULL(known_models);
+
+}
 static void register_i2s_config(void){
-	i2s_args.model_name = arg_str1(NULL,"model_name","TAS57xx|TAS5713|AC101|WM8978|I2S","DAC Model Name");
+	i2s_args.model_name = arg_str1(NULL,"model_name",STR_OR_BLANK(get_dac_list()),"DAC Model Name");
 	i2s_args.clear = arg_lit0(NULL, "clear", "Clear configuration");
-    i2s_args.clock = arg_int1(NULL,"clock","<n>","Clock GPIO. e.g. 33");
-    i2s_args.wordselect = arg_int1(NULL,"wordselect","<n>","Word Select GPIO. e.g. 25");
-    i2s_args.data = arg_int1(NULL,"data","<n>","Data GPIO. e.g. 32");
+    i2s_args.clock = arg_int0(NULL,"clock","<n>","Clock GPIO. e.g. 33");
+    i2s_args.wordselect = arg_int0(NULL,"wordselect","<n>","Word Select GPIO. e.g. 25");
+    i2s_args.data = arg_int0(NULL,"data","<n>","Data GPIO. e.g. 32");
     i2s_args.mute_gpio = arg_int0(NULL,"mute_gpio", "<n>", "Mute GPIO. e.g. 14");
 	i2s_args.mute_level = arg_lit0(NULL,"mute_level","Mute GPIO level. Checked=HIGH, Unchecked=LOW");
     i2s_args.dac_sda = arg_int0(NULL,"dac_sda", "<n>", "SDA GPIO. e.g. 27");
@@ -1005,6 +1318,9 @@ static void register_squeezelite_config(void){
 }
 
 void register_config_cmd(void){
+	if(!is_dac_config_locked()){
+		 register_known_templates_config();
+	}
 	register_audio_config();
 //	register_squeezelite_config();
 	register_bt_source_config();

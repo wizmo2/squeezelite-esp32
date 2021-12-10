@@ -1,34 +1,5 @@
 /*
-Copyright (c) 2017-2019 Tony Pottier
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-@file http_server.c
-@author Tony Pottier
-@brief Defines all functions necessary for the HTTP server to run.
-
-Contains the freeRTOS task for the HTTP listener and all necessary support
-function to process requests, decode URLs, serve files, etc. etc.
-
-@note http_server task cannot run without the wifi_manager task!
-@see https://idyl.io
-@see https://github.com/tonyp7/esp32-wifi-manager
+Copyright (c) 2017-2021 Sebastien L
 */
 
 #include "http_server_handlers.h"
@@ -57,7 +28,8 @@ function to process requests, decode URLs, serve files, etc. etc.
 #include "webapp/webpack.h"
 #include "network_wifi.h"
 #include "network_status.h"
- 
+#include "globdefs.h"
+
 #define HTTP_STACK_SIZE	(5*1024)
 const char str_na[]="N/A";
 #define STR_OR_NA(s) s?s:str_na
@@ -104,7 +76,7 @@ char * alloc_get_http_header(httpd_req_t * req, const char * key){
      * extra byte for null termination */
     buf_len = httpd_req_get_hdr_value_len(req, key) + 1;
     if (buf_len > 1) {
-        buf = malloc(buf_len);
+        buf = malloc_init_external(buf_len);
         /* Copy null terminated value string into buffer */
         if (httpd_req_get_hdr_value_str(req, "Host", buf, buf_len) == ESP_OK) {
             ESP_LOGD_LOC(TAG, "Found header => %s: %s",key, buf);
@@ -120,16 +92,14 @@ char * http_alloc_get_socket_address(httpd_req_t *req, u8_t local, in_port_t * p
 	union sockaddr_aligned addr;
 	len = sizeof(addr);
 	ip_addr_t * ip_addr=NULL;
-	char * ipstr = malloc(INET6_ADDRSTRLEN);
-	memset(ipstr,0x0,INET6_ADDRSTRLEN);
-
+	char * ipstr = malloc_init_external(INET6_ADDRSTRLEN);
 	typedef int (*getaddrname_fn_t)(int s, struct sockaddr *name, socklen_t *namelen);
 	getaddrname_fn_t get_addr = NULL;
 
 	int s = httpd_req_to_sockfd(req);
 	if(s == -1) {
 		free(ipstr);
-		return strdup("httpd_req_to_sockfd error");
+		return strdup_psram("httpd_req_to_sockfd error");
 	}
 	ESP_LOGV_LOC(TAG,"httpd socket descriptor: %u", s);
 
@@ -192,7 +162,7 @@ bool is_captive_portal_host_name(httpd_req_t *req){
 				ESP_LOGD_LOC(TAG,  "Soft AP Host name is %s",ap_host_name);
 			}
 
-			ap_ip_address =  malloc(IP4ADDR_STRLEN_MAX);
+			ap_ip_address =  malloc_init_external(IP4ADDR_STRLEN_MAX);
 			memset(ap_ip_address, 0x00, IP4ADDR_STRLEN_MAX);
 			if(ap_ip_address){
 				ESP_LOGD_LOC(TAG,  "Converting soft ip address to string");
@@ -233,8 +203,7 @@ session_context_t* get_session_context(httpd_req_t *req){
 	bool newConnection=false;
 	if (! req->sess_ctx) {
 		ESP_LOGD(TAG,"New connection context. Allocating session buffer");
-		req->sess_ctx = malloc(sizeof(session_context_t));
-		memset(req->sess_ctx,0x00,sizeof(session_context_t));
+		req->sess_ctx = malloc_init_external(sizeof(session_context_t));
 		req->free_ctx = free_ctx_func;
 		newConnection = true;
 		// get the remote IP address only once per session
@@ -256,11 +225,13 @@ bool is_user_authenticated(httpd_req_t *req){
 		return true;
 	}
 
-	ESP_LOGD(TAG,"Heap internal:%zu (min:%zu) external:%zu (min:%zu)",
-				heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
-				heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL),
-				heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
-				heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM));
+	ESP_LOGD(TAG, "Heap internal:%zu (min:%zu) external:%zu (min:%zu) dma:%zu (min:%zu)",
+			heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+			heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL),
+			heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+			heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM),
+			heap_caps_get_free_size(MALLOC_CAP_DMA),
+			heap_caps_get_minimum_free_size(MALLOC_CAP_DMA));
 
 	// todo:  ask for user to authenticate
 	return false;
@@ -439,7 +410,7 @@ esp_err_t ap_scan_handler(httpd_req_t *req){
     	// todo:  redirect to login page
     	// return ESP_OK;
     }
-	network_manager_async_scan();
+	network_async_scan();
 	esp_err_t err = set_content_type_from_req(req);
 	if(err == ESP_OK){
 		httpd_resp_send(req, (const char *)empty, HTTPD_RESP_USE_STRLEN);
@@ -529,9 +500,9 @@ esp_err_t ap_get_handler(httpd_req_t *req){
     }
     /* if we can get the mutex, write the last version of the AP list */
 	esp_err_t err = set_content_type_from_req(req);
-	if( err == ESP_OK && wifi_manager_lock_json_buffer(( TickType_t ) 200/portTICK_PERIOD_MS)){
-		char *buff = wifi_manager_alloc_get_ap_list_json();
-		wifi_manager_unlock_json_buffer();
+	if( err == ESP_OK && network_status_lock_json_buffer(( TickType_t ) 200/portTICK_PERIOD_MS)){
+		char *buff = network_status_alloc_get_ap_list_json();
+		network_status_unlock_json_buffer();
 		if(buff!=NULL){
 			httpd_resp_send(req, (const char *)buff, HTTPD_RESP_USE_STRLEN);
 			free(buff);
@@ -683,7 +654,7 @@ esp_err_t config_post_handler(httpd_req_t *req){
 						else {
 							// we're getting a request to do an OTA from that URL
 							ESP_LOGW_LOC(TAG,   "Found OTA request!");
-							otaURL=strdup(val);
+							otaURL=strdup_psram(val);
 							bOTA=true;
 						}
 					}
@@ -730,7 +701,7 @@ esp_err_t config_post_handler(httpd_req_t *req){
 			ESP_LOGW_LOC(TAG,   "Restarting system to process OTA for url %s",otaURL);
 		}
 
-		network_manager_reboot_ota(otaURL);
+		network_reboot_ota(otaURL);
 		free(otaURL);
 	}
     return err;
@@ -766,15 +737,15 @@ esp_err_t connect_post_handler(httpd_req_t *req){
 
 	cJSON * ssid_object = cJSON_GetObjectItem(root, "ssid");
 	if(ssid_object !=NULL){
-		ssid = strdup(ssid_object->valuestring);
+		ssid = strdup_psram(ssid_object->valuestring);
 	}
 	cJSON * password_object = cJSON_GetObjectItem(root, "pwd");
 	if(password_object !=NULL){
-		password = strdup(password_object->valuestring);
+		password = strdup_psram(password_object->valuestring);
 	}
 	cJSON * host_name_object = cJSON_GetObjectItem(root, "host_name");
 	if(host_name_object !=NULL){
-		host_name = strdup(host_name_object->valuestring);
+		host_name = strdup_psram(host_name_object->valuestring);
 	}
 	cJSON_Delete(root);
 
@@ -785,14 +756,7 @@ esp_err_t connect_post_handler(httpd_req_t *req){
 	}
 
 	if(ssid !=NULL && strlen(ssid) <= MAX_SSID_SIZE && strlen(password) <= MAX_PASSWORD_SIZE  ){
-		wifi_config_t* config = wifi_manager_get_wifi_sta_config();
-		memset(config, 0x00, sizeof(wifi_config_t));
-		strlcpy((char *)config->sta.ssid, ssid, sizeof(config->sta.ssid)+1);
-		if(password){
-			strlcpy((char *)config->sta.password, password, sizeof(config->sta.password)+1);
-		}
-		ESP_LOGD_LOC(TAG,   "http_server_netconn_serve: network_manager_async_scan() call, with ssid: %s, password: %s", config->sta.ssid, config->sta.password);
-		network_manager_async_scan();
+		network_async_connect(ssid, password);
 		httpd_resp_send(req, (const char *)success, strlen(success));
 	}
 	else {
@@ -816,7 +780,7 @@ esp_err_t connect_delete_handler(httpd_req_t *req){
 		return err;
 	}
 	httpd_resp_send(req, (const char *)success, strlen(success));
-	network_manager_async_disconnect();
+	network_async_delete();
 
     return ESP_OK;
 }
@@ -833,7 +797,7 @@ esp_err_t reboot_ota_post_handler(httpd_req_t *req){
 	}
 
 	httpd_resp_send(req, (const char *)success, strlen(success));
-	network_manager_async_reboot(OTA);
+	network_async_reboot(OTA);
     return ESP_OK;
 }
 esp_err_t reboot_post_handler(httpd_req_t *req){
@@ -848,7 +812,7 @@ esp_err_t reboot_post_handler(httpd_req_t *req){
 		return err;
 	}
 	httpd_resp_send(req, (const char *)success, strlen(success));
-	network_manager_async_reboot(RESTART);
+	network_async_reboot(RESTART);
 	return ESP_OK;
 }
 esp_err_t recovery_post_handler(httpd_req_t *req){
@@ -863,7 +827,7 @@ esp_err_t recovery_post_handler(httpd_req_t *req){
 		return err;
 	}
 	httpd_resp_send(req, (const char *)success, strlen(success));
-	network_manager_async_reboot(RECOVERY);
+	network_async_reboot(RECOVERY);
 	return ESP_OK;
 }
 
@@ -881,7 +845,7 @@ esp_err_t flash_post_handler(httpd_req_t *req){
 		if(err != ESP_OK){
 			return err;
 		}
-		char * binary_buffer = malloc(req->content_len);
+		char * binary_buffer = malloc_init_external(req->content_len);
 		if(binary_buffer == NULL){
 			ESP_LOGE(TAG, "File too large : %d bytes", req->content_len);
 			/* Respond with 400 Bad Request */
@@ -981,11 +945,11 @@ esp_err_t process_redirect(httpd_req_t *req, const char * status){
 	remote_ip = http_alloc_get_socket_address(req,0, &port);
 
 	size_t buf_size = strlen(redirect_payload1) +strlen(redirect_payload2) + strlen(redirect_payload3) +2*(strlen(location_prefix)+strlen(ap_ip_address))+1;
-	char * redirect=malloc(buf_size);
+	char * redirect=malloc_init_external(buf_size);
 
 	if(strcasestr(status,"302")){
 		size_t url_buf_size = strlen(location_prefix) + strlen(ap_ip_address)+1;
-		redirect_url = malloc(url_buf_size);
+		redirect_url = malloc_init_external(url_buf_size);
 		memset(redirect_url,0x00,url_buf_size);
 		snprintf(redirect_url, buf_size,"%s%s/",location_prefix, ap_ip_address);
 		ESP_LOGW_LOC(TAG,  "Redirecting host [%s] to %s (from uri %s)",remote_ip, redirect_url,req->uri);
@@ -1034,9 +998,9 @@ esp_err_t redirect_processor(httpd_req_t *req, httpd_err_code_t error){
     remote_ip = http_alloc_get_socket_address(req,0, &port);
 
 	ESP_LOGW_LOC(TAG, "%s requested invalid URL: [%s]",remote_ip, req->uri);
-    if(wifi_manager_lock_sta_ip_string(portMAX_DELAY)){
-		sta_ip_address = strdup(wifi_manager_get_sta_ip_string());
-		wifi_manager_unlock_sta_ip_string();
+    if(network_status_lock_sta_ip_string(portMAX_DELAY)){
+		sta_ip_address = strdup_psram(network_status_get_sta_ip_string());
+		network_status_unlock_sta_ip_string();
 	}
 	else {
     	ESP_LOGE(TAG,"Unable to obtain local IP address from WiFi Manager.");
@@ -1149,9 +1113,9 @@ esp_err_t status_get_handler(httpd_req_t *req){
 		return err;
 	}
 
-	if(wifi_manager_lock_json_buffer(( TickType_t ) 200/portTICK_PERIOD_MS)) {
-		char *buff = wifi_manager_alloc_get_ip_info_json();
-		wifi_manager_unlock_json_buffer();
+	if(network_status_lock_json_buffer(( TickType_t ) 200/portTICK_PERIOD_MS)) {
+		char *buff = network_status_alloc_get_ip_info_json();
+		network_status_unlock_json_buffer();
 		if(buff) {
 			httpd_resp_send(req, (const char *)buff, strlen(buff));
 			free(buff);
@@ -1164,7 +1128,7 @@ esp_err_t status_get_handler(httpd_req_t *req){
 		httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR , "Error retrieving status object");
 	}
 	// update status for next status call
-	network_manager_async_update_status();
+	network_async_update_status();
 
 	return ESP_OK;
 }

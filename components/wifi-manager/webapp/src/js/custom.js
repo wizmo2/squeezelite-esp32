@@ -1098,7 +1098,7 @@ function rssiToIcon(rssi) {
 }
 
 function refreshAP() {
-  $.getJSON('/scan.json', async function() {
+    $.getJSON('/scan.json', async function() {
     await sleep(2000);
     $.getJSON('/ap.json', function(data) {
       if (data.length > 0) {
@@ -1335,6 +1335,7 @@ function handleRecoveryMode(data) {
     $('#boot-form').attr('action', '/recovery.json');
   }
 }
+
 function hasConnectionChanged(data){
 // gw: "192.168.10.1"
 // ip: "192.168.10.225"
@@ -1366,10 +1367,10 @@ function handleWifiDialog(data){
       $('.connecting-status').show();
     }
     if(SystemConfig.ap_ssid){
-      $('#apName').text(SystemConfig.ap_ssid);
+      $('#apName').text(SystemConfig.ap_ssid.value);
     }
     if(SystemConfig.ap_pwd){
-      $('#apPass').text(SystemConfig.ap_pwd);
+      $('#apPass').text(SystemConfig.ap_pwd.value);
     }    
     if(!data)
     {

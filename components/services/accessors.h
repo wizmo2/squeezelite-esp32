@@ -12,6 +12,8 @@
 #include "driver/i2c.h"
 #include "driver/i2s.h"
 #include "driver/spi_master.h"
+#include "freertos/queue.h"
+
 extern const char *i2c_name_type;
 extern const char *spi_name_type;
 typedef struct {
@@ -30,7 +32,7 @@ typedef struct {
 	bool rotate;
 } display_config_t;
 
-typedef struct {
+typedef struct eth_config_struct {
 	char model[16];
 	bool valid;
 	bool rmii;
@@ -98,6 +100,7 @@ const spi_bus_config_t * 	config_spi_get(spi_host_device_t * spi_host);
 void 						parse_set_GPIO(void (*cb)(int gpio, char *value));
 const i2s_platform_config_t * 	config_dac_get();
 const i2s_platform_config_t * 	config_spdif_get( );
+const i2s_platform_config_t * config_get_i2s_from_str(char * dac_config );
 esp_err_t 					config_spdif_set(const i2s_platform_config_t * config);
 bool 						is_spdif_config_locked();
 esp_err_t 					free_gpio_entry( gpio_entry_t ** gpio);

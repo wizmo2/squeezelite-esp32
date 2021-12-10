@@ -6,7 +6,6 @@
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, either express or implied.
 */
-//#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include <stdio.h>
 #include "cmd_i2ctools.h"
 #include "argtable3/argtable3.h"
@@ -21,6 +20,7 @@
 #include "messaging.h"
 #include "display.h"
 #include "config.h"
+#include "globdefs.h"
 
 #define I2C_MASTER_TX_BUF_DISABLE 0 /*!< I2C master doesn't need buffer */
 #define I2C_MASTER_RX_BUF_DISABLE 0 /*!< I2C master doesn't need buffer */
@@ -754,7 +754,7 @@ static int do_i2cget_cmd(int argc, char **argv)
 	}
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
-    uint8_t *data = malloc(len);
+    uint8_t *data = malloc_init_external(len);
     if (data_addr != -1) {
         i2c_master_write_byte(cmd, chip_addr << 1 | WRITE_BIT, ACK_CHECK_EN);
         i2c_master_write_byte(cmd, data_addr, ACK_CHECK_EN);

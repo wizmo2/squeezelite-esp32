@@ -32,21 +32,23 @@
 #include "messaging.h"				  
 #include "platform_console.h"
 #include "trace.h"
+#include "globdefs.h"
+
 #ifdef CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
 #pragma message("Runtime stats enabled")
 #define WITH_TASKS_INFO 1
 #else 
 #pragma message("Runtime stats disabled")
 #endif
-static struct {
+EXT_RAM_ATTR static struct {
 	struct arg_str *scanmode;
 	struct arg_end *end;
 } wifi_parms_arg;
-static struct {
+EXT_RAM_ATTR static struct {
 	struct arg_str *name;
 	struct arg_end *end;
 } name_args;
-static struct {
+EXT_RAM_ATTR static struct {
  	struct arg_lit *btspeaker;
  	struct arg_lit *airplay;
  	struct arg_str *telnet;
@@ -61,6 +63,7 @@ static const char * TAG = "cmd_system";
 static void register_free();
 static void register_setdevicename();
 static void register_heap();
+static void register_dump_heap();
 static void register_version();
 static void register_restart();
 static void register_deep_sleep();
@@ -73,7 +76,7 @@ static void register_set_wifi_parms();
 #if WITH_TASKS_INFO
 static void register_tasks();
 #endif
-extern BaseType_t wifi_manager_task;
+extern BaseType_t network_manager_task;
 void register_system()
 {
     register_set_wifi_parms();
@@ -81,6 +84,7 @@ void register_system()
     register_free();
     register_set_services();
     register_heap();
+    register_dump_heap();
     register_setdevicename();
     register_version();
     register_restart();
@@ -297,12 +301,35 @@ static void register_free()
     cmd_to_json(&cmd);
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
-
+static int dump_heap(int argc, char **argv)
+{
+    ESP_LOGD(TAG, "Dumping heap");
+    heap_caps_dump_all();
+    return 0;
+}
 /* 'heap' command prints minumum heap size */
 static int heap_size(int argc, char **argv)
 {
-    uint32_t heap_size = heap_caps_get_minimum_free_size(MALLOC_CAP_DEFAULT);
-    cmd_send_messaging(argv[0],MESSAGING_INFO, "min heap size: %u", heap_size);
+    ESP_LOGI(TAG,"Heap internal:%zu (min:%zu) (largest block:%zu)\nexternal:%zu (min:%zu) (largest block:%zd)\ndma :%zu (min:%zu) (largest block:%zd)",
+						heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+						heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL),
+						heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+                        heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+						heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM),
+						heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM),
+                        heap_caps_get_free_size(MALLOC_CAP_DMA),
+						heap_caps_get_minimum_free_size(MALLOC_CAP_DMA),
+						heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
+    cmd_send_messaging(argv[0],MESSAGING_INFO,"Heap internal:%zu (min:%zu) (largest block:%zu)\nexternal:%zu (min:%zu) (largest block:%zd)\ndma :%zu (min:%zu) (largest block:%zd)",
+						heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+						heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL),
+						heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+                        heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+						heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM),
+						heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM),
+                        heap_caps_get_free_size(MALLOC_CAP_DMA),
+						heap_caps_get_minimum_free_size(MALLOC_CAP_DMA),
+						heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
     return 0;
 }
 cJSON * setdevicename_cb(){
@@ -341,10 +368,9 @@ int set_squeezelite_player_name(FILE * f,const char * name){
 	if(nvs_config && strlen(nvs_config)>0){
         // allocate enough memory to hold the new command line
         size_t cmdLength = strlen(nvs_config) + strlen(cleaned_name) + strlen(parm) +1 ;
-        newCommandLine = malloc(cmdLength);
-        memset(newCommandLine,0x00, cmdLength);
-		ESP_LOGD(TAG,"Parsing command %s",nvs_config);
-		argv = (char **) calloc(22, sizeof(char *));
+        newCommandLine = malloc_init_external(cmdLength);
+        ESP_LOGD(TAG,"Parsing command %s",nvs_config);
+		argv = (char **) malloc_init_external(22* sizeof(char *));
 		if (argv == NULL) {
 			FREE_AND_NULL(nvs_config);
 			return 1;
@@ -400,7 +426,7 @@ static int setdevicename(int argc, char **argv)
 
 	/* Check "--name" option */
 	if (name_args.name->count) {
-		name=strdup(name_args.name->sval[0]);
+		name=strdup_psram(name_args.name->sval[0]);
 	}
 	else {
 		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Name must be specified.");
@@ -448,6 +474,17 @@ static void register_heap()
 
 }
 
+static void register_dump_heap()
+{
+    const esp_console_cmd_t heap_cmd = {
+        .command = "dump_heap",
+        .help = "Dumps the content of the heap to serial output",
+        .hint = NULL,
+        .func = &dump_heap,
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&heap_cmd) );
+
+}
 
 static void register_setdevicename()
 {
@@ -470,7 +507,7 @@ static void register_setdevicename()
 static int tasks_info(int argc, char **argv)
 {
     const size_t bytes_per_task = 40; /* see vTaskList description */
-    char *task_list_buffer = malloc(uxTaskGetNumberOfTasks() * bytes_per_task);
+    char *task_list_buffer = malloc_init_external(uxTaskGetNumberOfTasks() * bytes_per_task);
     if (task_list_buffer == NULL) {
     	cmd_send_messaging(argv[0],MESSAGING_ERROR, "failed to allocate buffer for vTaskList output");
         return 1;

@@ -34,7 +34,7 @@ pthread_t thread_console;
 static void * console_thread();
 void console_start();
 static const char * TAG = "console";
-extern bool bypass_wifi_manager;
+extern bool bypass_network_manager;
 extern void register_squeezelite();
 
 /* Prompt to be printed before each line.
@@ -188,8 +188,8 @@ void process_autoexec(){
 	uint8_t autoexec_flag=0;
 
 	char * str_flag = config_alloc_get(NVS_TYPE_STR, "autoexec");
-	if(!bypass_wifi_manager){
-		ESP_LOGW(TAG, "Processing autoexec commands while wifi_manager active.  Wifi related commands will be ignored.");
+	if(!bypass_network_manager){
+		ESP_LOGW(TAG, "Processing autoexec commands while network manager active.  Wifi related commands will be ignored.");
 	}
 	if(is_recovery_running){
 		ESP_LOGD(TAG, "Processing autoexec commands in recovery mode.  Squeezelite commands will be ignored.");
@@ -203,7 +203,7 @@ void process_autoexec(){
 				ESP_LOGD(TAG,"Getting command name %s", autoexec_name);
 				autoexec_value= config_alloc_get(NVS_TYPE_STR, autoexec_name);
 				if(autoexec_value!=NULL ){
-					if(!bypass_wifi_manager && strstr(autoexec_value, "join ")!=NULL ){
+					if(!bypass_network_manager && strstr(autoexec_value, "join ")!=NULL ){
 						ESP_LOGW(TAG,"Ignoring wifi join command.");
 					}
 					else if(is_recovery_running && !strstr(autoexec_value, "squeezelite " ) ){
@@ -298,18 +298,26 @@ void console_start() {
 		ESP_ERROR_CHECK(esp_console_init(&console_config));
 	}
 	/* Register commands */
+	MEMTRACE_PRINT_DELTA_MESSAGE("Registering help command");
 	esp_console_register_help_command();
+	MEMTRACE_PRINT_DELTA_MESSAGE("Registering system commands");
 	register_system();
+	MEMTRACE_PRINT_DELTA_MESSAGE("Registering config commands");
 	register_config_cmd();
+	MEMTRACE_PRINT_DELTA_MESSAGE("Registering nvs commands");
 	register_nvs();
+	MEMTRACE_PRINT_DELTA_MESSAGE("Registering wifi commands");
 	register_wifi();
 
 	if(!is_recovery_running){
+		MEMTRACE_PRINT_DELTA_MESSAGE("Registering squeezelite commands");
 		register_squeezelite();
 	}
 	else {
+		MEMTRACE_PRINT_DELTA_MESSAGE("Registering recovery commands");
 		register_ota_cmd();
 	}
+	MEMTRACE_PRINT_DELTA_MESSAGE("Registering i2c commands");
 	register_i2ctools();
 	
 	if(!is_serial_suppressed()){
@@ -358,14 +366,16 @@ void console_start() {
 			prompt = recovery_prompt;
 			cfg.stack_size = 4096 ;
 		}
+		MEMTRACE_PRINT_DELTA_MESSAGE("Creating console thread with stack size of 4096 bytes");
 		esp_pthread_set_cfg(&cfg);
 		pthread_attr_t attr;
 		pthread_attr_init(&attr);
-
 		pthread_create(&thread_console, &attr, console_thread, NULL);
 		pthread_attr_destroy(&attr);   	
+		MEMTRACE_PRINT_DELTA_MESSAGE("Console thread created");
 	} 
 	else if(!is_recovery_running){
+		MEMTRACE_PRINT_DELTA_MESSAGE("Running autoexec");
 		process_autoexec();
 	}
 
@@ -392,7 +402,9 @@ esp_err_t run_command(char * line){
 }
 static void * console_thread() {
 	if(!is_recovery_running){
+		MEMTRACE_PRINT_DELTA_MESSAGE("Running autoexec");
 		process_autoexec();
+		MEMTRACE_PRINT_DELTA_MESSAGE("Autoexec done");
 	}
 	/* Main loop */
 	while (1) {

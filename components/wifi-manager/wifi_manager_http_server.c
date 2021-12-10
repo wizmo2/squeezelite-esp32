@@ -31,11 +31,13 @@
 #include "freertos/task.h"
 #include "messaging.h"
 #include "platform_esp32.h"
+#include "globdefs.h"
+#include "trace.h"
 static const char TAG[] = "http_server";
 
-static httpd_handle_t _server = NULL;
-rest_server_context_t *rest_context = NULL;
-RingbufHandle_t messaging=NULL;
+EXT_RAM_ATTR static httpd_handle_t _server = NULL;
+EXT_RAM_ATTR rest_server_context_t *rest_context = NULL;
+EXT_RAM_ATTR RingbufHandle_t messaging=NULL;
 
 void register_common_handlers(httpd_handle_t server){
 	httpd_uri_t css_get = { .uri = "/css/*", .method = HTTP_GET, .handler = resource_filehandler, .user_ctx = rest_context };
@@ -46,7 +48,6 @@ void register_common_handlers(httpd_handle_t server){
 	httpd_register_uri_handler(server, &icon_get);	
 	httpd_uri_t png_get = { .uri = "/favicon*", .method = HTTP_GET, .handler = resource_filehandler, .user_ctx = rest_context };
 	httpd_register_uri_handler(server, &png_get);	
-
 }
 void register_regular_handlers(httpd_handle_t server){
 	httpd_uri_t root_get = { .uri = "/", .method = HTTP_GET, .handler = root_get_handler, .user_ctx = rest_context };
@@ -124,13 +125,17 @@ void register_regular_handlers(httpd_handle_t server){
 
 esp_err_t http_server_start()
 {
+	
 	ESP_LOGI(TAG, "Initializing HTTP Server");
+	MEMTRACE_PRINT_DELTA_MESSAGE("Registering messaging subscriber");
 	messaging = messaging_register_subscriber(10, "http_server");
-    rest_context = calloc(1, sizeof(rest_server_context_t));
+	MEMTRACE_PRINT_DELTA_MESSAGE("Allocating RAM for server context");
+    rest_context = malloc_init_external( sizeof(rest_server_context_t));
     if(rest_context==NULL){
     	ESP_LOGE(TAG,"No memory for http context");
     	return ESP_FAIL;
     }
+
     strlcpy(rest_context->base_path, "/res/", sizeof(rest_context->base_path));
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -141,15 +146,17 @@ esp_err_t http_server_start()
     //todo:  use the endpoint below to configure session token?
     // config.open_fn
 
-    ESP_LOGD(TAG, "Starting HTTP Server");
+    MEMTRACE_PRINT_DELTA_MESSAGE( "Starting HTTP Server");
     esp_err_t err= __httpd_start(&_server, &config);
     if(err != ESP_OK){
     	ESP_LOGE_LOC(TAG,"Start server failed");
     }
     else {
-
+		MEMTRACE_PRINT_DELTA_MESSAGE( "HTTP Server started. Registering common handlers");
     	register_common_handlers(_server);
+		MEMTRACE_PRINT_DELTA_MESSAGE("Registering regular handlers");
     	register_regular_handlers(_server);
+		MEMTRACE_PRINT_DELTA_MESSAGE("HTTP Server regular handlers registered");
     }
 
     return err;

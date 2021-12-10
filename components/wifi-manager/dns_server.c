@@ -59,8 +59,8 @@ static const char TAG[] = "dns_server";
 static TaskHandle_t task_dns_server = NULL;
 int socket_fd;
 
-void  dns_server_start() {
-    xTaskCreate(&dns_server, "dns_server", 3072, NULL, WIFI_MANAGER_TASK_PRIORITY-1, &task_dns_server);
+void  dns_server_start(esp_netif_t * netif) {
+    xTaskCreate(&dns_server, "dns_server", 3072, (void *)netif, WIFI_MANAGER_TASK_PRIORITY-1, &task_dns_server);
 }
 
 void  dns_server_stop(){
@@ -75,7 +75,8 @@ void  dns_server_stop(){
 
 void  dns_server(void *pvParameters) {
     struct sockaddr_in sa, ra;
-
+    esp_err_t esp_err = ESP_OK;
+    esp_netif_t * netif = (esp_netif_t * )pvParameters;
     /* Set redirection DNS hijack to the access point IP */
     ip4_addr_t ip_resolved;
     inet_pton(AF_INET, DEFAULT_AP_IP, &ip_resolved);
@@ -90,10 +91,14 @@ void  dns_server(void *pvParameters) {
     memset(&sa, 0, sizeof(struct sockaddr_in));
 
     /* Bind to port 53 (typical DNS Server port) */
-    tcpip_adapter_ip_info_t ip;
-    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip);
+    esp_netif_ip_info_t ip_info;
+    esp_err = esp_netif_get_ip_info(netif,&ip_info);
+    if(esp_err!=ESP_OK)    {
+        ESP_LOGE(TAG, "Failed to get adapter info for udp: %s", esp_err_to_name(esp_err));
+        exit(1);
+    }
     ra.sin_family = AF_INET;
-    ra.sin_addr.s_addr = ip.ip.addr;
+    ra.sin_addr.s_addr = ip_info.ip.addr;
     ra.sin_port = htons(53);
     if (bind(socket_fd, (struct sockaddr *)&ra, sizeof(struct sockaddr_in)) == -1) {
         ESP_LOGE(TAG, "Failed to bind to 53/udp");
@@ -149,7 +154,7 @@ void  dns_server(void *pvParameters) {
             for(char* c=domain; *c != '\0'; c++){
             	if(*c < ' ' || *c > 'z') *c = '.'; /* technically we should test if the first two bits are 00 (e.g. if( (*c & 0xC0) == 0x00) *c = '.') but this makes the code a lot more readable */
             }
-            ESP_LOGI(TAG, "Replying to DNS request for %s from %s", domain, ip_address);
+            ESP_LOGD(TAG, "Replying to DNS request for %s from %s", domain, ip_address);
 
 
             /* create DNS answer at the end of the query*/

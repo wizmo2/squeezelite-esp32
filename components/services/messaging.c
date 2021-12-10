@@ -15,6 +15,7 @@
 #include "platform_esp32.h"
 #include "messaging.h"
 #include "trace.h"
+#include "globdefs.h"
 /************************************
  * Globals
  */
@@ -38,7 +39,7 @@ messaging_handle_t  get_handle_ptr(messaging_list_t * handle){
 
 RingbufHandle_t messaging_create_ring_buffer(uint8_t max_count){
 	RingbufHandle_t buf_handle = NULL;
-	StaticRingbuffer_t *buffer_struct = malloc(sizeof(StaticRingbuffer_t));
+	StaticRingbuffer_t *buffer_struct = malloc_init_external(sizeof(StaticRingbuffer_t));
 	if (buffer_struct != NULL) {
 		size_t buf_size = (size_t )(sizeof(single_message_t)+8+MSG_LENGTH_AVG)*(size_t )(max_count>0?max_count:5); // no-split buffer requires an additional 8 bytes
 		buf_size = buf_size - (buf_size % 4);
@@ -76,7 +77,7 @@ messaging_handle_t messaging_register_subscriber(uint8_t max_count, char * name)
 	while(cur->next){
 		cur = get_struct_ptr(cur->next);
 	}
-	cur->next=heap_caps_malloc(sizeof(messaging_list_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+	cur->next=malloc_init_external(sizeof(messaging_list_t));
 	if(!cur->next){
 		ESP_LOGE(tag,"subscriber alloc failed");
 		return NULL;
@@ -84,7 +85,7 @@ messaging_handle_t messaging_register_subscriber(uint8_t max_count, char * name)
 	memset(cur->next,0x00,sizeof(messaging_list_t));
 	cur = get_struct_ptr(cur->next);
 	cur->max_count=max_count;
-	cur->subscriber_name=strdup(name);
+	cur->subscriber_name=strdup_psram(name);
 	cur->buf_handle = messaging_create_ring_buffer(max_count);
 	if(cur->buf_handle){
 		messaging_fill_messages(cur);
@@ -99,7 +100,7 @@ void messaging_service_init(){
 	}
 	else {
 		top.max_count = max_count;
-		top.subscriber_name = strdup("messaging");
+		top.subscriber_name = strdup_psram("messaging");
 	}
 	return;
 }
@@ -161,10 +162,7 @@ single_message_t *  messaging_retrieve_message(RingbufHandle_t buf_handle){
     vRingbufferGetInfo(buf_handle, NULL, NULL, NULL, NULL, &uxItemsWaiting);
 	if(uxItemsWaiting>0){
 		message = (single_message_t *)xRingbufferReceive(buf_handle, &item_size, pdMS_TO_TICKS(50));
-		message_copy  = heap_caps_malloc(item_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-		if(message_copy){
-			memcpy(message_copy,message,item_size);
-		}
+		message_copy  = clone_obj_psram(message,item_size);
 		vRingbufferReturnItem(buf_handle, (void *)message);
 	}
 	return message_copy;
@@ -231,7 +229,7 @@ void messaging_post_message(messaging_types type,messaging_classes msg_class, co
 	va_start(va, fmt);
 	ln = vsnprintf(NULL, 0, fmt, va)+1;
 	msg_size = sizeof(single_message_t)+ln;
-	message = (single_message_t *)heap_caps_malloc(msg_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+	message = (single_message_t *)malloc_init_external(msg_size);
 	vsprintf(message->message, fmt, va);
 	va_end(va);
 	message->msg_size = msg_size;
@@ -256,11 +254,25 @@ void messaging_post_message(messaging_types type,messaging_classes msg_class, co
 	return;
 
 }
+char * messaging_alloc_format_string(const char *fmt, ...) {
+	va_list va;
+	va_start(va, fmt);
+	size_t ln = vsnprintf(NULL, 0, fmt, va)+1;
+	char * message_txt = malloc_init_external(ln);
+	if(message_txt){
+		vsprintf(message_txt, fmt, va);
+		va_end(va);
+	}
+	else{
+		ESP_LOGE(tag, "Memory allocation failed while sending message");
+	}
+	return message_txt;
+}
 void log_send_messaging(messaging_types msgtype,const char *fmt, ...) {
 	va_list va;
 	va_start(va, fmt);
 	size_t ln = vsnprintf(NULL, 0, fmt, va)+1;
-	char * message_txt = malloc(ln);
+	char * message_txt = malloc_init_external(ln);
 	if(message_txt){
 		vsprintf(message_txt, fmt, va);
 		va_end(va);
@@ -272,12 +284,13 @@ void log_send_messaging(messaging_types msgtype,const char *fmt, ...) {
 		ESP_LOGE(tag, "Memory allocation failed while sending message");
 	}
 }
+
 void cmd_send_messaging(const char * cmdname,messaging_types msgtype, const char *fmt, ...){
 	va_list va;
 	va_start(va, fmt);
 	size_t cmd_len = strlen(cmdname)+1;
 	size_t ln = vsnprintf(NULL, 0, fmt, va)+1;
-	char * message_txt = malloc(ln+cmd_len);
+	char * message_txt = malloc_init_external(ln+cmd_len);
 	if(message_txt){
 		strcpy(message_txt,cmdname);
 		strcat(message_txt,"\n");

@@ -18,6 +18,9 @@
 #include "globdefs.h"
 #include "accessors.h"
 #include "messaging.h"
+#include "esp_heap_caps.h"
+#include "esp_log.h"
+
 
 extern void battery_svc_init(void);
 extern void monitor_svc_init(void);
@@ -34,6 +37,43 @@ pwm_system_t pwm_system = {
 	};		
 
 static const char *TAG = "services";
+
+
+void * malloc_init_external(size_t sz){
+	void * ptr=NULL;
+	ptr = heap_caps_malloc(sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+	if(ptr==NULL){
+		ESP_LOGE(TAG,"malloc_init_external:  unable to allocate %d bytes of PSRAM!",sz);
+	}
+	else {
+		memset(ptr,0x00,sz);
+	}
+	return ptr;
+}
+void * clone_obj_psram(void * source, size_t source_sz){
+	void * ptr=NULL;
+	ptr = heap_caps_malloc(source_sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+	if(ptr==NULL){
+		ESP_LOGE(TAG,"clone_obj_psram:  unable to allocate %d bytes of PSRAM!",source_sz);
+	}
+	else {
+		memcpy(ptr,source,source_sz);
+	}
+	return ptr;
+}
+char * strdup_psram(const char * source){
+	void * ptr=NULL;
+	size_t source_sz = strlen(source)+1;
+	ptr = heap_caps_malloc(source_sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+	if(ptr==NULL){
+		ESP_LOGE(TAG,"strdup_psram:  unable to allocate %d bytes of PSRAM! Cannot clone string %s",source_sz,source);
+	}
+	else {
+		memset(ptr,0x00,source_sz);
+		strcpy(ptr,source);
+	}
+	return ptr;
+}
 
 /****************************************************************************************
  * 

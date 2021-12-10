@@ -45,14 +45,16 @@
 #include "display.h"
 #include "accessors.h"
 #include "cmd_system.h"
+#include "globdefs.h"
+
 static const char certs_namespace[] = "certificates";
 static const char certs_key[] = "blob";
 static const char certs_version[] = "version";
 const char unknown_string_placeholder[] = "unknown";
 const char null_string_placeholder[] = "null";
-EventGroupHandle_t wifi_event_group;
+EventGroupHandle_t network_event_group;
 
-bool bypass_wifi_manager=false;
+bool bypass_network_manager=false;
 const int CONNECTED_BIT = BIT0;
 #define JOIN_TIMEOUT_MS (10000)
 #define LOCAL_MAC_SIZE 20
@@ -61,7 +63,7 @@ static const char TAG[] = "esp_app_main";
 char * fwurl = NULL;
 RTC_NOINIT_ATTR uint32_t RebootCounter ;
 
-static bool bWifiConnected=false;
+static bool bNetworkConnected=false;
 extern const uint8_t server_cert_pem_start[] asm("_binary_github_pem_start");
 extern const uint8_t server_cert_pem_end[] asm("_binary_github_pem_end");
 
@@ -71,12 +73,11 @@ extern void	display_init(char *welcome);
 const char * str_or_unknown(const char * str) { return (str?str:unknown_string_placeholder); }
 const char * str_or_null(const char * str) { return (str?str:null_string_placeholder); }
 bool is_recovery_running;
-/* brief this is an exemple of a callback that you can setup in your own app to get notified of wifi manager event */
-void cb_connection_got_ip(void *pvParameter){
+
+void cb_connection_got_ip(nm_state_t new_state, int sub_state){
 	static ip4_addr_t ip;
 	tcpip_adapter_ip_info_t ipInfo; 
-
-	tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipInfo);
+	network_get_ip_info(&ipInfo);
 	if (ip.addr && ipInfo.ip.addr != ip.addr) {
 		ESP_LOGW(TAG, "IP change, need to reboot");
 		if(!wait_for_commit()){
@@ -85,10 +86,10 @@ void cb_connection_got_ip(void *pvParameter){
 		esp_restart();
 	}
 	ip.addr = ipInfo.ip.addr;
-	ESP_LOGI(TAG, "Wifi connected!");
-	messaging_post_message(MESSAGING_INFO,MESSAGING_CLASS_SYSTEM,"Wifi connected");
-	xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
-	bWifiConnected=true;
+	ESP_LOGI(TAG, "Network connected!");
+	messaging_post_message(MESSAGING_INFO,MESSAGING_CLASS_SYSTEM,"Network connected");
+	xEventGroupSetBits(network_event_group, CONNECTED_BIT);
+	bNetworkConnected=true;
 	led_unpush(LED_GREEN);
 		if(is_recovery_running){
 		// when running in recovery, send a LMS discovery message 
@@ -98,24 +99,24 @@ void cb_connection_got_ip(void *pvParameter){
 		discover_ota_server(5);
 	}
 }
-void cb_connection_sta_disconnected(void *pvParameter){
+void cb_connection_sta_disconnected(nm_state_t new_state, int sub_state){
 	led_blink_pushed(LED_GREEN, 250, 250);
 	messaging_post_message(MESSAGING_WARNING,MESSAGING_CLASS_SYSTEM,"Wifi disconnected");
-	bWifiConnected=false;
-	xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
+	bNetworkConnected=false;
+	xEventGroupClearBits(network_event_group, CONNECTED_BIT);
 }
 bool wait_for_wifi(){
-	bool connected=(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT)!=0;
+	bool connected=(xEventGroupGetBits(network_event_group) & CONNECTED_BIT)!=0;
 	if(!connected){
-		ESP_LOGD(TAG,"Waiting for WiFi...");
-	    connected = (xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT,
+		ESP_LOGD(TAG,"Waiting for Network...");
+	    connected = (xEventGroupWaitBits(network_event_group, CONNECTED_BIT,
 	                                   pdFALSE, pdTRUE, JOIN_TIMEOUT_MS / portTICK_PERIOD_MS)& CONNECTED_BIT)!=0;
 	    if(!connected){
-	    	ESP_LOGW(TAG,"wifi timeout.");
+	    	ESP_LOGW(TAG,"Network timeout.");
 	    }
 	    else
 	    {
-	    	ESP_LOGI(TAG,"WiFi Connected!");
+	    	ESP_LOGI(TAG,"Network Connected!");
 	    }
 	}
     return connected;
@@ -170,9 +171,8 @@ esp_err_t update_certificates(bool force){
 	char *str=NULL;
 	bool changed=false;
 	if ( (esp_err= nvs_get_str(handle, certs_version, NULL, &len)) == ESP_OK) {
-		str=(char *)malloc(len+1);
+		str=(char *)malloc_init_external(len+1);
 		if(str){
-			memset(str,0x00,len+1);
 			if ( (esp_err = nvs_get_str(handle,  certs_version, str, &len)) == ESP_OK) {
 				ESP_LOGI(TAG,"Certificate version: %s", str);
 			}
@@ -230,7 +230,8 @@ const char * get_certificate(){
         size_t len;
         esp_err = nvs_get_blob(handle, certs_key, NULL, &len);
         if( esp_err == ESP_OK) {
-            blob = (char *) heap_caps_malloc(len+1, (MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT));
+            //blob = (char *) heap_caps_malloc(len+1, (MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT));
+			blob = (char *) malloc_init_external(len+1);
             if(!blob){
             	log_send_messaging(MESSAGING_ERROR,"Unable to retrieve HTTPS certificates. %s","Memory allocation failed");
         		return "";
@@ -275,7 +276,7 @@ void register_default_with_mac(const char* key,  char* defval) {
     char* fullvalue = NULL;
     esp_read_mac((uint8_t*)&mac, ESP_MAC_WIFI_STA);
     snprintf(macStr, LOCAL_MAC_SIZE - 1, "-%x%x%x", mac[3], mac[4], mac[5]);
-	fullvalue = malloc(strlen(defval)+sizeof(macStr)+1);
+	fullvalue = malloc_init_external(strlen(defval)+sizeof(macStr)+1);
 	if(fullvalue){
 		strcpy(fullvalue, defval);
 		strcat(fullvalue, macStr);
@@ -287,6 +288,13 @@ void register_default_with_mac(const char* key,  char* defval) {
 	}
 	
 }
+#ifndef CONFIG_DAC_KNOWN_CONFIGURATIONS
+#define CONFIG_DAC_KNOWN_CONFIGURATIONS ""
+#endif
+#ifndef CONFIG_DAC_KNOWN_CONFIGURATIONS_GPIOS
+#define CONFIG_DAC_KNOWN_CONFIGURATIONS_GPIOS ""
+#endif
+
 
 void register_default_nvs(){
 
@@ -341,24 +349,35 @@ void register_default_nvs(){
 	register_default_string_val( "stats", "n");
 	register_default_string_val( "rel_api", CONFIG_RELEASE_API);
 	register_default_string_val("wifi_smode", "A");
+	register_default_string_val("kndac", CONFIG_DAC_KNOWN_CONFIGURATIONS);
+	register_default_string_val("kngpio", CONFIG_DAC_KNOWN_CONFIGURATIONS_GPIOS);
 	wait_for_commit();
 	ESP_LOGD(TAG,"Done setting default values in nvs.");
 }
 
 uint32_t halSTORAGE_RebootCounterRead(void) { return RebootCounter ; }
-uint32_t halSTORAGE_RebootCounterUpdate(int32_t xValue) { return (RebootCounter = (xValue != 0) ? (RebootCounter + xValue) : 0) ; }
+uint32_t halSTORAGE_RebootCounterUpdate(int32_t xValue) { 
+	if(RebootCounter >100) {
+		RebootCounter = 0;
+	}
+	return (RebootCounter = (xValue != 0) ? (RebootCounter + xValue) : 0) ; 
+	}
 
-void handle_ap_connect(){
+void handle_ap_connect(nm_state_t new_state, int sub_state){
 	start_telnet(NULL);
+}
+void handle_network_up(nm_state_t new_state, int sub_state){
 	halSTORAGE_RebootCounterUpdate(0);
 }
+esp_reset_reason_t xReason=ESP_RST_UNKNOWN;
+
 void app_main()
 {
 	const esp_partition_t *running = esp_ota_get_running_partition();
 	is_recovery_running = (running->subtype == ESP_PARTITION_SUBTYPE_APP_FACTORY);
-	esp_reset_reason_t xReason = esp_reset_reason();
+	xReason = esp_reset_reason();
 	ESP_LOGI(TAG,"Reset reason is: %u", xReason);
-	if(!is_recovery_running && xReason != ESP_RST_SW && xReason != ESP_RST_POWERON )  {
+	if(!is_recovery_running )  {
 		/* unscheduled restart (HW, Watchdog or similar) thus increment dynamic
 	 	* counter then log current boot statistics as a warning */
 		uint32_t Counter = halSTORAGE_RebootCounterUpdate(1) ;		// increment counter
@@ -369,30 +388,44 @@ void app_main()
 			guided_factory();
 		}
 	}
+	else {
+		uint32_t Counter = halSTORAGE_RebootCounterUpdate(1) ;		// increment counter
+		ESP_LOGI(TAG,"Recovery Reboot counter=%u\n", Counter) ;
+		if (Counter == 5) {
+			ESP_LOGW(TAG,"System rebooted too many times. This could be an indication that configuration is corrupted. Erasing config.");
+			halSTORAGE_RebootCounterUpdate(0);
+			erase_settings_partition();
+			// reboot one more time
+			guided_factory();
+			
+		}		
+	}
 
 	char * fwurl = NULL;
+	MEMTRACE_PRINT_DELTA();
 	ESP_LOGI(TAG,"Starting app_main");
 	initialize_nvs();
+	MEMTRACE_PRINT_DELTA();
 	ESP_LOGI(TAG,"Setting up telnet.");
 	init_telnet(); // align on 32 bits boundaries
-
+	MEMTRACE_PRINT_DELTA();
 	ESP_LOGI(TAG,"Setting up config subsystem.");
 	config_init();
-
+	MEMTRACE_PRINT_DELTA();
 	ESP_LOGD(TAG,"Creating event group for wifi");
-	wifi_event_group = xEventGroupCreate();
+	network_event_group = xEventGroupCreate();
 	ESP_LOGD(TAG,"Clearing CONNECTED_BIT from wifi group");
-	xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
+	xEventGroupClearBits(network_event_group, CONNECTED_BIT);
 
 	ESP_LOGI(TAG,"Registering default values");
 	register_default_nvs();
-
+	MEMTRACE_PRINT_DELTA();
 	ESP_LOGI(TAG,"Configuring services");
 	services_init();
-
+	MEMTRACE_PRINT_DELTA();
 	ESP_LOGI(TAG,"Initializing display");
 	display_init("SqueezeESP32");
-
+	MEMTRACE_PRINT_DELTA();
 	if(is_recovery_running && display){
 		GDS_ClearExt(display, true);
 		GDS_SetFont(display, &Font_droid_sans_fallback_15x17 );
@@ -402,7 +435,7 @@ void app_main()
 
 	ESP_LOGI(TAG,"Checking if certificates need to be updated");
 	update_certificates(false);
-
+	MEMTRACE_PRINT_DELTA();
 
 	ESP_LOGD(TAG,"Getting firmware OTA URL (if any)");
 	fwurl = process_ota_url();
@@ -412,10 +445,10 @@ void app_main()
 	if(bypass_wm==NULL)
 	{
 		ESP_LOGE(TAG, "Unable to retrieve the Wifi Manager bypass flag");
-		bypass_wifi_manager = false;
+		bypass_network_manager = false;
 	}
 	else {
-		bypass_wifi_manager=(strcmp(bypass_wm,"1")==0 ||strcasecmp(bypass_wm,"y")==0);
+		bypass_network_manager=(strcmp(bypass_wm,"1")==0 ||strcasecmp(bypass_wm,"y")==0);
 	}
 
 	if(!is_recovery_running){
@@ -432,25 +465,32 @@ void app_main()
 	/* start the wifi manager */
 	ESP_LOGD(TAG,"Blinking led");
 	led_blink_pushed(LED_GREEN, 250, 250);
-
-	if(bypass_wifi_manager){
-		ESP_LOGW(TAG,"wifi manager is disabled. Use command line for wifi control.");
+	MEMTRACE_PRINT_DELTA();
+	if(bypass_network_manager){
+		ESP_LOGW(TAG,"Network manager is disabled. Use command line for wifi control.");
 	}
 	else {
-		ESP_LOGI(TAG,"Starting Wifi Manager");
-		network_manager_start();
-		//wifi_manager_set_callback(EVENT_STA_GOT_IP, &cb_connection_got_ip);
-		wifi_manager_set_callback(EVENT_ETH_GOT_IP, &cb_connection_got_ip);
-		wifi_manager_set_callback(EVENT_STA_DISCONNECTED, &cb_connection_sta_disconnected);
+		ESP_LOGI(TAG,"Starting Network Manager");
+		network_start();
+		MEMTRACE_PRINT_DELTA();
+		network_register_state_callback(NETWORK_WIFI_ACTIVE_STATE,WIFI_CONNECTED_STATE, "cb_connection_got_ip", &cb_connection_got_ip);
+		network_register_state_callback(NETWORK_ETH_ACTIVE_STATE,ETH_ACTIVE_CONNECTED_STATE, "cb_connection_got_ip",&cb_connection_got_ip);
+		network_register_state_callback(NETWORK_WIFI_ACTIVE_STATE,WIFI_LOST_CONNECTION_STATE, "cb_connection_sta_disconnected",&cb_connection_sta_disconnected);
+
 		/* Start the telnet service after we are certain that the network stack has been properly initialized.
 		 * This can be either after we're started the AP mode, or after we've started the STA mode  */
-		wifi_manager_set_callback(ORDER_START_AP, &handle_ap_connect);
-		wifi_manager_set_callback(ORDER_CONNECT_STA, &handle_ap_connect);
+		network_register_state_callback(NETWORK_INITIALIZING_STATE,-1, "handle_ap_connect", &handle_ap_connect);
+		network_register_state_callback(NETWORK_ETH_ACTIVE_STATE,ETH_ACTIVE_LINKDOWN_STATE, "handle_network_up", &handle_network_up);
+		network_register_state_callback(NETWORK_WIFI_ACTIVE_STATE,WIFI_INITIALIZING_STATE, "handle_network_up", &handle_network_up);
+		MEMTRACE_PRINT_DELTA();
+		
 	}
+	MEMTRACE_PRINT_DELTA_MESSAGE("Starting Console");
 	console_start();
+	MEMTRACE_PRINT_DELTA_MESSAGE("Console started");
 	if(fwurl && strlen(fwurl)>0){
 		if(is_recovery_running){
-			while(!bWifiConnected){
+			while(!bNetworkConnected){
 				wait_for_wifi();
 				taskYIELD();
 			}

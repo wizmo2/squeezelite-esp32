@@ -32,12 +32,12 @@
 #include "esp_netif.h"
 #include "esp_event.h"
 #include "led.h"
-extern bool bypass_wifi_manager;
+extern bool bypass_network_manager;
 #define JOIN_TIMEOUT_MS (10000)
 #include "platform_console.h"
 
 
-extern EventGroupHandle_t wifi_event_group;
+extern EventGroupHandle_t network_event_group;
 extern const int CONNECTED_BIT;
 //static const char * TAG = "cmd_wifi";
 /** Arguments used by 'join' function */
@@ -65,10 +65,10 @@ static void event_handler(void* arg, esp_event_base_t event_base,
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
 		led_blink_pushed(LED_GREEN, 250, 250);
         esp_wifi_connect();
-        xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
+        xEventGroupClearBits(network_event_group, CONNECTED_BIT);
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
 		led_unpush(LED_GREEN);
-        xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
+        xEventGroupSetBits(network_event_group, CONNECTED_BIT);
     }
 }
 //bool wait_for_wifi(){
@@ -127,7 +127,7 @@ static bool wifi_join(const char *ssid, const char *pass, int timeout_ms)
     ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
     ESP_ERROR_CHECK( esp_wifi_connect() );
 
-    int bits = xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT,
+    int bits = xEventGroupWaitBits(network_event_group, CONNECTED_BIT,
                                    pdFALSE, pdTRUE, timeout_ms / portTICK_PERIOD_MS);
     return (bits & CONNECTED_BIT) != 0;
 }
@@ -202,7 +202,7 @@ void register_wifi_join()
 void register_wifi()
 {
     register_wifi_join();
-    if(bypass_wifi_manager){
+    if(bypass_network_manager){
     	initialise_wifi();
     }
 }

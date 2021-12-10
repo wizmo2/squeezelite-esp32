@@ -18,7 +18,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-//#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
 #include "platform_config.h"
 #include "nvs_utilities.h"
 #include "platform_esp32.h"
@@ -39,18 +38,18 @@
 #include "cJSON.h"
 #include "freertos/timers.h"
 #include "freertos/event_groups.h"
-
+#include "globdefs.h"
 
 #define CONFIG_COMMIT_DELAY 1000
 #define LOCK_MAX_WAIT 20*CONFIG_COMMIT_DELAY
 static const char * TAG = "config";
-static cJSON * nvs_json=NULL;
-static TimerHandle_t timer;
-static SemaphoreHandle_t config_mutex = NULL;
-static EventGroupHandle_t config_group;
+EXT_RAM_ATTR static cJSON * nvs_json=NULL;
+EXT_RAM_ATTR static TimerHandle_t timer;
+EXT_RAM_ATTR static SemaphoreHandle_t config_mutex = NULL;
+EXT_RAM_ATTR static EventGroupHandle_t config_group;
 /* @brief indicate that the ESP32 is currently connected. */
-static const int CONFIG_NO_COMMIT_PENDING = BIT0;
-static const int CONFIG_LOAD_BIT = BIT1;
+EXT_RAM_ATTR static const int CONFIG_NO_COMMIT_PENDING = BIT0;
+EXT_RAM_ATTR static const int CONFIG_LOAD_BIT = BIT1;
 
 bool config_lock(TickType_t xTicksToWait);
 void config_unlock();
@@ -62,7 +61,7 @@ cJSON * config_set_value_safe(nvs_type_t nvs_type, const char *key,const void * 
 static void vCallbackFunction( TimerHandle_t xTimer );
 void config_set_entry_changed_flag(cJSON * entry, cJSON_bool flag);
 #define IMPLEMENT_SET_DEFAULT(t,nt) void config_set_default_## t (const char *key, t  value){\
-	void * pval = malloc(sizeof(value));\
+	void * pval = malloc_init_external(sizeof(value));\
 	*((t *) pval) = value;\
 	config_set_default(nt, key,pval,0);\
 	free(pval); }
@@ -72,7 +71,7 @@ void config_set_entry_changed_flag(cJSON * entry, cJSON_bool flag);
 		return ESP_FAIL;}
 static void * malloc_fn(size_t sz){
 
-	void * ptr = is_recovery_running?malloc(sz):heap_caps_malloc(sz, MALLOC_CAP_SPIRAM);
+	void * ptr = is_recovery_running?malloc(sz):heap_caps_malloc(sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 	if(ptr==NULL){
 		ESP_LOGE(TAG,"malloc_fn:  unable to allocate memory!");
 	}
@@ -85,20 +84,28 @@ void init_cJSON(){
 }
 void config_init(){
 	ESP_LOGD(TAG, "Creating mutex for Config");
+	MEMTRACE_PRINT_DELTA();
 	config_mutex = xSemaphoreCreateMutex();
+	MEMTRACE_PRINT_DELTA();
 	ESP_LOGD(TAG, "Creating event group");
+	MEMTRACE_PRINT_DELTA();
 	config_group = xEventGroupCreate();
+	MEMTRACE_PRINT_DELTA();
 	ESP_LOGD(TAG, "Loading config from nvs");
 
 	init_cJSON();
+	MEMTRACE_PRINT_DELTA();
 	if(nvs_json !=NULL){
 		cJSON_Delete(nvs_json);
 	}
 	nvs_json = cJSON_CreateObject();
 
 	config_set_group_bit(CONFIG_LOAD_BIT,true);
+	MEMTRACE_PRINT_DELTA();
 	nvs_load_config();
+	MEMTRACE_PRINT_DELTA();
 	config_set_group_bit(CONFIG_LOAD_BIT,false);
+	MEMTRACE_PRINT_DELTA();
 	config_start_timer();
 }
 
@@ -318,28 +325,28 @@ void * config_safe_alloc_get_entry_value(nvs_type_t nvs_type, cJSON * entry){
 		return NULL;
 	}
 	if (nvs_type == NVS_TYPE_I8) {
-		value=malloc(sizeof(int8_t));
+		value=malloc_init_external(sizeof(int8_t));
 		*(int8_t *)value = (int8_t)entry_value->valuedouble;
 	} else if (nvs_type == NVS_TYPE_U8) {
-		value=malloc(sizeof(uint8_t));
+		value=malloc_init_external(sizeof(uint8_t));
 		*(uint8_t *)value = (uint8_t)entry_value->valuedouble;
 	} else if (nvs_type == NVS_TYPE_I16) {
-		value=malloc(sizeof(int16_t));
+		value=malloc_init_external(sizeof(int16_t));
 		*(int16_t *)value = (int16_t)entry_value->valuedouble;
 	} else if (nvs_type == NVS_TYPE_U16) {
-		value=malloc(sizeof(uint16_t));
+		value=malloc_init_external(sizeof(uint16_t));
 		*(uint16_t *)value = (uint16_t)entry_value->valuedouble;
 	} else if (nvs_type == NVS_TYPE_I32) {
-		value=malloc(sizeof(int32_t));
+		value=malloc_init_external(sizeof(int32_t));
 		*(int32_t *)value = (int32_t)entry_value->valuedouble;
 	} else if (nvs_type == NVS_TYPE_U32) {
-		value=malloc(sizeof(uint32_t));
+		value=malloc_init_external(sizeof(uint32_t));
 		*(uint32_t *)value = (uint32_t)entry_value->valuedouble;
 	} else if (nvs_type == NVS_TYPE_I64) {
-		value=malloc(sizeof(int64_t));
+		value=malloc_init_external(sizeof(int64_t));
 		*(int64_t *)value = (int64_t)entry_value->valuedouble;
 	} else if (nvs_type == NVS_TYPE_U64) {
-		value=malloc(sizeof(uint64_t));
+		value=malloc_init_external(sizeof(uint64_t));
 		*(uint64_t *)value = (uint64_t)entry_value->valuedouble;
 	} else if (nvs_type == NVS_TYPE_STR) {
 		if(!cJSON_IsString(entry_value)){
@@ -361,8 +368,7 @@ void * config_safe_alloc_get_entry_value(nvs_type_t nvs_type, cJSON * entry){
 		}
 		else {
 			size_t len=strlen(cJSON_GetStringValue(entry_value));
-			value=(void *)heap_caps_malloc(len+1, MALLOC_CAP_DMA);
-			memset(value,0x00,len+1);
+			value=(void *)malloc_init_external(len+1);
 			memcpy(value,cJSON_GetStringValue(entry_value),len);
 			if(value==NULL){
 				char * entry_str = cJSON_PrintUnformatted(entry);
@@ -406,12 +412,11 @@ void config_commit_to_nvs(){
 			void * value = config_safe_alloc_get_entry_value(type, entry);
 			if(value!=NULL){
 				size_t len=strlen(entry->string);
-				char * key=(void *)heap_caps_malloc(len+1, MALLOC_CAP_DMA);
-				memset(key,0x00,len+1);
+				char * key=(void *)malloc_init_external(len+1);
 				memcpy(key,entry->string,len);
 				esp_err_t err = store_nvs_value(type,key,value);
-				free(key);
-				free(value);
+				FREE_AND_NULL(key);
+				FREE_AND_NULL(value);
 
 				if(err!=ESP_OK){
 					char * entry_str = cJSON_PrintUnformatted(entry);
@@ -617,11 +622,11 @@ void * config_alloc_get(nvs_type_t nvs_type, const char *key) {
 }
 
 void * config_alloc_get_str(const char *key, char *lead, char *fallback) {
-	if (lead && *lead) return strdup(lead);
+	if (lead && *lead) return strdup_psram(lead);
 	char *value = config_alloc_get_default(NVS_TYPE_STR, key, NULL, 0);
 	if ((!value || !*value) && fallback) {
 		if (value) free(value);
-		value = strdup(fallback);
+		value = strdup_psram(fallback);
 	}
 	return value;
 }
@@ -673,7 +678,7 @@ char * config_alloc_get_json(bool bFormatted){
 	char * json_buffer = NULL;
 	if(!config_lock(LOCK_MAX_WAIT/portTICK_PERIOD_MS)){
 		ESP_LOGE(TAG, "Unable to lock config after %d ms",LOCK_MAX_WAIT);
-		return strdup("{\"error\":\"Unable to lock configuration object.\"}");
+		return strdup_psram("{\"error\":\"Unable to lock configuration object.\"}");
 	}
 	if(bFormatted){
 		json_buffer= cJSON_Print(nvs_json);
@@ -686,6 +691,10 @@ char * config_alloc_get_json(bool bFormatted){
 }
 esp_err_t config_set_value(nvs_type_t nvs_type, const char *key, const void * value){
 	esp_err_t result = ESP_OK;
+	if(!key ||!key[0]){
+		ESP_LOGW(TAG,"Empty key passed. Ignoring entry!");
+		return ESP_ERR_INVALID_ARG;
+	}
 	if(!config_lock(LOCK_MAX_WAIT/portTICK_PERIOD_MS)){
 			ESP_LOGE(TAG, "Unable to lock config after %d ms",LOCK_MAX_WAIT);
 			result = ESP_FAIL;

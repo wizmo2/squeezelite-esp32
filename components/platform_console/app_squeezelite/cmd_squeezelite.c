@@ -12,6 +12,8 @@
 #include "platform_esp32.h"
 #include "platform_config.h"
 #include "esp_app_format.h"
+#include "globdefs.h"
+
 extern esp_err_t process_recovery_ota(const char * bin_url, char * bin_buffer, uint32_t length);
 static const char * TAG = "squeezelite_cmd";
 #define SQUEEZELITE_THREAD_STACK_SIZE (4*1024)
@@ -112,8 +114,7 @@ static int launchsqueezelite(int argc, char **argv)
     ESP_LOGV(TAG,"Saving args in thread structure");
 
     thread_parms.argc=0;
-    thread_parms.argv = malloc(sizeof(char**)*(argc+ADDITIONAL_SQUEEZELITE_ARGS));
-	memset(thread_parms.argv,'\0',sizeof(char**)*(argc+ADDITIONAL_SQUEEZELITE_ARGS));
+    thread_parms.argv = malloc_init_external(sizeof(char**)*(argc+ADDITIONAL_SQUEEZELITE_ARGS));
 
 	for(int i=0;i<argc;i++){
 		ESP_LOGD(TAG ,"assigning parm %u : %s",i,argv[i]);

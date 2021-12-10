@@ -17,6 +17,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+#include "globdefs.h"
 
 static const char * TAG = "btappcore";
 
@@ -41,8 +42,7 @@ bool bt_app_work_dispatch(bt_app_cb_t p_cback, uint16_t event, void *p_params, i
     if (param_len == 0) {
         return bt_app_send_msg(&msg);
     } else if (p_params && param_len > 0) {
-        if ((msg.param = malloc(param_len)) != NULL) {
-            memcpy(msg.param, p_params, param_len);
+        if ((msg.param = clone_obj_psram(p_params, param_len)) != NULL) {
             /* check if caller has provided a copy callback to do the deep copy */
             if (p_copy_cback) {
                 p_copy_cback(&msg, msg.param, p_params);

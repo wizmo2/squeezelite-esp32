@@ -35,6 +35,7 @@ Contains the freeRTOS task for the DNS server that processes the requests.
 #include <esp_system.h>
 #include <stdbool.h>
 #include "squeezelite-ota.h"
+#include "esp_netif.h"
 
 
 #ifdef __cplusplus
@@ -128,7 +129,7 @@ typedef struct __attribute__((__packed__)) dns_answer_t{
 }dns_answer_t;
 
 void dns_server(void *pvParameters);
-void dns_server_start();
+void  dns_server_start(esp_netif_t * netif);
 void dns_server_stop();
 
 

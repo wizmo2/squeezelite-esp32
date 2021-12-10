@@ -58,7 +58,7 @@ static size_t log_buf_size=2000;      //32-bit aligned size
 static bool bIsEnabled=false;
 static int partnerSocket=0;
 static telnet_t *tnHandle;
-extern bool bypass_wifi_manager;
+extern bool bypass_network_manager;
 
 /************************************
  * Forward declarations
@@ -92,7 +92,7 @@ void init_telnet(){
 	// if wifi manager is bypassed, there will possibly be no wifi available
 	//
 	bMirrorToUART = (strcasestr("D",val)!=NULL);
-	if(!bMirrorToUART && bypass_wifi_manager){
+	if(!bMirrorToUART && bypass_network_manager){
 		// This isn't supposed to happen, as telnet won't start if wifi manager isn't
 		// started. So this is a safeguard only.
 		ESP_LOGW(TAG,"Wifi manager is not active.  Forcing console on Serial output.");

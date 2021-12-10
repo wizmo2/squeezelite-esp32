@@ -164,6 +164,8 @@ static bool raop_sink_start(raop_cmd_vcb_t cmd_cb, raop_data_cb_t data_cb) {
 	tcpip_adapter_if_t ifs[] = { TCPIP_ADAPTER_IF_ETH, TCPIP_ADAPTER_IF_STA, TCPIP_ADAPTER_IF_AP };
    	
 	// get various IP info
+	// it is possible to get the currently active interface with the following call:
+	// network_get_active_interface()
 	for (int i = 0; i < sizeof(ifs) / sizeof(tcpip_adapter_if_t); i++) 
 		if (tcpip_adapter_get_ip_info(ifs[i], &ipInfo) == ESP_OK && ipInfo.ip.addr != IPADDR_ANY) {
 			tcpip_adapter_get_hostname(ifs[i], &hostname);			

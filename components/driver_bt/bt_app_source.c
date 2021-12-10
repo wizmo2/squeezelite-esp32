@@ -20,6 +20,7 @@
 #include "trace.h"
 #include "messaging.h"
 #include "cJSON.h"
+#include "globdefs.h"
 
 static const char * TAG = "bt_app_source";
 static const char * BT_RC_CT_TAG="RCCT";
@@ -226,8 +227,8 @@ void hal_bluetooth_init(const char * options)
 	squeezelite_args.end = arg_end(2);
 
 	ESP_LOGD(TAG,"Copying parameters");
-	char * opts = strdup(options);
-	char **argv = malloc(sizeof(char**)*15);
+	char * opts = strdup_psram(options);
+	char **argv = malloc_init_external(sizeof(char**)*15);
 
 	size_t argv_size=15;
 
@@ -254,7 +255,7 @@ void hal_bluetooth_init(const char * options)
             ESP_LOGW(TAG,"Unable to retrieve the a2dp sink name from nvs.");
         }
     } else {
-        squeezelite_conf.sink_name=strdup(squeezelite_args.sink_name->sval[0]);
+        squeezelite_conf.sink_name=strdup_psram(squeezelite_args.sink_name->sval[0]);
         // sync with NVS
         esp_err_t err=ESP_OK;
         if((err= config_set_value(NVS_TYPE_STR, "a2dp_sink_name", squeezelite_args.sink_name->sval[0]))!=ESP_OK){

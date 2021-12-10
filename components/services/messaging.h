@@ -39,6 +39,7 @@ single_message_t *  messaging_retrieve_message(RingbufHandle_t buf_handle);
 void log_send_messaging(messaging_types msgtype,const char *fmt, ...);
 void cmd_send_messaging(const char * cmdname,messaging_types msgtype, const char *fmt, ...);
 esp_err_t messaging_type_to_err_type(messaging_types type);
+char * messaging_alloc_format_string(const char *fmt, ...) ;
 void messaging_service_init();
 
 #define REALLOC_CAT(e,n) e=realloc(e,strlen(n)); e=strcat(e,n)

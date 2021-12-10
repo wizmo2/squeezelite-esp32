@@ -38,7 +38,7 @@
 #include "gds_draw.h"
 #include "platform_esp32.h"
 #include "lwip/sockets.h"
-
+#include "globdefs.h"
 
 extern const char * get_certificate();
 #define IF_DISPLAY(x) if(display) { x; }
@@ -95,11 +95,13 @@ static esp_http_client_config_t http_client_config;
 
 
 void _printMemStats(){
-	ESP_LOGD(TAG,"Heap internal:%zu (min:%zu) external:%zu (min:%zu)",
+	ESP_LOGD(TAG, "Heap internal:%zu (min:%zu) external:%zu (min:%zu) dma:%zu (min:%zu)",
 			heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
 			heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL),
 			heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
-			heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM));
+			heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM),
+			heap_caps_get_free_size(MALLOC_CAP_DMA),
+			heap_caps_get_minimum_free_size(MALLOC_CAP_DMA));
 }
 uint8_t  ota_get_pct_complete(){
 	return ota_status->total_image_len==0?0:
@@ -183,7 +185,7 @@ void sendMessaging(messaging_types type,const char * fmt, ...){
     va_start(args, fmt);
     str_len = vsnprintf(NULL,0,fmt,args)+1;
     if(str_len>0){
-    	msg_str = malloc(str_len);
+    	msg_str = malloc_init_external(str_len);
     	vsnprintf(msg_str,str_len,fmt,args);
         if(type == MESSAGING_WARNING){
         	ESP_LOGW(TAG,"%s",msg_str);
@@ -237,7 +239,7 @@ esp_err_t handle_http_on_data(esp_http_client_event_t *evt){
 			ota_status->total_image_len=esp_http_client_get_content_length(evt->client);
 			ota_status->downloaded_image_len = 0;
 			ota_status->newdownloadpct = 0;
-		    ota_status->bin_data= malloc(ota_status->total_image_len);
+		    ota_status->bin_data= malloc_init_external(ota_status->total_image_len);
 		    if(ota_status->bin_data==NULL){
 				sendMessaging(MESSAGING_ERROR,"Error: buffer alloc error");
 				return ESP_FAIL;
@@ -351,7 +353,7 @@ esp_err_t init_config(ota_thread_parms_t * p_ota_thread_parms){
 		http_client_config.event_handler = _http_event_handler;
 		http_client_config.disable_auto_redirect=false;
 		http_client_config.skip_cert_common_name_check = false;
-		http_client_config.url = strdup(p_ota_thread_parms->url);
+		http_client_config.url = strdup_psram(p_ota_thread_parms->url);
 		http_client_config.max_redirection_count = 4;
 		// buffer size below is for http read chunks
 		http_client_config.buffer_size = 8192; //1024 ;
@@ -680,12 +682,11 @@ esp_err_t process_recovery_ota(const char * bin_url, char * bin_buffer, uint32_t
 		ESP_LOGE(TAG,"OTA Already started. ");
 		return ESP_FAIL;
 	}
-	ota_status = heap_caps_malloc(sizeof(ota_status_t) , (MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT));
-	memset(ota_status, 0x00, sizeof(ota_status_t));
+	ota_status = malloc_init_external(sizeof(ota_status_t));
 	ota_status->bOTAThreadStarted=true;
 
 	if(bin_url){
-		ota_thread_parms.url =strdup(bin_url);
+		ota_thread_parms.url =strdup_psram(bin_url);
 		ESP_LOGD(TAG, "Starting ota on core %u for : %s", OTA_CORE,ota_thread_parms.url);
 	}
 	else {
@@ -751,7 +752,7 @@ in_addr_t discover_ota_server(int max) {
 
 	do {
 
-		ESP_LOGI(TAG,"sending LMS discovery");
+		ESP_LOGI(TAG,"sending LMS discovery for OTA Update");
 		memset(&s, 0, sizeof(s));
 
 		if (sendto(disc_sock, buf, len, 0, (struct sockaddr *)&d, sizeof(d)) < 0) {

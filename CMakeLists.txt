@@ -2,6 +2,17 @@ cmake_minimum_required(VERSION 3.5)
 set(EXTRA_COMPONENT_DIRS components/platform_console/app_recovery components/platform_console/app_squeezelite  )
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 add_definitions(-DMODEL_NAME=SqueezeESP32)
+# Uncomment line below to get memory usage trace details
+#add_definitions(-DENABLE_MEMTRACE=1)
+#uncomment line below to get network ethernet debug logs 
+#add_definitions(-DNETWORK_ETHERNET_LOG_LEVEL=ESP_LOG_DEBUG)
+#uncomment line below to get network status debug logs
+#add_definitions(-DNETWORK_STATUS_LOG_LEVEL=ESP_LOG_DEBUG)
+#add_definitions(-DNETWORK_HANDLERS_LOG_LEVEL=ESP_LOG_DEBUG)
+#add_definitions(-DNETWORK_WIFI_LOG_LEVEL=ESP_LOG_DEBUG)
+#add_definitions(-DNETWORK_MANAGER_LOG_LEVEL=ESP_LOG_DEBUG)
+
+
 if(NOT DEFINED DEPTH)
 	set(DEPTH "16")
 endif()	
@@ -11,10 +22,16 @@ set_property(TARGET recovery.elf PROPERTY RECOVERY_PREFIX app_recovery )
 include(squeezelite.cmake)
 set(PROJECT_VER $ENV{PROJECT_VER})
 
-#target_compile_definitions(__idf_wifi-manager PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_INFO)
-target_compile_definitions(__idf_esp_wifi PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_INFO)
 
-target_compile_definitions(__idf_app_recovery PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_INFO)
+
+#target_compile_definitions(__idf_services PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
+#target_compile_definitions(__idf_esp_eth PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
+#target_compile_definitions(__idf_driver PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
+#target_compile_definitions(__idf_wifi-manager PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_INFO)
+#target_compile_definitions(__idf_esp_wifi PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
+#target_compile_definitions(__idf_platform_console PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
+
+#target_compile_definitions(__idf_app_recovery PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_INFO)
 # target_compile_definitions(__idf_esp_eth PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_INFO)
 # target_compile_definitions(__idf_esp_event PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_INFO)
 # target_compile_definitions(__idf_esp_netif PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
@@ -84,13 +101,12 @@ target_compile_definitions(__idf_app_recovery PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_
 # target_compile_definitions(__idf_openssl PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
 # target_compile_definitions(__idf_perfmon PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
 # target_compile_definitions(__idf_platform_config PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
-# target_compile_definitions(__idf_platform_console PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
 # target_compile_definitions(__idf_protobuf-c PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
 # target_compile_definitions(__idf_protocomm PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
 # target_compile_definitions(__idf_pthread PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
 # target_compile_definitions(__idf_raop PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
 # target_compile_definitions(__idf_sdmmc PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
-# target_compile_definitions(__idf_services PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
+
 # target_compile_definitions(__idf_soc PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
 # target_compile_definitions(__idf_spiffs PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
 # target_compile_definitions(__idf_spi_flash PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)

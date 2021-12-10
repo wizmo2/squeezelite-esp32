@@ -32,6 +32,7 @@
 #include "trace.h"
 #include "monitor.h"
 #include "messaging.h"
+#include "network_ethernet.h"
 
 
 static const char *TAG = "services";
@@ -61,6 +62,7 @@ static char * config_spdif_get_string(){
 	return config_alloc_get_str("spdif_config", CONFIG_SPDIF_CONFIG, "bck=" STR(CONFIG_SPDIF_BCK_IO)
 											  ",ws=" STR(CONFIG_SPDIF_WS_IO) ",do=" STR(CONFIG_SPDIF_DO_IO));
 }
+
 
 /****************************************************************************************
  * 
@@ -122,7 +124,6 @@ const i2s_platform_config_t * config_get_i2s_from_str(char * dac_config ){
 	set_i2s_pin(dac_config, &i2s_dac_pin.pin);
 	strcpy(i2s_dac_pin.model, "i2s");
 	char * p=NULL;
-
 	if ((p = strcasestr(dac_config, "i2c")) != NULL) i2s_dac_pin.i2c_addr = atoi(strchr(p, '=') + 1);
 	if ((p = strcasestr(dac_config, "sda")) != NULL) i2s_dac_pin.sda = atoi(strchr(p, '=') + 1);
 	if ((p = strcasestr(dac_config, "scl")) != NULL) i2s_dac_pin.scl = atoi(strchr(p, '=') + 1);
@@ -143,9 +144,8 @@ const eth_config_t * config_get_eth_from_str(char * eth_config ){
 	char * p=NULL;
 	static EXT_RAM_ATTR eth_config_t eth_pin; 
 	memset(&eth_pin, 0xFF, sizeof(eth_pin));
-	memset(&eth_pin.model, 0xFF, sizeof(eth_pin.model));
-	eth_pin.spi = false;		
-	eth_pin.rmii = false;
+	memset(&eth_pin.model, 0x00, sizeof(eth_pin.model));
+	eth_pin.valid = true;
 
 	if ((p = strcasestr(eth_config, "model")) != NULL) sscanf(p, "%*[^=]=%15[^,]", eth_pin.model);
 	if ((p = strcasestr(eth_config, "mdc")) != NULL) eth_pin.mdc = atoi(strchr(p, '=') + 1);
@@ -158,15 +158,32 @@ const eth_config_t * config_get_eth_from_str(char * eth_config ){
 	if ((p = strcasestr(eth_config, "speed")) != NULL) eth_pin.speed = atoi(strchr(p, '=') + 1);
 	if ((p = strcasestr(eth_config, "clk")) != NULL) eth_pin.clk = atoi(strchr(p, '=') + 1);
 	if ((p = strcasestr(eth_config, "host")) != NULL) eth_pin.host = atoi(strchr(p, '=') + 1);
-	eth_pin.valid = eth_pin.model && strlen(eth_pin.model)>0 && GPIO_IS_VALID_GPIO(eth_pin.mdio) && GPIO_IS_VALID_GPIO(eth_pin.mdc);
-	
-	if(strcasestr(eth_pin.model, "LAN8720")){
-		eth_pin.rmii = true;
+
+	if(!eth_pin.model || strlen(eth_pin.model)==0){
+		eth_pin.valid = false;
+		return &eth_pin;
 	}
-	else {
-		eth_pin.spi = true;
-		/* here we must also check that we have at least a CS gpio */
-		eth_pin.valid = eth_pin.valid && GPIO_IS_VALID_GPIO(eth_pin.cs);
+	 network_ethernet_driver_t* network_driver = network_ethernet_driver_autodetect(eth_pin.model);
+	if(!network_driver || !network_driver->valid){
+		messaging_post_message(MESSAGING_ERROR,MESSAGING_CLASS_SYSTEM,"Ethernet config invalid: model %s %s",eth_pin.model,network_driver?"was not compiled in":"was not found"); 
+		eth_pin.valid = false;
+	}
+	if(network_driver){
+		eth_pin.rmii = network_driver->rmii;
+		eth_pin.spi = network_driver->spi;
+		
+		if(network_driver->rmii){
+			if(!GPIO_IS_VALID_GPIO(eth_pin.mdio) || !GPIO_IS_VALID_GPIO(eth_pin.mdc)){
+				messaging_post_message(MESSAGING_ERROR,MESSAGING_CLASS_SYSTEM,"Ethernet config invalid: %s %s",!GPIO_IS_VALID_GPIO(eth_pin.mdc)?"Invalid MDC":"",!GPIO_IS_VALID_GPIO(eth_pin.mdio)?"Invalid mdio":""); 
+				eth_pin.valid = false;
+			}
+		}
+		else if(network_driver->spi){
+			if(!GPIO_IS_VALID_GPIO(eth_pin.cs)){
+				messaging_post_message(MESSAGING_ERROR,MESSAGING_CLASS_SYSTEM,"Ethernet config invalid: invalid CS pin"); 
+				return false;
+			}
+		}
 	}
 	return &eth_pin;
 }
@@ -216,10 +233,12 @@ const eth_config_t * config_eth_get( ){
 #endif
 #endif
 										",mdc=" STR(CONFIG_ETH_MDC_IO) ",mdio=" STR(CONFIG_ETH_MDIO_IO)) ;
+	if(config && strlen(config)>0){
+		ESP_LOGD(TAG,"Parsing ethernet configuration %s", config);
+	}
 	static EXT_RAM_ATTR eth_config_t eth_config;
-	ESP_LOGD(TAG, "Ethernet config string %s", config);	
 	memcpy(&eth_config, config_get_eth_from_str(config), sizeof(eth_config));
-	free(config);
+	FREE_AND_NULL(config);
 	return &eth_config;
 }
 /****************************************************************************************
@@ -236,7 +255,7 @@ void config_eth_init( eth_config_t *  target ){
 esp_err_t config_i2c_set(const i2c_config_t * config, int port){
 	int buffer_size=255;
 	esp_err_t err=ESP_OK;
-	char * config_buffer=calloc(buffer_size,1);
+	char * config_buffer=malloc_init_external(buffer_size);
 	if(config_buffer)  {
 		snprintf(config_buffer,buffer_size,"scl=%u,sda=%u,speed=%u,port=%u",config->scl_io_num,config->sda_io_num,config->master.clk_speed,port);
 		log_send_messaging(MESSAGING_INFO,"Updating I2C configuration to %s",config_buffer);
@@ -255,8 +274,8 @@ esp_err_t config_i2c_set(const i2c_config_t * config, int port){
 esp_err_t config_rotary_set(rotary_struct_t * config){
 	int buffer_size=512;
 	esp_err_t err=ESP_OK;
-	char * config_buffer=calloc(buffer_size,1);
-	char * config_buffer2=calloc(buffer_size,1);	
+	char * config_buffer=malloc_init_external(buffer_size);
+	char * config_buffer2=malloc_init_external(buffer_size);	
 	if(config_buffer && config_buffer2)  {
 		snprintf(config_buffer,buffer_size,"A=%i,B=%i",config->A, config->B);
 		if(config->SW >=0 ){
@@ -296,8 +315,8 @@ esp_err_t config_rotary_set(rotary_struct_t * config){
 esp_err_t config_display_set(const display_config_t * config){
 	int buffer_size=512;
 	esp_err_t err=ESP_OK;
-	char * config_buffer=calloc(buffer_size,1);
-	char * config_buffer2=calloc(buffer_size,1);
+	char * config_buffer=malloc_init_external(buffer_size);
+	char * config_buffer2=malloc_init_external(buffer_size);
 	if(config_buffer && config_buffer2)  {
 		snprintf(config_buffer,buffer_size,"%s,width=%i,height=%i",config->type,config->width,config->height);
 		if(strcasecmp("I2C",config->type)==0){
@@ -348,8 +367,8 @@ esp_err_t config_display_set(const display_config_t * config){
 esp_err_t config_i2s_set(const i2s_platform_config_t * config, const char * nvs_name){
 	int buffer_size=255;
 	esp_err_t err=ESP_OK;
-	char * config_buffer=calloc(buffer_size,1);
-	char * config_buffer2=calloc(buffer_size,1);
+	char * config_buffer=malloc_init_external(buffer_size);
+	char * config_buffer2=malloc_init_external(buffer_size);
 	if(config_buffer && config_buffer2)  {
 		snprintf(config_buffer,buffer_size,"model=%s,bck=%u,ws=%u,do=%u",config->model,config->pin.bck_io_num,config->pin.ws_io_num,config->pin.data_out_num);
 		if(config->mute_gpio>=0){
@@ -384,7 +403,7 @@ esp_err_t config_i2s_set(const i2s_platform_config_t * config, const char * nvs_
 esp_err_t config_spdif_set(const i2s_platform_config_t * config){
 	int buffer_size=255;
 	esp_err_t err=ESP_OK;
-	char * config_buffer=calloc(buffer_size,1);
+	char * config_buffer=malloc_init_external(buffer_size);
 	if(config_buffer )  {
 		snprintf(config_buffer,buffer_size,"bck=%u,ws=%u,do=%u",config->pin.bck_io_num,config->pin.ws_io_num,config->pin.data_out_num);
 		log_send_messaging(MESSAGING_INFO,"Updating SPDIF configuration to %s",config_buffer);
@@ -406,7 +425,7 @@ esp_err_t config_spdif_set(const i2s_platform_config_t * config){
 esp_err_t config_spi_set(const spi_bus_config_t * config, int host, int dc){
 	int buffer_size=255;
 	esp_err_t err = ESP_OK;
-	char * config_buffer=calloc(buffer_size,1);
+	char * config_buffer=malloc_init_external(buffer_size);
 	if(config_buffer)  {
 		snprintf(config_buffer,buffer_size,"data=%u,clk=%u,dc=%u,host=%u,miso=%d",config->mosi_io_num,config->sclk_io_num,dc,host,config->miso_io_num);
 		log_send_messaging(MESSAGING_INFO,"Updating SPI configuration to %s",config_buffer);
@@ -855,7 +874,7 @@ cJSON * get_Rotary_GPIO(cJSON * list){
  */
 esp_err_t get_gpio_structure(cJSON * gpio_entry, gpio_entry_t ** gpio){
 	esp_err_t err = ESP_OK;
-	*gpio = malloc(sizeof(gpio_entry_t));
+	*gpio = malloc_init_external(sizeof(gpio_entry_t));
 	cJSON * val = cJSON_GetObjectItem(gpio_entry,"gpio");
 	if(val){
 		(*gpio)->gpio= (int)val->valuedouble;
@@ -865,14 +884,14 @@ esp_err_t get_gpio_structure(cJSON * gpio_entry, gpio_entry_t ** gpio){
 	}
 	val = cJSON_GetObjectItem(gpio_entry,"name");
 	if(val){
-		(*gpio)->name= strdup(cJSON_GetStringValue(val));
+		(*gpio)->name= strdup_psram(cJSON_GetStringValue(val));
 	} else {
 		ESP_LOGE(TAG,"gpio name value not found");
 		err=ESP_FAIL;
 	}
 	val = cJSON_GetObjectItem(gpio_entry,"group");
 	if(val){
-		(*gpio)->group= strdup(cJSON_GetStringValue(val));
+		(*gpio)->group= strdup_psram(cJSON_GetStringValue(val));
 	} else {
 		ESP_LOGE(TAG,"gpio group value not found");
 		err=ESP_FAIL;

@@ -5,7 +5,7 @@
 extern "C" {
 
 #endif
-char* wifi_manager_alloc_get_ip_info_json();
+char* network_status_alloc_get_ip_info_json();
 /**
  * @brief Tries to get access to json buffer mutex.
  *
@@ -21,39 +21,39 @@ char* wifi_manager_alloc_get_ip_info_json();
  * @param xTicksToWait The time in ticks to wait for the semaphore to become available.
  * @return true in success, false otherwise.
  */
-bool wifi_manager_lock_json_buffer(TickType_t xTicksToWait);
+bool network_status_lock_json_buffer(TickType_t xTicksToWait);
 
 /**
  * @brief Releases the json buffer mutex.
  */
-void wifi_manager_unlock_json_buffer();
+void network_status_unlock_json_buffer();
 
-bool wifi_manager_lock_sta_ip_string(TickType_t xTicksToWait);
-void wifi_manager_unlock_sta_ip_string();
+bool network_status_lock_sta_ip_string(TickType_t xTicksToWait);
+void network_status_unlock_sta_ip_string();
 
 /**
  * @brief gets the string representation of the STA IP address, e.g.: "192.168.1.69"
  */
-char* wifi_manager_get_sta_ip_string();
+char* network_status_get_sta_ip_string();
 
 /**
  * @brief thread safe char representation of the STA IP update
  */
-void wifi_manager_safe_update_sta_ip_string(esp_ip4_addr_t * ip4);
+void network_status_safe_update_sta_ip_string(esp_ip4_addr_t * ip4);
 
 /**
  * @brief Generates the connection status json: ssid and IP addresses.
- * @note This is not thread-safe and should be called only if wifi_manager_lock_json_buffer call is successful.
+ * @note This is not thread-safe and should be called only if network_status_lock_json_buffer call is successful.
  */
-void wifi_manager_generate_ip_info_json(update_reason_code_t update_reason_code);
+void network_status_update_ip_info(update_reason_code_t update_reason_code);
 
 void init_network_status();
 void destroy_network_status();
-cJSON* wifi_manager_get_basic_info(cJSON** old);
+cJSON* network_status_get_basic_info(cJSON** old);
 
-void wifi_manager_update_basic_info();
+void network_status_update_basic_info();
 void network_status_clear_ip();
-void wifi_manager_safe_reset_sta_ip_string();
+void network_status_safe_reset_sta_ip_string();
 #ifdef __cplusplus
 }
 #endif

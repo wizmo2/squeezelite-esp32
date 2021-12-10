@@ -1,41 +1,5 @@
-/*
-Copyright (c) 2017-2019 Tony Pottier
+#pragma once
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-@file network_manager.h
-@author Tony Pottier
-@brief Defines all functions necessary for esp32 to connect to a wifi/scan wifis
-
-Contains the freeRTOS task and all necessary support
-
-@see https://idyl.io
-@see https://github.com/tonyp7/esp32-wifi-manager
-*/
-
-#ifndef WIFI_MANAGER_H_INCLUDED
-#define WIFI_MANAGER_H_INCLUDED
-
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_wifi_types.h"
@@ -43,8 +7,192 @@ extern "C" {
 #include "cJSON.h"
 #include "esp_eth.h"
 #include "freertos/event_groups.h"
-#include "state_machine.h"
-#include "state_machine.h"
+#include "hsm.h"
+#include "esp_log.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+#define STA_POLLING_MIN (15 * 1000)
+#define STA_POLLING_MAX (10 * 60 * 1000)
+#define ETH_LINK_DOWN_REBOOT (2 * 1000)
+#define ETH_DHCP_FAIL (6 * 1000)
+#define WIFI_DHCP_FAIL (6 * 1000)
+
+/*
+ *  --------------------- ENUMERATION ---------------------
+ */
+//#define ADD_ROOT(NAME, HANDLER, ENTRY, EXIT, CHILD)
+//#define ADD_ROOT(NAME, HANDLER, ENTRY, EXIT, CHILD)
+//#define ADD_LEAF(NAME, HANDLER, ENTRY, EXIT, PARENT, LEVEL)
+
+#define ALL_NM_STATE                                                                                                                                                               \
+    ADD_ROOT_LEAF(NETWORK_INSTANTIATED_STATE)\
+    ADD_ROOT_LEAF(NETWORK_INITIALIZING_STATE)\
+    ADD_ROOT(NETWORK_ETH_ACTIVE_STATE, Eth_Active_State)\
+    ADD_ROOT(NETWORK_WIFI_ACTIVE_STATE, Wifi_Active_State)\
+    ADD_ROOT(NETWORK_WIFI_CONFIGURING_ACTIVE_STATE, Wifi_Configuring_State)
+
+#define ALL_ETH_STATE(PARENT, LEVEL)\
+    ADD_LEAF(ETH_STARTING_STATE,PARENT,LEVEL)\
+    ADD_LEAF(ETH_ACTIVE_LINKUP_STATE,PARENT,LEVEL)\
+    ADD_LEAF(ETH_ACTIVE_LINKDOWN_STATE,PARENT,LEVEL)\
+    ADD_LEAF(ETH_ACTIVE_CONNECTED_STATE,PARENT,LEVEL)\
+    ADD_LEAF(ETH_CONNECTING_NEW_STATE,PARENT,LEVEL)
+
+#define ALL_WIFI_STATE(PARENT, LEVEL)\
+    ADD_LEAF(WIFI_INITIALIZING_STATE,PARENT,LEVEL)\
+    ADD_LEAF(WIFI_CONNECTING_STATE,PARENT,LEVEL)\
+	ADD_LEAF(WIFI_CONNECTING_NEW_STATE,PARENT,LEVEL)\
+    ADD_LEAF(WIFI_CONNECTING_NEW_FAILED_STATE,PARENT,LEVEL)\
+    ADD_LEAF(WIFI_CONNECTED_STATE,PARENT,LEVEL)\
+    ADD_LEAF(WIFI_USER_DISCONNECTED_STATE,PARENT,LEVEL)\
+    ADD_LEAF(WIFI_LOST_CONNECTION_STATE,PARENT,LEVEL)
+
+#define ALL_WIFI_CONFIGURING_STATE(PARENT, LEVEL)\
+    ADD_LEAF(WIFI_CONFIGURING_STATE,PARENT,LEVEL)\
+    ADD_LEAF(WIFI_CONFIGURING_CONNECT_STATE,PARENT,LEVEL)\
+    ADD_LEAF(WIFI_CONFIGURING_CONNECT_SUCCESS_STATE,PARENT,LEVEL)\
+    ADD_LEAF(WIFI_CONFIGURING_CONNECT_SUCCESS_GOTOSTA_STATE,PARENT,LEVEL)
+
+
+#define ADD_ROOT(name, ...) name,
+#define ADD_ROOT_LEAF(name, ...) name,
+#define ADD_LEAF(name, ...) name,
+typedef enum {
+    ALL_NM_STATE
+    TOTAL_NM_STATE
+} nm_state_t;
+typedef enum {
+    ALL_WIFI_STATE(,)
+    TOTAL_WIFI_ACTIVE_STATE
+} mn_wifi_active_state_t;
+typedef enum {
+    ALL_ETH_STATE(,)
+    TOTAL_ETH_ACTIVE_STATE
+} mn_eth_active_state_t;
+typedef enum {
+    ALL_WIFI_CONFIGURING_STATE(,)
+    TOTAL_WIFI_CONFIGURING_STATE
+} mn_wifi_configuring_state_t;
+
+#undef ADD_STATE
+#undef ADD_ROOT
+#undef ADD_ROOT_LEAF
+#undef ADD_LEAF
+
+typedef void (*network_status_reached_cb)(nm_state_t state_id, int sub_state );
+//! List of oven events
+#define ALL_NM_EVENTS \
+    ADD_FIRST_EVENT(EN_LINK_UP) \
+    ADD_EVENT(EN_LINK_DOWN)\
+    ADD_EVENT(EN_CONFIGURE)\
+    ADD_EVENT(EN_GOT_IP)\
+    ADD_EVENT(EN_ETH_GOT_IP)\
+    ADD_EVENT(EN_DELETE)\
+    ADD_EVENT(EN_TIMER)\
+    ADD_EVENT(EN_START)\
+    ADD_EVENT(EN_SCAN)\
+    ADD_EVENT(EN_FAIL)\
+    ADD_EVENT(EN_SUCCESS)\
+    ADD_EVENT(EN_SCAN_DONE)\
+    ADD_EVENT(EN_CONNECT)\
+    ADD_EVENT(EN_CONNECT_NEW)\
+    ADD_EVENT(EN_REBOOT)\
+    ADD_EVENT(EN_REBOOT_URL)\
+    ADD_EVENT(EN_LOST_CONNECTION)\
+    ADD_EVENT(EN_ETHERNET_FALLBACK)\
+    ADD_EVENT(EN_UPDATE_STATUS)\
+    ADD_EVENT(EN_CONNECTED)
+#define ADD_EVENT(name) name,
+#define ADD_FIRST_EVENT(name) name=1,
+typedef enum {
+	ALL_NM_EVENTS
+} network_event_t;
+#undef ADD_EVENT
+#undef ADD_FIRST_EVENT
+
+typedef enum {
+    OTA,
+    RECOVERY,
+    RESTART,
+} reboot_type_t;
+
+typedef struct {
+    network_event_t trigger;
+    char * ssid;
+    char * password;
+    reboot_type_t rtype;
+    char* strval;
+    wifi_event_sta_disconnected_t* disconnected_event;
+    esp_netif_t *netif;
+} queue_message;
+
+typedef struct
+{
+    state_machine_t Machine;  //!< Abstract state machine
+	const state_t*  source_state;
+    bool ethernet_connected;
+    TimerHandle_t state_timer;
+    uint32_t STA_duration;
+	int32_t total_connected_time;
+	int64_t last_connected;
+	uint16_t num_disconnect;
+	uint16_t retries;
+    bool wifi_connected;
+	esp_netif_t *wifi_netif;
+	esp_netif_t *eth_netif;
+	esp_netif_t *wifi_ap_netif;
+	queue_message * event_parameters;
+} network_t;
+
+
+/*
+ *  --------------------- External function prototype ---------------------
+ */
+
+void network_start();
+network_t * network_get_state_machine();
+void network_event_simple(network_event_t trigger);
+void network_event(network_event_t trigger, void* param);
+void network_async_event(network_event_t trigger, void* param);
+void network_async(network_event_t trigger);
+void network_async_fail();
+void network_async_success();
+void network_async_link_up();
+void network_async_link_down();
+void network_async_configure();
+void network_async_got_ip();
+void network_async_timer();
+void network_async_start();
+void network_async_scan();
+void network_async_scan_done();
+void network_async_connect(const char * ssid, const char * password);
+void network_async_lost_connection(wifi_event_sta_disconnected_t * disconnected_event);
+void network_async_reboot(reboot_type_t rtype);
+void network_reboot_ota(char* url);
+void network_async_delete();
+void network_async_update_status();
+void network_async_eth_got_ip();
+void network_ip_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
+bool network_is_interface_connected(esp_netif_t * interface);
+
+
+
+
+
+
+/*
+ *  --------------------- Inline functions ---------------------
+ */
+
+
+
+
+
+
 /**
  * @brief Defines the maximum size of a SSID name. 32 is IEEE standard.
  * @warning limit is also hard coded in wifi_config_t. Never extend this value.
@@ -149,96 +297,23 @@ extern "C" {
  */
 #define DEFAULT_STA_POWER_SAVE 				WIFI_PS_MIN_MODEM
 
-/**
- * @brief Defines the maximum length in bytes of a JSON representation of an access point.
- *
- *  maximum ap string length with full 32 char ssid: 75 + \\n + \0 = 77\n
- *  example: {"ssid":"abcdefghijklmnopqrstuvwxyz012345","chan":12,"rssi":-100,"auth":4},\n
- *  BUT: we need to escape JSON. Imagine a ssid full of \" ? so it's 32 more bytes hence 77 + 32 = 99.\n
- *  this is an edge case but I don't think we should crash in a catastrophic manner just because
- *  someone decided to have a funny wifi name.
- */
-#define JSON_ONE_APP_SIZE					99
 
-/**
- * @brief Defines the complete list of all messages that the wifi_manager can process.
- *
- * Some of these message are events ("EVENT"), and some of them are action ("ORDER")
- * Each of these messages can trigger a callback function and each callback function is stored
- * in a function pointer array for convenience. Because of this behavior, it is extremely important
- * to maintain a strict sequence and the top level special element 'MESSAGE_CODE_COUNT'
- *
- * @see wifi_manager_set_callback
- */
-typedef enum message_code_t {
-	NONE = 0,
-	ORDER_START_HTTP_SERVER = 1,
-	ORDER_STOP_HTTP_SERVER = 2,
-	ORDER_START_DNS_SERVICE = 3,
-	ORDER_STOP_DNS_SERVICE = 4,
-	ORDER_START_WIFI_SCAN = 5,
-	ORDER_LOAD_AND_RESTORE_STA = 6,
-	ORDER_CONNECT_STA = 7,
-	ORDER_DISCONNECT_STA = 8,
-	ORDER_START_AP = 9,
-	ORDER_START_HTTP = 10,
-	ORDER_START_DNS_HIJACK = 11,
-	EVENT_STA_DISCONNECTED = 12,
-	EVENT_SCAN_DONE = 13,
-	EVENT_GOT_IP = 14,
-	ORDER_RESTART_OTA = 15,
-	ORDER_RESTART_RECOVERY = 16,
-	ORDER_RESTART_OTA_URL = 17,
-	ORDER_RESTART = 18,
-	ORDER_UPDATE_STATUS = 19,
-	EVENT_ETH_GOT_IP = 20,
-	EVENT_ETH_TIMEOUT = 21,
-	EVENT_ETH_LINK_UP = 22,
-	EVENT_ETH_LINK_DOWN = 23,
-	MESSAGE_CODE_COUNT = 24 /* important for the callback array */
-}message_code_t;
-
-
-
-/* @brief indicate that the ESP32 is currently connected. */
-extern const int WIFI_MANAGER_WIFI_CONNECTED_BIT;
-
-extern const int WIFI_MANAGER_AP_STA_CONNECTED_BIT;
-
-/* @brief Set automatically once the SoftAP is started */
-extern const int WIFI_MANAGER_AP_STARTED_BIT;
-
-/* @brief When set, means a client requested to connect to an access point.*/
-extern const int WIFI_MANAGER_REQUEST_STA_CONNECT_BIT;
-
-/* @brief This bit is set automatically as soon as a connection was lost */
-extern const int WIFI_MANAGER_STA_DISCONNECT_BIT ;
-
-/* @brief When set, means the wifi manager attempts to restore a previously saved connection at startup. */
-extern const int WIFI_MANAGER_REQUEST_RESTORE_STA_BIT ;
-
-/* @brief When set, means a client requested to disconnect from currently connected AP. */
-extern const int WIFI_MANAGER_REQUEST_WIFI_DISCONNECT_BIT ;
-
-/* @brief When set, means a scan is in progress */
-extern const int WIFI_MANAGER_SCAN_BIT ;
-
-/* @brief When set, means user requested for a disconnect */
-extern const int WIFI_MANAGER_REQUEST_DISCONNECT_BIT ;
-
-/* @brief When set, means user requested connecting to a new network and it failed */
-extern const int WIFI_MANAGER_REQUEST_STA_CONNECT_FAILED_BIT ;
-
-void network_manager_reboot_ota(char * url);
+void network_reboot_ota(char * url);
 
 
 /**
  * @brief simplified reason codes for a lost connection.
  *
  * esp-idf maintains a big list of reason codes which in practice are useless for most typical application.
+ * UPDATE_CONNECTION_OK  - Web UI expects this when attempting to connect to a new access point succeeds
+ * UPDATE_FAILED_ATTEMPT - Web UI expects this when attempting to connect to a new access point fails
+ * UPDATE_USER_DISCONNECT = 2,
+ * UPDATE_LOST_CONNECTION = 3,
+ * UPDATE_FAILED_ATTEMPT_AND_RESTORE - Web UI expects this when attempting to connect to a new access point fails and previous connection is restored
+ * UPDATE_ETHERNET_CONNECTED = 5
  */
 typedef enum update_reason_code_t {
-	UPDATE_CONNECTION_OK = 0,
+	UPDATE_CONNECTION_OK = 0, // expected when 
 	UPDATE_FAILED_ATTEMPT = 1,
 	UPDATE_USER_DISCONNECT = 2,
 	UPDATE_LOST_CONNECTION = 3,
@@ -247,33 +322,6 @@ typedef enum update_reason_code_t {
 
 }update_reason_code_t;
 
-typedef enum connection_request_made_by_code_t{
-	CONNECTION_REQUEST_NONE = 0,
-	CONNECTION_REQUEST_USER = 1,
-	CONNECTION_REQUEST_AUTO_RECONNECT = 2,
-	CONNECTION_REQUEST_RESTORE_CONNECTION = 3,
-	CONNECTION_REQUEST_MAX_FAILED = 4,
-	CONNECTION_REQUEST_MAX = 0x7fffffff /*force the creation of this enum as a 32 bit int */
-}connection_request_made_by_code_t;
-
-/**
- * The wifi manager settings in use
- */
-//struct wifi_settings_t{
-//	bool sta_only;
-//	bool sta_static_ip;
-//	wifi_ps_type_t sta_power_save;
-//	tcpip_adapter_ip_info_t sta_static_ip_config;
-//};
-//extern struct wifi_settings_t wifi_settings;
-
-// /**
-//  * @brief Structure used to store one message in the queue.
-//  */
-// typedef struct{
-// 	message_code_t code;
-// 	void *param;
-// } queue_message;
 
 
 
@@ -284,59 +332,95 @@ typedef enum connection_request_made_by_code_t{
 /**
  * Frees up all memory allocated by the wifi_manager and kill the task.
  */
-void network_manager_destroy();
+void network_destroy();
 
 /**
  * Filters the AP scan list to unique SSIDs
  */
 void  filter_unique( wifi_ap_record_t * aplist, uint16_t * ap_num);
 
-/**
- * Main task for the wifi_manager
- */
-void network_manager( void * pvParameters );
 
-
-char* wifi_manager_alloc_get_ap_list_json();
-cJSON * wifi_manager_clear_ap_list_json(cJSON **old);
+char* network_status_alloc_get_ap_list_json();
+cJSON * network_manager_clear_ap_list_json(cJSON **old);
 
 
 
 /**
  * @brief A standard wifi event handler as recommended by Espressif
  */
-esp_err_t wifi_manager_event_handler(void *ctx, system_event_t *event);
+esp_err_t network_manager_event_handler(void *ctx, system_event_t *event);
 
 
 
 /**
  * @brief Clears the connection status json.
- * @note This is not thread-safe and should be called only if wifi_manager_lock_json_buffer call is successful.
+ * @note This is not thread-safe and should be called only if network_status_lock_json_buffer call is successful.
  */
-cJSON * wifi_manager_clear_ip_info_json(cJSON **old);
-cJSON * wifi_manager_get_new_json(cJSON **old);
+cJSON * network_status_clear_ip_info_json(cJSON **old);
+cJSON * network_status_get_new_json(cJSON **old);
 
 
 
 /**
  * @brief Start the mDNS service
  */
-void wifi_manager_initialise_mdns();
+void network_manager_initialise_mdns();
 
 
 
 /**
- * @brief Register a callback to a custom function when specific event message_code happens.
+ * @brief Register a callback to a custom function when specific network manager states are reached.
  */
-void wifi_manager_set_callback(message_code_t message_code, void (*func_ptr)(void*) );
+esp_err_t network_register_state_callback(nm_state_t state, int sub_state, const char* from, network_status_reached_cb cb);
+bool network_is_wifi_prioritized();
+esp_netif_t * network_get_active_interface();
+esp_err_t network_get_hostname( const char **hostname);
+esp_err_t network_get_ip_info(tcpip_adapter_ip_info_t* ipInfo);
+void network_set_timer(uint16_t duration);
+void network_set_hostname(esp_netif_t * netif);
+esp_err_t network_get_ip_info_for_netif(esp_netif_t* netif, tcpip_adapter_ip_info_t* ipInfo);
+void network_start_stop_dhcp(esp_netif_t* netif, bool start);
+void network_start_stop_dhcps(esp_netif_t* netif, bool start);
+void network_prioritize_wifi(bool activate);
+#define ADD_ROOT_FORWARD_DECLARATION(name, ...) ADD_STATE_FORWARD_DECLARATION_(name)
+#define ADD_ROOT_LEAF_FORWARD_DECLARATION(name, ...) ADD_STATE_FORWARD_DECLARATION_(name)
+#define ADD_LEAF_FORWARD_DECLARATION(name, ...) ADD_STATE_FORWARD_DECLARATION_(name)
+#define ADD_STATE_FORWARD_DECLARATION_(name)                                                              \
+    static state_machine_result_t name##_handler(state_machine_t* const State_Machine);       \
+    static state_machine_result_t name##_entry_handler(state_machine_t* const State_Machine); \
+    static state_machine_result_t name##_exit_handler(state_machine_t* const State_Machine);
 
+void initialize_network_handlers(state_machine_t* state_machine);
+void network_manager_format_from_to_states(esp_log_level_t level, const char* prefix, state_t const *  from_state, state_t const* current_state,  network_event_t event,bool show_source, const char * caller );
+void network_manager_format_state_machine(esp_log_level_t level, const char* prefix, state_machine_t * state_machine, bool show_source, const char * caller) ;
+char* network_manager_alloc_get_mac_string(uint8_t mac[6]);
 
-bool network_manager_is_flag_set(EventBits_t bit);
-void network_manager_set_flag(EventBits_t bit);
-void network_manager_clear_flag(EventBits_t bit);
+#if defined(LOG_LOCAL_LEVEL) && LOG_LOCAL_LEVEL >=ESP_LOG_VERBOSE
+#define NETWORK_PRINT_TRANSITION(begin, prefix, source,target, event, print_source,caller ) network_manager_format_from_to_states(ESP_LOG_VERBOSE, prefix, source,target, event, print_source,caller )
+#define NETWORK_DEBUG_STATE_MACHINE(begin, cb_prefix,state_machine,print_from,caller) network_manager_format_state_machine(ESP_LOG_DEBUG,cb_prefix,state_machine,print_from,caller)
+#define NETWORK_EXECUTE_CB(mch) network_execute_cb(mch,__FUNCTION__);
+#define network_handler_entry_print(State_Machine, begin) network_manager_format_state_machine(ESP_LOG_DEBUG,begin?"ENTRY START":"ENTRY END",State_Machine,false,__FUNCTION__)
+#define network_exit_handler_print(State_Machine, begin) network_manager_format_state_machine(ESP_LOG_DEBUG,begin?"EXIT START":"END END",State_Machine,false,__FUNCTION__)
+#define network_handler_print(State_Machine, begin) network_manager_format_state_machine(ESP_LOG_DEBUG,begin?"HANDLER START":"HANDLER END",State_Machine,false,__FUNCTION__)
+
+#elif defined(LOG_LOCAL_LEVEL) && LOG_LOCAL_LEVEL >= ESP_LOG_DEBUG
+#define network_handler_entry_print(State_Machine, begin) if(begin) network_manager_format_state_machine(ESP_LOG_DEBUG,begin?"BEGIN ENTRY":"END ENTRY",State_Machine,false,__FUNCTION__)
+#define network_exit_handler_print(State_Machine, begin) if(begin) network_manager_format_state_machine(ESP_LOG_DEBUG,begin?"BEGIN EXIT":"END EXIT",State_Machine,false,__FUNCTION__)
+#define network_handler_print(State_Machine, begin) if(begin) network_manager_format_state_machine(ESP_LOG_DEBUG,begin?"HANDLER START":"HANDLER END",State_Machine,false,__FUNCTION__)
+
+#define NETWORK_PRINT_TRANSITION(begin, prefix, source,target, event, print_source,caller ) if(begin) network_manager_format_from_to_states(ESP_LOG_DEBUG, prefix, source,target, event, print_source,caller )#define NETWORK_EXECUTE_CB(mch) network_execute_cb(mch,__FUNCTION__);
+#define NETWORK_DEBUG_STATE_MACHINE(begin, cb_prefix,state_machine,print_from,caller) if(begin) network_manager_format_state_machine(ESP_LOG_DEBUG,cb_prefix,state_machine,print_from,caller)
+#else
+#define network_exit_handler_print(nm, begin)
+#define network_handler_entry_print(State_Machine, begin) 
+#define network_handler_print(State_Machine, begin)
+#define NETWORK_EXECUTE_CB(mch) network_execute_cb(mch,NULL)
+#define NETWORK_PRINT_TRANSITION(prefix, source,target, event, print_source,caller ) 
+#define NETWORK_DEBUG_STATE_MACHINE(begin, cb_prefix,state_machine,print_from,caller)
+#endif
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* WIFI_MANAGER_H_INCLUDED */
+

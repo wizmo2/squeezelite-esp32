@@ -1,20 +1,20 @@
 menu "Squeezelite-ESP32"
 	menu "Logging"
 		config LOGGING_SLIMPROTO
-        	string "logging level for slimproto"
-        	default "info"
-        	help
-        		Set logging level info|debug|sdebug
+            string "logging level for slimproto"
+            default "info"
+            help
+				Set logging level info|debug|sdebug
 		config LOGGING_STREAM
-        	string "logging level for stream"
-        	default "info"
-        	help
-        		Set logging level info|debug|sdebug
-   		config LOGGING_DECODE
-        	string "logging level for decode"
-        	default "info"
-        	help
-        		Set logging level info|debug|sdebug 	
+            string "logging level for stream"
+            default "info"
+            help
+				Set logging level info|debug|sdebug
+		config LOGGING_DECODE
+            string "logging level for decode"
+			default "info"
+            help
+				Set logging level info|debug|sdebug 	
    		config LOGGING_OUTPUT
         	string "logging level for output"
         	default "info"
@@ -102,11 +102,22 @@ menu "Squeezelite-ESP32"
 		config DAC_CONTROLSET
 			string
 			default '{ "init": [ {"reg":41, "val":128}, {"reg":18, "val":255} ], "poweron": [ {"reg":18, "val":64, "mode":"or"} ], "poweroff": [ {"reg":18, "val":191, "mode":"and" } ] }' if TWATCH2020
-			default ""		
+			default ""	
 		# AGGREGATES - end				
 	endmenu
 	
 	menu "Audio settings"
+		menu "Known Configurations"
+			visible if BASIC_I2C_BT
+			config DAC_KNOWN_CONFIGURATIONS
+				string "Known DAC configurations"
+				default "ESP32A1S Old (AC101)|ESP32A1S V2.2+ (ES8388)|Xiaomi Gateway"  if BASIC_I2C_BT
+				default ""
+			config DAC_KNOWN_CONFIGURATIONS_GPIOS
+				string "GPIOs for known DAC configurations"
+				default "model=AC101,sda=33,scl=32,bck=27,ws=26,di=35,do=25|model=ES8388,bck=5,ws=25,do=26,sda=18,scl=23,i2c=16|model=I2S,bck=12,ws=26,do=25,i2c=106,sda=18,scl=23"  if BASIC_I2C_BT
+				default ""
+		endmenu
 		menu "DAC settings" 
 			visible if BASIC_I2C_BT
 			menu "I2S settings"
@@ -198,7 +209,8 @@ menu "Squeezelite-ESP32"
 		        int "Control loop delay."
 		        default 500
 		        help
-		            Decreasing this will lead to a more responsive BT control, but might lead to noisy log files if debug is enabled.
+		            Decreasing this will lead to a more responsive BT control, 
+					but might lead to noisy log files if debug is enabled.
 		    config A2DP_CONNECT_TIMEOUT_MS
 		    	int "Time out duration when trying to connect to an A2DP audio sink"
 		        default 1000
@@ -351,5 +363,5 @@ menu "Squeezelite-ESP32"
         string "Default command line to execute"
         default "squeezelite -o I2S -b 500:2000 -d all=info -C 30"
         help
-        This is the command to run when starting the device
+            This is the command to run when starting the device
 endmenu

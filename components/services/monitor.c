@@ -54,7 +54,7 @@ static void task_stats( cJSON* top ) {
 	} current, previous;
 	cJSON * tlist=cJSON_CreateArray();
 	current.n = uxTaskGetNumberOfTasks();
-	current.tasks = malloc( current.n * sizeof( TaskStatus_t ) );
+	current.tasks = malloc_init_external( current.n * sizeof( TaskStatus_t ) );
 	current.n = uxTaskGetSystemState( current.tasks, current.n, &current.total );
 	cJSON_AddNumberToObject(top,"ntasks",current.n);
 	
@@ -126,11 +126,13 @@ static void monitor_callback(TimerHandle_t xTimer) {
 	cJSON_AddNumberToObject(top,"free_spiram",heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 	cJSON_AddNumberToObject(top,"min_free_spiram",heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM));
 
-	ESP_LOGI(TAG, "Heap internal:%zu (min:%zu) external:%zu (min:%zu)", 
+	ESP_LOGI(TAG, "Heap internal:%zu (min:%zu) external:%zu (min:%zu) dma:%zu (min:%zu)",
 			heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
 			heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL),
 			heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
-			heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM));
+			heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM),
+			heap_caps_get_free_size(MALLOC_CAP_DMA),
+			heap_caps_get_minimum_free_size(MALLOC_CAP_DMA));
 			
 	task_stats(top);
 	char * top_a= cJSON_PrintUnformatted(top);
@@ -248,11 +250,13 @@ void monitor_svc_init(void) {
 	}	
 	FREE_AND_NULL(p);
 	
-	ESP_LOGI(TAG, "Heap internal:%zu (min:%zu) external:%zu (min:%zu)", 
+	ESP_LOGI(TAG, "Heap internal:%zu (min:%zu) external:%zu (min:%zu) dma:%zu (min:%zu)",
 			heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
 			heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL),
 			heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
-			heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM));
+			heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM),
+			heap_caps_get_free_size(MALLOC_CAP_DMA),
+			heap_caps_get_minimum_free_size(MALLOC_CAP_DMA));
 }
 
 /****************************************************************************************

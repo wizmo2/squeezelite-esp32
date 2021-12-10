@@ -6,7 +6,6 @@
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, either express or implied.
 */
-//#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -27,41 +26,50 @@ extern "C" {
 #include "nvs_utilities.h"
 #include "platform_console.h"
 #include "messaging.h"
+#include "globdefs.h"
+#include "trace.h"
 
+extern esp_err_t network_wifi_erase_legacy();
+extern esp_err_t network_wifi_erase_known_ap();
 
 static const char *ARG_TYPE_STR = "type can be: i8, u8, i16, u16 i32, u32 i64, u64, str, blob";
 static const char * TAG = "cmd_nvs";
 
-static struct {
+EXT_RAM_ATTR static struct {
     struct arg_str *key;
     struct arg_str *type;
     struct arg_str *value;
     struct arg_end *end;
 } set_args;
 
-static struct {
+EXT_RAM_ATTR static struct {
     struct arg_str *key;
     struct arg_str *type;
     struct arg_end *end;
 } get_args;
 
-static struct {
+EXT_RAM_ATTR static struct {
     struct arg_str *key;
     struct arg_end *end;
 } erase_args;
 
-static struct {
+EXT_RAM_ATTR static struct {
     struct arg_str *namespace;
     struct arg_end *end;
 } erase_all_args;
 
-static struct {
+EXT_RAM_ATTR static struct {
     struct arg_str *partition;
     struct arg_str *namespace;
     struct arg_str *type;
     struct arg_end *end;
 } list_args;
 
+EXT_RAM_ATTR static struct {
+    struct arg_lit *legacy;
+    struct arg_lit *ap_list;
+    struct arg_end *end;
+} wifi_erase_args;
 
 
 static esp_err_t store_blob(nvs_handle nvs, const char *key, const char *str_values)
@@ -75,7 +83,7 @@ static esp_err_t store_blob(nvs_handle nvs, const char *key, const char *str_val
         return ESP_ERR_NVS_TYPE_MISMATCH;
     }
 
-    char *blob = (char *)malloc(blob_len);
+    char *blob = (char *)malloc_init_external(blob_len);
     if (blob == NULL) {
         return ESP_ERR_NO_MEM;
     }
@@ -261,7 +269,7 @@ static esp_err_t get_value_from_nvs(const char *key, const char *str_type)
     } else if (type == NVS_TYPE_STR) {
         size_t len=0;
         if ( (err = nvs_get_str(nvs, key, NULL, &len)) == ESP_OK) {
-            char *str = (char *)malloc(len);
+            char *str = (char *)malloc_init_external(len);
             if ( (err = nvs_get_str(nvs, key, str, &len)) == ESP_OK) {
             	log_send_messaging(MESSAGING_INFO,"String associated with key '%s' is %s \n", key, str);
             }
@@ -270,7 +278,7 @@ static esp_err_t get_value_from_nvs(const char *key, const char *str_type)
     } else if (type == NVS_TYPE_BLOB) {
         size_t len;
         if ( (err = nvs_get_blob(nvs, key, NULL, &len)) == ESP_OK) {
-            char *blob = (char *)malloc(len);
+            char *blob = (char *)malloc_init_external(len);
             if ( (err = nvs_get_blob(nvs, key, blob, &len)) == ESP_OK) {
             	log_send_messaging(MESSAGING_INFO,"Blob associated with key '%s' is %d bytes long: \n", key, len);
                 print_blob(blob, len);
@@ -399,7 +407,7 @@ static int erase_namespace(int argc, char **argv)
     return 0;
 }
 
-static int erase_wifi_manager(int argc, char **argv)
+static int erase_network_manager(int argc, char **argv)
 {
     nvs_handle nvs;
 	esp_err_t err = nvs_open("config", NVS_READWRITE, &nvs);
@@ -411,15 +419,49 @@ static int erase_wifi_manager(int argc, char **argv)
 	}
 	nvs_close(nvs);
 	if (err != ESP_OK) {
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,  "wifi manager configuration was not erase. %s", esp_err_to_name(err));
+		cmd_send_messaging(argv[0],MESSAGING_ERROR,  "System configuration was not erased. %s", esp_err_to_name(err));
 		return 1;
 	}
 	else {
-		cmd_send_messaging(argv[0],MESSAGING_WARNING,  "Wifi manager configuration was erased");
+		cmd_send_messaging(argv[0],MESSAGING_WARNING,  "system configuration was erased. Please reboot.");
 	}
 	return 0;
 }
 
+static int wifi_erase_config(int argc, char **argv)
+{
+    esp_err_t err=ESP_OK;
+    esp_err_t err_ap_list=ESP_OK;
+    bool done = false;
+	int nerrors = arg_parse_msg(argc, argv,(struct arg_hdr **)&wifi_erase_args);
+    if (nerrors != 0) {
+        return 1;
+    }
+    if(wifi_erase_args.ap_list->count>0){
+        err_ap_list = network_wifi_erase_known_ap();
+        if (err_ap_list != ESP_OK) {
+            cmd_send_messaging(argv[0],MESSAGING_ERROR, "Could not erase legacy wifi configuration: %s", esp_err_to_name(err));
+        }
+        else {
+            cmd_send_messaging(argv[0],MESSAGING_ERROR, "Legacy wifi configuration was erased");
+        }
+        done = true;
+    }
+    if(wifi_erase_args.legacy->count>0){
+        err = network_wifi_erase_legacy();
+        if (err != ESP_OK) {
+            cmd_send_messaging(argv[0],MESSAGING_ERROR, "Could not erase known ap list : %s", esp_err_to_name(err));
+        }
+        else {
+            cmd_send_messaging(argv[0],MESSAGING_ERROR, "Known access point list was erased");
+        }        
+        done = true;
+    }
+    if(!done){
+        cmd_send_messaging(argv[0],MESSAGING_WARNING, "Please specify at least one configuration type to erase.", esp_err_to_name(err));
+    }
+	return (err_ap_list==ESP_OK && err==ESP_OK)?0:1;
+}
 
 static int list(const char *part, const char *name, const char *str_type)
 {
@@ -476,6 +518,10 @@ void register_nvs()
     erase_all_args.namespace = arg_str1(NULL, NULL, "<namespace>", "namespace to be erased");
     erase_all_args.end = arg_end(2);
 
+    wifi_erase_args.ap_list = arg_lit0("a","ap_list","Erases Known access points list");
+    wifi_erase_args.legacy = arg_lit0("l","legacy","Erases legacy access point storage");
+    wifi_erase_args.end = arg_end(1);
+
     list_args.partition = arg_str1(NULL, NULL, "<partition>", "partition name");
     list_args.namespace = arg_str0("n", "namespace", "<namespace>", "namespace name");
     list_args.type = arg_str0("t", "type", "<type>", ARG_TYPE_STR);
@@ -516,11 +562,19 @@ void register_nvs()
         .func = &erase_namespace,
         .argtable = &erase_all_args
     };
-    const esp_console_cmd_t erase_wifimanager_cmd = {
-        .command = "nvs_erase_wifi_manager",
-        .help = "Erases wifi_manager's config",
+    const esp_console_cmd_t erase_config_cmd = {
+        .command = "wifi_erase_config",
+        .help = "Erases all stored access points from flash",
         .hint = NULL,
-        .func = &erase_wifi_manager,
+        .func = &wifi_erase_config,
+        .argtable = &wifi_erase_args
+    };
+
+    const esp_console_cmd_t erase_networkmanager_cmd = {
+        .command = "nvs_erase_configuration",
+        .help = "Erases system's configuration",
+        .hint = NULL,
+        .func = &erase_network_manager,
         .argtable = NULL
     };
 
@@ -535,12 +589,21 @@ void register_nvs()
            .func = &list_entries,
            .argtable = &list_args
        };
+    MEMTRACE_PRINT_DELTA_MESSAGE("registering list_entries_cmd");
     ESP_ERROR_CHECK(esp_console_cmd_register(&list_entries_cmd));
+    MEMTRACE_PRINT_DELTA_MESSAGE("registering set_cmd");
     ESP_ERROR_CHECK(esp_console_cmd_register(&set_cmd));
+    MEMTRACE_PRINT_DELTA_MESSAGE("registering get_cmd");
     ESP_ERROR_CHECK(esp_console_cmd_register(&get_cmd));
+    MEMTRACE_PRINT_DELTA_MESSAGE("registering erase_cmd");
     ESP_ERROR_CHECK(esp_console_cmd_register(&erase_cmd));
+    MEMTRACE_PRINT_DELTA_MESSAGE("registering erase_namespace_cmd");
     ESP_ERROR_CHECK(esp_console_cmd_register(&erase_namespace_cmd));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&erase_wifimanager_cmd));
+    MEMTRACE_PRINT_DELTA_MESSAGE("registering erase_config_cmd");
+    ESP_ERROR_CHECK(esp_console_cmd_register(&erase_networkmanager_cmd));
+    MEMTRACE_PRINT_DELTA_MESSAGE("registering erase_config_cmd");
+    ESP_ERROR_CHECK(esp_console_cmd_register(&erase_config_cmd));
+    MEMTRACE_PRINT_DELTA_MESSAGE("Done");
 
 }
 #ifdef __cplusplus
