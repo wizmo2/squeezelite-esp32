@@ -17,7 +17,7 @@ extern "C" {
 
 #define STA_POLLING_MIN (15 * 1000)
 #define STA_POLLING_MAX (10 * 60 * 1000)
-#define ETH_LINK_DOWN_REBOOT (2 * 1000)
+#define ETH_LINK_DOWN_REBOOT (4 * 1000)
 #define ETH_DHCP_FAIL (6 * 1000)
 #define WIFI_DHCP_FAIL (6 * 1000)
 
