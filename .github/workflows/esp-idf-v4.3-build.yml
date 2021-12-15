@@ -87,7 +87,7 @@ jobs:
         echo pulling docker version 4.3.1
         docker pull espressif/idf:v4.3.1
         docker info 
-        docker run --env-file=${TARGET_BUILD_NAME}-env.txt  -v $PWD:/project -w /project espressif/idf:release-v4.3 /bin/bash -c "cp build-scripts/${TARGET_BUILD_NAME}-sdkconfig.defaults sdkconfig  && idf.py build -DDEPTH=${{ matrix.depth }} -DBUILD_NUMBER=${BUILD_NUMBER}-${{ matrix.depth }} && zip -r build_output.zip build && zip build/${artifact_file_name} partitions*.csv build/*.bin build/bootloader/bootloader.bin build/partition_table/partition-table.bin build/flash_project_args build/size_*.txt"
+        docker run --env-file=${TARGET_BUILD_NAME}-env.txt  -v $PWD:/project -w /project espressif/idf:release-v4.3.1 /bin/bash -c "cp build-scripts/${TARGET_BUILD_NAME}-sdkconfig.defaults sdkconfig  && idf.py build -DDEPTH=${{ matrix.depth }} -DBUILD_NUMBER=${BUILD_NUMBER}-${{ matrix.depth }} && zip -r build_output.zip build && zip build/${artifact_file_name} partitions*.csv build/*.bin build/bootloader/bootloader.bin build/partition_table/partition-table.bin build/flash_project_args build/size_*.txt"
     # - name: Build Mock firmware
     #   run: |
     #     mkdir -p build
