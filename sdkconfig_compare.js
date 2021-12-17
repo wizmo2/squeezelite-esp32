@@ -3,6 +3,13 @@
 const fs = require("fs");            // Require the file system processing library
 const readline = require("readline");      // Require the readline processing library
 
+var map_types = {
+	"UNSET": 0,
+	"VALUE": 1,
+	"COMMENT": 2
+};
+
+
 // buildMap
 // Read the sdkconfig file specified by fileName and produce a map of the name/value pairs contained
 // within.  A Promise is returned that is fulfilled when the file has been read.
@@ -13,12 +20,14 @@ function buildMap(fileName) {
 			reject(err);
 		});
 		const map = {};
+		const lines_index = [];
+		var lineNo = 1;
 
 		const lineReader = readline.createInterface({
 			input: readStream,
 			crlfDelay: Infinity
 		});
-
+		
 		// Called when a new line has been read from the file.
 		lineReader.on("line", (line) => {
 			line = line.trim();              // Trim whitespace from the line.
@@ -26,20 +35,51 @@ function buildMap(fileName) {
 			if (line.length == 0) {          // Ignore empty lines
 				return;
 			}
-			if (line.startsWith("#")) {      // Ignore comment lines
-				return;
-			}
+			
+			// split lines using named capture group regex, and loop through the resulting array
+			var regexp = /^\s*[#]\s*(?<unset_key>CONFIG[^\s]*) is not set\s*$|^\s*(?<comment>[#].*)$|^\s*(?<key>[^#]{1}[^\s=]*)=(?<value>.*)$/gm;
+			var match = regexp.exec(line);
+			var key="";
+			var map_entry={};
+			while (match != null) {
+				if (match.groups.unset_key) {
+					key = match.groups.unset_key;
+					map_entry = {
+						key:key,
+						type: map_types.UNSET,
+						value: undefined,
+						index: lineNo++,
+					};
 
-			const parts = line.split("=");   // Split the line into parts separated by the '=' character.
-			if (map.hasOwnProperty(parts[0])) {
-				console.log(`Odd ... we found ${parts[0]} twice.`);
+				} else if (match.groups.comment) {
+					// accumulate comments in an array
+					map_entry={
+						type: map_types.COMMENT,
+						value: match.groups.comment,
+						index: lineNo++,
+					};
+
+				}
+				else {
+					key = match.groups.key;
+					map_entry = {
+						key:key,
+						type: map_types.VALUE,
+						value: match.groups.value,
+						index: lineNo++,
+					};
+				}
+				if(map_entry.type!=map_types.COMMENT){
+					map[key] = map_entry;
+				}
+				lines_index.push(map_entry);
+				match = regexp.exec(line);
 			}
-			map[parts[0]] = parts[1];        // Populate the map element.
 		}); // on(line)
 
 		// Called when all the lines from the file have been consumed.
 		lineReader.on("close", () => {
-			resolve(map);
+			resolve({map, lines_index});
 		}); // on(close)
 
 	});
@@ -48,46 +88,81 @@ function buildMap(fileName) {
 
 
 const args = process.argv;
-if (args.length != 4) {
-	console.log("Usage: node sdkconfig_compare file1 file2");
+if (args.length != 3) {
+	console.log("Usage: node sdkconfig_compare file1 ");
 	process.exit();
 }
-const file1 = args[2];
-const file2 = args[3];
-buildMap(file1).then((result) => {
-	buildMap(file2).then((result2) => {
-		buildMap("./sdkconfig.defaults").then((result3) => {
+const sdkconfig = ".\\sdkconfig";
+const comparedFile = args[2];
+
+buildMap(sdkconfig).then((sdkConfigResult ) => {
+	var sdkconfigMap = sdkConfigResult.map;
+	var sdkconfigLines = sdkConfigResult.lines_index;
+	buildMap(comparedFile).then((comparedResult) => {
+		var comparedFileMap = comparedResult.map;
+		var comparedLines = comparedResult.lines_index;
+		buildMap(".\\sdkconfig.defaults").then((sdkconfigResults) => {
+			var sdkconfig_defaults = sdkconfigResults.map;
+			var sdkconfig_defaults_lines = sdkconfigResults.lines_index;
 
 			// Three passes
 			// In A and not B
 			// in B and not A
 			// value different in A and B
-			console.log(`\n\n${file1} properties that are missing in ${file2}\n**************************`);
-			for (const prop in result) {
-				if (result.hasOwnProperty(prop)) {
-					if (!result2.hasOwnProperty(prop) && !result3.hasOwnProperty(prop)) {
-						console.log(`${prop}=${result[prop]}`);
-					}
+			var newmap = {};
+			var entry={};
+			console.log(`\n\n${sdkconfig} properties that are missing in ${comparedFile}\n**************************`);
+			for (const prop in sdkconfigMap) {
+				 entry = sdkconfigMap[prop];
+				if(entry.type==map_types.COMMENT || entry.type== map_types.UNSET) continue;
+				if (!comparedFileMap.hasOwnProperty(prop) && !sdkconfig_defaults.hasOwnProperty(prop)) {
+					newmap[prop] = entry;
+					console.log(`${prop}=${entry.value}`);
 				}
+				else if(comparedFileMap.hasOwnProperty(prop)){
+					newmap[prop] =entry;
+				}
+
 			}
-			console.log(`\n\n${file2} properties that are missing in ${file1}\n**************************`);
-			for (const prop in result2) {
-				if (result2.hasOwnProperty(prop)) {
-					if (!result.hasOwnProperty(prop) && !result3.hasOwnProperty(prop)) {
-						console.log(`${prop}=${result2[prop]}`);
+			console.log(`\n\n${comparedFile} properties that are missing in ${sdkconfig}\n**************************`);
+			for (const prop in comparedFileMap) {
+				entry = comparedFileMap[prop];
+				if(entry.type==map_types.COMMENT || entry.type== map_types.UNSET) continue;
+				if (comparedFileMap.hasOwnProperty(prop)) {
+					if (!sdkconfigMap.hasOwnProperty(prop) && !sdkconfig_defaults.hasOwnProperty(prop)) {
+						console.log(`${prop}=${entry.value}`);
 					}
 				}
 			}
 			console.log(`\n\nproperties that are different between the 2 files \n**************************`);
-			for (const prop in result) {
-				if (result.hasOwnProperty(prop)) {
-					if (result2.hasOwnProperty(prop)) {
-						if (result[prop] != result2[prop]) {
-							console.log(`${prop} : [${result[prop]}] != [${result2[prop]}]`);
+			for (const prop in sdkconfigMap) {
+				entry = sdkconfigMap[prop];
+				if(entry.type==map_types.COMMENT) continue;
+				if (sdkconfigMap.hasOwnProperty(prop)) {
+					if (comparedFileMap.hasOwnProperty(prop)) {
+						if (entry.value != comparedFileMap[prop].value) {
+							console.log(`${prop} : [${entry.value}] != [${comparedFileMap[prop].value}]`);
 						}
 					}
 				}
 			}
+			var newlines = [];
+			for(const prop in newmap){
+				newlines.splice(newmap[prop].index,0, `${prop}=${newmap[prop].value}`);
+			}
+			comparedLines.forEach(line=>{
+				if(line.type==map_types.COMMENT ) {
+					newlines.splice(line.index,0, line.value);
+				}
+				else if(line.type==map_types.UNSET){
+					newlines.splice(line.index,0, `# ${line.key} is not set`);
+				}
+			});
+			
+			console.log(`\n\${comparedFile} with missing properties\n**************************`);
+			newlines.forEach(line => {
+				console.log(line);
+			});
 
 		}).catch((err) => {
 			console.log(err);
