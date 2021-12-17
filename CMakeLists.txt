@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.5)
 set(EXTRA_COMPONENT_DIRS components/platform_console/app_recovery components/platform_console/app_squeezelite  )
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 add_definitions(-DMODEL_NAME=SqueezeESP32)
+
+# State machine hierarchy enabled and logging enabled
+add_definitions(-DSTATE_MACHINE_LOGGER=1)
+add_definitions(-DHIERARCHICAL_STATES=1)
+
 # Uncomment line below to get memory usage trace details
 #add_definitions(-DENABLE_MEMTRACE=1)
 #uncomment line below to get network ethernet debug logs 
