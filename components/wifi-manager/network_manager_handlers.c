@@ -146,7 +146,7 @@ static void network_connect_active_ssid(state_machine_t* const State_Machine) {
             network_async(EN_ETHERNET_FALLBACK);
         } else {
             // returning to AP mode
-            nm->STA_duration = STA_POLLING_MIN;
+            nm->STA_duration = nm->sta_polling_min_ms;
             ESP_LOGD(TAG, "No ethernet and no wifi configured. Go to configuration mode");
             network_async_configure();
         }
@@ -219,8 +219,34 @@ static state_machine_result_t NETWORK_INSTANTIATED_STATE_entry_handler(state_mac
 static state_machine_result_t NETWORK_INSTANTIATED_STATE_handler(state_machine_t* const State_Machine) {
     network_handler_print(State_Machine,true);
     state_machine_result_t result = EVENT_UN_HANDLED;
+    network_t* const nm = (network_t *)State_Machine;
     State_Machine->State = &network_states[NETWORK_INSTANTIATED_STATE];
     State_Machine->Event = EN_START;
+      char * valuestr=NULL;
+    valuestr=config_alloc_get_default(NVS_TYPE_STR,"pollmx","600",0);
+    if (valuestr) {
+        nm->sta_polling_max_ms = atoi(valuestr)*1000;
+        ESP_LOGD(TAG, "sta_polling_max_ms set to %d", nm->sta_polling_max_ms);
+        FREE_AND_NULL(valuestr);
+    }   
+    valuestr=config_alloc_get_default(NVS_TYPE_STR,"pollmin","15",0);
+    if (valuestr) {
+        nm->sta_polling_min_ms = atoi(valuestr)*1000;
+        ESP_LOGD(TAG, "sta_polling_min_ms set to %d", nm->sta_polling_min_ms);
+        FREE_AND_NULL(valuestr);
+    }
+    valuestr=config_alloc_get_default(NVS_TYPE_STR,"ethtmout","8",0);
+    if (valuestr) {
+        nm->eth_link_down_reboot_ms = atoi(valuestr)*1000;
+        ESP_LOGD(TAG, "ethtmout set to %d", nm->eth_link_down_reboot_ms);
+        FREE_AND_NULL(valuestr);
+    }
+    valuestr=config_alloc_get_default(NVS_TYPE_STR,"dhcp_tmout","8",0);
+    if(valuestr){
+        nm->dhcp_timeout = atoi(valuestr)*1000;
+        ESP_LOGD(TAG, "dhcp_timeout set to %d", nm->dhcp_timeout);
+        FREE_AND_NULL(valuestr);
+    }
     HANDLE_GLOBAL_EVENT(State_Machine);
     if (State_Machine->Event == EN_START) {
         result= local_traverse_state(State_Machine, &network_states[NETWORK_INITIALIZING_STATE],__FUNCTION__);
@@ -333,7 +359,8 @@ static state_machine_result_t ETH_STARTING_STATE_exit_handler(state_machine_t* c
  */
 static state_machine_result_t NETWORK_ETH_ACTIVE_STATE_entry_handler(state_machine_t* const State_Machine) {
     network_handler_entry_print(State_Machine,true);
-    network_set_timer(ETH_LINK_DOWN_REBOOT);
+    network_t* const nm = (network_t *)State_Machine;
+    network_set_timer(nm->eth_link_down_reboot_ms);
     NETWORK_EXECUTE_CB(State_Machine);
     network_handler_entry_print(State_Machine,false);
     return EVENT_HANDLED;
@@ -438,7 +465,8 @@ static state_machine_result_t ETH_CONNECTING_NEW_STATE_exit_handler(state_machin
  */
 static state_machine_result_t ETH_ACTIVE_LINKDOWN_STATE_entry_handler(state_machine_t* const State_Machine) {
     network_handler_entry_print(State_Machine,true);
-    network_set_timer(ETH_LINK_DOWN_REBOOT);
+    network_t* const nm = (network_t *)State_Machine;
+    network_set_timer(nm->eth_link_down_reboot_ms);
     NETWORK_EXECUTE_CB(State_Machine);
     messaging_post_message(MESSAGING_WARNING, MESSAGING_CLASS_SYSTEM, "Ethernet link down.");
     network_handler_entry_print(State_Machine,false);
@@ -463,7 +491,8 @@ static state_machine_result_t ETH_ACTIVE_LINKDOWN_STATE_exit_handler(state_machi
  */
 static state_machine_result_t ETH_ACTIVE_LINKUP_STATE_entry_handler(state_machine_t* const State_Machine) {
     network_handler_entry_print(State_Machine,true);
-    network_set_timer(ETH_DHCP_FAIL);
+    network_t* const nm = (network_t *)State_Machine;
+    network_set_timer(nm->dhcp_timeout);
     NETWORK_EXECUTE_CB(State_Machine);
     messaging_post_message(MESSAGING_INFO, MESSAGING_CLASS_SYSTEM, "Ethernet link up.");
     network_handler_entry_print(State_Machine,false);
@@ -682,12 +711,13 @@ static state_machine_result_t WIFI_CONFIGURING_CONNECT_STATE_entry_handler(state
 static state_machine_result_t WIFI_CONFIGURING_CONNECT_STATE_handler(state_machine_t* const State_Machine) {
     HANDLE_GLOBAL_EVENT(State_Machine);
     network_handler_print(State_Machine,true);
+    network_t* const nm = (network_t *)State_Machine;
     state_machine_result_t result = EVENT_HANDLED;
     switch (State_Machine->Event) {
         case EN_CONNECTED:
             result=EVENT_HANDLED;
             ESP_LOGD(TAG,"Wifi was connected. Waiting for IP address");
-            network_set_timer(WIFI_DHCP_FAIL);
+            network_set_timer(nm->dhcp_timeout);
             break;
         case EN_GOT_IP:
             network_status_update_ip_info(UPDATE_CONNECTION_OK); 
@@ -791,7 +821,7 @@ static state_machine_result_t WIFI_CONNECTING_STATE_entry_handler(state_machine_
     network_handler_entry_print(State_Machine,true);
     network_start_stop_dhcp(nm->wifi_netif, true);
     network_connect_active_ssid(State_Machine);
-    nm->STA_duration = STA_POLLING_MIN;
+    nm->STA_duration = nm->sta_polling_min_ms;
     /* create timer for background STA connection */
     network_set_timer(nm->STA_duration);    
     NETWORK_EXECUTE_CB(State_Machine);
@@ -1038,9 +1068,9 @@ static state_machine_result_t WIFI_LOST_CONNECTION_STATE_entry_handler(state_mac
             /* put us in softAP mode first */
             esp_wifi_get_mode(&mode);
             if (WIFI_MODE_APSTA != mode) {
-                nm->STA_duration = STA_POLLING_MIN;
+                 nm->STA_duration = nm->sta_polling_min_ms;
                 network_async_configure();
-            } else if (nm->STA_duration < STA_POLLING_MAX) {
+            } else if (nm->STA_duration < nm->sta_polling_max_ms) {
                 nm->STA_duration *= 1.25;
             }
 

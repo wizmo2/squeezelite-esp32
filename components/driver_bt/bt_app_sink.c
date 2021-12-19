@@ -37,9 +37,9 @@
 #define APP_RC_CT_TL_RN_PLAYBACK_CHANGE  (3)
 #define APP_RC_CT_TL_RN_PLAY_POS_CHANGE  (4)
 
-#define BT_AV_TAG               "BT_AV"
-#define BT_RC_TG_TAG            "RCTG"
-#define BT_RC_CT_TAG            "RCCT"
+#define BT_AV_TAG               "bt_app"
+#define BT_RC_TG_TAG            "bt_rctg"
+#define BT_RC_CT_TAG            "bt_rcct"
 
 #ifndef CONFIG_BT_NAME
 #define CONFIG_BT_NAME	"ESP32-BT"
@@ -218,6 +218,10 @@ void bt_app_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
         bt_app_work_dispatch(bt_av_hdl_a2d_evt, event, param, sizeof(esp_a2d_cb_param_t), NULL);
         break;
     }
+    case ESP_A2D_PROF_STATE_EVT: {
+        ESP_LOGI(BT_AV_TAG, "Bluetooth Init complete");
+        break;
+    }    
     default:
         ESP_LOGE(BT_AV_TAG, "Invalid A2DP event: %d", event);
         break;

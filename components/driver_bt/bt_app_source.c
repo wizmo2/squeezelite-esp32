@@ -27,6 +27,7 @@ extern int32_t 	output_bt_data(uint8_t *data, int32_t len);
 extern void 	output_bt_tick(void);
 extern char*	output_state_str(void);
 extern bool		output_stopped(void);
+extern bool is_recovery_running;
 
 static void bt_app_av_state_connecting(uint16_t event, void *param);
 static void filter_inquiry_scan_result(esp_bt_gap_cb_param_t *param);
@@ -191,7 +192,10 @@ static void peers_list_maintain(const char * s_peer_bdname, int32_t rssi){
 }
 
 int bt_app_source_get_a2d_state(){
-    ESP_LOGD(TAG,"a2dp status: %u = %s", bt_app_source_a2d_state, APP_AV_STATE_DESC[bt_app_source_a2d_state]);
+    if(!is_recovery_running){
+        // if we are in recovery mode, don't log BT status
+        ESP_LOGD(TAG,"a2dp status: %u = %s", bt_app_source_a2d_state, APP_AV_STATE_DESC[bt_app_source_a2d_state]);
+    }
     return bt_app_source_a2d_state;
 }
 int bt_app_source_get_media_state(){

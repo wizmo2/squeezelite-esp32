@@ -14,13 +14,6 @@
 extern "C" {
 #endif
 
-
-#define STA_POLLING_MIN (15 * 1000)
-#define STA_POLLING_MAX (10 * 60 * 1000)
-#define ETH_LINK_DOWN_REBOOT (4 * 1000)
-#define ETH_DHCP_FAIL (6 * 1000)
-#define WIFI_DHCP_FAIL (6 * 1000)
-
 /*
  *  --------------------- ENUMERATION ---------------------
  */
@@ -145,6 +138,11 @@ typedef struct
 	esp_netif_t *wifi_netif;
 	esp_netif_t *eth_netif;
 	esp_netif_t *wifi_ap_netif;
+    uint16_t sta_polling_min_ms;
+    uint16_t sta_polling_max_ms;
+    uint16_t eth_link_down_reboot_ms;
+    uint16_t dhcp_timeout;
+    uint16_t wifi_dhcp_fail_ms;    
 	queue_message * event_parameters;
 } network_t;
 

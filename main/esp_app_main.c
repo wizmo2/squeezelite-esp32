@@ -47,13 +47,6 @@
 #include "cmd_system.h"
 #include "tools.h"
 
-#ifndef CONFIG_DAC_KNOWN_CONFIGURATIONS
-#define CONFIG_DAC_KNOWN_CONFIGURATIONS ""
-#endif
-#ifndef CONFIG_DAC_KNOWN_CONFIGURATIONS_GPIOS
-#define CONFIG_DAC_KNOWN_CONFIGURATIONS_GPIOS ""
-#endif
-
 static const char certs_namespace[] = "certificates";
 static const char certs_key[] = "blob";
 static const char certs_version[] = "version";
@@ -69,6 +62,7 @@ static const char TAG[] = "esp_app_main";
 #define DEFAULT_HOST_NAME "squeezelite"
 char * fwurl = NULL;
 RTC_NOINIT_ATTR uint32_t RebootCounter ;
+RTC_NOINIT_ATTR uint32_t RecoveryRebootCounter ;
 
 static bool bNetworkConnected=false;
 extern const uint8_t server_cert_pem_start[] asm("_binary_github_pem_start");
@@ -358,9 +352,11 @@ void register_default_nvs(){
 	register_default_string_val( "telnet_block", "500");
 	register_default_string_val( "stats", "n");
 	register_default_string_val( "rel_api", CONFIG_RELEASE_API);
+	register_default_string_val("pollmx","600");
+    register_default_string_val("pollmin","15");
+    register_default_string_val("ethtmout","8");
+    register_default_string_val("dhcp_tmout","8");
 	register_default_string_val("wifi_smode", "A");
-	register_default_string_val("kndac", CONFIG_DAC_KNOWN_CONFIGURATIONS);
-	register_default_string_val("kngpio", CONFIG_DAC_KNOWN_CONFIGURATIONS_GPIOS);
 	wait_for_commit();
 	ESP_LOGD(TAG,"Done setting default values in nvs.");
 }
@@ -369,8 +365,11 @@ uint32_t halSTORAGE_RebootCounterRead(void) { return RebootCounter ; }
 uint32_t halSTORAGE_RebootCounterUpdate(int32_t xValue) { 
 	if(RebootCounter >100) {
 		RebootCounter = 0;
+		RecoveryRebootCounter = 0;
 	}
-	return (RebootCounter = (xValue != 0) ? (RebootCounter + xValue) : 0) ; 
+	RebootCounter = (xValue != 0) ? (RebootCounter + xValue) : 0;
+	RecoveryRebootCounter  = (xValue != 0) && is_recovery_running ? (RecoveryRebootCounter + xValue) : 0;
+	return (RebootCounter) ; 
 	}
 
 void handle_ap_connect(nm_state_t new_state, int sub_state){
@@ -393,22 +392,26 @@ void app_main()
 		uint32_t Counter = halSTORAGE_RebootCounterUpdate(1) ;		// increment counter
 		ESP_LOGI(TAG,"Reboot counter=%u\n", Counter) ;
 		if (Counter == 5) {
-			// before we change the partition, update the info for current running partition.
-			halSTORAGE_RebootCounterUpdate(0);
 			guided_factory();
 		}
 	}
 	else {
 		uint32_t Counter = halSTORAGE_RebootCounterUpdate(1) ;		// increment counter
+		if(RecoveryRebootCounter==1 && Counter>=5){
+			// First time we are rebooting in recovery after crashing
+			messaging_post_message(MESSAGING_ERROR,MESSAGING_CLASS_SYSTEM,"System was forced into recovery mode after crash likely caused by some bad configuration\n");
+		}
 		ESP_LOGI(TAG,"Recovery Reboot counter=%u\n", Counter) ;
-		if (Counter == 5) {
+			if (RecoveryRebootCounter == 5) {
 			ESP_LOGW(TAG,"System rebooted too many times. This could be an indication that configuration is corrupted. Erasing config.");
-			halSTORAGE_RebootCounterUpdate(0);
 			erase_settings_partition();
 			// reboot one more time
 			guided_factory();
 			
 		}		
+		if (RecoveryRebootCounter >5){
+			messaging_post_message(MESSAGING_ERROR,MESSAGING_CLASS_SYSTEM,"System was forced into recovery mode after crash likely caused by some bad configuration. Configuration was reset to factory.\n");
+		}	
 	}
 
 	char * fwurl = NULL;
