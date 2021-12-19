@@ -48,7 +48,7 @@ network_ethernet_driver_t* network_ethernet_driver_autodetect(const char* Driver
     for (int i = 0; drivers[i]; i++) {
         network_ethernet_driver_t* found_driver = drivers[i](Driver);
         if (found_driver) {
-            ESP_LOGD(TAG, "Detected driver %s ", Driver);
+            ESP_LOGI(TAG, "Detected driver %s ", Driver);
 
             network_driver = found_driver;
             return found_driver;
@@ -90,8 +90,10 @@ void destroy_network_ethernet() {
 }
 
 static void network_ethernet_print_config(const eth_config_t* eth_config) {
-    	ESP_LOGI(TAG,"Ethernet config: \n   model: %s, valid: %s, type: %s, mdc:%d, mdio:%d, rst:%d, mosi:%d, miso:%d, intr:%d, cs:%d, speed:%d, clk:%d, host:%s(%d)",
-		eth_config->model,	eth_config->valid?"YES":"NO",eth_config->spi?"SPI":"RMII",	eth_config->mdc, 	eth_config->mdio,	eth_config->rst,	eth_config->mosi,	eth_config->miso,	eth_config->intr,	eth_config->cs,	eth_config->speed,	eth_config->clk,	eth_config->host==0?"SPI1":eth_config->host==1?"SPI2":eth_config->host==2?"SPI3":"",eth_config->host);
+    	ESP_LOGI(TAG,"Ethernet config => model: %s, valid: %s, type: %s, mdc:%d, mdio:%d, rst:%d, intr:%d, cs:%d, speed:%d, host:%d",
+					eth_config->model, eth_config->valid ? "YES" : "NO", eth_config->spi ? "SPI" : "RMII",	
+					eth_config->mdc, eth_config->mdio,	
+					eth_config->rst, eth_config->intr, eth_config->cs, eth_config->speed, eth_config->host);
 }
 
 
@@ -115,10 +117,7 @@ void init_network_ethernet() {
 	xEventGroupClearBits(ethernet_event_group, LINK_UP_BIT);
     spi_device_handle_t spi_handle = NULL;
     if (network_driver->spi) {
-	    if (err == ESP_OK) {
-            ESP_LOGI(TAG, "Adding ethernet SPI on host %d (SPI%d) with mosi %d and miso %d", eth.host, eth.host+1, eth.mosi, eth.miso);
-            err = spi_bus_add_device(eth.host, network_driver->devcfg, &spi_handle);
-        }
+	    err = spi_bus_add_device(eth.host, network_driver->devcfg, &spi_handle);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "SPI host failed : %s", esp_err_to_name(err));
         }

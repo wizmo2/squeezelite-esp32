@@ -102,7 +102,7 @@ const gpio_exp_config_t *   config_gpio_exp_get(int index);
 void 						parse_set_GPIO(void (*cb)(int gpio, char *value));
 const i2s_platform_config_t * 	config_dac_get();
 const i2s_platform_config_t * 	config_spdif_get( );
-const i2s_platform_config_t * config_get_i2s_from_str(char * dac_config );
+const i2s_platform_config_t * config_i2s_get_from_str(char * dac_config );
 esp_err_t 					config_spdif_set(const i2s_platform_config_t * config);
 bool 						is_spdif_config_locked();
 esp_err_t 					free_gpio_entry( gpio_entry_t ** gpio);

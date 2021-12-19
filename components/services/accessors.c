@@ -116,7 +116,7 @@ static void set_i2s_pin(char *config, i2s_pin_config_t *pin_config) {
 /****************************************************************************************
  * Get i2s config structure from config string
  */
-const i2s_platform_config_t * config_get_i2s_from_str(char * dac_config ){
+const i2s_platform_config_t * config_i2s_get_from_str(char * dac_config ){
 	static EXT_RAM_ATTR i2s_platform_config_t i2s_dac_pin;
 	memset(&i2s_dac_pin, 0xff, sizeof(i2s_dac_pin));
 	set_i2s_pin(dac_config, &i2s_dac_pin.pin);
@@ -139,11 +139,8 @@ const i2s_platform_config_t * config_get_i2s_from_str(char * dac_config ){
 /****************************************************************************************
  * Get eth config structure from config string
  */
-const eth_config_t * config_get_eth_from_str(char* config ){
+const eth_config_t * config_eth_get_from_str(char* config ){
 	static EXT_RAM_ATTR eth_config_t eth_config; 
-	memset(&eth_config, 0xff, sizeof(eth_config));
-	memset(&eth_config.model, 0x00, sizeof(eth_config.model));
-	eth_config.valid = true;
 
 	PARSE_PARAM_STR(config, "model", '=', eth_config.model, 15);
 	PARSE_PARAM(config, "mdc", '=', eth_config.mdc);
@@ -158,12 +155,13 @@ const eth_config_t * config_get_eth_from_str(char* config ){
 
 	// only system host is available
 	eth_config.host = spi_system_host;
+	eth_config.valid = true;
 
 	if(!eth_config.model || strlen(eth_config.model)==0){
 		eth_config.valid = false;
 		return &eth_config;
 	}
-	
+
 	network_ethernet_driver_t* network_driver = network_ethernet_driver_autodetect(eth_config.model);
 	
 	if(!network_driver || !network_driver->valid){
@@ -174,7 +172,7 @@ const eth_config_t * config_get_eth_from_str(char* config ){
 	if(network_driver){
 		eth_config.rmii = network_driver->rmii;
 		eth_config.spi = network_driver->spi;
-		
+
 		if(network_driver->rmii){
 			if(!GPIO_IS_VALID_GPIO(eth_config.mdio) || !GPIO_IS_VALID_GPIO(eth_config.mdc)){
 				messaging_post_message(MESSAGING_ERROR,MESSAGING_CLASS_SYSTEM,"Ethernet config invalid: %s %s",!GPIO_IS_VALID_GPIO(eth_config.mdc)?"Invalid MDC":"",!GPIO_IS_VALID_GPIO(eth_config.mdio)?"Invalid mdio":""); 
@@ -197,7 +195,7 @@ const eth_config_t * config_get_eth_from_str(char* config ){
 const i2s_platform_config_t * config_spdif_get( ){
 	char * spdif_config = config_spdif_get_string();
 	static EXT_RAM_ATTR i2s_platform_config_t i2s_dac_config;
-	memcpy(&i2s_dac_config, config_get_i2s_from_str(spdif_config), sizeof(i2s_dac_config));
+	memcpy(&i2s_dac_config, config_i2s_get_from_str(spdif_config), sizeof(i2s_dac_config));
 	free(spdif_config);
 	return &i2s_dac_config;
 }
@@ -208,7 +206,7 @@ const i2s_platform_config_t * config_spdif_get( ){
 const i2s_platform_config_t * config_dac_get(){
 	char * spdif_config = get_dac_config_string();
 	static EXT_RAM_ATTR i2s_platform_config_t i2s_dac_config;
-	memcpy(&i2s_dac_config, config_get_i2s_from_str(spdif_config), sizeof(i2s_dac_config));
+	memcpy(&i2s_dac_config, config_i2s_get_from_str(spdif_config), sizeof(i2s_dac_config));
 	free(spdif_config);
 	return &i2s_dac_config;
 }
@@ -218,8 +216,9 @@ const i2s_platform_config_t * config_dac_get(){
  */
 const eth_config_t * config_eth_get( ){
 	char * config = config_alloc_get_str("eth_config", CONFIG_ETH_CONFIG, "rst=" STR(CONFIG_ETH_PHY_RST_IO) 
-	#if defined(ETH_LAN8720)
-	#else 
+
+#if defined(ETH_LAN8720)
+#else 
 #if defined(CONFIG_ETH_USE_SPI_ETHERNET)
 #if defined(CONFIG_ETH_DM9051)
 										 ",model=dm9051"
@@ -240,7 +239,7 @@ const eth_config_t * config_eth_get( ){
 		ESP_LOGD(TAG,"Parsing ethernet configuration %s", config);
 	}
 	static EXT_RAM_ATTR eth_config_t eth_config;
-	memcpy(&eth_config, config_get_eth_from_str(config), sizeof(eth_config));
+	memcpy(&eth_config, config_eth_get_from_str(config), sizeof(eth_config));
 	FREE_AND_NULL(config);
 	return &eth_config;
 }
@@ -642,9 +641,15 @@ const set_GPIO_struct_t * get_gpio_struct(){
  */
 const spi_bus_config_t * config_spi_get(spi_host_device_t * spi_host) {
 	char *nvs_item;
-	static EXT_RAM_ATTR spi_bus_config_t spi;
-	memset(&spi, 0xff, sizeof(spi));
-	
+	// don't memset all to 0xff as it's more than just GPIO
+	static spi_bus_config_t spi = {
+		.mosi_io_num = -1,
+        .sclk_io_num = -1,
+        .miso_io_num = -1,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1
+    };
+		
 	nvs_item = config_alloc_get_str("spi_config", CONFIG_SPI_CONFIG, NULL);
 	if (nvs_item) {
 		PARSE_PARAM(nvs_item, "data", '=', spi.mosi_io_num);
