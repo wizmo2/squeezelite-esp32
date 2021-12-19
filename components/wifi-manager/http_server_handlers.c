@@ -20,7 +20,6 @@ Copyright (c) 2017-2021 Sebastien L
 #include "esp_vfs.h"
 #include "messaging.h"
 #include "platform_esp32.h"
-#include "trace.h"
 #include "esp_console.h"
 #include "argtable3/argtable3.h"
 #include "platform_console.h"
@@ -28,7 +27,7 @@ Copyright (c) 2017-2021 Sebastien L
 #include "webapp/webpack.h"
 #include "network_wifi.h"
 #include "network_status.h"
-#include "globdefs.h"
+#include "tools.h"
 
 #define HTTP_STACK_SIZE	(5*1024)
 const char str_na[]="N/A";
@@ -481,7 +480,8 @@ esp_err_t console_cmd_post_handler(httpd_req_t *req){
 	}
 	else{
 		// navigate to the first child of the config structure
-		if(run_command(cJSON_GetStringValue(item))!=ESP_OK){
+		char *cmd = cJSON_GetStringValue(item);
+		if(!console_push(cmd, strlen(cmd) + 1)){
 			httpd_resp_send(req, (const char *)failed, strlen(failed));
 		}
 		else {

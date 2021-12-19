@@ -45,7 +45,14 @@
 #include "display.h"
 #include "accessors.h"
 #include "cmd_system.h"
-#include "globdefs.h"
+#include "tools.h"
+
+#ifndef CONFIG_DAC_KNOWN_CONFIGURATIONS
+#define CONFIG_DAC_KNOWN_CONFIGURATIONS ""
+#endif
+#ifndef CONFIG_DAC_KNOWN_CONFIGURATIONS_GPIOS
+#define CONFIG_DAC_KNOWN_CONFIGURATIONS_GPIOS ""
+#endif
 
 static const char certs_namespace[] = "certificates";
 static const char certs_key[] = "blob";
@@ -230,7 +237,6 @@ const char * get_certificate(){
         size_t len;
         esp_err = nvs_get_blob(handle, certs_key, NULL, &len);
         if( esp_err == ESP_OK) {
-            //blob = (char *) heap_caps_malloc(len+1, (MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT));
 			blob = (char *) malloc_init_external(len+1);
             if(!blob){
             	log_send_messaging(MESSAGING_ERROR,"Unable to retrieve HTTPS certificates. %s","Memory allocation failed");
@@ -288,33 +294,40 @@ void register_default_with_mac(const char* key,  char* defval) {
 	}
 	
 }
-#ifndef CONFIG_DAC_KNOWN_CONFIGURATIONS
-#define CONFIG_DAC_KNOWN_CONFIGURATIONS ""
-#endif
-#ifndef CONFIG_DAC_KNOWN_CONFIGURATIONS_GPIOS
-#define CONFIG_DAC_KNOWN_CONFIGURATIONS_GPIOS ""
-#endif
-
 
 void register_default_nvs(){
-
-	register_default_with_mac("bt_name", CONFIG_BT_NAME);
-	register_default_with_mac("host_name", DEFAULT_HOST_NAME);
+#ifdef CONFIG_CSPOT_SINK
+	register_default_string_val("enable_cspot", STR(CONFIG_CSPOT_SINK));
+#endif
+	
+#ifdef CONFIG_AIRPLAY_SINK
 	register_default_with_mac("airplay_name", CONFIG_AIRPLAY_NAME);
+	register_default_string_val("airplay_port", CONFIG_AIRPLAY_PORT);
+	register_default_string_val( "enable_airplay", STR(CONFIG_AIRPLAY_SINK));
+#endif
+
+#ifdef CONFIG_BT_SINK
+	register_default_string_val( "bt_sink_pin", STR(CONFIG_BT_SINK_PIN));
+	register_default_string_val( "bt_sink_volume", "127");
+	register_default_with_mac("bt_name", CONFIG_BT_NAME);
+	register_default_string_val( "enable_bt_sink", STR(CONFIG_BT_SINK));
+	register_default_string_val("a2dp_dev_name", CONFIG_A2DP_DEV_NAME);
+	register_default_string_val("a2dp_ctmt", STR(CONFIG_A2DP_CONNECT_TIMEOUT_MS));
+	register_default_string_val("a2dp_ctrld", STR(CONFIG_A2DP_CONTROL_DELAY_MS));
+	register_default_string_val("a2dp_sink_name", CONFIG_A2DP_SINK_NAME);
+#endif
+	
+	register_default_with_mac("host_name", DEFAULT_HOST_NAME);
 	register_default_with_mac("ap_ssid", CONFIG_DEFAULT_AP_SSID);
 	register_default_string_val("autoexec","1");
 	register_default_with_mac("autoexec1",CONFIG_DEFAULT_COMMAND_LINE " -n " DEFAULT_HOST_NAME);	
-	register_default_string_val("a2dp_sink_name", CONFIG_A2DP_SINK_NAME);
-	register_default_string_val("a2dp_ctmt", STR(CONFIG_A2DP_CONNECT_TIMEOUT_MS));
-	register_default_string_val("a2dp_ctrld", STR(CONFIG_A2DP_CONTROL_DELAY_MS));
+
 	register_default_string_val("release_url", CONFIG_SQUEEZELITE_ESP32_RELEASE_URL);
 	register_default_string_val("ap_ip_address",CONFIG_DEFAULT_AP_IP);
 	register_default_string_val("ap_ip_gateway",CONFIG_DEFAULT_AP_GATEWAY );
 	register_default_string_val("ap_ip_netmask",CONFIG_DEFAULT_AP_NETMASK);
 	register_default_string_val("ap_channel",STR(CONFIG_DEFAULT_AP_CHANNEL));
 	register_default_string_val("ap_pwd", CONFIG_DEFAULT_AP_PASSWORD);
-	register_default_string_val("airplay_port", CONFIG_AIRPLAY_PORT);
-	register_default_string_val("a2dp_dev_name", CONFIG_A2DP_DEV_NAME);
 	register_default_string_val("bypass_wm", "0");
 	register_default_string_val("equalizer", "");
 	register_default_string_val("actrls_config", "");	
@@ -327,10 +340,6 @@ void register_default_nvs(){
 	register_default_string_val( "ota_stack", number_buffer);
 	snprintf(number_buffer,sizeof(number_buffer)-1,"%d",OTA_TASK_PRIOTITY);
 	register_default_string_val( "ota_prio", number_buffer);
-	register_default_string_val( "enable_bt_sink", STR(CONFIG_BT_SINK));
-	register_default_string_val( "bt_sink_pin", STR(CONFIG_BT_SINK_PIN));
-	register_default_string_val( "bt_sink_volume", "127");
-	register_default_string_val( "enable_airplay", STR(CONFIG_AIRPLAY_SINK));
 	register_default_string_val( "display_config", CONFIG_DISPLAY_CONFIG);
 	register_default_string_val( "eth_config", CONFIG_ETH_CONFIG);
 	register_default_string_val( "i2c_config", CONFIG_I2C_CONFIG);
@@ -341,6 +350,7 @@ void register_default_nvs(){
 	register_default_string_val( "dac_config", "");
 	register_default_string_val( "dac_controlset", "");
 	register_default_string_val( "jack_mutes_amp", "n");
+	register_default_string_val("gpio_exp_config", CONFIG_GPIO_EXP_CONFIG);
 	register_default_string_val( "bat_config", "");
 	register_default_string_val( "metadata_config", "");
 	register_default_string_val( "telnet_enable", "");

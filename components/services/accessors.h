@@ -12,10 +12,11 @@
 #include "driver/i2c.h"
 #include "driver/i2s.h"
 #include "driver/spi_master.h"
-#include "freertos/queue.h"
+#include "gpio_exp.h"
 
 extern const char *i2c_name_type;
 extern const char *spi_name_type;
+
 typedef struct {
 	int width;
 	int height;
@@ -97,6 +98,7 @@ esp_err_t 					config_i2s_set(const i2s_platform_config_t * config, const char *
 esp_err_t 					config_spi_set(const spi_bus_config_t * config, int host, int dc);
 const i2c_config_t * 		config_i2c_get(int * i2c_port);
 const spi_bus_config_t * 	config_spi_get(spi_host_device_t * spi_host);
+const gpio_exp_config_t *   config_gpio_exp_get(int index);
 void 						parse_set_GPIO(void (*cb)(int gpio, char *value));
 const i2s_platform_config_t * 	config_dac_get();
 const i2s_platform_config_t * 	config_spdif_get( );

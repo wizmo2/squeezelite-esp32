@@ -33,6 +33,7 @@ extern const struct adac_s dac_external;
 
 int 		adac_init(char *config, int i2c_port);
 void		adac_deinit(void);
+esp_err_t 	adac_write(int i2c_addr, uint8_t reg, uint8_t *data, size_t count);
 esp_err_t 	adac_write_byte(int i2c_addr, uint8_t reg, uint8_t val);
 esp_err_t 	adac_write_word(int i2c_addr, uint8_t reg, uint16_t val);
 uint8_t 	adac_read_byte(int i2c_addr, uint8_t reg);

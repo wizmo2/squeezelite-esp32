@@ -18,6 +18,11 @@
 #include "platform.h"
 #include "pthread.h"
 
+#ifndef WIN32
+#include "freertos/FreeRTOS.h"
+#include "freertos/timers.h"
+#endif
+
 #define NFREE(p) if (p) { free(p); p = NULL; }
 
 typedef struct metadata_s {
@@ -46,9 +51,21 @@ char 		*strndup(const char *s, size_t n);
 int 		asprintf(char **strp, const char *fmt, ...);
 void 		winsock_init(void);
 void 		winsock_close(void);
-#else
+#define		SAFE_PTR_FREE(P) free(P)#else
 char 		*strlwr(char *str);
+
+// reason is that TCB might be cleanup in idle task
+#define SAFE_PTR_FREE(P)							\
+	do {											\
+		TimerHandle_t timer = xTimerCreate("cleanup", pdMS_TO_TICKS(5000), pdFALSE, P, _delayed_free);	\
+		xTimerStart(timer, portMAX_DELAY);			\
+	} while (0)				
+static void inline _delayed_free(TimerHandle_t xTimer) {
+	free(pvTimerGetTimerID(xTimer));
+	xTimerDelete(xTimer, portMAX_DELAY);
+}	
 #endif
+
 char* 		strextract(char *s1, char *beg, char *end);
 in_addr_t 	get_localhost(char **name);
 void 		get_mac(u8_t mac[]);
@@ -67,5 +84,6 @@ char* 		kd_dump(key_data_t *kd);
 void 		kd_free(key_data_t *kd);
 
 int 		_fprintf(FILE *file, ...);
-#endif
+
+#endif
 

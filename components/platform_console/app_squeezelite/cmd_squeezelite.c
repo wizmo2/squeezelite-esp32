@@ -12,7 +12,7 @@
 #include "platform_esp32.h"
 #include "platform_config.h"
 #include "esp_app_format.h"
-#include "globdefs.h"
+#include "tools.h"
 
 extern esp_err_t process_recovery_ota(const char * bin_url, char * bin_buffer, uint32_t length);
 static const char * TAG = "squeezelite_cmd";

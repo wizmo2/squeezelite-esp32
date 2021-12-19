@@ -21,7 +21,6 @@
 #include "platform_config.h"
 #include "nvs_utilities.h"
 #include "platform_esp32.h"
-#include "trace.h"
 #include <stdio.h>
 #include <string.h>
 #include "esp_system.h"
@@ -38,7 +37,7 @@
 #include "cJSON.h"
 #include "freertos/timers.h"
 #include "freertos/event_groups.h"
-#include "globdefs.h"
+#include "tools.h"
 
 #define CONFIG_COMMIT_DELAY 1000
 #define LOCK_MAX_WAIT 20*CONFIG_COMMIT_DELAY

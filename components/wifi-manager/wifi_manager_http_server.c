@@ -25,7 +25,6 @@
 #include "http_server_handlers.h"
 #include "esp_log.h"
 #include "esp_http_server.h"
-#include "_esp_http_server.h"
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,13 +33,19 @@
 #include "freertos/task.h"
 #include "messaging.h"
 #include "platform_esp32.h"
-#include "globdefs.h"
 #include "trace.h"
+#include "tools.h"
 static const char TAG[] = "http_server";
 
 EXT_RAM_ATTR static httpd_handle_t _server = NULL;
+EXT_RAM_ATTR static int _port;
 EXT_RAM_ATTR rest_server_context_t *rest_context = NULL;
 EXT_RAM_ATTR RingbufHandle_t messaging=NULL;
+
+httpd_handle_t get_http_server(int *port) {
+	if (port) *port = _port;
+	return _server;
+}
 
 void register_common_handlers(httpd_handle_t server){
 	httpd_uri_t css_get = { .uri = "/css/*", .method = HTTP_GET, .handler = resource_filehandler, .user_ctx = rest_context };
@@ -143,14 +148,17 @@ esp_err_t http_server_start()
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 30;
-    config.max_open_sockets = 8;
+    config.max_open_sockets = 3;
+	config.lru_purge_enable = true;
+	config.backlog_conn = 1;
     config.uri_match_fn = httpd_uri_match_wildcard;
 	config.task_priority = ESP_TASK_PRIO_MIN;
+	_port = config.server_port;
     //todo:  use the endpoint below to configure session token?
     // config.open_fn
 
     MEMTRACE_PRINT_DELTA_MESSAGE( "Starting HTTP Server");
-    esp_err_t err= __httpd_start(&_server, &config);
+    esp_err_t err= httpd_start(&_server, &config);
     if(err != ESP_OK){
     	ESP_LOGE_LOC(TAG,"Start server failed");
     }

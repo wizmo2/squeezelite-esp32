@@ -17,10 +17,9 @@
 #include "freertos/timers.h"
 #include "argtable3/argtable3.h"
 #include "platform_config.h"
-#include "trace.h"
 #include "messaging.h"
 #include "cJSON.h"
-#include "globdefs.h"
+#include "tools.h"
 
 static const char * TAG = "bt_app_source";
 static const char * BT_RC_CT_TAG="RCCT";

@@ -1,15 +1,12 @@
 /*
- *  AirCast: Chromecast to AirPlay
- *
- * (c) Philippe 2016-2017, philippe_44@outlook.com
+ *  (c) Philippe 2020, philippe_44@outlook.com
  *
  * This software is released under the MIT License.
  * https://opensource.org/licenses/MIT
  *
  */
 
-#ifndef __RAOP_H
-#define __RAOP_H
+#pragma once
 
 #include "platform.h"
 #include "raop_sink.h"
@@ -20,4 +17,3 @@ void  		  raop_delete(struct raop_ctx_s *ctx);
 void		  raop_abort(struct raop_ctx_s *ctx);
 bool		  raop_cmd(struct raop_ctx_s *ctx, raop_event_t event, void *param);
 
-#endif

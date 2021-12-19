@@ -243,7 +243,7 @@ struct GDS_Device* SSD1675_Detect(char *Driver, struct GDS_Device* Device) {
 	char *p;
 	struct PrivateSpace* Private = (struct PrivateSpace*) Device->Private;
 	Private->ReadyPin = -1;
-	if ((p = strcasestr(Driver, "ready")) != NULL) Private->ReadyPin = atoi(strchr(p, '=') + 1);
+	if ((p = strcasestr(Driver, "ready")) && (p = strchr(p, '='))) Private->ReadyPin = atoi(p + 1);
 	
 	ESP_LOGI(TAG, "SSD1675 driver with ready GPIO %d", Private->ReadyPin);
 	

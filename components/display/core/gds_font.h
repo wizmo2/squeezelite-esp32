@@ -46,7 +46,7 @@ typedef enum {
     TextAnchor_Center
 } TextAnchor;
 
-bool GDS_SetFont( struct GDS_Device* Display, const struct GDS_FontDef* Font );
+const struct GDS_FontDef* GDS_SetFont( struct GDS_Device* Display, const struct GDS_FontDef* Font );
 
 void GDS_FontForceProportional( struct GDS_Device* Display, bool Force );
 void GDS_FontForceMonospace( struct GDS_Device* Display, bool Force );
@@ -59,7 +59,8 @@ int GDS_FontGetMaxCharsPerColumn( struct GDS_Device* Display );
 
 int GDS_FontGetCharWidth( struct GDS_Device* Display, char Character );
 int GDS_FontGetCharHeight( struct GDS_Device* Display );
-int GDS_FontMeasureString( struct GDS_Device* Display, const char* Text );\
+int GDS_FontMeasureString( struct GDS_Device* Display, const char* Text );
+int GDS_FontMeasureStringLine( struct GDS_Device* Display, int Line, const char* Text );
 
 void GDS_FontDrawChar( struct GDS_Device* Display, char Character, int x, int y, int Color );
 void GDS_FontDrawString( struct GDS_Device* Display, int x, int y, const char* Text, int Color );

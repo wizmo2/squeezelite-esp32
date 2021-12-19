@@ -391,7 +391,7 @@ static void process_strm(u8_t *pkt, int len) {
 #if EMBEDDED
 			if (output.external) decode_restore(output.external);
 			output.external = 0;
-			_buf_resize(outputbuf, output.init_size);
+			_buf_limit(outputbuf, 0);
 #endif
 			output.threshold = strm->output_threshold;
 			output.next_replay_gain = unpackN(&strm->replay_gain);

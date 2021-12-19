@@ -91,6 +91,7 @@
 
 #include "esp_log.h"
 #include "driver/gpio.h"
+#include "gpio_exp.h"
 
 #define TAG "rotary_encoder"
 
@@ -148,7 +149,7 @@ static uint8_t _process(rotary_encoder_info_t * info)
     if (info != NULL)
     {
         // Get state of input pins.
-        uint8_t pin_state = (gpio_get_level(info->pin_b) << 1) | gpio_get_level(info->pin_a);
+        uint8_t pin_state = (gpio_get_level_x(info->pin_b) << 1) | gpio_get_level_x(info->pin_a);
 
         // Determine new state from the pins and state table.
 #ifdef ROTARY_ENCODER_DEBUG
@@ -198,12 +199,18 @@ static void _isr_rotenc(void * args)
                 .direction = info->state.direction,
             },
         };
-        BaseType_t task_woken = pdFALSE;
-        xQueueOverwriteFromISR(info->queue, &queue_event, &task_woken);
-        if (task_woken)
-        {
-            portYIELD_FROM_ISR();
-        }
+		if (info->pin_a < GPIO_NUM_MAX) {
+			BaseType_t task_woken = pdFALSE;
+			xQueueOverwriteFromISR(info->queue, &queue_event, &task_woken);
+			if (task_woken)
+			{
+				portYIELD_FROM_ISR();
+			}
+		}
+		else 
+		{
+			xQueueOverwrite(info->queue, &queue_event);
+		}
     }
 }
 
@@ -220,19 +227,19 @@ esp_err_t rotary_encoder_init(rotary_encoder_info_t * info, gpio_num_t pin_a, gp
         info->state.direction = ROTARY_ENCODER_DIRECTION_NOT_SET;
 
         // configure GPIOs
-        gpio_pad_select_gpio(info->pin_a);
-        gpio_set_pull_mode(info->pin_a, GPIO_PULLUP_ONLY);
-        gpio_set_direction(info->pin_a, GPIO_MODE_INPUT);
-        gpio_set_intr_type(info->pin_a, GPIO_INTR_ANYEDGE);
+        gpio_pad_select_gpio_x(info->pin_a);
+        gpio_set_pull_mode_x(info->pin_a, GPIO_PULLUP_ONLY);
+        gpio_set_direction_x(info->pin_a, GPIO_MODE_INPUT);
+        gpio_set_intr_type_x(info->pin_a, GPIO_INTR_ANYEDGE);
 
-        gpio_pad_select_gpio(info->pin_b);
-        gpio_set_pull_mode(info->pin_b, GPIO_PULLUP_ONLY);
-        gpio_set_direction(info->pin_b, GPIO_MODE_INPUT);
-        gpio_set_intr_type(info->pin_b, GPIO_INTR_ANYEDGE);
+        gpio_pad_select_gpio_x(info->pin_b);
+        gpio_set_pull_mode_x(info->pin_b, GPIO_PULLUP_ONLY);
+        gpio_set_direction_x(info->pin_b, GPIO_MODE_INPUT);
+        gpio_set_intr_type_x(info->pin_b, GPIO_INTR_ANYEDGE);
 
         // install interrupt handlers
-        gpio_isr_handler_add(info->pin_a, _isr_rotenc, info);
-        gpio_isr_handler_add(info->pin_b, _isr_rotenc, info);
+        gpio_isr_handler_add_x(info->pin_a, _isr_rotenc, info);
+        gpio_isr_handler_add_x(info->pin_b, _isr_rotenc, info);
     }
     else
     {
@@ -280,8 +287,8 @@ esp_err_t rotary_encoder_uninit(rotary_encoder_info_t * info)
     esp_err_t err = ESP_OK;
     if (info)
     {
-        gpio_isr_handler_remove(info->pin_a);
-        gpio_isr_handler_remove(info->pin_b);
+        gpio_isr_handler_remove_x(info->pin_a);
+        gpio_isr_handler_remove_x(info->pin_b);
     }
     else
     {

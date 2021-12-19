@@ -199,8 +199,8 @@ static void SetLayout( struct GDS_Device* Device, bool HFlip, bool VFlip, bool R
 	WriteByte( Device, Private->MADCtl );
 	
 	if (Private->Model == ST7789) {
-		if (Rotate) Private->Offset.Width = HFlip ? 320 - Device->Width : 0;
-		else Private->Offset.Height = HFlip ? 320 - Device->Height : 0;
+		if (Rotate) Private->Offset.Width += HFlip ? 320 - Device->Width : 0;
+		else Private->Offset.Height += HFlip ? 320 - Device->Height : 0;
 	}
 
 #ifdef SHADOW_BUFFER
@@ -235,7 +235,7 @@ static bool Init( struct GDS_Device* Device ) {
 	Private->iRAM = heap_caps_malloc( (Private->PageSize + 1) * Device->Width * Depth, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA );
 #endif
 
-	ESP_LOGI(TAG, "ST77xx with bit depth %u, page %u, iRAM %p", Device->Depth, Private->PageSize, Private->iRAM);
+	ESP_LOGI(TAG, "ST77xx with bit depth %u, offsets %hu:%hu, page %u, iRAM %p", Device->Depth, Private->Offset.Height, Private->Offset.Width, Private->PageSize, Private->iRAM);
 	
 	// Sleepout + Booster
 	Device->WriteCommand( Device, 0x11 );
@@ -283,8 +283,14 @@ struct GDS_Device* ST77xx_Detect(char *Driver, struct GDS_Device* Device) {
 		
 	*Device = ST77xx;	
 	sscanf(Driver, "%*[^:]:%u", &Depth);
+
 	struct PrivateSpace* Private = (struct PrivateSpace*) Device->Private;
 	Private->Model = Model;
+
+	if (Model == ST7735) {
+		sscanf(Driver, "%*[^:]%*[^x]%*[^=]=%hu", &Private->Offset.Height);		
+		sscanf(Driver, "%*[^:]%*[^y]%*[^=]=%hu", &Private->Offset.Width);		
+	}
 	
 	if (Depth == 18) {
 		Device->Mode = GDS_RGB666;

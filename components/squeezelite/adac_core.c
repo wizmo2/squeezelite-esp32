@@ -17,6 +17,11 @@
 #include "esp_log.h"
 #include "adac.h"
 
+#define PARSE_PARAM(S,P,C,V) do {									\
+	char *__p;														\
+	if ((__p = strcasestr(S, P)) && (__p = strchr(__p, C))) V = atoi(__p+1); \
+} while (0)
+
 static const char TAG[] = "DAC core";
 static int i2c_port = -1;
 
@@ -46,9 +51,9 @@ int adac_init(char *config, int i2c_port_num) {
 			.master.clk_speed = 250000,
 		};
 
-	if ((p = strcasestr(config, "i2c")) != NULL) i2c_addr = atoi(strchr(p, '=') + 1);
-	if ((p = strcasestr(config, "sda")) != NULL) i2c_config.sda_io_num = atoi(strchr(p, '=') + 1);
-	if ((p = strcasestr(config, "scl")) != NULL) i2c_config.scl_io_num = atoi(strchr(p, '=') + 1);
+	PARSE_PARAM(config, "i2c", '=', i2c_addr);
+	PARSE_PARAM(config, "sda", '=', i2c_config.sda_io_num);
+	PARSE_PARAM(config, "scl", '=', i2c_config.scl_io_num);
 
 	if (i2c_config.sda_io_num == -1 || i2c_config.scl_io_num == -1) {
 		ESP_LOGW(TAG, "DAC does not use i2c");
@@ -150,8 +155,7 @@ uint16_t adac_read_word(int i2c_addr, uint8_t reg) {
 /****************************************************************************************
  * 
  */
-esp_err_t adac_write_word(int i2c_addr, uint8_t reg, uint16_t val)
-{
+esp_err_t adac_write_word(int i2c_addr, uint8_t reg, uint16_t val) {
 	uint8_t data[] = { i2c_addr << 1, reg,
 	                   val >> 8, val & 0xff };
 					   
@@ -170,3 +174,25 @@ esp_err_t adac_write_word(int i2c_addr, uint8_t reg, uint16_t val)
 	
     return ret;
 }
+
+/****************************************************************************************
+ * 
+ */
+esp_err_t adac_write(int i2c_addr, uint8_t reg, uint8_t *data, size_t count) {
+	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+	
+	i2c_master_write_byte(cmd, (i2c_addr << 1) | I2C_MASTER_WRITE, I2C_MASTER_NACK);
+	i2c_master_write_byte(cmd, reg, I2C_MASTER_NACK);
+	i2c_master_write(cmd, data, count, I2C_MASTER_NACK);
+	
+	i2c_master_stop(cmd);
+    esp_err_t ret = i2c_master_cmd_begin(i2c_port, cmd, 200 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(cmd);
+	
+	if (ret != ESP_OK) {
+		ESP_LOGW(TAG, "I2C write failed");
+	}
+	
+	return ret;
+}	

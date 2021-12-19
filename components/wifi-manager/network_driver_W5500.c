@@ -1,6 +1,6 @@
 #include "esp_eth.h"
-#include "globdefs.h"
 #include "network_ethernet.h"
+
 static EXT_RAM_ATTR network_ethernet_driver_t W5500;
 static EXT_RAM_ATTR spi_device_interface_config_t devcfg;
 static EXT_RAM_ATTR esp_netif_config_t cfg_spi;

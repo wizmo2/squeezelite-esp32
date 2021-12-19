@@ -19,6 +19,7 @@
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 #include "platform_config.h"
+#include "gpio_exp.h"
 #include "led.h"
 #include "globdefs.h"
 #include "accessors.h"
@@ -40,7 +41,8 @@ static EXT_RAM_ATTR struct led_s {
 	TimerHandle_t timer;
 } leds[MAX_LED];
 
-static EXT_RAM_ATTR struct {
+// can't use EXT_RAM_ATTR for initialized structure
+static struct {
 	int gpio;
 	int active;
 	int pwm;
@@ -53,7 +55,7 @@ static int led_max = 2;
  * 
  */
 static void set_level(struct led_s *led, bool on) {
-	if (led->pwm < 0) gpio_set_level(led->gpio, on ? led->onstate : !led->onstate);
+	if (led->pwm < 0 || led->gpio >= GPIO_NUM_MAX) gpio_set_level_x(led->gpio, on ? led->onstate : !led->onstate);
 	else {
 		ledc_set_duty(LEDC_HIGH_SPEED_MODE, led->channel, on ? led->pwm : (led->onstate ? 0 : pwm_system.max));
 		ledc_update_duty(LEDC_HIGH_SPEED_MODE, led->channel);
@@ -179,9 +181,9 @@ bool led_config(int idx, gpio_num_t gpio, int onstate, int pwm) {
 	leds[idx].onstate = onstate;
 	leds[idx].pwm = -1;
 
-	if (pwm < 0) {	
-		gpio_pad_select_gpio(gpio);
-		gpio_set_direction(gpio, GPIO_MODE_OUTPUT);
+	if (pwm < 0 || gpio >= GPIO_NUM_MAX) {	
+		gpio_pad_select_gpio_x(gpio);
+		gpio_set_direction_x(gpio, GPIO_MODE_OUTPUT);
 	} else {	
 		leds[idx].channel = pwm_system.base_channel++;
 		leds[idx].pwm = pwm_system.max * powf(pwm / 100.0, 3);
@@ -232,10 +234,10 @@ void led_svc_init(void) {
 	parse_set_GPIO(set_led_gpio);
 #endif
 
-	char *nvs_item = config_alloc_get(NVS_TYPE_STR, "led_brightness"), *p; 
+	char *nvs_item = config_alloc_get(NVS_TYPE_STR, "led_brightness"); 
 	if (nvs_item) {
-		if ((p = strcasestr(nvs_item, "green")) != NULL) green.pwm = atoi(strchr(p, '=') + 1);
-		if ((p = strcasestr(nvs_item, "red")) != NULL) red.pwm = atoi(strchr(p, '=') + 1);
+		PARSE_PARAM(nvs_item, "green", '=', green.pwm);
+		PARSE_PARAM(nvs_item, "red", '=', red.pwm);
 		free(nvs_item);
 	}
 

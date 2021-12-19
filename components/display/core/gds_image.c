@@ -15,7 +15,7 @@
 #include "gds_private.h"
 #include "gds_image.h"
 
-const char TAG[] = "ImageDec";
+const static char TAG[] = "ImageDec";
 
 #define SCRATCH_SIZE	3100
 

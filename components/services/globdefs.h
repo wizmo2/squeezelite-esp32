@@ -21,13 +21,3 @@ typedef struct {
 	int timer, base_channel, max;
 } pwm_system_t;
 extern pwm_system_t pwm_system;
-#ifdef CONFIG_SQUEEZEAMP
-#define ADAC dac_tas57xx
-#elif defined(CONFIG_A1S)
-#define ADAC dac_a1s
-#else
-#define ADAC dac_external
-#endif
-void * malloc_init_external(size_t sz);
-void * clone_obj_psram(void * source, size_t source_sz);
-char * strdup_psram(const char * source);

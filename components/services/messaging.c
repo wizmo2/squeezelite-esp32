@@ -14,8 +14,7 @@
 #include "nvs_utilities.h"
 #include "platform_esp32.h"
 #include "messaging.h"
-#include "trace.h"
-#include "globdefs.h"
+#include "tools.h"
 /************************************
  * Globals
  */

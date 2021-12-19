@@ -73,13 +73,11 @@ void _buf_flush(struct buffer *buf) {
 
 // adjust buffer to multiple of mod bytes so reading in multiple always wraps on frame boundary
 void buf_adjust(struct buffer *buf, size_t mod) {
-	size_t size;
 	mutex_lock(buf->mutex);
-	size = ((unsigned)(buf->base_size / mod)) * mod;
-	buf->readp  = buf->buf;
-	buf->writep = buf->buf;
-	buf->wrap   = buf->buf + size;
-	buf->size   = size;
+	buf->base_size = ((size_t)(buf->size / mod)) * mod;
+	buf->readp  = buf->writep = buf->buf;
+	buf->wrap   = buf->buf + buf->base_size;
+	buf->size   = buf->base_size;
 	mutex_unlock(buf->mutex);
 }
 
@@ -90,16 +88,23 @@ void _buf_resize(struct buffer *buf, size_t size) {
 	buf->buf = malloc(size);
 	if (!buf->buf) {
 		size    = buf->size;
-		buf->buf= malloc(size);
-		if (!buf->buf) {
-			size = 0;
-		}
+		buf->buf = malloc(size);
+		if (!buf->buf) size = 0;
 	}
-	buf->readp  = buf->buf;
-	buf->writep = buf->buf;
+	buf->writep = buf->readp  = buf->buf;
 	buf->wrap   = buf->buf + size;
-	buf->size   = size;
-	buf->base_size = size;
+	buf->true_size = buf->base_size = buf->size = size;
+}
+
+size_t _buf_limit(struct buffer *buf, size_t limit) {
+	if (limit) {
+		buf->size = limit;
+		buf->readp = buf->writep = buf->buf;
+	} else {
+		buf->size = buf->base_size;
+	}
+	buf->wrap = buf->buf + buf->size;
+	return buf->base_size - buf->size;
 }
 
 void _buf_unwrap(struct buffer *buf, size_t cont) {
@@ -130,7 +135,9 @@ void _buf_unwrap(struct buffer *buf, size_t cont) {
 		if (len > by) {
 			memmove(buf->buf, buf->buf + by, len - by);
 			buf->writep -= by;
-		} else buf->writep += buf->size - by;
+		} else {
+			buf->writep += buf->size - by;
+		}
 		return;
 	}
 
@@ -157,8 +164,7 @@ void buf_init(struct buffer *buf, size_t size) {
 	buf->readp  = buf->buf;
 	buf->writep = buf->buf;
 	buf->wrap   = buf->buf + size;
-	buf->size   = size;
-	buf->base_size = size;
+	buf->true_size = buf->base_size = buf->size = size;
 	mutex_create_p(buf->mutex);
 }
 
@@ -166,8 +172,7 @@ void buf_destroy(struct buffer *buf) {
 	if (buf->buf) {
 		free(buf->buf);
 		buf->buf = NULL;
-		buf->size = 0;
-		buf->base_size = 0;
+		buf->size = buf->base_size = buf->true_size = 0;
 		mutex_destroy(buf->mutex);
 	}
 }

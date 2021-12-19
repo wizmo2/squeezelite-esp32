@@ -31,8 +31,7 @@
 #include "driver/uart.h"            // for the uart driver access
 #include "messaging.h"				  
 #include "platform_console.h"
-#include "trace.h"
-#include "globdefs.h"
+#include "tools.h"
 
 #ifdef CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
 #pragma message("Runtime stats enabled")

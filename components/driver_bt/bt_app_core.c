@@ -17,7 +17,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
-#include "globdefs.h"
+#include "tools.h"
 
 static const char * TAG = "btappcore";
 

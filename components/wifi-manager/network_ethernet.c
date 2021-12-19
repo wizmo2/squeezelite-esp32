@@ -3,15 +3,13 @@
 #endif
 #include "network_ethernet.h"
 #include "freertos/timers.h"
-#include "globdefs.h"
 #include "messaging.h"
 #include "network_status.h"
 #include "platform_config.h"
-#include "trace.h"
+#include "tools.h"
 #include "accessors.h"
 #include "esp_log.h"
-
-//#include "dnserver.h"
+#include "globdefs.h"
 
 static char TAG[] = "network_ethernet";
 TimerHandle_t ETH_timer;
@@ -117,40 +115,9 @@ void init_network_ethernet() {
 	xEventGroupClearBits(ethernet_event_group, LINK_UP_BIT);
     spi_device_handle_t spi_handle = NULL;
     if (network_driver->spi) {
-        spi_host_device_t host = SPI3_HOST;
-
-        if (eth.host != -1) {
-            // don't use system's shared SPI
-            spi_bus_config_t buscfg = {
-                .miso_io_num = eth.miso,
-                .mosi_io_num = eth.mosi,
-                .sclk_io_num = eth.clk,
-                .quadwp_io_num = -1,
-                .quadhd_io_num = -1,
-            };
-            
-            // can't use SPI0
-            if (eth.host == 0)
-            {
-                ESP_LOGW(TAG,"Cannot use SPI1 host. Defaulting to SPI2");
-                host = SPI2_HOST;
-            }
-            else {
-                host = eth.host;
-            }
-            ESP_LOGI(TAG, "Initializing SPI bus on host %d (SPI%d) with mosi %d and miso %d", host,host+1, eth.mosi, eth.miso);
-            err = spi_bus_initialize(host, &buscfg, SPI_DMA_CH_AUTO);
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG, "SPI bus init failed : %s", esp_err_to_name(err));
-            }
-
-        } else {
-            // when we use shared SPI, we assume it has been initialized
-            host = spi_system_host;
-        }
-        if (err == ESP_OK) {
-            ESP_LOGI(TAG, "Adding ethernet SPI on host %d (SPI%d) with mosi %d and miso %d", host,host+1, eth.mosi, eth.miso);
-            err = spi_bus_add_device(host, network_driver->devcfg, &spi_handle);
+	    if (err == ESP_OK) {
+            ESP_LOGI(TAG, "Adding ethernet SPI on host %d (SPI%d) with mosi %d and miso %d", eth.host, eth.host+1, eth.mosi, eth.miso);
+            err = spi_bus_add_device(eth.host, network_driver->devcfg, &spi_handle);
         }
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "SPI host failed : %s", esp_err_to_name(err));

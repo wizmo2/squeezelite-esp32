@@ -255,7 +255,7 @@ void raop_delete(struct raop_ctx_s *ctx) {
 	vTaskDelay(100 / portTICK_PERIOD_MS);
 	ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
 	vTaskDelete(ctx->thread);
-	heap_caps_free(ctx->xTaskBuffer);
+	SAFE_PTR_FREE(ctx->xTaskBuffer);
 
 	// cleanup all session-created items
 	cleanup_rtsp(ctx, true);
@@ -525,15 +525,17 @@ static bool handle_rtsp(raop_ctx_t *ctx, int sock)
 		char *p;
 		rtp_resp_t rtp = { 0 };
 		short unsigned tport = 0, cport = 0;
+		uint8_t *buffer = NULL;
+		size_t size = 0;
 
-		// we are about to stream, do something if needed
-		success = ctx->cmd_cb(RAOP_SETUP);
+		// we are about to stream, do something if needed and optionally give buffers to play with
+		success = ctx->cmd_cb(RAOP_SETUP, &buffer, &size);
 
 		if ((p = strcasestr(buf, "timing_port")) != NULL) sscanf(p, "%*[^=]=%hu", &tport);
 		if ((p = strcasestr(buf, "control_port")) != NULL) sscanf(p, "%*[^=]=%hu", &cport);
 
 		rtp = rtp_init(ctx->peer, ctx->latency,	ctx->rtsp.aeskey, ctx->rtsp.aesiv,
-					   ctx->rtsp.fmtp, cport, tport, ctx->cmd_cb, ctx->data_cb);
+					   ctx->rtsp.fmtp, cport, tport, buffer, size, ctx->cmd_cb, ctx->data_cb);
 						
 		ctx->rtp = rtp.ctx;
 		
@@ -605,7 +607,6 @@ static bool handle_rtsp(raop_ctx_t *ctx, int sock)
 			sscanf(p, "%*[^:]:%u/%u/%u", &start, &current, &stop);
 			current = ((current - start) / 44100) * 1000;
 			if (stop) stop = ((stop - start) / 44100) * 1000;
-			else stop = -1;
 			LOG_INFO("[%p]: SET PARAMETER progress %d/%u %s", ctx, current, stop, p);
 			success = ctx->cmd_cb(RAOP_PROGRESS, max(current, 0), stop);
 		} else if (body && ((p = kd_lookup(headers, "Content-Type")) != NULL) && !strcasecmp(p, "application/x-dmap-tagged")) {
@@ -672,9 +673,8 @@ void cleanup_rtsp(raop_ctx_t *ctx, bool abort) {
 		ctx->active_remote.running = false;
 		xSemaphoreTake(ctx->active_remote.destroy_mutex, portMAX_DELAY);
 		vTaskDelete(ctx->active_remote.thread);
+		SAFE_PTR_FREE(ctx->active_remote.xTaskBuffer);
 		vSemaphoreDelete(ctx->active_remote.thread);
-
-		heap_caps_free(ctx->active_remote.xTaskBuffer);
 #endif
 		memset(&ctx->active_remote, 0, sizeof(ctx->active_remote));
 		LOG_INFO("[%p]: Remote search thread aborted", ctx);

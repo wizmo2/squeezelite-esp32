@@ -79,13 +79,12 @@ void battery_svc_init(void) {
 
 	char *nvs_item = config_alloc_get_default(NVS_TYPE_STR, "bat_config", "n", 0);
 	if (nvs_item) {
-		char *p;		
 #ifndef CONFIG_BAT_LOCKED		
-		if ((p = strcasestr(nvs_item, "channel")) != NULL) battery.channel = atoi(strchr(p, '=') + 1);
-		if ((p = strcasestr(nvs_item, "scale")) != NULL) battery.scale = atof(strchr(p, '=') + 1);
-		if ((p = strcasestr(nvs_item, "atten")) != NULL) battery.attenuation = atoi(strchr(p, '=') + 1);
+		PARSE_PARAM(nvs_item, "channel", '=', battery.channel);
+		PARSE_PARAM(nvs_item, "scale", '=', battery.scale);
+		PARSE_PARAM(nvs_item, "atten", '=', battery.attenuation);
 #endif		
-		if ((p = strcasestr(nvs_item, "cells")) != NULL) battery.cells = atof(strchr(p, '=') + 1);		
+		PARSE_PARAM(nvs_item, "cells", '=', battery.cells);
 		free(nvs_item);
 	}	
 

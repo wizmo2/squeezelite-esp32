@@ -14,7 +14,7 @@
 #include "nvs_flash.h"
 #include "nvs_utilities.h"
 #include "platform_config.h"
-#include "globdefs.h"
+#include "tools.h"
 
 const char current_namespace[] = "config";
 const char settings_partition[] = "settings";

@@ -20,7 +20,7 @@
 #include "messaging.h"
 #include "display.h"
 #include "config.h"
-#include "globdefs.h"
+#include "tools.h"
 #include "adac.h"
 
 #define I2C_MASTER_TX_BUF_DISABLE 0 /*!< I2C master doesn't need buffer */

@@ -12,15 +12,13 @@
 #include "driver/ledc.h"
 #include "driver/i2c.h"
 #include "platform_config.h"
+#include "gpio_exp.h"
 #include "battery.h"
 #include "led.h"
 #include "monitor.h"
 #include "globdefs.h"
 #include "accessors.h"
 #include "messaging.h"
-#include "esp_heap_caps.h"
-#include "esp_log.h"
-
 
 extern void battery_svc_init(void);
 extern void monitor_svc_init(void);
@@ -38,48 +36,14 @@ pwm_system_t pwm_system = {
 
 static const char *TAG = "services";
 
-
-void * malloc_init_external(size_t sz){
-	void * ptr=NULL;
-	ptr = heap_caps_malloc(sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-	if(ptr==NULL){
-		ESP_LOGE(TAG,"malloc_init_external:  unable to allocate %d bytes of PSRAM!",sz);
-	}
-	else {
-		memset(ptr,0x00,sz);
-	}
-	return ptr;
-}
-void * clone_obj_psram(void * source, size_t source_sz){
-	void * ptr=NULL;
-	ptr = heap_caps_malloc(source_sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-	if(ptr==NULL){
-		ESP_LOGE(TAG,"clone_obj_psram:  unable to allocate %d bytes of PSRAM!",source_sz);
-	}
-	else {
-		memcpy(ptr,source,source_sz);
-	}
-	return ptr;
-}
-char * strdup_psram(const char * source){
-	void * ptr=NULL;
-	size_t source_sz = strlen(source)+1;
-	ptr = heap_caps_malloc(source_sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-	if(ptr==NULL){
-		ESP_LOGE(TAG,"strdup_psram:  unable to allocate %d bytes of PSRAM! Cannot clone string %s",source_sz,source);
-	}
-	else {
-		memset(ptr,0x00,source_sz);
-		strcpy(ptr,source);
-	}
-	return ptr;
-}
-
 /****************************************************************************************
  * 
  */
-void set_power_gpio(int gpio, char *value) {
+void set_chip_power_gpio(int gpio, char *value) {
 	bool parsed = true;
+
+	// we only parse on-chip GPIOs
+	if (gpio >= GPIO_NUM_MAX) return;
 	
 	if (!strcasecmp(value, "vcc") ) {
 		gpio_pad_select_gpio(gpio);
@@ -89,9 +53,26 @@ void set_power_gpio(int gpio, char *value) {
 		gpio_pad_select_gpio(gpio);
 		gpio_set_direction(gpio, GPIO_MODE_OUTPUT);
 		gpio_set_level(gpio, 0);
-	} else parsed = false	;
+	} else parsed = false;
 	
 	if (parsed) ESP_LOGI(TAG, "set GPIO %u to %s", gpio, value);
+}	
+
+void set_exp_power_gpio(int gpio, char *value) {
+	bool parsed = true;
+
+	// we only parse on-chip GPIOs
+	if (gpio < GPIO_NUM_MAX) return;
+	
+	if (!strcasecmp(value, "vcc") ) {
+		gpio_exp_set_direction(gpio, GPIO_MODE_OUTPUT, NULL);
+		gpio_exp_set_level(gpio, 1, true, NULL);
+	} else if (!strcasecmp(value, "gnd")) {
+		gpio_exp_set_direction(gpio, GPIO_MODE_OUTPUT, NULL);
+		gpio_exp_set_level(gpio, 0, true, NULL);
+	} else parsed = false;
+	
+	if (parsed) ESP_LOGI(TAG, "set expanded GPIO %u to %s", gpio, value);
  }	
  
 
@@ -109,8 +90,8 @@ void services_init(void) {
 	}
 #endif
 
-	// set potential power GPIO
-	parse_set_GPIO(set_power_gpio);
+	// set potential power GPIO on chip first in case expanders are power using these
+	parse_set_GPIO(set_chip_power_gpio);
 
 	// shared I2C bus 
 	const i2c_config_t * i2c_config = config_i2c_get(&i2c_system_port);
@@ -139,6 +120,13 @@ void services_init(void) {
 		spi_system_host = -1;
 		ESP_LOGW(TAG, "no SPI configured");
 	}	
+
+	// create GPIO expanders
+	const gpio_exp_config_t* gpio_exp_config;
+	for (int count = 0; (gpio_exp_config = config_gpio_exp_get(count)); count++) gpio_exp_create(gpio_exp_config);
+
+	// now set potential power GPIO on expander 
+	parse_set_GPIO(set_exp_power_gpio);
 
 	// system-wide PWM timer configuration
 	ledc_timer_config_t pwm_timer = {

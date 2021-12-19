@@ -14,11 +14,10 @@
 #include "string.h"
 #include "stdio.h"
 #include "platform_config.h"
-#include "trace.h"
 #include "messaging.h"
 #include "accessors.h"
 #include "adac.h"
-#include "globdefs.h"
+#include "tools.h"
 #include "cJSON.h"
 #include "cmd_i2ctools.h"
 

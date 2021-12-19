@@ -39,7 +39,7 @@
 
 #include "accessors.h"
 #include "esp_err.h"
-#include "globdefs.h"
+#include "tools.h"
 #include "http_server_handlers.h"
 #include "network_manager.h"
 

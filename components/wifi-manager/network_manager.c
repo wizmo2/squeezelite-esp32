@@ -39,11 +39,11 @@ Copyright (c) 2017-2021 Sebastien L
 #include "messaging.h"
 
 #include "platform_config.h"
+#include "tools.h"
 #include "trace.h"
 
 #include "accessors.h"
 #include "esp_err.h"
-#include "globdefs.h"
 #include "http_server_handlers.h"
 #include "network_manager.h"
 

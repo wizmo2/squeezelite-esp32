@@ -218,7 +218,6 @@ static void notify(in_addr_t ip, u16_t hport, u16_t cport) {
 	
 	// close existing CLI connection and open new one
 	if (cli_sock >= 0) closesocket(cli_sock);
-	cli_sock = socket(AF_INET, SOCK_STREAM, 0);
 	connect_cli_socket();
 	
 	LOG_INFO("notified server %s hport %hu cport %hu", inet_ntoa(ip), hport, cport);

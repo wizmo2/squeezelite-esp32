@@ -6,7 +6,6 @@
 #include <string.h>
 #include "bt_app_core.h"
 #include "esp_log.h"
-#include "globdefs.h"
 #include "lwip/inet.h"
 #include "monitor.h"
 #include "network_ethernet.h"

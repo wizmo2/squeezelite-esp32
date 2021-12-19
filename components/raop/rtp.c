@@ -65,8 +65,8 @@
 #define MS2TS(ms, rate) ((((u64_t) (ms)) * (rate)) / 1000)
 #define TS2MS(ts, rate) NTP2MS(TS2NTP(ts,rate))
 
-extern log_level 	raop_loglevel;
-static log_level 	*loglevel = &raop_loglevel;
+extern log_level 	raop_loglevel;
+static log_level 	*loglevel = &raop_loglevel;
 
 //#define __RTP_STORE
 
@@ -93,6 +93,7 @@ typedef struct audio_buffer_entry {   // decoded audio packets
 	u32_t rtptime, last_resend;
 	s16_t *data;
 	int len;
+	bool allocated;
 } abuf_t;
 
 typedef struct rtp_s {
@@ -152,7 +153,7 @@ typedef struct rtp_s {
 
 
 #define BUFIDX(seqno) ((seq_t)(seqno) % BUFFER_FRAMES)
-static void 	buffer_alloc(abuf_t *audio_buffer, int size);
+static void 	buffer_alloc(abuf_t *audio_buffer, int size, uint8_t *buf, size_t buf_size);
 static void 	buffer_release(abuf_t *audio_buffer);
 static void 	buffer_reset(abuf_t *audio_buffer);
 static void 	buffer_push_packet(rtp_t *ctx);
@@ -208,6 +209,7 @@ static struct alac_codec_s* alac_init(int fmtp[32]) {
 /*---------------------------------------------------------------------------*/
 rtp_resp_t rtp_init(struct in_addr host, int latency, char *aeskey, char *aesiv, char *fmtpstr,
 								short unsigned pCtrlPort, short unsigned pTimingPort,
+								uint8_t *buffer, size_t size,
 								raop_cmd_cb_t cmd_cb, raop_data_cb_t data_cb)
 {
 	int i = 0;
@@ -260,7 +262,7 @@ rtp_resp_t rtp_init(struct in_addr host, int latency, char *aeskey, char *aesiv,
 	ctx->alac_codec = alac_init(fmtp);
 	rc &= ctx->alac_codec != NULL;
 
-	buffer_alloc(ctx->audio_buffer, ctx->frame_size*4);
+	buffer_alloc(ctx->audio_buffer, ctx->frame_size*4, buffer, size);
 
 	// create rtp ports
 	for (i = 0; i < 3; i++) {
@@ -311,7 +313,7 @@ void rtp_end(rtp_t *ctx)
 #else
 		ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
 		vTaskDelete(ctx->thread);
-		heap_caps_free(ctx->xTaskBuffer);
+		SAFE_PTR_FREE(ctx->xTaskBuffer);
 #endif
 	}
 	
@@ -369,10 +371,18 @@ void rtp_record(rtp_t *ctx, unsigned short seqno, unsigned rtptime) {
 }
 
 /*---------------------------------------------------------------------------*/
-static void buffer_alloc(abuf_t *audio_buffer, int size) {
+static void buffer_alloc(abuf_t *audio_buffer, int size, uint8_t *buf, size_t buf_size) {
 	int i;
 	for (i = 0; i < BUFFER_FRAMES; i++) {
-		audio_buffer[i].data = malloc(size);
+		if (buf && buf_size >= size) {
+			audio_buffer[i].data = (s16_t*) buf;
+			audio_buffer[i].allocated = false;
+			buf += size;
+			buf_size -= size;
+		} else {
+			audio_buffer[i].allocated = true;
+			audio_buffer[i].data = malloc(size);
+		}
 		audio_buffer[i].ready = 0;
 	}
 }
@@ -381,7 +391,7 @@ static void buffer_alloc(abuf_t *audio_buffer, int size) {
 static void buffer_release(abuf_t *audio_buffer) {
 	int i;
 	for (i = 0; i < BUFFER_FRAMES; i++) {
-		free(audio_buffer[i].data);
+		if (audio_buffer[i].allocated) free(audio_buffer[i].data);
 	}
 }
 

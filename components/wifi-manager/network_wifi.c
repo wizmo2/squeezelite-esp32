@@ -10,7 +10,6 @@
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_wifi_types.h"
-#include "globdefs.h"
 #include "lwip/sockets.h"
 #include "messaging.h"
 #include "network_status.h"

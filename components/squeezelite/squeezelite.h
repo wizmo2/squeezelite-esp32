@@ -532,6 +532,7 @@ struct buffer {
 	u8_t *wrap;
 	size_t size;
 	size_t base_size;
+	size_t true_size;
 	mutex_type mutex;
 };
 
@@ -547,6 +548,7 @@ void _buf_flush(struct buffer *buf);
 void _buf_unwrap(struct buffer *buf, size_t cont);
 void buf_adjust(struct buffer *buf, size_t mod);
 void _buf_resize(struct buffer *buf, size_t size);
+size_t _buf_limit(struct buffer *buf, size_t limit);
 void buf_init(struct buffer *buf, size_t size);
 void buf_destroy(struct buffer *buf);
 
@@ -665,7 +667,6 @@ struct outputstate {
 	u8_t  channels;            
 	const char *device;
 	int external;
-	u32_t init_size;
 #if ALSA
 	unsigned buffer;
 	unsigned period;

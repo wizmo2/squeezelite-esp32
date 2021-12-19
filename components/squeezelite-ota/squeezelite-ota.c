@@ -30,7 +30,6 @@
 #include "esp_spi_flash.h"
 #include "sdkconfig.h"
 #include "messaging.h"
-#include "trace.h"
 #include "esp_ota_ops.h"
 #include "display.h"
 #include "gds.h"
@@ -39,6 +38,7 @@
 #include "platform_esp32.h"
 #include "lwip/sockets.h"
 #include "globdefs.h"
+#include "tools.h"
 
 extern const char * get_certificate();
 #define IF_DISPLAY(x) if(display) { x; }

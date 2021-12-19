@@ -122,6 +122,19 @@ bool GDS_TextLine(struct GDS_Device* Device, int N, int Pos, int Attr, char *Tex
 }
 
 /****************************************************************************************
+ * 
+ */
+int GDS_GetTextWidth(struct GDS_Device* Device, int N, int Attr, char *Text) {
+	struct GDS_FontDef *Font = GDS_SetFont( Device, Device->Lines[N-1].Font );	
+
+	if (Attr & GDS_TEXT_MONOSPACE) GDS_FontForceMonospace( Device, true );
+	int Width = GDS_FontMeasureString( Device, Text );
+	GDS_SetFont( Device, Font );
+
+	return Width;
+}
+
+/****************************************************************************************
  * Try to align string for better scrolling visual. there is probably much better to do
  */
 int GDS_TextStretch(struct GDS_Device* Device, int N, char *String, int Max) {

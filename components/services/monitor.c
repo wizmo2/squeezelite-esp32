@@ -23,7 +23,7 @@
 #include "accessors.h"
 #include "messaging.h"
 #include "cJSON.h"
-#include "trace.h"
+#include "tools.h"
 
 #define MONITOR_TIMER	(10*1000)
 #define SCRATCH_SIZE	256
@@ -147,7 +147,7 @@ static void monitor_callback(TimerHandle_t xTimer) {
  * 
  */
 static void jack_handler_default(void *id, button_event_e event, button_press_e mode, bool long_press) {
-	ESP_LOGD(TAG, "Jack %s", event == BUTTON_PRESSED ? "inserted" : "removed");
+	ESP_LOGI(TAG, "Jack %s", event == BUTTON_PRESSED ? "inserted" : "removed");
 	if (jack_handler_svc) (*jack_handler_svc)(event == BUTTON_PRESSED);
 }
 

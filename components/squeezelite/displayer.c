@@ -146,6 +146,7 @@ static uint32_t *grayMap;
 #define VU_WIDTH	160
 #define VU_HEIGHT	SB_HEIGHT
 #define VU_COUNT	48
+#define ARROW_WIDTH	11
 
 #define DISPLAY_BW	20000
 
@@ -210,7 +211,12 @@ static EXT_RAM_ATTR struct {
 	struct bar_s bars[MAX_BARS] ;
 } led_visu;
 
-extern const uint8_t vu_bitmap[]   asm("_binary_vu_data_start");
+static EXT_RAM_ATTR uint8_t vu_bitmap[VU_WIDTH * VU_HEIGHT];
+extern const uint8_t vu_base[] asm("_binary_vu_s_data_start");
+extern const struct {
+	uint8_t offset;
+	uint8_t data[VU_HEIGHT * ARROW_WIDTH];
+} vu_arrow[VU_COUNT] asm("_binary_arrow_data_start");
 
 #define ANIM_NONE		  0x00
 #define ANIM_TRANSITION   0x01 // A transition animation has finished
@@ -327,6 +333,9 @@ bool sb_displayer_init(void) {
 		// create visu configuration
 		visu.bar_gap = 1;
 		visu.back.frame = calloc(1, (displayer.width * displayer.height) / 8);
+		
+		// prepare the VU raw data in PSRAM
+		memcpy(vu_bitmap, vu_base, sizeof(vu_bitmap));
 		
 		// size scroller (width + current screen)
 		scroller.scroll.max = (displayer.width * displayer.height / 8) * (15 + 1);
@@ -601,9 +610,13 @@ static void vfdc_handler( u8_t *_data, int bytes_read) {
 /****************************************************************************************
  * Display VU-Meter (lots of hard-coding)
  */
-void draw_VU(struct GDS_Device * display, const uint8_t *data, int level, int x, int y, int width, bool rotate) {
+void draw_VU(struct GDS_Device * display, int level, int x, int y, int width, bool rotate) {
 	// VU data is by columns and vertical flip to allow block offset 
-	data += level * VU_WIDTH * VU_HEIGHT;
+	uint8_t *data = vu_bitmap;
+	int offset = level > 0 ? vu_arrow[level].offset * VU_HEIGHT : 0;
+
+	// place the arrow in base VU
+	memcpy(data + offset, vu_arrow[level].data, sizeof(vu_arrow[level].data));
 	
 	// adjust to current display window
 	if (width > VU_WIDTH) {
@@ -648,6 +661,9 @@ void draw_VU(struct GDS_Device * display, const uint8_t *data, int level, int x,
 			}			
 		}	
 	}	
+	
+	// restore base VU
+	memcpy(vu_bitmap + offset, vu_base + offset, sizeof(vu_arrow[level].data));
 	
 	// need to manually set dirty flag as DrawPixel does not do it
 	GDS_SetDirty(display);
@@ -978,15 +994,15 @@ void visu_draw(void) {
 		}
 	} else if (displayer.width / 2 >=  3 * VU_WIDTH / 4) {
 		if (visu.rotate) {
-			draw_VU(display, vu_bitmap, visu.bars[0].current, 0, visu.row, visu.height / 2, visu.rotate);
-			draw_VU(display, vu_bitmap, visu.bars[1].current, 0, visu.row + visu.height / 2, visu.height / 2, visu.rotate);
+			draw_VU(display, visu.bars[0].current, 0, visu.row, visu.height / 2, visu.rotate);
+			draw_VU(display, visu.bars[1].current, 0, visu.row + visu.height / 2, visu.height / 2, visu.rotate);
 		} else {
-			draw_VU(display, vu_bitmap, visu.bars[0].current, 0, visu.row, visu.width / 2, visu.rotate);
-			draw_VU(display, vu_bitmap, visu.bars[1].current, visu.width / 2, visu.row, visu.width / 2, visu.rotate);
+			draw_VU(display, visu.bars[0].current, 0, visu.row, visu.width / 2, visu.rotate);
+			draw_VU(display, visu.bars[1].current, visu.width / 2, visu.row, visu.width / 2, visu.rotate);
 		}
 	} else {
 		int level = (visu.bars[0].current + visu.bars[1].current) / 2;
-		draw_VU(display, vu_bitmap, level, 0, visu.row, visu.rotate ? visu.height : visu.width, visu.rotate);		
+		draw_VU(display, level, 0, visu.row, visu.rotate ? visu.height : visu.width, visu.rotate);		
 	}	
 }	
 

@@ -1,0 +1,1 @@
+source "$IDF_PATH/components/esp_http_server/Kconfig"

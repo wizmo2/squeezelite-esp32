@@ -26,8 +26,7 @@ extern "C" {
 #include "nvs_utilities.h"
 #include "platform_console.h"
 #include "messaging.h"
-#include "globdefs.h"
-#include "trace.h"
+#include "tools.h"
 
 extern esp_err_t network_wifi_erase_legacy();
 extern esp_err_t network_wifi_erase_known_ap();

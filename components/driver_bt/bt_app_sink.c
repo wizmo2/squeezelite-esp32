@@ -25,7 +25,7 @@
 #include "platform_config.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "trace.h"
+#include "tools.h"
 #include "audio_controls.h"
 #include "sys/lock.h"
 #include "display.h"

@@ -31,5 +31,6 @@ struct GDS_Device;
 bool 	GDS_TextSetFontAuto(struct GDS_Device* Device, int N, int FontType, int Space);
 bool 	GDS_TextSetFont(struct GDS_Device* Device, int N, const struct GDS_FontDef *Font, int Space);
 bool 	GDS_TextLine(struct GDS_Device* Device, int N, int Pos, int Attr, char *Text);
+int		GDS_GetTextWidth(struct GDS_Device* Device, int N, int Attr, char *Text);
 int 	GDS_TextStretch(struct GDS_Device* Device, int N, char *String, int Max);
 void 	GDS_TextPos(struct GDS_Device* Device, int FontType, int Where, int Attr, char *Text, ...);
