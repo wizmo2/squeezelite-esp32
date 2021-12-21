@@ -1308,7 +1308,7 @@ static void displayer_task(void *args) {
 		}
 
 		// update visu if active
-		if ((visu.mode || led_visu.mode) && displayer.wake <= 0) {
+		if ((visu.mode || led_visu.mode) && displayer.wake <= 0 && displayer.owned) {
 			displayer_update();
 			displayer.wake = 100;
 		}
