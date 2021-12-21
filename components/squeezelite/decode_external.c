@@ -9,9 +9,14 @@
  *
  */
 
+#include <math.h>
+#ifdef ESP_PLATFORM
+#include "freertos/FreeRTOS.h"
+#include "freertos/timers.h"
+#endif
 #include "platform_config.h"
 #include "squeezelite.h"
-#include <math.h>
+
 
 #if CONFIG_BT_SINK
 #include "bt_app_sink.h"
@@ -399,6 +404,21 @@ static bool cspot_cmd_handler(cspot_event_t cmd, va_list args)
 /****************************************************************************************
  * We provide the generic codec register option
  */
+
+#if defined(ESP_PLATFORM) && defined(CONFIG_BT_SINK)
+void bt_delay_start(TimerHandle_t xTimer) {
+	xTimerDelete(xTimer, portMAX_DELAY);
+	bt_sink_init(bt_sink_cmd_handler, sink_data_handler);
+	LOG_INFO("Initializing BT sink");
+}	
+
+void bt_delay_stop(TimerHandle_t xTimer) {
+	xTimerDelete(xTimer, portMAX_DELAY);
+	bt_sink_deinit();
+	LOG_INFO("Stopping BT sink");
+}	
+#endif
+
 void register_external(void) {
 	char *p;
 
@@ -426,8 +446,13 @@ void register_external(void) {
 #if CONFIG_BT_SINK	
 	if (!strcasestr(output.device, "BT ") ) {
 		if(enable_bt_sink){
+#ifdef ESP_PLATFORM
+			// we need to delay the start because current task is in spiram
+			TimerHandle_t timer = xTimerCreate("delay", 1, pdFALSE, NULL, bt_delay_start);
+			xTimerStart(timer, portMAX_DELAY);
+#else
 			bt_sink_init(bt_sink_cmd_handler, sink_data_handler);
-			LOG_INFO("Initializing BT sink");
+#endif
 		}
 	} else {
 		LOG_WARN("Cannot be a BT sink and source");
@@ -452,16 +477,23 @@ void register_external(void) {
 void deregister_external(void) {
 #if CONFIG_BT_SINK
 	if (!strcasestr(output.device, "BT ") && enable_bt_sink) {
-		LOG_INFO("Stopping BT sink");
+#ifdef ESP_PLATFORM
+		// we need to delay the stop because current task is in spiram
+		TimerHandle_t timer = xTimerCreate("delay", 1, pdFALSE, NULL, bt_delay_stop);
+		xTimerStart(timer, portMAX_DELAY);
+#else
 		bt_sink_deinit();
+#endif
 	}
 #endif
+
 #if CONFIG_AIRPLAY_SINK
 	if (enable_airplay){
 		LOG_INFO("Stopping AirPlay sink");		
 		raop_sink_deinit();
 	}
 #endif
+
 #if CONFIG_CSPOT_SINK
 	if (enable_cspot){
 		LOG_INFO("Stopping CSpot sink");		

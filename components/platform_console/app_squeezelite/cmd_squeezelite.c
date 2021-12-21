@@ -115,8 +115,8 @@ static int launchsqueezelite(int argc, char **argv) {
 	}
 
 	ESP_LOGD(TAG,"Starting Squeezelite Thread");
-	xTaskCreateStatic(squeezelite_thread, "squeezelite", SQUEEZELITE_THREAD_STACK_SIZE, 
-					  NULL, CONFIG_ESP32_PTHREAD_TASK_PRIO_DEFAULT, xStack, &xTaskBuffer);
+	xTaskCreateStaticPinnedToCore(squeezelite_thread, "squeezelite", SQUEEZELITE_THREAD_STACK_SIZE, 
+					  NULL, CONFIG_ESP32_PTHREAD_TASK_PRIO_DEFAULT, xStack, &xTaskBuffer, CONFIG_PTHREAD_TASK_CORE_DEFAULT);
 	ESP_LOGD(TAG ,"Back to console thread!");
 
     return 0;
