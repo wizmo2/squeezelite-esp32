@@ -27,6 +27,7 @@ extern "C" {
 #include "platform_console.h"
 #include "messaging.h"
 #include "tools.h"
+#include "trace.h"
 
 extern esp_err_t network_wifi_erase_legacy();
 extern esp_err_t network_wifi_erase_known_ap();

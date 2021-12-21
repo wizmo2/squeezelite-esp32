@@ -413,7 +413,7 @@ char* network_manager_alloc_get_mac_string(uint8_t mac[6]);
 #define network_handler_entry_print(State_Machine, begin) 
 #define network_handler_print(State_Machine, begin)
 #define NETWORK_EXECUTE_CB(mch) network_execute_cb(mch,NULL)
-#define NETWORK_PRINT_TRANSITION(prefix, source,target, event, print_source,caller ) 
+#define NETWORK_PRINT_TRANSITION(begin, prefix, source,target, event, print_source,caller ) 
 #define NETWORK_DEBUG_STATE_MACHINE(begin, cb_prefix,state_machine,print_from,caller)
 #endif
 

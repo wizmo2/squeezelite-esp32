@@ -32,14 +32,6 @@ extern "C" {
 
 #define ESP_LOG_DEBUG_EVENT(tag,e) ESP_LOGD(tag,"evt: " e)
 
-#ifdef ENABLE_MEMTRACE
-#define MEMTRACE_PRINT_DELTA() memtrace_print_delta(NULL,TAG,__FUNCTION__);
-#define MEMTRACE_PRINT_DELTA_MESSAGE(x) memtrace_print_delta(x,TAG,__FUNCTION__);
-#else
-#define MEMTRACE_PRINT_DELTA()
-#define MEMTRACE_PRINT_DELTA_MESSAGE(x) ESP_LOGD(TAG,"%s",x);
-#endif
-
 #ifndef FREE_AND_NULL
 #define FREE_AND_NULL(x) if(x) { free(x); x=NULL; }
 #endif

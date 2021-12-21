@@ -38,6 +38,7 @@
 #include "freertos/timers.h"
 #include "freertos/event_groups.h"
 #include "tools.h"
+#include "trace.h"
 
 #define CONFIG_COMMIT_DELAY 1000
 #define LOCK_MAX_WAIT 20*CONFIG_COMMIT_DELAY

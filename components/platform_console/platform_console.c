@@ -298,11 +298,10 @@ void initialize_console() {
 	xRingbufferAddToQueueSetRead(stdin_redir.handle, stdin_redir.queue_set);
 	xQueueAddToSet(uart_queue, stdin_redir.queue_set);
 	
-	const esp_vfs_t vfs = {
-			.flags = ESP_VFS_FLAG_DEFAULT,
-			.open = stdin_dummy,
-			.read = stdin_read,
-	};
+	esp_vfs_t vfs = { };
+	vfs.flags = ESP_VFS_FLAG_DEFAULT;
+	vfs.open = stdin_dummy;
+	vfs.read = stdin_read;
 
 	ESP_ERROR_CHECK(esp_vfs_register("/dev/console", &vfs, NULL));
 	freopen("/dev/console", "r", stdin);
@@ -407,9 +406,9 @@ void console_start() {
 	esp_pthread_cfg_t cfg = esp_pthread_get_default_config();
 	cfg.thread_name= "console";
 	cfg.inherit_cfg = true;
+	cfg.stack_size = 4*1024;
 	if(is_recovery_running){
 		prompt = recovery_prompt;
-		cfg.stack_size = 4096 ;
 	}
 		MEMTRACE_PRINT_DELTA_MESSAGE("Creating console thread with stack size of 4096 bytes");
 	esp_pthread_set_cfg(&cfg);

@@ -125,7 +125,7 @@ bool GDS_TextLine(struct GDS_Device* Device, int N, int Pos, int Attr, char *Tex
  * 
  */
 int GDS_GetTextWidth(struct GDS_Device* Device, int N, int Attr, char *Text) {
-	struct GDS_FontDef *Font = GDS_SetFont( Device, Device->Lines[N-1].Font );	
+	const struct GDS_FontDef *Font = GDS_SetFont( Device, Device->Lines[N-1].Font );	
 
 	if (Attr & GDS_TEXT_MONOSPACE) GDS_FontForceMonospace( Device, true );
 	int Width = GDS_FontMeasureString( Device, Text );

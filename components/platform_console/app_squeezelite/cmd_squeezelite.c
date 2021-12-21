@@ -3,7 +3,6 @@
 #include "application_name.h"
 #include "esp_log.h"
 #include "esp_console.h"
-#include "esp_pthread.h"
 #include "../cmd_system.h"
 #include "argtable3/argtable3.h"
 #include "freertos/FreeRTOS.h"
@@ -16,9 +15,7 @@
 
 extern esp_err_t process_recovery_ota(const char * bin_url, char * bin_buffer, uint32_t length);
 static const char * TAG = "squeezelite_cmd";
-#define SQUEEZELITE_THREAD_STACK_SIZE (4*1024)
-
-
+#define SQUEEZELITE_THREAD_STACK_SIZE (8*1024)
 
 const __attribute__((section(".rodata_desc"))) esp_app_desc_t esp_app_desc = {
 
@@ -44,8 +41,7 @@ const __attribute__((section(".rodata_desc"))) esp_app_desc_t esp_app_desc = {
 
 extern int main(int argc, char **argv);
 static int launchsqueezelite(int argc, char **argv);
-pthread_t thread_squeezelite;
-pthread_t thread_squeezelite_runner;
+
 /** Arguments used by 'squeezelite' function */
 static struct {
     struct arg_str *parameters;
@@ -55,57 +51,47 @@ static struct {
 	int argc;
 	char ** argv;
 } thread_parms ;
-static void * squeezelite_runner_thread(){
-    ESP_LOGI(TAG ,"Calling squeezelite");
-	main(thread_parms.argc,thread_parms.argv);
-	return NULL;
-}
+
 #define ADDITIONAL_SQUEEZELITE_ARGS 5
-static void * squeezelite_thread(){
-	int * exit_code;
-	static bool isRunning=false;
-	if(isRunning) {
-		ESP_LOGE(TAG,"Squeezelite already running. Exiting!");
-		return NULL;
-	}
-	isRunning=true;
+static void squeezelite_thread(void *arg){
 	ESP_LOGV(TAG ,"Number of args received: %u",thread_parms.argc );
 	ESP_LOGV(TAG ,"Values:");
     for(int i = 0;i<thread_parms.argc; i++){
     	ESP_LOGV(TAG ,"     %s",thread_parms.argv[i]);
     }
 
-    ESP_LOGV(TAG,"Starting Squeezelite runner Thread");
-    esp_pthread_cfg_t cfg = esp_pthread_get_default_config();
-    cfg.thread_name= "squeezelite-run";
-    cfg.inherit_cfg = true;
-    cfg.stack_size = SQUEEZELITE_THREAD_STACK_SIZE ;
-    esp_pthread_set_cfg(&cfg);
-	// no attribute if we want esp stack stack to prevail
-    pthread_create(&thread_squeezelite_runner, NULL, squeezelite_runner_thread,NULL);
-	// Wait for thread completion so we can free up memory.
-	pthread_join(thread_squeezelite_runner,(void **)&exit_code);
-
+	ESP_LOGI(TAG ,"Calling squeezelite");
+	main(thread_parms.argc,thread_parms.argv);
 	ESP_LOGV(TAG ,"Exited from squeezelite's main(). Freeing argv structure.");
+
 	for(int i=0;i<thread_parms.argc;i++){
 		ESP_LOGV(TAG ,"Freeing char buffer for parameter %u", i+1);
 		free(thread_parms.argv[i]);
 	}
 	ESP_LOGV(TAG ,"Freeing argv pointer");
 	free(thread_parms.argv);
-	isRunning=false;
+	
 	ESP_LOGE(TAG, "Exited from squeezelite thread, something's wrong ... rebooting (wait 30s for user to take action)");
 	if(!wait_for_commit()){
 		ESP_LOGW(TAG,"Unable to commit configuration. ");
 	}
+
 	vTaskDelay( pdMS_TO_TICKS( 30*1000 ) );
     esp_restart();
-	return NULL;
 }
 
-static int launchsqueezelite(int argc, char **argv)
-{
+static int launchsqueezelite(int argc, char **argv) {
+	static DRAM_ATTR StaticTask_t xTaskBuffer __attribute__ ((aligned (4)));
+	static EXT_RAM_ATTR StackType_t xStack[SQUEEZELITE_THREAD_STACK_SIZE] __attribute__ ((aligned (4)));
+	static bool isRunning = false;
+
+	if (isRunning) {
+		ESP_LOGE(TAG,"Squeezelite already running. Exiting!");
+		return -1;
+	}
+	
 	ESP_LOGV(TAG ,"Begin");
+	isRunning = true;
 
 	ESP_LOGV(TAG, "Parameters:");
     for(int i = 0;i<argc; i++){
@@ -129,16 +115,14 @@ static int launchsqueezelite(int argc, char **argv)
 	}
 
 	ESP_LOGD(TAG,"Starting Squeezelite Thread");
-    esp_pthread_cfg_t cfg = esp_pthread_get_default_config();
-    cfg.thread_name= "squeezelite";
-    cfg.inherit_cfg = true;
-    esp_pthread_set_cfg(&cfg);
-	pthread_create(&thread_squeezelite, NULL, squeezelite_thread,NULL);
+	xTaskCreateStatic(squeezelite_thread, "squeezelite", SQUEEZELITE_THREAD_STACK_SIZE, 
+					  NULL, CONFIG_ESP32_PTHREAD_TASK_PRIO_DEFAULT, xStack, &xTaskBuffer);
 	ESP_LOGD(TAG ,"Back to console thread!");
+
     return 0;
 }
-void register_squeezelite(){
 
+void register_squeezelite() {
 	squeezelite_args.parameters = arg_str0(NULL, NULL, "<parms>", "command line for squeezelite. -h for help, --defaults to launch with default values.");
 	squeezelite_args.end = arg_end(1);
 	const esp_console_cmd_t launch_squeezelite = {
@@ -149,10 +133,9 @@ void register_squeezelite(){
 		.argtable = &squeezelite_args
 	};
 	ESP_ERROR_CHECK( esp_console_cmd_register(&launch_squeezelite) );
-
 }
-esp_err_t start_ota(const char * bin_url, char * bin_buffer, uint32_t length)
-{
+
+esp_err_t start_ota(const char * bin_url, char * bin_buffer, uint32_t length) {
 	if(!bin_url){
 		ESP_LOGE(TAG,"missing URL parameter. Unable to start OTA");
 		return ESP_ERR_INVALID_ARG;
@@ -170,5 +153,4 @@ esp_err_t start_ota(const char * bin_url, char * bin_buffer, uint32_t length)
 	ESP_LOGW(TAG, "Rebooting to recovery to complete the installation");
 	return guided_factory();
 	return ESP_OK;
-
 }
