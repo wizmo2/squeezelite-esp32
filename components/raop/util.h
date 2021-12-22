@@ -57,7 +57,7 @@ char 		*strlwr(char *str);
 // reason is that TCB might be cleanup in idle task
 #define SAFE_PTR_FREE(P)							\
 	do {											\
-		TimerHandle_t timer = xTimerCreate("cleanup", pdMS_TO_TICKS(5000), pdFALSE, P, _delayed_free);	\
+		TimerHandle_t timer = xTimerCreate("cleanup", pdMS_TO_TICKS(10000), pdFALSE, P, _delayed_free);	\
 		xTimerStart(timer, portMAX_DELAY);			\
 	} while (0)				
 static void inline _delayed_free(TimerHandle_t xTimer) {

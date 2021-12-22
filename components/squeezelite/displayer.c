@@ -361,7 +361,7 @@ bool sb_displayer_init(void) {
 		
 	// create displayer management task
 	displayer.mutex = xSemaphoreCreateMutex();
-	displayer.task = xTaskCreateStatic( (TaskFunction_t) displayer_task, "squeeze_displayer", SCROLL_STACK_SIZE, NULL, ESP_TASK_PRIO_MIN + 1, xStack, &xTaskBuffer);
+	displayer.task = xTaskCreateStatic( (TaskFunction_t) displayer_task, "sb_displayer", SCROLL_STACK_SIZE, NULL, ESP_TASK_PRIO_MIN + 1, xStack, &xTaskBuffer);
 	
 	// chain handlers
 	slimp_handler_chain = slimp_handler;
@@ -1315,6 +1315,7 @@ static void displayer_task(void *args) {
 		
 		// need to make sure we own display
 		if (display && displayer.owned) GDS_Update(display);
+		else if (!led_display) displayer.wake = LONG_WAKE;
 		
 		// release semaphore and sleep what's needed
 		xSemaphoreGive(displayer.mutex);

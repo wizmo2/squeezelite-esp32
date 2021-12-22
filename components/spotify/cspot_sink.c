@@ -199,6 +199,6 @@ void cspot_sink_init(cspot_cmd_vcb_t cmd_cb, cspot_data_cb_t data_cb) {
 void cspot_disconnect(void) {
 	ESP_LOGI(TAG, "forced disconnection");
 	displayer_control(DISPLAYER_SHUTDOWN);
-	cspot_cmd(cspot, CSPOT_FLUSH, NULL);
+	cspot_cmd(cspot, CSPOT_DISC, NULL);
 	actrls_unset();
 }

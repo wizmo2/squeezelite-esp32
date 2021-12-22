@@ -387,11 +387,14 @@ static void process_strm(u8_t *pkt, int len) {
 			}
 			sendSTAT("STMc", 0);
 			sentSTMu = sentSTMo = sentSTMl = false;
-			LOCK_O;
 #if EMBEDDED
+			// not protected so that restore can call synchronously sink handlers
 			if (output.external) decode_restore(output.external);
+			LOCK_O;
 			output.external = 0;
 			_buf_limit(outputbuf, 0);
+#else
+			LOCK_O;
 #endif
 			output.threshold = strm->output_threshold;
 			output.next_replay_gain = unpackN(&strm->replay_gain);

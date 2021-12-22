@@ -107,10 +107,7 @@ static void cspotTask(void *pvParameters) {
         ESP_LOGI(TAG, "Creating Spotify(CSpot) player");
 		
         // Auth successful
-        if (token.size() > 0) {
-			// tell sink that we are taking over
-			cspot.cHandler(CSPOT_SETUP, 44100);
-
+        if (token.size() > 0 && cspot.cHandler(CSPOT_SETUP, 44100)) {
 			auto audioSink = std::make_shared<ShimAudioSink>();
 
             // @TODO Actually store this token somewhere
@@ -137,7 +134,6 @@ static void cspotTask(void *pvParameters) {
 				break;
 			case CSpotEventType::DISC:
 				cspot.cHandler(CSPOT_DISC);				
-				spircController->stopPlayer();
 				mercuryManager->stop();
 				break;
 			case CSpotEventType::PREV:
@@ -163,11 +159,13 @@ static void cspotTask(void *pvParameters) {
             };
 
             mercuryManager->handleQueue();
-        }
+        
+			// release controllers
+			mercuryManager.reset();
+			spircController.reset();
+		}
 
-		// release all ownership
-		mercuryManager.reset();
-		spircController.reset();
+		// release auth blob
 		cspot.blob.reset();
 
 		// flush files
@@ -200,6 +198,9 @@ struct cspot_s* cspot_create(const char *name, cspot_cmd_cb_t cmd_cb, cspot_data
  * Commands sent by local buttons/actions
  */
 bool cspot_cmd(struct cspot_s* ctx, cspot_event_t event, void *param) {
+	// we might have not controller left
+	if (!spircController.use_count()) return false;
+
 	switch(event) {
 		case CSPOT_PREV:
 			spircController->prevSong();
@@ -217,8 +218,7 @@ bool cspot_cmd(struct cspot_s* ctx, cspot_event_t event, void *param) {
 			spircController->setPause(false);
 			break;
 		case CSPOT_DISC:
-			spircController->stopPlayer();
-			mercuryManager->stop();
+			spircController->disconnect();
 			break;
 		case CSPOT_STOP:
 			spircController->stopPlayer();
