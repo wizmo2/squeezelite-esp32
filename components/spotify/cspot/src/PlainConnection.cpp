@@ -164,6 +164,8 @@ size_t PlainConnection::writeBlock(const std::vector<uint8_t> &data)
 
 void PlainConnection::closeSocket()
 {
+	if (this->apSock < 0) return;
+
 	CSPOT_LOG(info, "Closing socket...");
 	shutdown(this->apSock, SHUT_RDWR);
 	close(this->apSock);
