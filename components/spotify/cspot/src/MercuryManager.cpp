@@ -9,7 +9,7 @@ std::map<MercuryType, std::string> MercuryTypeMap({
     {MercuryType::UNSUB, "UNSUB"},
     });
 
-MercuryManager::MercuryManager(std::unique_ptr<Session> session): bell::Task("mercuryManager", 4 * 1024, +1, 1)
+MercuryManager::MercuryManager(std::unique_ptr<Session> session): bell::Task("mercuryManager", 8 * 1024, +1, 1)
 {
     this->timeProvider = std::make_shared<TimeProvider>();
     this->callbacks = std::map<uint64_t, mercuryCallback>();
@@ -162,8 +162,8 @@ void MercuryManager::runTask()
         catch (const std::runtime_error& e)
         {
             // Reconnection required
-            this->reconnect();
-            this->reconnectedCallback();
+            if (isRunning) this->reconnect();
+            if (isRunning) this->reconnectedCallback();
             continue;
         }
         if (static_cast<MercuryType>(packet->command) == MercuryType::PING) // @TODO: Handle time synchronization through ping
