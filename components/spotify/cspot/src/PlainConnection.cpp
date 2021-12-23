@@ -5,7 +5,10 @@
 #include <errno.h>
 #include "Logger.h"
 
-PlainConnection::PlainConnection(){};
+PlainConnection::PlainConnection()
+{
+	this->apSock = -1;
+};
 
 PlainConnection::~PlainConnection()
 {
