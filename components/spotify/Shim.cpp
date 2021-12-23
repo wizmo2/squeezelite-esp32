@@ -104,7 +104,7 @@ static void cspotTask(void *pvParameters) {
         session->connectWithRandomAp();
         auto token = session->authenticate(cspot.blob);
 
-        ESP_LOGI(TAG, "Creating Spotify(CSpot) player");
+        ESP_LOGI(TAG, "Creating Spotify (using CSpot) player");
 		
         // Auth successful
         if (token.size() > 0 && cspot.cHandler(CSPOT_SETUP, 44100)) {

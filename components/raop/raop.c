@@ -111,7 +111,7 @@ extern char private_key[];
 static void on_dmap_string(void *ctx, const char *code, const char *name, const char *buf, size_t len);
 
 /*----------------------------------------------------------------------------*/
-struct raop_ctx_s *raop_create(struct in_addr host, char *name,
+struct raop_ctx_s *raop_create(uint32_t host, char *name,
 						unsigned char mac[6], int latency,
 						raop_cmd_cb_t cmd_cb, raop_data_cb_t data_cb) {
 	struct raop_ctx_s *ctx = malloc(sizeof(struct raop_ctx_s));
@@ -150,7 +150,7 @@ struct raop_ctx_s *raop_create(struct in_addr host, char *name,
 #ifdef WIN32
 	ctx->svr = glmDNSServer;
 #endif
-	ctx->host = host;
+	ctx->host.s_addr = host;
 	ctx->sock = socket(AF_INET, SOCK_STREAM, 0);
 	ctx->cmd_cb = cmd_cb;
 	ctx->data_cb = data_cb;
@@ -162,7 +162,7 @@ struct raop_ctx_s *raop_create(struct in_addr host, char *name,
 	}
 
 	memset(&addr, 0, sizeof(addr));
-	addr.sin_addr.s_addr = host.s_addr;
+	addr.sin_addr.s_addr = host;
 	addr.sin_family = AF_INET;
 #ifdef WIN32
 	ctx->port = 0;
@@ -196,7 +196,7 @@ struct raop_ctx_s *raop_create(struct in_addr host, char *name,
 	ESP_ERROR_CHECK( mdns_service_add(id, "_raop", "_tcp", ctx->port, txt, sizeof(txt) / sizeof(mdns_txt_item_t)) );
 	
     ctx->xTaskBuffer = (StaticTask_t*) heap_caps_malloc(sizeof(StaticTask_t), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-	ctx->thread = xTaskCreateStaticPinnedToCore( (TaskFunction_t) rtsp_thread, "RTSP_thread", RTSP_STACK_SIZE, ctx, 
+	ctx->thread = xTaskCreateStaticPinnedToCore( (TaskFunction_t) rtsp_thread, "RTSP", RTSP_STACK_SIZE, ctx, 
 												 ESP_TASK_PRIO_MIN + 2, ctx->xStack, ctx->xTaskBuffer, CONFIG_PTHREAD_TASK_CORE_DEFAULT);
 #endif
 

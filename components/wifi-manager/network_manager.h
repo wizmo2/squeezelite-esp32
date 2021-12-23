@@ -9,74 +9,12 @@
 #include "freertos/event_groups.h"
 #include "hsm.h"
 #include "esp_log.h"
+#include "network_services.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/*
- *  --------------------- ENUMERATION ---------------------
- */
-//#define ADD_ROOT(NAME, HANDLER, ENTRY, EXIT, CHILD)
-//#define ADD_ROOT(NAME, HANDLER, ENTRY, EXIT, CHILD)
-//#define ADD_LEAF(NAME, HANDLER, ENTRY, EXIT, PARENT, LEVEL)
-
-#define ALL_NM_STATE                                                                                                                                                               \
-    ADD_ROOT_LEAF(NETWORK_INSTANTIATED_STATE)\
-    ADD_ROOT_LEAF(NETWORK_INITIALIZING_STATE)\
-    ADD_ROOT(NETWORK_ETH_ACTIVE_STATE, Eth_Active_State)\
-    ADD_ROOT(NETWORK_WIFI_ACTIVE_STATE, Wifi_Active_State)\
-    ADD_ROOT(NETWORK_WIFI_CONFIGURING_ACTIVE_STATE, Wifi_Configuring_State)
-
-#define ALL_ETH_STATE(PARENT, LEVEL)\
-    ADD_LEAF(ETH_STARTING_STATE,PARENT,LEVEL)\
-    ADD_LEAF(ETH_ACTIVE_LINKUP_STATE,PARENT,LEVEL)\
-    ADD_LEAF(ETH_ACTIVE_LINKDOWN_STATE,PARENT,LEVEL)\
-    ADD_LEAF(ETH_ACTIVE_CONNECTED_STATE,PARENT,LEVEL)\
-    ADD_LEAF(ETH_CONNECTING_NEW_STATE,PARENT,LEVEL)
-
-#define ALL_WIFI_STATE(PARENT, LEVEL)\
-    ADD_LEAF(WIFI_INITIALIZING_STATE,PARENT,LEVEL)\
-    ADD_LEAF(WIFI_CONNECTING_STATE,PARENT,LEVEL)\
-	ADD_LEAF(WIFI_CONNECTING_NEW_STATE,PARENT,LEVEL)\
-    ADD_LEAF(WIFI_CONNECTING_NEW_FAILED_STATE,PARENT,LEVEL)\
-    ADD_LEAF(WIFI_CONNECTED_STATE,PARENT,LEVEL)\
-    ADD_LEAF(WIFI_USER_DISCONNECTED_STATE,PARENT,LEVEL)\
-    ADD_LEAF(WIFI_LOST_CONNECTION_STATE,PARENT,LEVEL)
-
-#define ALL_WIFI_CONFIGURING_STATE(PARENT, LEVEL)\
-    ADD_LEAF(WIFI_CONFIGURING_STATE,PARENT,LEVEL)\
-    ADD_LEAF(WIFI_CONFIGURING_CONNECT_STATE,PARENT,LEVEL)\
-    ADD_LEAF(WIFI_CONFIGURING_CONNECT_SUCCESS_STATE,PARENT,LEVEL)\
-    ADD_LEAF(WIFI_CONFIGURING_CONNECT_SUCCESS_GOTOSTA_STATE,PARENT,LEVEL)
-
-
-#define ADD_ROOT(name, ...) name,
-#define ADD_ROOT_LEAF(name, ...) name,
-#define ADD_LEAF(name, ...) name,
-typedef enum {
-    ALL_NM_STATE
-    TOTAL_NM_STATE
-} nm_state_t;
-typedef enum {
-    ALL_WIFI_STATE(,)
-    TOTAL_WIFI_ACTIVE_STATE
-} mn_wifi_active_state_t;
-typedef enum {
-    ALL_ETH_STATE(,)
-    TOTAL_ETH_ACTIVE_STATE
-} mn_eth_active_state_t;
-typedef enum {
-    ALL_WIFI_CONFIGURING_STATE(,)
-    TOTAL_WIFI_CONFIGURING_STATE
-} mn_wifi_configuring_state_t;
-
-#undef ADD_STATE
-#undef ADD_ROOT
-#undef ADD_ROOT_LEAF
-#undef ADD_LEAF
-
-typedef void (*network_status_reached_cb)(nm_state_t state_id, int sub_state );
 //! List of oven events
 #define ALL_NM_EVENTS \
     ADD_FIRST_EVENT(EN_LINK_UP) \
@@ -369,11 +307,7 @@ void network_manager_initialise_mdns();
 /**
  * @brief Register a callback to a custom function when specific network manager states are reached.
  */
-esp_err_t network_register_state_callback(nm_state_t state, int sub_state, const char* from, network_status_reached_cb cb);
 bool network_is_wifi_prioritized();
-esp_netif_t * network_get_active_interface();
-esp_err_t network_get_hostname( const char **hostname);
-esp_err_t network_get_ip_info(tcpip_adapter_ip_info_t* ipInfo);
 void network_set_timer(uint16_t duration);
 void network_set_hostname(esp_netif_t * netif);
 esp_err_t network_get_ip_info_for_netif(esp_netif_t* netif, tcpip_adapter_ip_info_t* ipInfo);

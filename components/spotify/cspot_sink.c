@@ -3,19 +3,16 @@
 #include <ctype.h>
 #include <stdlib.h>
 
-#include "mdns.h"
 #include "nvs.h"
-#include "tcpip_adapter.h"
-// IDF-V4++ #include "esp_netif.h"
 #include "esp_log.h"
 #include "esp_console.h"
 #include "esp_pthread.h"
 #include "esp_system.h"
-#include "freertos/timers.h"
 #include "platform_config.h"
 #include "audio_controls.h"
 #include "display.h"
 #include "accessors.h"
+#include "network_services.h"
 #include "cspot_private.h"
 #include "cspot_sink.h"
 
@@ -139,58 +136,27 @@ static bool cmd_handler(cspot_event_t event, ...) {
 }
 
 /****************************************************************************************
- * CSpot sink de-initialization
- */
-void cspot_sink_deinit(void) {
-	mdns_free();
-}	
-
-/****************************************************************************************
  * CSpot sink startup
  */
-static bool cspot_sink_start(cspot_cmd_vcb_t cmd_cb, cspot_data_cb_t data_cb) {
-    const char *hostname = NULL;
-	tcpip_adapter_ip_info_t ipInfo = { }; 
-	tcpip_adapter_if_t ifs[] = { TCPIP_ADAPTER_IF_ETH, TCPIP_ADAPTER_IF_STA, TCPIP_ADAPTER_IF_AP };
-   	
-	// get various IP info
-	for (int i = 0; i < sizeof(ifs) / sizeof(tcpip_adapter_if_t); i++) 
-		if (tcpip_adapter_get_ip_info(ifs[i], &ipInfo) == ESP_OK && ipInfo.ip.addr != IPADDR_ANY) {
-			tcpip_adapter_get_hostname(ifs[i], &hostname);			
-			break;
-		}
-	
-	if (!hostname) {
-		ESP_LOGI(TAG,  "No hostname/IP found, can't start CSpot (will retry)");
-		return false;
-	}
-	
-	cmd_handler_chain = cmd_cb;
-	cspot = cspot_create(hostname, cmd_handler, data_cb);
-	
-	return true;
-}
+static void cspot_sink_start(nm_state_t state_id, int sub_state) {
+    const char *hostname;
 
-/****************************************************************************************
- * CSpot sink timer handler
- */
-static void cspot_start_handler( TimerHandle_t xTimer ) {
-	if (cspot_sink_start(cspot_cbs.cmd, cspot_cbs.data)) {
-		xTimerDelete(xTimer, portMAX_DELAY);
-	}	
-}	
+	cmd_handler_chain = cspot_cbs.cmd;
+	network_get_hostname(&hostname);
+
+	ESP_LOGI(TAG, "Starting Spotify (CSpot) servicename %s", hostname);
+	cspot = cspot_create(hostname, cmd_handler, cspot_cbs.data);
+}
 
 /****************************************************************************************
  * CSpot sink initialization
  */
 void cspot_sink_init(cspot_cmd_vcb_t cmd_cb, cspot_data_cb_t data_cb) {
-	if (!cspot_sink_start(cmd_cb, data_cb)) {
-		cspot_cbs.cmd = cmd_cb;
-		cspot_cbs.data = data_cb;
-		TimerHandle_t timer = xTimerCreate("cspotStart", 5000 / portTICK_RATE_MS, pdTRUE, NULL, cspot_start_handler);
-		xTimerStart(timer, portMAX_DELAY);
-		ESP_LOGI(TAG,  "Delaying CSPOT start");		
-	}
+	cspot_cbs.cmd = cmd_cb;
+	cspot_cbs.data = data_cb;
+
+	network_register_state_callback(NETWORK_WIFI_ACTIVE_STATE, WIFI_CONNECTED_STATE, "cspot_sink_start", cspot_sink_start);
+	network_register_state_callback(NETWORK_ETH_ACTIVE_STATE, ETH_ACTIVE_CONNECTED_STATE, "cspot_sink_start", cspot_sink_start);
 }
 
 /****************************************************************************************

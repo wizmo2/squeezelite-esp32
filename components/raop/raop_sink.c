@@ -3,7 +3,6 @@
 #include <ctype.h>
 #include <stdlib.h>
 
-#include "mdns.h"
 #include "nvs.h"
 #include "esp_netif.h"
 #include "esp_log.h"
@@ -17,6 +16,7 @@
 #include "display.h"
 #include "accessors.h"
 #include "log_util.h"
+#include "network_services.h"
 
 #ifndef CONFIG_AIRPLAY_NAME
 #define CONFIG_AIRPLAY_NAME		"ESP32-AirPlay"
@@ -148,77 +148,36 @@ static bool cmd_handler(raop_event_t event, ...) {
  */
 void raop_sink_deinit(void) {
 	raop_delete(raop);
-	mdns_free();
 }	
 
 /****************************************************************************************
  * Airplay sink startup
  */
-static bool raop_sink_start(raop_cmd_vcb_t cmd_cb, raop_data_cb_t data_cb) {
-    const char *hostname = NULL;
-	char sink_name[64-6] = CONFIG_AIRPLAY_NAME;
-	tcpip_adapter_ip_info_t ipInfo = { }; 
-	struct in_addr host;
-	tcpip_adapter_if_t ifs[] = { TCPIP_ADAPTER_IF_ETH, TCPIP_ADAPTER_IF_STA, TCPIP_ADAPTER_IF_AP };
-   	
-	// get various IP info
-	// it is possible to get the currently active interface with the following call:
-	// network_get_active_interface()
-	for (int i = 0; i < sizeof(ifs) / sizeof(tcpip_adapter_if_t); i++) 
-		if (tcpip_adapter_get_ip_info(ifs[i], &ipInfo) == ESP_OK && ipInfo.ip.addr != IPADDR_ANY) {
-			tcpip_adapter_get_hostname(ifs[i], &hostname);			
-			break;
-		}
-	
-	if (!hostname) {
-		LOG_INFO( "no hostname/IP found, can't start AirPlay");
-		return false;
-	}
-	
-	host.s_addr = ipInfo.ip.addr;
-
-    // initialize mDNS
-    ESP_ERROR_CHECK( mdns_init() );
-    ESP_ERROR_CHECK( mdns_hostname_set(hostname) );
-        
-    char * sink_name_buffer= (char *)config_alloc_get(NVS_TYPE_STR,"airplay_name");
-    if (sink_name_buffer != NULL){
-    	memset(sink_name, 0x00, sizeof(sink_name));
-    	strncpy(sink_name,sink_name_buffer,sizeof(sink_name)-1 );
-    	free(sink_name_buffer);
-    }
-
-	LOG_INFO( "mdns hostname for ip %s set to: [%s] with servicename %s", inet_ntoa(host), hostname, sink_name);
-
-    // create RAOP instance, latency is set by controller
+static void raop_sink_start(nm_state_t state_id, int sub_state) {
+	esp_netif_t* netif;
+	esp_netif_ip_info_t ipInfo = { }; 
 	uint8_t mac[6];	
-    esp_read_mac(mac, ESP_MAC_WIFI_STA);
-	cmd_handler_chain = cmd_cb;
-	raop = raop_create(host, sink_name, mac, 0, cmd_handler, data_cb);
-	
-	return true;
-}
+    char* sink_name = (char*) config_alloc_get_default(NVS_TYPE_STR, "airplay_name", CONFIG_AIRPLAY_NAME, 0);
 
-/****************************************************************************************
- * Airplay sink timer handler
- */
-static void raop_start_handler( TimerHandle_t xTimer ) {
-	if (raop_sink_start(raop_cbs.cmd, raop_cbs.data)) {
-		xTimerDelete(xTimer, portMAX_DELAY);
-	}	
-}	
+    netif = network_get_active_interface();
+	esp_netif_get_ip_info(netif, &ipInfo);
+	esp_netif_get_mac(netif, mac);
+	cmd_handler_chain = raop_cbs.cmd;
+
+	LOG_INFO( "Starting Airplay for ip %s with servicename %s", inet_ntoa(ipInfo.ip.addr), sink_name);
+	raop = raop_create(ipInfo.ip.addr, sink_name, mac, 0, cmd_handler, raop_cbs.data);
+	free(sink_name);
+}
 
 /****************************************************************************************
  * Airplay sink initialization
  */
 void raop_sink_init(raop_cmd_vcb_t cmd_cb, raop_data_cb_t data_cb) {
-	if (!raop_sink_start(cmd_cb, data_cb)) {
-		raop_cbs.cmd = cmd_cb;
-		raop_cbs.data = data_cb;
-		TimerHandle_t timer = xTimerCreate("raopStart", 5000 / portTICK_RATE_MS, pdTRUE, NULL, raop_start_handler);
-		xTimerStart(timer, portMAX_DELAY);
-		LOG_INFO( "Delaying AirPlay start");		
-	}	
+	raop_cbs.cmd = cmd_cb;
+	raop_cbs.data = data_cb;
+
+	network_register_state_callback(NETWORK_WIFI_ACTIVE_STATE, WIFI_CONNECTED_STATE, "raop_sink_start", raop_sink_start);
+	network_register_state_callback(NETWORK_ETH_ACTIVE_STATE, ETH_ACTIVE_CONNECTED_STATE, "raop_sink_start", raop_sink_start);
 }
 
 /****************************************************************************************

@@ -32,7 +32,7 @@ void cspot_sink_init(cspot_cmd_vcb_t cmd_cb, cspot_data_cb_t data_cb);
 /**
  * @brief     deinit sink mode (need to be provided)
  */
-void cspot_sink_deinit(void);
+#define cspot_sink_deinit()
 
 /**
  * @brief     force disconnection

@@ -76,6 +76,7 @@ const char * str_or_null(const char * str) { return (str?str:null_string_placeho
 bool is_recovery_running;
 
 void cb_connection_got_ip(nm_state_t new_state, int sub_state){
+	const char *hostname;
 	static ip4_addr_t ip;
 	tcpip_adapter_ip_info_t ipInfo; 
 	network_get_ip_info(&ipInfo);
@@ -86,11 +87,18 @@ void cb_connection_got_ip(nm_state_t new_state, int sub_state){
 		}
 		esp_restart();
 	}
-	ip.addr = ipInfo.ip.addr;
-	ESP_LOGI(TAG, "Network connected!");
+
+	// initializing mDNS
+	network_get_hostname(&hostname);
+    mdns_init();
+    mdns_hostname_set(hostname);
+	
+	ESP_LOGI(TAG, "Network connected and mDNS initialized with %s", hostname);
+
 	messaging_post_message(MESSAGING_INFO,MESSAGING_CLASS_SYSTEM,"Network connected");
 	xEventGroupSetBits(network_event_group, CONNECTED_BIT);
 	bNetworkConnected=true;
+
 	led_unpush(LED_GREEN);
 		if(is_recovery_running){
 		// when running in recovery, send a LMS discovery message 
