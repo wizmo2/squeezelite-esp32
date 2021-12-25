@@ -136,6 +136,7 @@ static void cspotTask(void *pvParameters) {
 				break;
 			case CSpotEventType::DISC:
 				cspot.cHandler(CSPOT_DISC);				
+				spircController->stopPlayer();
 				mercuryManager->stop();
 				break;
 			case CSpotEventType::PREV:
@@ -170,7 +171,7 @@ static void cspotTask(void *pvParameters) {
 		// release auth blob and flush files
 		cspot.blob.reset();
 		file->flush();
-		
+
 		ESP_LOGI(TAG, "Shutting down CSpot player");
 	}
 

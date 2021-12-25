@@ -53,7 +53,6 @@ void SpircController::setPause(bool isPaused, bool notifyPlayer) {
 
 void SpircController::disconnect(void) {
     player->cancelCurrentTrack();
-	stopPlayer();
     state->setActive(false);
     notify();
 	sendEvent(CSpotEventType::DISC);
