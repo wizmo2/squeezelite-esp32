@@ -90,6 +90,7 @@ const static actrls_t controls = {
  */
 static bool cmd_handler(cspot_event_t event, ...) {
 	va_list args;	
+	static bool loaded = false;
 	
 	va_start(args, event);
 	
@@ -115,14 +116,20 @@ static bool cmd_handler(cspot_event_t event, ...) {
 		actrls_unset();
 		displayer_control(DISPLAYER_SUSPEND);
 		break;
+	case CSPOT_LOAD:
+		// this message only appears if we load in the middle of a track
+		loaded = true;
+		__attribute__ ((fallthrough));
 	case CSPOT_SEEK:
 		displayer_timer(DISPLAYER_ELAPSED, va_arg(args, int), -1);
 		break;
 	case CSPOT_TRACK: {
 		uint32_t sample_rate = va_arg(args, uint32_t);
+		int duration = va_arg(args, int);
 		char *artist = va_arg(args, char*), *album = va_arg(args, char*), *title = va_arg(args, char*);
 		displayer_metadata(artist, album, title);
-		displayer_timer(DISPLAYER_ELAPSED, 0, -1);
+		displayer_timer(DISPLAYER_ELAPSED, loaded ? -1 : 0, duration);
+		loaded = false;
 		break;
 	}	
 	// nothing to do on CSPOT_FLUSH

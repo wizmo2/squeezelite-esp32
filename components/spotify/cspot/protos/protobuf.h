@@ -113,14 +113,20 @@ class Frame;
 					if constexpr(std::is_same<T, std::vector<ReflectEnumValue>>::value) {
 						return ReflectTypeID::VectorOfClassReflectEnumValue == this->typeID;
 					} else 
-					if constexpr(std::is_same<T, double>::value) {
-						return ReflectTypeID::Double == this->typeID;
+					if constexpr(std::is_same<T, int32_t>::value) {
+						return ReflectTypeID::Int32 == this->typeID;
+					} else 
+					if constexpr(std::is_same<T, int64_t>::value) {
+						return ReflectTypeID::Int64 == this->typeID;
 					} else 
 					if constexpr(std::is_same<T, uint32_t>::value) {
 						return ReflectTypeID::Uint32 == this->typeID;
 					} else 
-					if constexpr(std::is_same<T, char>::value) {
-						return ReflectTypeID::Char == this->typeID;
+					if constexpr(std::is_same<T, uint8_t>::value) {
+						return ReflectTypeID::Uint8 == this->typeID;
+					} else 
+					if constexpr(std::is_same<T, int>::value) {
+						return ReflectTypeID::Int == this->typeID;
 					} else 
 					if constexpr(std::is_same<T, unsigned char>::value) {
 						return ReflectTypeID::UnsignedChar == this->typeID;
@@ -128,26 +134,20 @@ class Frame;
 					if constexpr(std::is_same<T, float>::value) {
 						return ReflectTypeID::Float == this->typeID;
 					} else 
-					if constexpr(std::is_same<T, bool>::value) {
-						return ReflectTypeID::Bool == this->typeID;
-					} else 
 					if constexpr(std::is_same<T, std::string>::value) {
 						return ReflectTypeID::String == this->typeID;
 					} else 
-					if constexpr(std::is_same<T, int32_t>::value) {
-						return ReflectTypeID::Int32 == this->typeID;
-					} else 
-					if constexpr(std::is_same<T, int64_t>::value) {
-						return ReflectTypeID::Int64 == this->typeID;
-					} else 
-					if constexpr(std::is_same<T, int>::value) {
-						return ReflectTypeID::Int == this->typeID;
-					} else 
-					if constexpr(std::is_same<T, uint8_t>::value) {
-						return ReflectTypeID::Uint8 == this->typeID;
-					} else 
 					if constexpr(std::is_same<T, uint64_t>::value) {
 						return ReflectTypeID::Uint64 == this->typeID;
+					} else 
+					if constexpr(std::is_same<T, char>::value) {
+						return ReflectTypeID::Char == this->typeID;
+					} else 
+					if constexpr(std::is_same<T, double>::value) {
+						return ReflectTypeID::Double == this->typeID;
+					} else 
+					if constexpr(std::is_same<T, bool>::value) {
+						return ReflectTypeID::Bool == this->typeID;
 					} else 
 					if constexpr(std::is_same<T, std::vector<uint8_t>>::value) {
 						return ReflectTypeID::VectorOfUint8 == this->typeID;
@@ -296,14 +296,20 @@ class Frame;
 					if constexpr(std::is_same<T, std::vector<ReflectEnumValue>>::value) {
 						typeID = ReflectTypeID::VectorOfClassReflectEnumValue;
 					} else 
-					if constexpr(std::is_same<T, double>::value) {
-						typeID = ReflectTypeID::Double;
+					if constexpr(std::is_same<T, int32_t>::value) {
+						typeID = ReflectTypeID::Int32;
+					} else 
+					if constexpr(std::is_same<T, int64_t>::value) {
+						typeID = ReflectTypeID::Int64;
 					} else 
 					if constexpr(std::is_same<T, uint32_t>::value) {
 						typeID = ReflectTypeID::Uint32;
 					} else 
-					if constexpr(std::is_same<T, char>::value) {
-						typeID = ReflectTypeID::Char;
+					if constexpr(std::is_same<T, uint8_t>::value) {
+						typeID = ReflectTypeID::Uint8;
+					} else 
+					if constexpr(std::is_same<T, int>::value) {
+						typeID = ReflectTypeID::Int;
 					} else 
 					if constexpr(std::is_same<T, unsigned char>::value) {
 						typeID = ReflectTypeID::UnsignedChar;
@@ -311,26 +317,20 @@ class Frame;
 					if constexpr(std::is_same<T, float>::value) {
 						typeID = ReflectTypeID::Float;
 					} else 
-					if constexpr(std::is_same<T, bool>::value) {
-						typeID = ReflectTypeID::Bool;
-					} else 
 					if constexpr(std::is_same<T, std::string>::value) {
 						typeID = ReflectTypeID::String;
 					} else 
-					if constexpr(std::is_same<T, int32_t>::value) {
-						typeID = ReflectTypeID::Int32;
-					} else 
-					if constexpr(std::is_same<T, int64_t>::value) {
-						typeID = ReflectTypeID::Int64;
-					} else 
-					if constexpr(std::is_same<T, int>::value) {
-						typeID = ReflectTypeID::Int;
-					} else 
-					if constexpr(std::is_same<T, uint8_t>::value) {
-						typeID = ReflectTypeID::Uint8;
-					} else 
 					if constexpr(std::is_same<T, uint64_t>::value) {
 						typeID = ReflectTypeID::Uint64;
+					} else 
+					if constexpr(std::is_same<T, char>::value) {
+						typeID = ReflectTypeID::Char;
+					} else 
+					if constexpr(std::is_same<T, double>::value) {
+						typeID = ReflectTypeID::Double;
+					} else 
+					if constexpr(std::is_same<T, bool>::value) {
+						typeID = ReflectTypeID::Bool;
 					} else 
 					if constexpr(std::is_same<T, std::vector<uint8_t>>::value) {
 						typeID = ReflectTypeID::VectorOfUint8;
@@ -473,18 +473,18 @@ class Frame;
 					ReflectTypeKind *u_EnumReflectTypeKind;
 					std::vector<ReflectField> *u_VectorOfClassReflectField;
 					std::vector<ReflectEnumValue> *u_VectorOfClassReflectEnumValue;
-					double *u_Double;
-					uint32_t *u_Uint32;
-					char *u_Char;
-					unsigned char *u_UnsignedChar;
-					float *u_Float;
-					bool *u_Bool;
-					std::string *u_String;
 					int32_t *u_Int32;
 					int64_t *u_Int64;
-					int *u_Int;
+					uint32_t *u_Uint32;
 					uint8_t *u_Uint8;
+					int *u_Int;
+					unsigned char *u_UnsignedChar;
+					float *u_Float;
+					std::string *u_String;
 					uint64_t *u_Uint64;
+					char *u_Char;
+					double *u_Double;
+					bool *u_Bool;
 					std::vector<uint8_t> *u_VectorOfUint8;
 					CpuFamily *u_EnumCpuFamily;
 					Os *u_EnumOs;

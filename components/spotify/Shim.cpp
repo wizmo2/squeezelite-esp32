@@ -110,7 +110,6 @@ static void cspotTask(void *pvParameters) {
         if (token.size() > 0 && cspot.cHandler(CSPOT_SETUP, 44100)) {
 			auto audioSink = std::make_shared<ShimAudioSink>();
 
-            // @TODO Actually store this token somewhere
             mercuryManager = std::make_shared<MercuryManager>(std::move(session));
             mercuryManager->startTask();
 
@@ -120,7 +119,7 @@ static void cspotTask(void *pvParameters) {
             switch (event.eventType) {
             case CSpotEventType::TRACK_INFO: {
                 TrackInfo track = std::get<TrackInfo>(event.data);
-				cspot.cHandler(CSPOT_TRACK, 44100, track.artist.c_str(), track.album.c_str(), track.name.c_str());
+				cspot.cHandler(CSPOT_TRACK, 44100, track.duration, track.artist.c_str(), track.album.c_str(), track.name.c_str());
                 break;
             }
             case CSpotEventType::PLAY_PAUSE: {
@@ -129,6 +128,9 @@ static void cspotTask(void *pvParameters) {
 				else cspot.cHandler(CSPOT_PLAY);
                 break;
             }
+			case CSpotEventType::LOAD:
+				cspot.cHandler(CSPOT_LOAD, std::get<int>(event.data), -1);
+				break;
 			case CSpotEventType::SEEK:
 				cspot.cHandler(CSPOT_SEEK, std::get<int>(event.data));
 				break;
@@ -165,12 +167,11 @@ static void cspotTask(void *pvParameters) {
 			spircController.reset();
 		}
 
-		// release auth blob
+		// release auth blob and flush files
 		cspot.blob.reset();
-
-		// flush files
 		file->flush();
-ESP_LOGW(TAG, "THIS SESSION IS FINISHED %ld %ld %ld", mercuryManager.use_count(), spircController.use_count(), cspot.blob.use_count());
+		
+		ESP_LOGI(TAG, "Shutting down CSpot player");
 	}
 
 	// we should not be here

@@ -182,6 +182,7 @@ void SpircController::handleFrame(std::vector<uint8_t> &data) {
 }
 
 void SpircController::loadTrack(uint32_t position_ms, bool isPaused) {
+	sendEvent(CSpotEventType::LOAD, (int) position_ms);
     state->setPlaybackState(PlaybackState::Loading);
     std::function<void()> loadedLambda = [=]() {
         // Loading finished, notify that playback started
@@ -216,6 +217,7 @@ void SpircController::setEventHandler(cspotEventHandler callback) {
             info.artist = track.artist;
             info.imageUrl = track.imageUrl;
             info.name = track.name;
+			info.duration = track.duration;
 
 			this->sendEvent(CSpotEventType::TRACK_INFO, info);
     });
