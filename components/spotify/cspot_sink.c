@@ -16,6 +16,8 @@
 #include "cspot_private.h"
 #include "cspot_sink.h"
 
+char EXT_RAM_ATTR deviceId[16];
+
 static EXT_RAM_ATTR struct cspot_cb_s {
 	cspot_cmd_vcb_t cmd;
 	cspot_data_cb_t data;
@@ -147,11 +149,15 @@ static bool cmd_handler(cspot_event_t event, ...) {
  */
 static void cspot_sink_start(nm_state_t state_id, int sub_state) {
     const char *hostname;
+	uint8_t mac[6];
 
 	cmd_handler_chain = cspot_cbs.cmd;
 	network_get_hostname(&hostname);
+	
+	esp_netif_get_mac(network_get_active_interface(), mac);
+	for (int i = 0; i < 6; i++) sprintf(deviceId + 2*i, "%02x", mac[i]);
 
-	ESP_LOGI(TAG, "Starting Spotify (CSpot) servicename %s", hostname);
+	ESP_LOGI(TAG, "Starting Spotify (CSpot) servicename %s with id %s", hostname, deviceId);
 	cspot = cspot_create(hostname, cmd_handler, cspot_cbs.data);
 }
 
