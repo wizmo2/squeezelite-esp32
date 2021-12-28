@@ -87,7 +87,7 @@ jobs:
         echo "${tag}" >version.txt
         echo pulling custom docker image  ${DOCKER_IMAGE_NAME}
         docker pull ${DOCKER_IMAGE_NAME}
-        docker run --env-file=${TARGET_BUILD_NAME}-env.txt  -v $PWD:/project -w /project ${DOCKER_IMAGE_NAME} /bin/bash -c "pushd components/wifi-manager/webapp/ && npm rebuild node-sass && npm run-script build && popd"
+        docker run --env-file=${TARGET_BUILD_NAME}-env.txt  -v $PWD:/project -w /project ${DOCKER_IMAGE_NAME} /bin/bash -c "pushd components/wifi-manager/webapp/ && npm install && npm run-script build && popd"
         docker run --env-file=${TARGET_BUILD_NAME}-env.txt  -v $PWD:/project -w /project ${DOCKER_IMAGE_NAME} /bin/bash -c "cp build-scripts/${TARGET_BUILD_NAME}-sdkconfig.defaults sdkconfig"
         docker run --env-file=${TARGET_BUILD_NAME}-env.txt  -v $PWD:/project -w /project ${DOCKER_IMAGE_NAME} /bin/bash -c "idf.py build -DDEPTH=${{ matrix.depth }} -DBUILD_NUMBER=${BUILD_NUMBER}-${{ matrix.depth }} 
         docker run --env-file=${TARGET_BUILD_NAME}-env.txt  -v $PWD:/project -w /project ${DOCKER_IMAGE_NAME} /bin/bash -c "zip -r build_output.zip build && zip build/${artifact_file_name} partitions*.csv build/*.bin build/bootloader/bootloader.bin build/partition_table/partition-table.bin build/flash_project_args build/size_*.txt"
