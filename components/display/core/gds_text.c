@@ -26,6 +26,8 @@ static char TAG[] = "gds";
  */
 static const struct GDS_FontDef *GuessFont( struct GDS_Device *Device, int FontType) {
 	switch(FontType) {
+	case GDS_FONT_DEFAULT:	
+		return Device->Font;		
 	case GDS_FONT_LINE_1:	
 		return &Font_line_1;
 	case GDS_FONT_LINE_2:	
