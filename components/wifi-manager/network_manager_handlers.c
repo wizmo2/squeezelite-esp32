@@ -165,7 +165,9 @@ static state_machine_result_t handle_global_event(state_machine_t* state_machine
     switch (net_sm->Machine.Event) {
         case EN_UPDATE_STATUS:
             // handle the event, but don't swicth
+            MEMTRACE_PRINT_DELTA_MESSAGE("handle EN_UPDATE_STATUS - start");
             network_status_update_basic_info();
+            MEMTRACE_PRINT_DELTA_MESSAGE("handle EN_UPDATE_STATUS - end");
             return EVENT_HANDLED;
             /* code */
             break;

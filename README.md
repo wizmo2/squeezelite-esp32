@@ -475,17 +475,19 @@ See squeezlite command line, but keys options are
 # Building everything yourself
 ## Setting up ESP-IDF
 ### Docker
-You can use docker to build squeezelite-esp32 (optional) 
-First you need to build the Docker container:
+A simple alternative to building the project's binaries is to leverage the same docker image that is being used on the GitHub Actions to build our releases. The instructions below assume that you have cloned  the squeezelite-esp32 code that you want to build locally and that you have opened a command line/bash session in the folder that contains the code. 
+Pull the most recent docker image for the environment: 
 ```
-docker build -t esp-idf .
+docker pull sle118/squeezelite-esp32-idfv4-master
 ```
-Then you need to run the container:
+Then run the container interactively :
 ```
-docker run -i -t -v `pwd`:/workspace/squeezelite-esp32 esp-idf
+for windows:
+docker run -v %cd%:/project -w /project -it sle118/squeezelite-esp32-idfv4-master
+for linux:
+docker run -it -v `pwd`:/workspace/squeezelite-esp32 sle118/squeezelite-esp32-idfv4-master
 ```
-The above command will mount this repo into the docker container and start a bash terminal
-for you to then follow the below build steps
+The above command will mount this repo into the docker container and start a bash terminal. From there, simply run idf.py build to build, etc. Note that at the time of writing these lines, flashing is not possible for docker running under windows https://github.com/docker/for-win/issues/1018.
 
 ### Manual Install of ESP-IDF
 You can install IDF manually on Linux or Windows (using the Subsystem for Linux) following the instructions at: https://www.instructables.com/id/ESP32-Development-on-Windows-Subsystem-for-Linux/ or see here https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/windows-setup.html for a direct install. 

@@ -36,6 +36,17 @@
 		}
 	]
 }, 
+
+{
+	"name": "Squeezeamp",
+	"config": [
+		{"batt_config": "channel=7,scale=20.24"},
+		{"dac_config": "model=TAS57xx,bck=33,ws=25,do=32,sda=27,scl=26,mute=14:0"}, 
+		{"dac_controlset": ""}, 
+		{"set_GPIO": "12=green,13=red,34=jack,2=spkfault"}, 
+		{"spdif_config": "bck=33,ws=25,do=15"}
+	]
+}, 
 {
 	"name": "T-WATCH2020 by LilyGo",
 	"config": [

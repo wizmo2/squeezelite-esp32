@@ -30,10 +30,10 @@ set(PROJECT_VER $ENV{PROJECT_VER})
 
 
 #target_compile_definitions(__idf_services PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
-#target_compile_definitions(__idf_esp_eth PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
-#target_compile_definitions(__idf_driver PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
-#target_compile_definitions(__idf_wifi-manager PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_INFO)
-#target_compile_definitions(__idf_esp_wifi PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
+target_compile_definitions(__idf_esp_eth PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_WARN)
+target_compile_definitions(__idf_driver PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_WARN)
+target_compile_definitions(__idf_wifi-manager PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_WARN)
+target_compile_definitions(__idf_esp_wifi PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_WARN)
 #target_compile_definitions(__idf_platform_console PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
 
 #target_compile_definitions(__idf_app_recovery PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_INFO)
@@ -42,7 +42,7 @@ set(PROJECT_VER $ENV{PROJECT_VER})
 # target_compile_definitions(__idf_esp_netif PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
 
 # target_compile_definitions(__idf_freertos PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
-# target_compile_definitions(__idf_bt PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
+target_compile_definitions(__idf_bt PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_ERROR)
 # target_compile_definitions(__idf_mdns PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
 # target_compile_definitions(__idf_tcpip_adapter PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)
 # target_compile_definitions(__idf_tcp_transport PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG)

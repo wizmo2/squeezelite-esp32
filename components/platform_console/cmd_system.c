@@ -48,9 +48,13 @@ EXT_RAM_ATTR static struct {
 	struct arg_end *end;
 } name_args;
 EXT_RAM_ATTR static struct {
+    #if CONFIG_CSPOT_SINK	
+    struct arg_lit *cspot;
+    #endif     
  	struct arg_lit *btspeaker;
  	struct arg_lit *airplay;
  	struct arg_str *telnet;
+
 #if WITH_TASKS_INFO    
  	struct arg_lit *stats;
 #endif  
@@ -687,6 +691,9 @@ static int do_set_services(int argc, char **argv)
 
 	nerrors += enable_disable(f,"enable_airplay",set_services_args.airplay);
 	nerrors += enable_disable(f,"enable_bt_sink",set_services_args.btspeaker);
+    #if CONFIG_CSPOT_SINK	
+    nerrors += enable_disable(f,"enable_cspot",set_services_args.cspot);
+    #endif    
 
     if(set_services_args.telnet->count>0){
         if(strcasecmp(set_services_args.telnet->sval[0],"Disabled") == 0){
@@ -737,37 +744,37 @@ cJSON * configure_wifi_cb(){
 cJSON * set_services_cb(){
 	cJSON * values = cJSON_CreateObject();
 	char * p=NULL;
-	if ((p = config_alloc_get(NVS_TYPE_STR, "enable_bt_sink")) != NULL) {
-		cJSON_AddBoolToObject(values,"BT_Speaker",strcmp(p,"1") == 0 || strcasecmp(p,"y") == 0);
-		FREE_AND_NULL(p);
-	}
-	if ((p = config_alloc_get(NVS_TYPE_STR, "enable_airplay")) != NULL) {
-		cJSON_AddBoolToObject(values,"AirPlay",strcmp(p,"1") == 0 || strcasecmp(p,"y") == 0);
-		FREE_AND_NULL(p);
-	}
+    console_set_bool_parameter(values,"enable_bt_sink",set_services_args.btspeaker);
+    console_set_bool_parameter(values,"enable_airplay",set_services_args.airplay);
+    #if CONFIG_CSPOT_SINK	
+    console_set_bool_parameter(values,"enable_cspot",set_services_args.cspot);
+    #endif
+    #if WITH_TASKS_INFO        
+    console_set_bool_parameter(values,"stats",set_services_args.stats);
+    #endif
+
 	if ((p = config_alloc_get(NVS_TYPE_STR, "telnet_enable")) != NULL) {
         if(strcasestr("YX",p)!=NULL){
-		    cJSON_AddStringToObject(values,"telnet","Telnet Only");
+		    cJSON_AddStringToObject(values,set_services_args.telnet->hdr.longopts,"Telnet Only");
         }
         else if(strcasestr("D",p)!=NULL){
-            cJSON_AddStringToObject(values,"telnet","Telnet and Serial");
+            cJSON_AddStringToObject(values,set_services_args.telnet->hdr.longopts,"Telnet and Serial");
         }
         else {
-            cJSON_AddStringToObject(values,"telnet","Disabled");
+            cJSON_AddStringToObject(values,set_services_args.telnet->hdr.longopts,"Disabled");
         }
 
 		FREE_AND_NULL(p);
 	}
-#if WITH_TASKS_INFO        
-	if((p = config_alloc_get_default(NVS_TYPE_STR, "stats", "n", 0))!=NULL){
-		cJSON_AddBoolToObject(values,"stats",(*p == '1' || *p == 'Y' || *p == 'y')) ;
-	}
-#endif
+
 	return values;
 }
 
 static void register_set_services(){
 	set_services_args.airplay = arg_lit0(NULL, "AirPlay", "AirPlay");
+    #if CONFIG_CSPOT_SINK	
+    set_services_args.cspot = arg_lit0(NULL, "cspot", "Spotify (cspot)");
+    #endif
 	set_services_args.btspeaker = arg_lit0(NULL, "BT_Speaker", "Bluetooth Speaker");
 	set_services_args.telnet= arg_str0("t", "telnet","Disabled|Telnet Only|Telnet and Serial","Telnet server. Use only for troubleshooting");
 #if WITH_TASKS_INFO    

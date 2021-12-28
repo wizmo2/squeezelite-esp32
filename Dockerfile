@@ -1,33 +1,92 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
-RUN apt-get update && apt-get install -y git wget libncurses-dev flex bison gperf \
-  python python-pip python-setuptools python-serial python-click \
-  python-cryptography python-future python-pyparsing \
-  python-pyelftools cmake ninja-build ccache libusb-1.0
 
-RUN mkdir /workspace
-WORKDIR /workspace
+ARG DEBIAN_FRONTEND=noninteractive
 
-# Download and checkout known good esp-idf commit
-RUN git clone --recursive https://github.com/espressif/esp-idf.git esp-idf
-RUN cd esp-idf && git checkout 4dac7c7df885adaa86a5c79f2adeaf8d68667349
-RUN git clone https://github.com/sle118/squeezelite-esp32.git
+COPY components/wifi-manager/webapp/package.json /opt
 
-# Download GCC 5.2.0
-RUN wget https://dl.espressif.com/dl/xtensa-esp32-elf-linux64-1.22.0-80-g6c4433a-5.2.0.tar.gz
-RUN tar -xzf xtensa-esp32-elf-linux64-1.22.0-80-g6c4433a-5.2.0.tar.gz
-RUN rm xtensa-esp32-elf-linux64-1.22.0-80-g6c4433a-5.2.0.tar.gz
+# We need libpython2.7 due to GDB tools
+RUN : \
+  && apt-get update \
+  && apt-get install -y \
+    apt-utils \
+    bison \
+    ca-certificates \
+    ccache \
+    check \
+    curl \
+    flex \
+    git \
+    gperf \
+    lcov \
+    libffi-dev \
+    libncurses-dev \
+    libpython2.7 \
+    libusb-1.0-0-dev \
+    make \
+    ninja-build \
+    python3 \
+    python3-pip \
+    unzip \
+    wget \
+    xz-utils \
+    zip \
+	npm \
+	nodejs \
+  && apt-get autoremove -y \
+  && rm -rf /var/lib/apt/lists/* \
+  && update-alternatives --install /usr/bin/python python /usr/bin/python3 10 \
+  && python -m pip install --upgrade \
+    pip \
+    virtualenv \
+  && cd /opt \
+  && npm install -g \
+  && :
 
-RUN rm -r /workspace/squeezelite-esp32
-RUN mkdir /workspace/squeezelite-esp32
+# To build the image for a branch or a tag of IDF, pass --build-arg IDF_CLONE_BRANCH_OR_TAG=name.
+# To build the image with a specific commit ID of IDF, pass --build-arg IDF_CHECKOUT_REF=commit-id.
+# It is possibe to combine both, e.g.:
+#   IDF_CLONE_BRANCH_OR_TAG=release/vX.Y
+#   IDF_CHECKOUT_REF=<some commit on release/vX.Y branch>.
+# The following commit contains the ldgen fix: eab738c79e063b3d6f4c345ea5e1d4f8caef725b
+# to build an image using that commit: docker build . --build-arg IDF_CHECKOUT_REF=eab738c79e063b3d6f4c345ea5e1d4f8caef725b -t sle118/squeezelite-esp32-idfv4-master
+# docker build . --build-arg IDF_CHECKOUT_REF=8bf14a9238329954c7c5062eeeda569529aedf75  -t sle118/squeezelite-esp32-idfv4-master
+# To run the image interactive (windows): docker run --rm -v %cd%:/project -w /project -it sle118/squeezelite-esp32-idfv4-master
+# to build the web app inside of the interactive session
+# pushd components/wifi-manager/webapp/ && npm rebuild node-sass && npm run-script build && popd
 
-# Setup PATH to use esp-idf and gcc-5.2.0
-RUN touch /root/.bashrc && \
- echo export PATH="\$PATH:/workspace/xtensa-esp32-elf/bin" >> /root/.bashrc && \
- echo export IDF_PATH=/workspace/esp-idf >> /root/.bashrc
+ARG IDF_CLONE_URL=https://github.com/espressif/esp-idf.git
+ARG IDF_CLONE_BRANCH_OR_TAG=master
+ARG IDF_CHECKOUT_REF=eab738c79e063b3d6f4c345ea5e1d4f8caef725b
 
-# OPTIONAL: Install vim for text editing in Bash
-RUN apt-get update && apt-get install -y vim
+ENV IDF_PATH=/opt/esp/idf
+ENV IDF_TOOLS_PATH=/opt/esp
 
-WORKDIR /workspace/squeezelite-esp32
-CMD ["bash"]
+RUN echo IDF_CHECKOUT_REF=$IDF_CHECKOUT_REF IDF_CLONE_BRANCH_OR_TAG=$IDF_CLONE_BRANCH_OR_TAG && \
+    git clone --recursive \
+      ${IDF_CLONE_BRANCH_OR_TAG:+-b $IDF_CLONE_BRANCH_OR_TAG} \
+      $IDF_CLONE_URL $IDF_PATH && \
+	  if [ -n "$IDF_CHECKOUT_REF" ]; then \
+      cd $IDF_PATH && \
+      git checkout $IDF_CHECKOUT_REF && \
+      git submodule update --init --recursive; \
+    fi 
+COPY docker/patches $IDF_PATH
+
+
+
+# Install all the required tools
+RUN : \
+  && update-ca-certificates --fresh \
+  && $IDF_PATH/tools/idf_tools.py --non-interactive install required \
+  && $IDF_PATH/tools/idf_tools.py --non-interactive install cmake \
+  && $IDF_PATH/tools/idf_tools.py --non-interactive install-python-env \
+  && rm -rf $IDF_TOOLS_PATH/dist \
+  && :
+
+# Ccache is installed, enable it by default
+ENV IDF_CCACHE_ENABLE=1
+COPY docker/entrypoint.sh /opt/esp/entrypoint.sh
+
+ENTRYPOINT [ "/opt/esp/entrypoint.sh" ]
+CMD [ "/bin/bash" ]

@@ -83,7 +83,17 @@ cJSON * get_cmd_list(){
 	}
 	return list;
 }
-
+void console_set_bool_parameter(cJSON * root,char * nvs_name, struct arg_lit *arg){
+    char * p=NULL;
+    if(!root) {
+        ESP_LOGE(TAG,"Invalid json parameter. Cannot set %s from %s",arg->hdr.longopts?arg->hdr.longopts:arg->hdr.glossary,nvs_name);
+        return;
+    }
+    if ((p = config_alloc_get(NVS_TYPE_STR, nvs_name)) != NULL) {
+        cJSON_AddBoolToObject(root,arg->hdr.longopts,strcmp(p,"1") == 0 || strcasecmp(p,"y") == 0);
+        FREE_AND_NULL(p);
+    }
+}
 struct arg_end *getParmsEnd(struct arg_hdr * * argtable){
 	if(!argtable) return NULL;
 	struct arg_hdr * *table = (struct arg_hdr * *)argtable;

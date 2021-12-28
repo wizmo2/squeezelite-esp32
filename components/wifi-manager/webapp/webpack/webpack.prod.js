@@ -181,8 +181,8 @@ module.exports = merge(common, {
             });
             console.log('Post build completed.');
 
-        }),
-        new BundleAnalyzerPlugin()               
+        })
+        //,        new BundleAnalyzerPlugin()               
     ]
 });
 
