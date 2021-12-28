@@ -449,8 +449,8 @@ void app_main()
 	MEMTRACE_PRINT_DELTA();
 	if(is_recovery_running && display){
 		GDS_ClearExt(display, true);
-		GDS_SetFont(display, &Font_droid_sans_fallback_15x17 );
-		GDS_TextPos(display, GDS_FONT_MEDIUM, GDS_TEXT_CENTERED, GDS_TEXT_CLEAR | GDS_TEXT_UPDATE, "RECOVERY");
+		GDS_SetFont(display, &Font_line_2 );
+		GDS_TextPos(display, GDS_FONT_DEFAULT, GDS_TEXT_CENTERED, GDS_TEXT_CLEAR | GDS_TEXT_UPDATE, "RECOVERY");
 	}
 
 
