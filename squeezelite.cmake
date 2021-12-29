@@ -135,6 +135,9 @@ add_custom_command(
 			TARGET recovery.elf
 			PRE_LINK
 			COMMAND xtensa-esp32-elf-objcopy  --weaken-symbol esp_app_desc  ${build_dir}/esp-idf/app_update/libapp_update.a
+			COMMAND xtensa-esp32-elf-objcopy  --weaken-symbol register_external  ${build_dir}/esp-idf/squeezelite/libsqueezelite.a
+			COMMAND xtensa-esp32-elf-objcopy  --weaken-symbol deregister_external  ${build_dir}/esp-idf/squeezelite/libsqueezelite.a
+			COMMAND xtensa-esp32-elf-objcopy  --weaken-symbol decode_restore  ${build_dir}/esp-idf/squeezelite/libsqueezelite.a
 #			COMMAND xtensa-esp32-elf-objcopy  --strip-symbol start_ota  ${build_dir}/esp-idf/app_squeezelite/libapp_squeezelite.a
 ## IDF-V4.2+			COMMAND xtensa-esp32-elf-objcopy  --weaken-symbol main  ${build_dir}/esp-idf/squeezelite/libsqueezelite.a
 			COMMAND xtensa-esp32-elf-objcopy  --globalize-symbol find_command_by_name ${build_dir}/esp-idf/console/libconsole.a

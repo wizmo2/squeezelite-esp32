@@ -9,8 +9,8 @@
 #include "freertos/queue.h"
 #include "freertos/task.h"
 #include "esp_event.h"
-#include "trace.h"
 #include "tools.h"
+#include "trace.h"
 
 
 static const char TAG[] = "TRACE";
