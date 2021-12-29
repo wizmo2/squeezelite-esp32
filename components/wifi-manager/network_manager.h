@@ -82,6 +82,7 @@ typedef struct
     uint16_t dhcp_timeout;
     uint16_t wifi_dhcp_fail_ms;    
 	queue_message * event_parameters;
+    const char * timer_tag;
 } network_t;
 
 
@@ -308,7 +309,7 @@ void network_manager_initialise_mdns();
  * @brief Register a callback to a custom function when specific network manager states are reached.
  */
 bool network_is_wifi_prioritized();
-void network_set_timer(uint16_t duration);
+void network_set_timer(uint16_t duration, const char * tag);
 void network_set_hostname(esp_netif_t * netif);
 esp_err_t network_get_ip_info_for_netif(esp_netif_t* netif, tcpip_adapter_ip_info_t* ipInfo);
 void network_start_stop_dhcp(esp_netif_t* netif, bool start);
@@ -327,7 +328,8 @@ void network_manager_format_from_to_states(esp_log_level_t level, const char* pr
 void network_manager_format_state_machine(esp_log_level_t level, const char* prefix, state_machine_t * state_machine, bool show_source, const char * caller) ;
 char* network_manager_alloc_get_mac_string(uint8_t mac[6]);
 
-#if defined(LOG_LOCAL_LEVEL) && LOG_LOCAL_LEVEL >=ESP_LOG_VERBOSE
+#if defined(LOG_LOCAL_LEVEL) 
+#if LOG_LOCAL_LEVEL >=5
 #define NETWORK_PRINT_TRANSITION(begin, prefix, source,target, event, print_source,caller ) network_manager_format_from_to_states(ESP_LOG_VERBOSE, prefix, source,target, event, print_source,caller )
 #define NETWORK_DEBUG_STATE_MACHINE(begin, cb_prefix,state_machine,print_from,caller) network_manager_format_state_machine(ESP_LOG_DEBUG,cb_prefix,state_machine,print_from,caller)
 #define NETWORK_EXECUTE_CB(mch) network_execute_cb(mch,__FUNCTION__);
@@ -335,14 +337,17 @@ char* network_manager_alloc_get_mac_string(uint8_t mac[6]);
 #define network_exit_handler_print(State_Machine, begin) network_manager_format_state_machine(ESP_LOG_DEBUG,begin?"EXIT START":"END END",State_Machine,false,__FUNCTION__)
 #define network_handler_print(State_Machine, begin) network_manager_format_state_machine(ESP_LOG_DEBUG,begin?"HANDLER START":"HANDLER END",State_Machine,false,__FUNCTION__)
 
-#elif defined(LOG_LOCAL_LEVEL) && LOG_LOCAL_LEVEL >= ESP_LOG_DEBUG
+#elif LOG_LOCAL_LEVEL >= 4
 #define network_handler_entry_print(State_Machine, begin) if(begin) network_manager_format_state_machine(ESP_LOG_DEBUG,begin?"BEGIN ENTRY":"END ENTRY",State_Machine,false,"")
 #define network_exit_handler_print(State_Machine, begin) if(begin) network_manager_format_state_machine(ESP_LOG_DEBUG,begin?"BEGIN EXIT":"END EXIT",State_Machine,false,"")
 #define network_handler_print(State_Machine, begin) if(begin) network_manager_format_state_machine(ESP_LOG_DEBUG,begin?"HANDLER START":"HANDLER END",State_Machine,false,"")
 
 #define NETWORK_PRINT_TRANSITION(begin, prefix, source,target, event, print_source,caller ) if(begin) network_manager_format_from_to_states(ESP_LOG_DEBUG, prefix, source,target, event, print_source,caller )#define NETWORK_EXECUTE_CB(mch) network_execute_cb(mch,__FUNCTION__);
 #define NETWORK_DEBUG_STATE_MACHINE(begin, cb_prefix,state_machine,print_from,caller) if(begin) network_manager_format_state_machine(ESP_LOG_DEBUG,cb_prefix,state_machine,print_from,caller)
-#else
+#endif
+#endif 
+
+#ifndef NETWORK_PRINT_TRANSITION
 #define network_exit_handler_print(nm, begin)
 #define network_handler_entry_print(State_Machine, begin) 
 #define network_handler_print(State_Machine, begin)

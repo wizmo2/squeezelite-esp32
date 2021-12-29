@@ -362,7 +362,7 @@ static state_machine_result_t ETH_STARTING_STATE_exit_handler(state_machine_t* c
 static state_machine_result_t NETWORK_ETH_ACTIVE_STATE_entry_handler(state_machine_t* const State_Machine) {
     network_handler_entry_print(State_Machine,true);
     network_t* const nm = (network_t *)State_Machine;
-    network_set_timer(nm->eth_link_down_reboot_ms);
+    network_set_timer(nm->eth_link_down_reboot_ms,"Ethernet link not detected" );
     NETWORK_EXECUTE_CB(State_Machine);
     network_handler_entry_print(State_Machine,false);
     return EVENT_HANDLED;
@@ -370,6 +370,7 @@ static state_machine_result_t NETWORK_ETH_ACTIVE_STATE_entry_handler(state_machi
 static state_machine_result_t NETWORK_ETH_ACTIVE_STATE_handler(state_machine_t* const State_Machine) {
     network_handler_print(State_Machine,true);
     state_machine_result_t result = EVENT_UN_HANDLED;
+    network_t* const nm = (network_t *)State_Machine;
     switch (State_Machine->Event) {
         case EN_CONNECT_NEW:
             result= local_traverse_state(State_Machine, &Eth_Active_State[ETH_CONNECTING_NEW_STATE],__FUNCTION__);
@@ -387,7 +388,7 @@ static state_machine_result_t NETWORK_ETH_ACTIVE_STATE_handler(state_machine_t* 
             result= local_traverse_state(State_Machine, &Eth_Active_State[ETH_ACTIVE_CONNECTED_STATE],__FUNCTION__);
             break;
         case EN_TIMER:
-            ESP_LOGW(TAG, "Ethernet link timeout. Rebooting to wifi");
+            ESP_LOGW(TAG, "Timeout %s. Rebooting to wifi",STR_OR_ALT(nm->timer_tag,"Ethernet link not detected"));
             network_prioritize_wifi(true);
             simple_restart();
             //result= local_traverse_state(State_Machine, &Wifi_Active_State[WIFI_INITIALIZING_STATE],__FUNCTION__);
@@ -411,7 +412,7 @@ static state_machine_result_t NETWORK_ETH_ACTIVE_STATE_handler(state_machine_t* 
 }
 static state_machine_result_t NETWORK_ETH_ACTIVE_STATE_exit_handler(state_machine_t* const State_Machine) {
     network_exit_handler_print(State_Machine,true);
-    network_set_timer(0);
+    network_set_timer(0,NULL);
     network_exit_handler_print(State_Machine,false);
     return EVENT_HANDLED;
 }
@@ -457,7 +458,7 @@ static state_machine_result_t ETH_CONNECTING_NEW_STATE_handler(state_machine_t* 
 }
 static state_machine_result_t ETH_CONNECTING_NEW_STATE_exit_handler(state_machine_t* const State_Machine) {
     network_exit_handler_print(State_Machine,true);
-    network_set_timer(0);
+    network_set_timer(0,NULL);
     network_exit_handler_print(State_Machine,false);
     return EVENT_HANDLED;
 }
@@ -468,7 +469,7 @@ static state_machine_result_t ETH_CONNECTING_NEW_STATE_exit_handler(state_machin
 static state_machine_result_t ETH_ACTIVE_LINKDOWN_STATE_entry_handler(state_machine_t* const State_Machine) {
     network_handler_entry_print(State_Machine,true);
     network_t* const nm = (network_t *)State_Machine;
-    network_set_timer(nm->eth_link_down_reboot_ms);
+    network_set_timer(nm->eth_link_down_reboot_ms, "Ethernet link down" );
     NETWORK_EXECUTE_CB(State_Machine);
     messaging_post_message(MESSAGING_WARNING, MESSAGING_CLASS_SYSTEM, "Ethernet link down.");
     network_handler_entry_print(State_Machine,false);
@@ -482,7 +483,7 @@ static state_machine_result_t ETH_ACTIVE_LINKDOWN_STATE_handler(state_machine_t*
 }
 static state_machine_result_t ETH_ACTIVE_LINKDOWN_STATE_exit_handler(state_machine_t* const State_Machine) {
     network_exit_handler_print(State_Machine,true);
-    network_set_timer(0);
+    network_set_timer(0,NULL);
     network_exit_handler_print(State_Machine,false);
     
     return EVENT_HANDLED;
@@ -494,7 +495,7 @@ static state_machine_result_t ETH_ACTIVE_LINKDOWN_STATE_exit_handler(state_machi
 static state_machine_result_t ETH_ACTIVE_LINKUP_STATE_entry_handler(state_machine_t* const State_Machine) {
     network_handler_entry_print(State_Machine,true);
     network_t* const nm = (network_t *)State_Machine;
-    network_set_timer(nm->dhcp_timeout);
+    network_set_timer(nm->dhcp_timeout, "DHCP timeout" );
     NETWORK_EXECUTE_CB(State_Machine);
     messaging_post_message(MESSAGING_INFO, MESSAGING_CLASS_SYSTEM, "Ethernet link up.");
     network_handler_entry_print(State_Machine,false);
@@ -719,7 +720,7 @@ static state_machine_result_t WIFI_CONFIGURING_CONNECT_STATE_handler(state_machi
         case EN_CONNECTED:
             result=EVENT_HANDLED;
             ESP_LOGD(TAG,"Wifi was connected. Waiting for IP address");
-            network_set_timer(nm->dhcp_timeout);
+            network_set_timer(nm->dhcp_timeout,"DHCP Timeout");
             break;
         case EN_GOT_IP:
             network_status_update_ip_info(UPDATE_CONNECTION_OK); 
@@ -739,7 +740,7 @@ static state_machine_result_t WIFI_CONFIGURING_CONNECT_STATE_exit_handler(state_
     network_exit_handler_print(State_Machine,true);
 
     FREE_AND_NULL(((network_t *)State_Machine)->event_parameters->disconnected_event);
-    network_set_timer(0);
+    network_set_timer(0,NULL);
     network_exit_handler_print(State_Machine,false);
     return EVENT_HANDLED;
 }
@@ -825,7 +826,7 @@ static state_machine_result_t WIFI_CONNECTING_STATE_entry_handler(state_machine_
     network_connect_active_ssid(State_Machine);
     nm->STA_duration = nm->sta_polling_min_ms;
     /* create timer for background STA connection */
-    network_set_timer(nm->STA_duration);    
+    network_set_timer(nm->STA_duration,"Wifi Polling timeout");    
     NETWORK_EXECUTE_CB(State_Machine);
     network_handler_entry_print(State_Machine,false);
     return EVENT_HANDLED;
@@ -833,6 +834,7 @@ static state_machine_result_t WIFI_CONNECTING_STATE_entry_handler(state_machine_
 static state_machine_result_t WIFI_CONNECTING_STATE_handler(state_machine_t* const State_Machine) {
     HANDLE_GLOBAL_EVENT(State_Machine);
     state_machine_result_t result = EVENT_HANDLED;
+    network_t* const nm = (network_t *)State_Machine;
     network_handler_print(State_Machine,true);
     switch (State_Machine->Event) {
         case EN_CONNECTED:
@@ -841,6 +843,7 @@ static state_machine_result_t WIFI_CONNECTING_STATE_handler(state_machine_t* con
         case EN_TIMER:
             // try connecting again.
             // todo: implement multi-ap logic
+            ESP_LOGI(TAG, "Timer: %s ",STR_OR_ALT(nm->timer_tag,"Ethernet link not detected"));
             network_connect_active_ssid(State_Machine);
             break;
         default:
@@ -899,7 +902,7 @@ static state_machine_result_t WIFI_CONNECTING_NEW_STATE_handler(state_machine_t*
 }
 static state_machine_result_t WIFI_CONNECTING_NEW_STATE_exit_handler(state_machine_t* const State_Machine) {
     network_exit_handler_print(State_Machine,true);
-    network_set_timer(0);
+    network_set_timer(0,NULL);
     FREE_AND_NULL(((network_t *)State_Machine)->event_parameters->disconnected_event);
     network_exit_handler_print(State_Machine,false);
     
@@ -950,7 +953,7 @@ static state_machine_result_t WIFI_CONNECTING_NEW_FAILED_STATE_handler(state_mac
 }
 static state_machine_result_t WIFI_CONNECTING_NEW_FAILED_STATE_exit_handler(state_machine_t* const State_Machine) {
     network_exit_handler_print(State_Machine,true);
-    network_set_timer(0);
+    network_set_timer(0,NULL);
     FREE_AND_NULL(((network_t *)State_Machine)->event_parameters->disconnected_event);
     network_exit_handler_print(State_Machine,false);
     
@@ -967,7 +970,7 @@ static state_machine_result_t WIFI_CONNECTED_STATE_entry_handler(state_machine_t
     network_handler_entry_print(State_Machine,true);
     nm->last_connected = esp_timer_get_time();
     // cancel timeout pulse
-    network_set_timer(0);
+    network_set_timer(0,NULL);
     ESP_LOGD(TAG, "Checking if wifi config changed.");
     if (network_wifi_sta_config_changed()) {
         ESP_LOGD(TAG, "Wifi Config changed. Saving it.");
@@ -1077,7 +1080,7 @@ static state_machine_result_t WIFI_LOST_CONNECTION_STATE_entry_handler(state_mac
             }
 
             /* keep polling for existing connection */
-            network_set_timer(nm->STA_duration);
+            network_set_timer(nm->STA_duration, "Wifi Polling timeout");
             ESP_LOGD(TAG, " STA search slow polling of %d", nm->STA_duration);
         }
     }
@@ -1088,6 +1091,7 @@ static state_machine_result_t WIFI_LOST_CONNECTION_STATE_entry_handler(state_mac
 }
 static state_machine_result_t WIFI_LOST_CONNECTION_STATE_handler(state_machine_t* const State_Machine) {
     HANDLE_GLOBAL_EVENT(State_Machine);
+    network_t* const nm = (network_t *)State_Machine;
     state_machine_result_t result = EVENT_HANDLED;
     network_handler_print(State_Machine,true);
     switch (State_Machine->Event) {
@@ -1095,6 +1099,7 @@ static state_machine_result_t WIFI_LOST_CONNECTION_STATE_handler(state_machine_t
             result= local_traverse_state(State_Machine, &Wifi_Configuring_State[WIFI_CONFIGURING_STATE],__FUNCTION__);
             break;
         case EN_TIMER:
+            ESP_LOGI(TAG, "Timer: %s ",STR_OR_ALT(nm->timer_tag,"Lost connection"));
             result= local_traverse_state(State_Machine, &Wifi_Active_State[WIFI_LOST_CONNECTION_STATE],__FUNCTION__);
             break;
         case EN_CONNECT:

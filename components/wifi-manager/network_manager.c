@@ -658,7 +658,7 @@ esp_err_t network_get_hostname(const char** hostname) {
     return esp_netif_get_hostname(get_connected_interface(), hostname);
 }
 
-void network_set_timer(uint16_t duration) {
+void network_set_timer(uint16_t duration, const char * tag) {
     if (duration > 0) {
         if (!NM.state_timer) {
             ESP_LOGD(TAG, "Starting new pulse check timer with period of %u ms.", duration);

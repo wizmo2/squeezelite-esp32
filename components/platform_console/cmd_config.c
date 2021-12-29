@@ -200,6 +200,10 @@ int check_missing_parm(struct arg_int * int_parm, FILE * f){
 }
 char * strip_bt_name(char * opt_str)
 {
+	if(!opt_str || strlen(opt_str)==0){
+		ESP_LOGW(TAG,"strip_bt_name: opt_str is NULL");
+		return NULL;
+	}
     char *result = malloc_init_external(strlen(opt_str)+1);
     char *str = strdup_psram(opt_str);
     const char * output_marker=" -o";
