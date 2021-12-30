@@ -1,4 +1,5 @@
 ![Cross-Build](https://github.com/sle118/squeezelite-esp32/workflows/Cross-Build/badge.svg?branch=master-cmake)
+![ESP-IDF v4.3.1](https://github.com/sle118/squeezelite-esp32/actions/workflows/esp-idf-v4.3-build.yml/badge.svg?branch=master-v4.3)
 # Squeezelite-esp32
 ## What is this
 Squeezelite-esp32 is an audio software suite made to run on espressif's ESP32 wifi (b/g/n) and bluetooth chipset. It offers the following capabilities
