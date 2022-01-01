@@ -32,11 +32,6 @@ extern bool is_recovery_running;
 static void bt_app_av_state_connecting(uint16_t event, void *param);
 static void filter_inquiry_scan_result(esp_bt_gap_cb_param_t *param);
 
-/* event for handler "bt_av_hdl_stack_up */
-enum {
-    BT_APP_EVT_STACK_UP = 0,
-};
-
 char * APP_AV_STATE_DESC[] = {
 	    "APP_AV_STATE_IDLE",
 	    "APP_AV_STATE_DISCOVERING",
@@ -105,8 +100,6 @@ static int s_connecting_intv = 0;
 cJSON * peers_list=NULL;
 
 static struct {
-//	int control_delay;
-//	int connect_timeout_delay;
 	char * sink_name;
 } squeezelite_conf;	
 
@@ -122,6 +115,7 @@ static cJSON * peers_list_get_entry(const char * s_peer_bdname){
     ESP_LOGV(TAG,"Entry name %s NOT found in current scan list", s_peer_bdname);
     return NULL;
 }
+
 static void peers_list_reset(){
     cJSON * element=NULL;
     cJSON_ArrayForEach(element,peers_list){
@@ -132,6 +126,7 @@ static void peers_list_reset(){
         }
     }
 }
+
 static void peers_list_purge(){
     cJSON * element=NULL;
     cJSON_ArrayForEach(element,peers_list){
@@ -144,12 +139,14 @@ static void peers_list_purge(){
         }
     }    
 }
+
 static cJSON * peers_list_create_entry(const char * s_peer_bdname, int32_t rssi){
     cJSON * entry = cJSON_CreateObject();
     cJSON_AddStringToObject(entry,"name",s_peer_bdname);
     cJSON_AddNumberToObject(entry,"rssi",rssi);
     return entry;
 }
+
 static void peers_list_update_add(const char * s_peer_bdname, int32_t rssi){
     cJSON * element= peers_list_get_entry(s_peer_bdname);
     if(element){
@@ -166,6 +163,7 @@ static void peers_list_update_add(const char * s_peer_bdname, int32_t rssi){
         cJSON_AddItemToArray(peers_list,element);
     }
 }
+
 static void peers_list_maintain(const char * s_peer_bdname, int32_t rssi){
     if(!peers_list){
         ESP_LOGV(TAG,"Initializing BT peers list");
@@ -198,35 +196,35 @@ int bt_app_source_get_a2d_state(){
     }
     return bt_app_source_a2d_state;
 }
+
 int bt_app_source_get_media_state(){
     ESP_LOGD(TAG,"media state : %u ", bt_app_source_media_state);
     return bt_app_source_media_state;
 }
+
 void set_app_source_state(int new_state){
     if(bt_app_source_a2d_state!=new_state){
         ESP_LOGD(TAG, "Updating state from %s to %s", APP_AV_STATE_DESC[bt_app_source_a2d_state], APP_AV_STATE_DESC[new_state]);
         bt_app_source_a2d_state=new_state;
     }
 }
+
 void set_a2dp_media_state(int new_state){
     if(bt_app_source_media_state!=new_state){
         bt_app_source_media_state=new_state;
     }
 }
+
 void hal_bluetooth_init(const char * options)
 {
 	struct {
 		struct arg_str *sink_name;
-//		struct arg_int *control_delay;
-//		struct arg_int *connect_timeout_delay;
 		struct arg_end *end;
 	} squeezelite_args;
 	
 	ESP_LOGD(TAG,"Initializing Bluetooth HAL");
 
 	squeezelite_args.sink_name = arg_str0("n", "name", "<sink name>", "the name of the bluetooth to connect to");
-//	squeezelite_args.control_delay = arg_int0("d", "delay", "<control delay>", "the delay between each pass at the A2DP control loop");
-//	squeezelite_args.connect_timeout_delay = arg_int0("t","timeout", "<timeout>", "the timeout duration for connecting to the A2DP sink");
 	squeezelite_args.end = arg_end(2);
 
 	ESP_LOGD(TAG,"Copying parameters");
@@ -269,83 +267,17 @@ void hal_bluetooth_init(const char * options)
         }                
     }
 
-
-	// if(squeezelite_args.connect_timeout_delay->count == 0)
-	// {
-	// 	ESP_LOGD(TAG,"Using default connect timeout");
-    //     char * p = config_alloc_get_default(NVS_TYPE_STR, "a2dp_ctmt", NULL, 0);
-	//     if(p){
-    // 		squeezelite_conf.connect_timeout_delay=atoi(p);
-    //         free(p);
-    // 	}
-    //     else {
-    //         squeezelite_conf.connect_timeout_delay=CONFIG_A2DP_CONNECT_TIMEOUT_MS;
-    //     }
-	// } else {
-	// 	squeezelite_conf.connect_timeout_delay=squeezelite_args.connect_timeout_delay->ival[0];
-	// }
-	// if(squeezelite_args.control_delay->count == 0)
-	// {
-	// 	ESP_LOGD(TAG,"Using default control delay");
-    //     char * p = config_alloc_get_default(NVS_TYPE_STR, "a2dp_ctrld", NULL, 0);
-	//     if(p){
-    // 		squeezelite_conf.control_delay=atoi(p);
-    //         free(p);
-    // 	}
-    //     else {
-    //         squeezelite_conf.control_delay=CONFIG_A2DP_CONNECT_TIMEOUT_MS;
-    //     }
-	// } else {
-	// 	squeezelite_conf.control_delay=squeezelite_args.control_delay->ival[0];
-	// }	
 	ESP_LOGD(TAG,"Freeing options");
 	free(argv);
 	free(opts);
-
-	/*
-	 * Bluetooth audio source init Start
-	 */
-	//running_test = false;
-	ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_BLE));
-
-	esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
-
-	if (esp_bt_controller_init(&bt_cfg) != ESP_OK) {
-		ESP_LOGE(TAG,"%s initialize controller failed\n", __func__);
-		return;
-	}
-
-	if (esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT) != ESP_OK) {
-		ESP_LOGE(TAG,"%s enable controller failed\n", __func__);
-		return;
-	}
-
-	if (esp_bluedroid_init() != ESP_OK) {
-		ESP_LOGE(TAG,"%s initialize bluedroid failed\n", __func__);
-		return;
-	}
-
-	if (esp_bluedroid_enable() != ESP_OK) {
-		ESP_LOGE(TAG,"%s enable bluedroid failed\n", __func__);
-		return;
-	}
-   /* create application task */
-	bt_app_task_start_up();
-
-	/* Bluetooth device name, connection mode and profile set up */
-	bt_app_work_dispatch(bt_av_hdl_stack_evt, BT_APP_EVT_STACK_UP, NULL, 0, NULL);
-
-	#if (CONFIG_BT_SSP_ENABLED == true)
-	/* Set default parameters for Secure Simple Pairing */
-	esp_bt_sp_param_t param_type = ESP_BT_SP_IOCAP_MODE;
-	esp_bt_io_cap_t iocap = ESP_BT_IO_CAP_IO;
-	esp_bt_gap_set_security_param(param_type, &iocap, sizeof(uint8_t));
-	#endif
+	
+	// create task and run event loop
+    bt_app_task_start_up(bt_av_hdl_stack_evt);
 
 	/*
 	 * Set default parameters for Legacy Pairing
 	 * Use variable pin, input pin code when pairing
-	 */
+	*/
 	esp_bt_pin_type_t pin_type = ESP_BT_PIN_TYPE_VARIABLE;
 	esp_bt_pin_code_t pin_code;
 	esp_bt_gap_set_pin(pin_type, 0, pin_code);
@@ -353,23 +285,14 @@ void hal_bluetooth_init(const char * options)
 }
 
 void hal_bluetooth_stop(void) {
-	/* this still does not work, can't figure out how to stop properly this BT stack */
 	bt_app_task_shut_down();
-	ESP_LOGI(TAG, "bt_app_task shutdown successfully");	
-	if (esp_bluedroid_disable() != ESP_OK) return;
-    ESP_LOGI(TAG, "esp_bluedroid_disable called successfully");
-    if (esp_bluedroid_deinit() != ESP_OK) return;
-    ESP_LOGI(TAG, "esp_bluedroid_deinit called successfully");
-    if (esp_bt_controller_disable() != ESP_OK) return;
-    ESP_LOGI(TAG, "esp_bt_controller_disable called successfully");
-    if (esp_bt_controller_deinit() != ESP_OK) return;
-	ESP_LOGI(TAG, "bt stopped successfully");
 }	
 
 static void bt_app_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
 {
     bt_app_work_dispatch(bt_app_av_sm_hdlr, event, param, sizeof(esp_a2d_cb_param_t), NULL);
 }
+
 static void handle_bt_gap_pin_req(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param){
     char * pin_str = config_alloc_get_default(NVS_TYPE_STR, "a2dp_spin", "0000", 0);
     int pinlen=pin_str?strlen(pin_str):0;
@@ -405,6 +328,7 @@ static void handle_bt_gap_pin_req(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_par
     }
     FREE_AND_NULL(pin_str);
 }
+
 static void bt_app_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
 {
 
@@ -414,28 +338,21 @@ static void bt_app_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *pa
         break;
     }
     case ESP_BT_GAP_DISC_STATE_CHANGED_EVT: {
-        if (param->disc_st_chg.state == ESP_BT_GAP_DISCOVERY_STOPPED)
-        {
+		
+		if (param->disc_st_chg.state == ESP_BT_GAP_DISCOVERY_STOPPED) {
             peers_list_maintain(NULL, PEERS_LIST_MAINTAIN_PURGE);
-            if (bt_app_source_a2d_state == APP_AV_STATE_DISCOVERED)
-            {
-            	ESP_LOGI(TAG,"Discovery completed.  Ready to start connecting to %s. ",s_peer_bdname);
-            	set_app_source_state(APP_AV_STATE_UNCONNECTED);
-            }
-            else
-            {
+            if (bt_app_source_a2d_state == APP_AV_STATE_DISCOVERED) {
+				set_app_source_state(APP_AV_STATE_CONNECTING);
+				ESP_LOGI(TAG,"Discovery completed.  Ready to start connecting to %s. ", s_peer_bdname);
+                esp_a2d_source_connect(s_peer_bda);
+            } else {
                 // not discovered, continue to discover
-                ESP_LOGI(TAG,"Device discovery failed, continue to discover...");
+                ESP_LOGI(TAG, "Device discovery failed, continue to discover...");
                 esp_bt_gap_start_discovery(ESP_BT_INQ_MODE_GENERAL_INQUIRY, 10, 0);
             }
-        }
-        else if (param->disc_st_chg.state == ESP_BT_GAP_DISCOVERY_STARTED) {
-            ESP_LOGI(TAG,"Discovery started.");
-            peers_list_maintain(NULL, PEERS_LIST_MAINTAIN_RESET);
-        }
-        else
-        {
-        	ESP_LOGD(TAG,"This shouldn't happen.  Discovery has only 2 states (for now).");
+        } else if (param->disc_st_chg.state == ESP_BT_GAP_DISCOVERY_STARTED) {
+            ESP_LOGI(TAG, "Discovery started.");
+			peers_list_maintain(NULL, PEERS_LIST_MAINTAIN_RESET);
         }
         break;
     }
@@ -523,10 +440,12 @@ static const char * conn_state_str(esp_a2d_connection_state_t state){
         }
     return statestr;
 }
+
 static void unexpected_connection_state(int from, esp_a2d_connection_state_t to)
 {
     ESP_LOGW(TAG,"Unexpected connection state change. App State: %s (%u) Connection State %s (%u)", APP_AV_STATE_DESC[from], from,conn_state_str(to), to);
 }
+
 static void handle_connect_state_unconnected(uint16_t event, esp_a2d_cb_param_t *param){
     ESP_LOGV(TAG, "A2DP Event while unconnected ");
     switch (param->conn_stat.state)
@@ -553,17 +472,10 @@ static void handle_connect_state_unconnected(uint16_t event, esp_a2d_cb_param_t 
     }
 
 }
+
 static void handle_connect_state_connecting(uint16_t event, esp_a2d_cb_param_t *param){
     ESP_LOGV(TAG, "A2DP connection state event : %s ",conn_state_str(param->conn_stat.state));
-    //    a2d = (esp_a2d_cb_param_t *)(param);
-    //     if (a2d->conn_stat.state == ESP_A2D_CONNECTION_STATE_CONNECTED) {
-    //         ESP_LOGI(BT_AV_TAG, "a2dp connected");
-    //         s_a2d_state =  APP_AV_STATE_CONNECTED;
-    //         s_media_state = APP_AV_MEDIA_STATE_IDLE;
-    //         esp_bt_gap_set_scan_mode(ESP_BT_NON_CONNECTABLE, ESP_BT_NON_DISCOVERABLE);
-    //     } else if (a2d->conn_stat.state == ESP_A2D_CONNECTION_STATE_DISCONNECTED) {
-    //         s_a2d_state =  APP_AV_STATE_UNCONNECTED;
-    //     }    
+
     switch (param->conn_stat.state)
     {
         case ESP_A2D_CONNECTION_STATE_DISCONNECTED:
@@ -575,9 +487,8 @@ static void handle_connect_state_connecting(uint16_t event, esp_a2d_cb_param_t *
             }
             set_app_source_state(APP_AV_STATE_UNCONNECTED);
             break;
-        case ESP_A2D_CONNECTION_STATE_CONNECTING: {
+        case ESP_A2D_CONNECTION_STATE_CONNECTING:
             break;
-        }
         case ESP_A2D_CONNECTION_STATE_CONNECTED:
             set_app_source_state(APP_AV_STATE_CONNECTED);
             set_a2dp_media_state(APP_AV_MEDIA_STATE_IDLE);
@@ -768,8 +679,6 @@ static void filter_inquiry_scan_result(esp_bt_gap_cb_param_t *param)
     	return;
     }
 
-
-    /* search for device named "ESP_SPEAKER" in its extended inqury response */
     if (eir) {
     	ESP_LOGV(TAG,"--Getting details from eir.\n");
         get_name_from_eir(eir, s_peer_bdname, NULL);
@@ -781,27 +690,16 @@ static void filter_inquiry_scan_result(esp_bt_gap_cb_param_t *param)
 
     if (squeezelite_conf.sink_name && strlen(squeezelite_conf.sink_name) >0 && strcmp((char *)s_peer_bdname, squeezelite_conf.sink_name) == 0) {
         ESP_LOGI(TAG,"Found our target device. address %s, name %s", bda_str, s_peer_bdname);
-    	ESP_LOGV(TAG,"=======================\n");
-        if(esp_bt_gap_cancel_discovery()!=ESP_ERR_INVALID_STATE)
-        {
-        	ESP_LOGD(TAG,"Cancel device discovery ...");
-			memcpy(s_peer_bda, param->disc_res.bda, ESP_BD_ADDR_LEN);
-            set_app_source_state(APP_AV_STATE_DISCOVERED);
-        }
-        else
-        {
-        	ESP_LOGE(TAG,"Cancel device discovery failed...");
-        }
-    }
-    else
-    {
+		memcpy(s_peer_bda, param->disc_res.bda, ESP_BD_ADDR_LEN);
+        set_app_source_state(APP_AV_STATE_DISCOVERED);
+        esp_bt_gap_cancel_discovery();
+    } else {
     	ESP_LOGV(TAG,"Not the device we are looking for (%s). Continuing scan", squeezelite_conf.sink_name?squeezelite_conf.sink_name:"N/A");
     }
 }
 
 static void bt_av_hdl_stack_evt(uint16_t event, void *p_param)
 {
-
     switch (event) {
     case BT_APP_EVT_STACK_UP: {
     	ESP_LOGI(TAG,"BT Stack going up.");
@@ -960,7 +858,6 @@ static void bt_app_av_state_unconnected(uint16_t event, void *param)
     	break;
     case ESP_A2D_AUDIO_STATE_EVT:
     	ESP_LOG_DEBUG_EVENT(TAG,QUOTE(ESP_A2D_AUDIO_STATE_EVT));
-
     	break;
     case ESP_A2D_AUDIO_CFG_EVT:
     	ESP_LOG_DEBUG_EVENT(TAG,QUOTE(ESP_A2D_AUDIO_CFG_EVT));

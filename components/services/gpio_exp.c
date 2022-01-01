@@ -99,23 +99,23 @@ static const struct gpio_exp_model_s {
 	void      (*set_pull_mode)(gpio_exp_t* self);
 } registered[] = {
 	{ .model = "pca9535",
-	  .trigger = GPIO_INTR_NEGEDGE, 
+	  .trigger = GPIO_INTR_LOW_LEVEL,
 	  .set_direction = pca9535_set_direction,
 	  .read = pca9535_read,
 	  .write = pca9535_write, },
 	{ .model = "pca85xx",
-	  .trigger = GPIO_INTR_NEGEDGE, 
+	  .trigger = GPIO_INTR_LOW_LEVEL,
 	  .read = pca85xx_read,
 	  .write = pca85xx_write, },
 	{ .model = "mcp23017",
-	  .trigger = GPIO_INTR_NEGEDGE, 
+	  .trigger = GPIO_INTR_LOW_LEVEL,
 	  .init = mcp23017_init,
 	  .set_direction = mcp23017_set_direction,
 	  .set_pull_mode = mcp23017_set_pull_mode,
 	  .read = mcp23017_read,
 	  .write = mcp23017_write, },
 	{ .model = "mcp23s17",
-	  .trigger = GPIO_INTR_NEGEDGE, 
+	  .trigger = GPIO_INTR_LOW_LEVEL,
 	  .init = mcp23s17_init,
 	  .set_direction = mcp23s17_set_direction,
 	  .set_pull_mode = mcp23s17_set_pull_mode,
@@ -406,6 +406,9 @@ static void IRAM_ATTR intr_isr_handler(void* arg) {
 	gpio_exp_t *self = (gpio_exp_t*) arg;
 	BaseType_t woken = pdFALSE;
 	
+	// edge interrupts do not work because of read/clear = potential short pulse
+	gpio_intr_disable(self->intr);	
+	
 	// activate all, including ourselves
 	for (int i = 0; i < n_expanders; i++) if (expanders[i].intr == self->intr) expanders[i].intr_pending = true; 
 	
@@ -439,26 +442,22 @@ void service_handler(void *arg) {
 			for (int i = 0; i < n_expanders; i++) {
 				gpio_exp_t *expander = expanders + i;
 
-				// no interrupt for that gpio
-				if (expander->intr < 0) continue;
+				// no interrupt for that gpio or not pending (safe as interrupt is disabled)
+				if (expander->intr < 0 || !expander->intr_pending) continue;
 
-				// only check expander with pending interrupts
-				gpio_intr_disable(expander->intr);
-				if (!expander->intr_pending) {
-					gpio_intr_enable(expander->intr);
-					continue;
-				}
-				expander->intr_pending = false;
-				gpio_intr_enable(expander->intr);
-				
 				xSemaphoreTake(expander->mutex, pdMS_TO_TICKS(50));
 
 				// read GPIOs and clear all pending status
 				uint32_t value = expander->model->read(expander);
+				expander->age = xTaskGetTickCount();
+				
+				// re-enable interrupt now that it has been cleared
+				expander->intr_pending = false;
+				gpio_intr_enable(expander->intr);				
+				
 				uint32_t pending = expander->pending | ((expander->shadow ^ value) & expander->r_mask);
 				expander->shadow = value;
 				expander->pending = 0;
-				expander->age = xTaskGetTickCount();
 
 				xSemaphoreGive(expander->mutex);
 				ESP_LOGD(TAG, "Handling GPIO %d reads 0x%04x and has 0x%04x pending", expander->first, expander->shadow, pending);
@@ -468,7 +467,7 @@ void service_handler(void *arg) {
 					gpio -= clz;
 					if (expander->isr[gpio].timer) xTimerReset(expander->isr[gpio].timer, 1);	// todo 0
 					else if (expander->isr[gpio].handler) expander->isr[gpio].handler(expander->isr[gpio].arg);
-				}
+				}	
 			}
 		}
 

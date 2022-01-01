@@ -37,19 +37,15 @@
 #define APP_RC_CT_TL_RN_PLAYBACK_CHANGE  (3)
 #define APP_RC_CT_TL_RN_PLAY_POS_CHANGE  (4)
 
-#define BT_AV_TAG               "bt_app"
-#define BT_RC_TG_TAG            "bt_rctg"
-#define BT_RC_CT_TAG            "bt_rcct"
+static const char BT_AV_TAG[] = "BT_AV";
+static const char BT_RC_TG_TAG[] = "RCTG";
+static const char BT_RC_CT_TAG[] = "RCCT";
 
 #ifndef CONFIG_BT_NAME
 #define CONFIG_BT_NAME	"ESP32-BT"
 #endif
 
-/* event for handler "bt_av_hdl_stack_up */
-enum {
-    BT_APP_EVT_STACK_UP = 0,
-};
-char * bt_name = NULL;
+static char * bt_name = NULL;
 
 static bool (*bt_app_a2d_cmd_cb)(bt_sink_cmd_t cmd, ...);
 static void (*bt_app_a2d_data_cb)(const uint8_t *data, uint32_t len);
@@ -570,48 +566,13 @@ static void bt_av_hdl_avrc_tg_evt(uint16_t event, void *p_param)
 
 void bt_sink_init(bt_cmd_vcb_t cmd_cb, bt_data_cb_t data_cb)
 {
-	esp_err_t err;
-	
 	bt_app_a2d_cmd_cb = cmd_handler;
 	cmd_handler_chain = cmd_cb;
   	bt_app_a2d_data_cb = data_cb;
 	
-    esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
-
-    esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
-    if ((err = esp_bt_controller_init(&bt_cfg)) != ESP_OK) {
-        ESP_LOGE(BT_AV_TAG, "%s initialize controller failed: %s\n", __func__, esp_err_to_name(err));
-        return;
-    }
-
-    if ((err = esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT)) != ESP_OK) {
-        ESP_LOGE(BT_AV_TAG, "%s enable controller failed: %s\n", __func__, esp_err_to_name(err));
-        return;
-    }
-
-    if ((err = esp_bluedroid_init()) != ESP_OK) {
-        ESP_LOGE(BT_AV_TAG, "%s initialize bluedroid failed: %s\n", __func__, esp_err_to_name(err));
-        return;
-    }
-
-    if ((err = esp_bluedroid_enable()) != ESP_OK) {
-        ESP_LOGE(BT_AV_TAG, "%s enable bluedroid failed: %s\n", __func__, esp_err_to_name(err));
-        return;
-    }
-
-    /* create application task */
-    bt_app_task_start_up();
-
-    /* Bluetooth device name, connection mode and profile set up */
-    bt_app_work_dispatch(bt_av_hdl_stack_evt, BT_APP_EVT_STACK_UP, NULL, 0, NULL);
-
-#if (CONFIG_BT_SSP_ENABLED == true)
-    /* Set default parameters for Secure Simple Pairing */
-    esp_bt_sp_param_t param_type = ESP_BT_SP_IOCAP_MODE;
-    esp_bt_io_cap_t iocap = ESP_BT_IO_CAP_IO;
-    esp_bt_gap_set_security_param(param_type, &iocap, sizeof(uint8_t));
-#endif
-
+	// create task and run event loop
+    bt_app_task_start_up(bt_av_hdl_stack_evt);
+	
 	char *item = config_alloc_get_default(NVS_TYPE_STR, "bt_sink_volume", "127", 0);
 	sink_volume = atol(item);
 	free(item);
@@ -640,33 +601,17 @@ void bt_sink_init(bt_cmd_vcb_t cmd_cb, bt_data_cb_t data_cb)
     		bError=true;
     	}
     	esp_pin_code[i]= pin_code[i];
-
     }
-    if(bError){
-    	esp_pin_code[0]='1';
-    	esp_pin_code[1]='2';
-    	esp_pin_code[2]='3';
-    	esp_pin_code[3]='4';
-    }
-    esp_bt_gap_set_pin(pin_type, strlen(pin_code), esp_pin_code);
+	
+    if (bError) memcpy(esp_pin_code, "1234", 4);
+	esp_bt_gap_set_pin(pin_type, strlen(pin_code), esp_pin_code);
+	
 	free(pin_code);
 }
 
 void bt_sink_deinit(void)
 {
 	bt_app_task_shut_down();
-	ESP_LOGD(BT_AV_TAG, "bt_app_task shutdown successfully");
-	if (esp_bluedroid_disable() != ESP_OK) return;
-	// this disable has a sleep timer BTA_DISABLE_DELAY in bt_target.h and 
-	// if we don't wait for it then disable crashes... don't know why
-	vTaskDelay(2*200 / portTICK_PERIOD_MS);	
-    ESP_LOGD(BT_AV_TAG, "esp_bluedroid_disable called successfully");
-    if (esp_bluedroid_deinit() != ESP_OK) return;
-    ESP_LOGD(BT_AV_TAG, "esp_bluedroid_deinit called successfully");
-    if (esp_bt_controller_disable() != ESP_OK) return;
-    ESP_LOGD(BT_AV_TAG, "esp_bt_controller_disable called successfully");
-    if (esp_bt_controller_deinit() != ESP_OK) return;
-	ESP_LOGD(BT_AV_TAG, "bt stopped successfully");
 }
 
 static void bt_app_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)

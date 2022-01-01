@@ -17,6 +17,10 @@
 #define BT_APP_CORE_TAG                   "BT_APP_CORE"
 #define BT_APP_SIG_WORK_DISPATCH          (0x01)
 
+enum {
+    BT_APP_EVT_STACK_UP = 0,
+};
+
 /* A2DP global state */
 enum {
     APP_AV_STATE_IDLE,
@@ -57,11 +61,16 @@ typedef struct {
 typedef void (* bt_app_copy_cb_t) (bt_app_msg_t *msg, void *p_dest, void *p_src);
 
 /**
+ * @brief     callback for startup event
+ */
+typedef void bt_av_hdl_stack_evt_t(uint16_t event, void *p_param);
+
+/**
  * @brief     work dispatcher for the application task
  */
 bool bt_app_work_dispatch(bt_app_cb_t p_cback, uint16_t event, void *p_params, int param_len, bt_app_copy_cb_t p_copy_cback);
 
-void bt_app_task_start_up(void);
+void bt_app_task_start_up(bt_av_hdl_stack_evt_t* handler);
 
 void bt_app_task_shut_down(void);
 
