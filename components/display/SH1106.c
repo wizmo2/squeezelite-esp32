@@ -140,6 +140,7 @@ static const struct GDS_Device SH1106 = {
 	.SetLayout = SetLayout,
 	.Update = Update, .Init = Init,
 	.Depth = 1,
+	.CS_post = 2,
 #if !defined SHADOW_BUFFER && defined USE_IRAM	
 	.Alloc = GDS_ALLOC_IRAM_SPI;
 #endif		

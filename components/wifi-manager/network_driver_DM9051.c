@@ -1,6 +1,11 @@
 #include "esp_eth.h"
 #include "network_ethernet.h"
+
 static EXT_RAM_ATTR network_ethernet_driver_t DM9051;
+static EXT_RAM_ATTR spi_device_interface_config_t devcfg;
+static EXT_RAM_ATTR esp_netif_config_t cfg_spi;
+static EXT_RAM_ATTR esp_netif_inherent_config_t esp_netif_config;
+
 static esp_err_t start(spi_device_handle_t spi_handle, eth_config_t* ethernet_config) {
 #ifdef CONFIG_ETH_SPI_ETHERNET_DM9051
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
@@ -21,14 +26,26 @@ static esp_err_t start(spi_device_handle_t spi_handle, eth_config_t* ethernet_co
 }
 
 static void init_config(eth_config_t* ethernet_config) {
+	esp_netif_inherent_config_t loc_esp_netif_config = ESP_NETIF_INHERENT_DEFAULT_ETH();
+    devcfg.command_bits = 1;  
+    devcfg.address_bits = 7;  
+    devcfg.mode = 0;
+    devcfg.clock_speed_hz = ethernet_config->speed > 0 ? ethernet_config->speed : SPI_MASTER_FREQ_20M;  // default speed
+    devcfg.queue_size = 20;
+    devcfg.spics_io_num = ethernet_config->cs;
+    memcpy(&esp_netif_config, &loc_esp_netif_config, sizeof(loc_esp_netif_config));
+    cfg_spi.base = &esp_netif_config,
+    cfg_spi.stack = ESP_NETIF_NETSTACK_DEFAULT_ETH;
+    DM9051.cfg_netif = &cfg_spi;
+    DM9051.devcfg = &devcfg;
     DM9051.start = start;
 }
 
 network_ethernet_driver_t* DM9051_Detect(char* Driver) {
     if (!strcasestr(Driver, "DM9051"))
         return NULL;
-    DM9051.rmii = true;
-    DM9051.spi = false;
+    DM9051.rmii = false;
+    DM9051.spi = true;
 #ifdef CONFIG_ETH_SPI_ETHERNET_DM9051
     DM9051.valid = true;
 #else

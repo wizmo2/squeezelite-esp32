@@ -86,6 +86,7 @@ struct GDS_Device {
 		struct {
 			spi_device_handle_t SPIHandle;
 			int8_t CSPin;
+			int8_t CS_pre, CS_post, SPI_mode;
 		};
 	};	
 	
