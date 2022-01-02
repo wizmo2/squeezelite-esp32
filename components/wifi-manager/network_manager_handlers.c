@@ -298,6 +298,10 @@ static state_machine_result_t NETWORK_INITIALIZING_STATE_handler(state_machine_t
                 ESP_LOGI(TAG, "WiFi connection is prioritized. Starting WiFi");
                 result= local_traverse_state(State_Machine, &Wifi_Active_State[WIFI_INITIALIZING_STATE],__FUNCTION__);
             }
+            else if(is_recovery_running){
+                ESP_LOGI(TAG, "Running recovery. Skipping ethernet, starting WiFi");
+                result= local_traverse_state(State_Machine, &Wifi_Active_State[WIFI_INITIALIZING_STATE],__FUNCTION__);
+            }
             else {
                 result= local_traverse_state(State_Machine, &Eth_Active_State[ETH_STARTING_STATE],__FUNCTION__);
             }

@@ -40,10 +40,6 @@
 #pragma message("Runtime stats disabled")
 #endif
 EXT_RAM_ATTR static struct {
-	struct arg_str *scanmode;
-	struct arg_end *end;
-} wifi_parms_arg;
-EXT_RAM_ATTR static struct {
 	struct arg_str *name;
 	struct arg_end *end;
 } name_args;
@@ -75,15 +71,12 @@ static void register_factory_boot();
 static void register_restart_ota();
 static void register_update_certs();
 static void register_set_services();
-static void register_set_wifi_parms();
 #if WITH_TASKS_INFO
 static void register_tasks();
 #endif
 extern BaseType_t network_manager_task;
 void register_system()
 {
-    register_set_wifi_parms();
-//	register_setbtsource();
     register_free();
     register_set_services();
     register_heap();
@@ -636,44 +629,7 @@ static int enable_disable(FILE * f,char * nvs_name, struct arg_lit *arg){
 	}
 	return err;
 }
-static int do_configure_wifi(int argc, char **argv){
-    esp_err_t err = ESP_OK;
-    int nerrors = arg_parse_msg(argc, argv,(struct arg_hdr **)&wifi_parms_arg);
-    if (nerrors != 0) {
-        return 1;
-    }
-	char *buf = NULL;
-	size_t buf_size = 0;
-	FILE *f = open_memstream(&buf, &buf_size);
-	if (f == NULL) {
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.");
-		return 1;
-	}
-    
-    if(wifi_parms_arg.scanmode->count>0){
-        if(strcasecmp(wifi_parms_arg.scanmode->sval[0],"Comprehensive") == 0){
-            err = config_set_value(NVS_TYPE_STR, "wifi_smode", "A");
-        } 
-        else {
-            err = config_set_value(NVS_TYPE_STR, "wifi_smode", "F");
-        }
-        if(err!=ESP_OK){
-            nerrors++;
-            fprintf(f,"Error setting wifi scan mode to %s. %s\n",wifi_parms_arg.scanmode->sval[0], esp_err_to_name(err));
-        }
-        else {
-            fprintf(f,"Wifi Scan Mode changed to %s\n",wifi_parms_arg.scanmode->sval[0]);
-        }
-    }
-	if(!nerrors ){
-		fprintf(f,"Done.\n");
-	}
-	fflush (f);
-	cmd_send_messaging(argv[0],nerrors>0?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
-	fclose(f);
-	FREE_AND_NULL(buf);
-	return nerrors;
-}
+
 static int do_set_services(int argc, char **argv)
 {
     esp_err_t err = ESP_OK;
@@ -728,18 +684,6 @@ static int do_set_services(int argc, char **argv)
 	return nerrors;
 }
 
-cJSON * configure_wifi_cb(){
-	cJSON * values = cJSON_CreateObject();
-	char * p=NULL;
-
-    if ((p = config_alloc_get(NVS_TYPE_STR, "wifi_smode")) != NULL) {
-        cJSON_AddStringToObject(values,"scanmode",strcasecmp(p,"a") == 0 ?"Comprehensive":"Fast");
-        FREE_AND_NULL(p);
-	}
-    return values;
-}
-
-
 
 cJSON * set_services_cb(){
 	cJSON * values = cJSON_CreateObject();
@@ -791,22 +735,6 @@ static void register_set_services(){
 	cmd_to_json_with_cb(&cmd,&set_services_cb);
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
-
-static void register_set_wifi_parms(){
-	wifi_parms_arg.scanmode = arg_str0(NULL, "scanmode", "Fast|Comprehensive","Sets the WiFi Scan Mode. Use Comprehensive where more than one AP has the same name on different channels. This will ensure that the AP with the strongest signal is chosen.");
-	wifi_parms_arg.end=arg_end(2);
-	const esp_console_cmd_t cmd = {
-        .command = CFG_TYPE_SYST("wifi"),
-        .help = "WiFi",
-		.argtable = &wifi_parms_arg,
-        .hint = NULL,
-        .func = &do_configure_wifi,
-    };
-	cmd_to_json_with_cb(&cmd,&configure_wifi_cb);
-    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
-}
-/** 'light_sleep' command puts the chip into light sleep mode */
-
 static struct {
     struct arg_int *wakeup_time;
     struct arg_int *wakeup_gpio_num;

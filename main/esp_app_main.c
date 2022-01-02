@@ -364,7 +364,6 @@ void register_default_nvs(){
     register_default_string_val("pollmin","15");
     register_default_string_val("ethtmout","8");
     register_default_string_val("dhcp_tmout","8");
-	register_default_string_val("wifi_smode", "A");
 	wait_for_commit();
 	ESP_LOGD(TAG,"Done setting default values in nvs.");
 }
