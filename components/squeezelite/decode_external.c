@@ -436,13 +436,10 @@ void register_external(void) {
 	if ((p = config_alloc_get(NVS_TYPE_STR, "enable_cspot")) != NULL) {
 		enable_cspot = strcmp(p,"1") == 0 || strcasecmp(p,"y") == 0;
 		free(p);
-	}
-#endif
-	
-#if CONFIG_CSPOT_SINK
-	if (enable_cspot){
-		cspot_sink_init(cspot_cmd_handler, sink_data_handler);
-		LOG_INFO("Initializing CSpot sink");
+		if (enable_cspot){
+			cspot_sink_init(cspot_cmd_handler, sink_data_handler);
+			LOG_INFO("Initializing CSpot sink");
+		}	
 	}	
 #endif	
 }
