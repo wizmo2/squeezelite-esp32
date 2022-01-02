@@ -37,6 +37,7 @@ CONFIG_MUTE_GPIO_LEVEL=-1
 CONFIG_RELEASE_API="https://api.github.com/repos/sle118/squeezelite-esp32/releases"
 CONFIG_PROJECT_NAME="Squeezelite-ESP32"
 CONFIG_FW_PLATFORM_NAME="I2S-4MFlash"
+
 #
 # SDK tool configuration
 #
