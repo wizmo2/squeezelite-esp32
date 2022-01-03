@@ -112,8 +112,30 @@ menu "Squeezelite-ESP32"
 			default '{ "init": [ {"reg":41, "val":128}, {"reg":18, "val":255} ], "poweron": [ {"reg":18, "val":64, "mode":"or"} ], "poweroff": [ {"reg":18, "val":191, "mode":"and" } ] }' if TWATCH2020
 			default ""
 		# AGGREGATES - end
+
+		# VARs that must be reset when changign target
+		config JACK_GPIO
+			int
+			default 34 if SQUEEZEAMP
+			default -1
+		config SPKFAULT_GPIO
+			int
+			default 2 if SQUEEZEAMP
+			default -1			
+		config BAT_CHANNEL
+			int 
+			default 7 if SQUEEZEAMP
+			default -1
+		config LED_GREEN_GPIO
+			int 
+			default 12 if SQUEEZEAMP
+			default -1
+		config LED_RED_GPIO
+			int
+			default 13 if SQUEEZEAMP
+			default -1
 	endmenu
-	
+
 	menu "Audio settings"
 		menu "DAC settings"
 			visible if BASIC_I2C_BT
@@ -302,19 +324,13 @@ menu "Squeezelite-ESP32"
 		visible if !SQUEEZEAMP && !TWATCH2020
 		config LED_GREEN_GPIO
 			int "Green led GPIO"
-			default 12 if SQUEEZEAMP
-			default -1
 			help
 				Set to -1 for no LED
 		config LED_GREEN_GPIO_LEVEL
 			int "Green led ON level"
 			depends on LED_GREEN_GPIO != -1
-			default 0 if SQUEEZEAMP
-			default 1
 		config LED_RED_GPIO
 			int "Red led GPIO"
-			default 13 if SQUEEZEAMP
-			default -1
 			help
 				Set to -1 for no LED
 		config LED_RED_GPIO_LEVEL
@@ -327,8 +343,6 @@ menu "Squeezelite-ESP32"
 		visible if !SQUEEZEAMP && !TWATCH2020
 		config JACK_GPIO
 			int "Jack insertion GPIO"
-			default 34 if SQUEEZEAMP
-			default -1
 			help
 				GPIO to detect speaker jack insertion. Set to -1 for no detection.
 		config JACK_GPIO_LEVEL
@@ -340,8 +354,6 @@ menu "Squeezelite-ESP32"
 		visible if !SQUEEZEAMP && !TWATCH2020
 		config SPKFAULT_GPIO
 			int "Speaker fault GPIO"
-			default 2 if SQUEEZEAMP
-			default -1
 			help
 				GPIO to detect speaker fault condition. Set to -1 for no detection.
 		config SPKFAULT_GPIO_LEVEL
@@ -353,8 +365,6 @@ menu "Squeezelite-ESP32"
 		visible if !SQUEEZEAMP && !TWATCH2020
 		config BAT_CHANNEL
 			int "Set channel (0..7)"
-			default 7 if SQUEEZEAMP
-			default -1
 			help
 				Read a value every 10s on ADC1 on set Channel
 		config BAT_SCALE
