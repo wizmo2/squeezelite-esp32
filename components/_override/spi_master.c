@@ -125,6 +125,7 @@ We have two bits to control the interrupt:
 #include "esp_log.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include "freertos/semphr.h"
 #include "soc/soc_memory_layout.h"
 #include "driver/gpio.h"
 #include "hal/spi_hal.h"
@@ -158,6 +159,10 @@ typedef struct {
 
 //debug information
     bool polling;   //in process of a polling, avoid of queue new transactions into ISR
+	
+//	PATCH
+	SemaphoreHandle_t mutex;
+	int count;	
 } spi_host_t;
 
 struct spi_device_t {
@@ -391,6 +396,12 @@ esp_err_t spi_bus_add_device(spi_host_device_t host_id, const spi_device_interfa
     if (dev_config->spics_io_num >= 0) {
         spicommon_cs_initialize(host_id, dev_config->spics_io_num, freecs, use_gpio);
     }
+	
+	// create a mutex if we have more than one client
+	if (host->count++) {
+		ESP_LOGI(SPI_TAG, "More than one device on SPI %d => creating mutex", host_id);
+		host->mutex = xSemaphoreCreateMutex();
+	}
 
     //save a pointer to device in spi_host_t
     host->device[freecs] = dev;
@@ -982,17 +993,15 @@ esp_err_t SPI_MASTER_ISR_ATTR spi_device_polling_end(spi_device_handle_t handle,
 esp_err_t SPI_MASTER_ISR_ATTR spi_device_polling_transmit(spi_device_handle_t handle, spi_transaction_t* trans_desc)
 {
     esp_err_t ret;
-	static SemaphoreHandle_t mutex;
-	if (!mutex) mutex = xSemaphoreCreateMutex();
-	xSemaphoreTake(mutex, portMAX_DELAY);
+if (handle->host->mutex) xSemaphoreTake(handle->host->mutex, portMAX_DELAY);
 
     ret = spi_device_polling_start(handle, trans_desc, portMAX_DELAY);
 	if (ret != ESP_OK) {
-		xSemaphoreGive(mutex);
+		if (handle->host->mutex) xSemaphoreGive(handle->host->mutex);
 		return ret;	
 	}	
 
 	ret = spi_device_polling_end(handle, portMAX_DELAY);
-	xSemaphoreGive(mutex);
+	if (handle->host->mutex) xSemaphoreGive(handle->host->mutex);
 	return ret;
 }
