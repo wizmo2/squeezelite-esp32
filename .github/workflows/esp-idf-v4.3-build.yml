@@ -41,7 +41,8 @@ jobs:
       uses: actions/cache@v2
       with:
         path: |
-          build
+          ~/build
+          ~/components/wifi-manager/webapp/node_modules
           /var/lib/docker
         key: idf4.3-${{ runner.os }}-${{ matrix.node }}-${{ matrix.depth }}
     - name: Set build parameters
