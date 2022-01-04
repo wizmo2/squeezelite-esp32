@@ -47,6 +47,7 @@ jobs:
     - name: Set build parameters
       run: |
         git update-index --chmod=+x ./server_certs/getcert.sh
+        git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/protoc
         cd server_certs;./getcert.sh;cat github.pem;cd ..
         shopt -s nocasematch
         branch_name="${GITHUB_REF//refs\/heads\//}"
