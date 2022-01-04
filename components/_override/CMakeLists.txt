@@ -3,4 +3,5 @@ idf_component_register( SRCS ${srcs}
 						INCLUDE_DIRS ${IDF_PATH}/components/driver
 )
 
-message("overriding ${srcs} !! THIS MUST BE REQUIRED BY MAIN !!")
+# CMake is just a pile of crap
+message("overriding ${srcs} !! THIS MUST BE REQUIRED BY ONE COMPONENT BUT NO MAIN !!")
