@@ -30,7 +30,9 @@ if os.path.isfile(protosrc):
 
             cmd.append("-I={}".format(_builtin_proto_include))
         try:
+            sys.stdout.write("Invoking:" + ' '.join(cmd) + "\n")
             invoke_protoc(argv=cmd)
         except:
+            sys.stdout.write("Failed to build nanopb_pb2.py: " + ' '.join(cmd) + "\n")
             sys.stderr.write("Failed to build nanopb_pb2.py: " + ' '.join(cmd) + "\n")
             raise

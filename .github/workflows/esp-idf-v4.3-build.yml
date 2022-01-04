@@ -52,6 +52,8 @@ jobs:
         git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/protoc-gen-nanopb
         git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/*.py
         git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/*.py2
+        git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/proto/*.py
+        
 
         cd server_certs;./getcert.sh;cat github.pem;cd ..
         shopt -s nocasematch
