@@ -44,12 +44,15 @@ jobs:
           ~/build
           ~/components/wifi-manager/webapp/node_modules
           /var/lib/docker
-        key: idf4.3-${{ runner.os }}-${{ matrix.node }}-${{ matrix.depth }}
+        key: ${{ runner.os }}-${{ matrix.node }}
     - name: Set build parameters
       run: |
         git update-index --chmod=+x ./server_certs/getcert.sh
         git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/protoc
         git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/protoc-gen-nanopb
+        git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/*.py
+        git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/*.py2
+
         cd server_certs;./getcert.sh;cat github.pem;cd ..
         shopt -s nocasematch
         branch_name="${GITHUB_REF//refs\/heads\//}"
