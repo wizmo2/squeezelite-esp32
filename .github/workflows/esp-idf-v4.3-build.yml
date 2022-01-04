@@ -47,12 +47,12 @@ jobs:
         key: ${{ runner.os }}-${{ matrix.node }}
     - name: Set build parameters
       run: |
-        git update-index --chmod=+x ./server_certs/getcert.sh
-        git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/protoc
-        git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/protoc-gen-nanopb
-        git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/*.py
-        git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/*.py2
-        git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/proto/*.py
+        git update-index --chmod=+x /project/server_certs/getcert.sh
+        git update-index --chmod=+x /project/components/spotify/cspot/bell/nanopb/generator/protoc
+        git update-index --chmod=+x /project/components/spotify/cspot/bell/nanopb/generator/protoc-gen-nanopb
+        git update-index --chmod=+x /project/components/spotify/cspot/bell/nanopb/generator/*.py
+        git update-index --chmod=+x /project/components/spotify/cspot/bell/nanopb/generator/*.py2
+        git update-index --chmod=+x /project/components/spotify/cspot/bell/nanopb/generator/proto/*.py
         
 
         cd server_certs;./getcert.sh;cat github.pem;cd ..
