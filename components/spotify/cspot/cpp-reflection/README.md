@@ -1,7 +1,17 @@
-# Running
+Docker files
+------------
 
-```sh
-$ go build -o protoc-gen-cpprefl . && protoc --plugin=protoc-gen-cpprefl=protoc-gen-cpprefl --cpprefl_out okon protos/*.proto --proto_path protos/
-```
+This folder contains docker files that are used in testing nanopb automatically
+on various platforms.
 
-Will get protos from `protos/` and output to `out/protobuf.h`
+By default they take the newest master branch code from github.
+
+To build tests for a single target, use for example:
+
+    docker build ubuntu1804
+
+To build tests for all targets, use:
+
+    ./build_all.sh
+
+

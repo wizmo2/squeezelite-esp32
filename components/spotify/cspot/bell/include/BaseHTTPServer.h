@@ -6,6 +6,7 @@
 #include <map>
 #include <memory>
 #include <functional>
+#include <vector>
 
 namespace bell {
 
@@ -16,6 +17,7 @@ class ResponseReader {
 
     virtual size_t getTotalSize() = 0;
     virtual size_t read(char *buffer, size_t size) = 0;
+    virtual void close() = 0;
 };
 
 class FileResponseReader : public ResponseReader {
@@ -34,6 +36,10 @@ class FileResponseReader : public ResponseReader {
         return fread(buffer, 1, size, file);
     }
 
+    void close() {
+        fclose(file);
+    }
+
     size_t getTotalSize() { return fileSize; }
 };
 
@@ -43,6 +49,7 @@ struct HTTPRequest {
     std::map<std::string, std::string> urlParams;
     std::map<std::string, std::string> queryParams;
     std::string body;
+    std::string url;
     int handlerId;
     int connection;
 };

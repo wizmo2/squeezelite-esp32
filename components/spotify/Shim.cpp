@@ -71,7 +71,7 @@ static void cspotTask(void *pvParameters) {
 		ESP_LOGW(TAG, "Cannot load config, using default");
 		
 		configMan->deviceName = cspot.name;
-		configMan->format = AudioFormat::OGG_VORBIS_160;
+		configMan->format = AudioFormat_OGG_VORBIS_160;
 		configMan->volume = 32767;
 
 		configMan->save();	
@@ -80,7 +80,7 @@ static void cspotTask(void *pvParameters) {
 	// safely load config now
 	configMan->load();
 	if (!configMan->deviceName.length()) configMan->deviceName = cspot.name;
-	ESP_LOGI(TAG, "Started CSpot with %s (bitrate %d)", configMan->deviceName.c_str(), configMan->format == AudioFormat::OGG_VORBIS_320 ? 320 : (configMan->format == AudioFormat::OGG_VORBIS_160 ? 160 : 96));
+	ESP_LOGI(TAG, "Started CSpot with %s (bitrate %d)", configMan->deviceName.c_str(), configMan->format == AudioFormat_OGG_VORBIS_320 ? 320 : (configMan->format == AudioFormat_OGG_VORBIS_160 ? 160 : 96));
 
 	// All we do here is notify the task to start the mercury loop
     auto createPlayerCallback = [](std::shared_ptr<LoginBlob> blob) {

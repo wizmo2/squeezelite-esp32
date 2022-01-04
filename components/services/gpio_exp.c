@@ -213,7 +213,7 @@ gpio_exp_t* gpio_exp_create(const gpio_exp_config_t *config) {
 		gpio_intr_enable(config->intr);						
 	}
 	
-	ESP_LOGI(TAG, "Create GPIO expander %s at base %u with INT %d at @%x on port/host %d/%d", config->model, config->base, config->intr, config->phy.addr, config->phy.port, config->phy.host);
+	ESP_LOGI(TAG, "Create GPIO expander %s at base %u with intr %d at @%x on port/host %d/%d", config->model, config->base, config->intr, config->phy.addr, config->phy.port, config->phy.host);
 	return expander;
 }
 

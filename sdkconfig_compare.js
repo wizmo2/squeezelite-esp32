@@ -92,7 +92,7 @@ if (args.length != 3) {
 	console.log("Usage: node sdkconfig_compare file1 ");
 	process.exit();
 }
-const sdkconfig = ".\\sdkconfig";
+const sdkconfig = "./sdkconfig";
 const comparedFile = args[2];
 
 buildMap(sdkconfig).then((sdkConfigResult ) => {
@@ -101,7 +101,7 @@ buildMap(sdkconfig).then((sdkConfigResult ) => {
 	buildMap(comparedFile).then((comparedResult) => {
 		var comparedFileMap = comparedResult.map;
 		var comparedLines = comparedResult.lines_index;
-		buildMap(".\\sdkconfig.defaults").then((sdkconfigResults) => {
+		buildMap("./sdkconfig.defaults").then((sdkconfigResults) => {
 			var sdkconfig_defaults = sdkconfigResults.map;
 			var sdkconfig_defaults_lines = sdkconfigResults.lines_index;
 
