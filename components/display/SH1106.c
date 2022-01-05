@@ -86,6 +86,10 @@ static void SetContrast( struct GDS_Device* Device, uint8_t Contrast ) {
     Device->WriteCommand( Device, Contrast );
 }
 
+static void SPIParams(int Speed, uint8_t *mode, uint8_t *CS_pre, uint8_t *CS_post) {
+	*CS_post = Speed / (8*1000*1000);
+}
+
 static bool Init( struct GDS_Device* Device ) {
 #ifdef SHADOW_BUFFER	
 	struct PrivateSpace *Private = (struct PrivateSpace*) Device->Private;
@@ -140,7 +144,7 @@ static const struct GDS_Device SH1106 = {
 	.SetLayout = SetLayout,
 	.Update = Update, .Init = Init,
 	.Depth = 1,
-	.CS_post = 2,
+	.SPIParams = SPIParams,
 #if !defined SHADOW_BUFFER && defined USE_IRAM	
 	.Alloc = GDS_ALLOC_IRAM_SPI;
 #endif		
