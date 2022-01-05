@@ -47,6 +47,7 @@ jobs:
         key: ${{ runner.os }}-${{ matrix.node }}
     - name: Set build parameters
       run: |
+        echo  "''' '''" > ./components/spotify/cspot/bell/nanopb/generator/proto/nanopb_pb2.py
         git update-index --chmod=+x ./server_certs/getcert.sh
         git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/protoc
         git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/protoc-gen-nanopb
