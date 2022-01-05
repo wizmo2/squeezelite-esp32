@@ -303,7 +303,7 @@ esp_err_t i2s_set_clk(i2s_port_t i2s_num, uint32_t rate, i2s_bits_per_sample_t b
     double denom = (double)1 / 64;
     int channel = 2;
     i2s_dma_t *save_tx = NULL, *save_rx = NULL;
-ESP_LOGW(I2S_TAG, "THIS IS US IN I2S !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+
     I2S_CHECK((i2s_num < I2S_NUM_MAX), "i2s_num error", ESP_ERR_INVALID_ARG);
 
     if (bits % 8 != 0 || bits > I2S_BITS_PER_SAMPLE_32BIT || bits < I2S_BITS_PER_SAMPLE_16BIT) {

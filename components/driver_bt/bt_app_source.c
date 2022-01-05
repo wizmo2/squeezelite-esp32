@@ -452,7 +452,6 @@ static void handle_connect_state_unconnected(uint16_t event, esp_a2d_cb_param_t 
     {
         case ESP_A2D_CONNECTION_STATE_DISCONNECTED:
             unexpected_connection_state(bt_app_source_a2d_state, param->conn_stat.state);
-            set_app_source_state(APP_AV_STATE_UNCONNECTED);
             break;
         case ESP_A2D_CONNECTION_STATE_CONNECTING:
             unexpected_connection_state(bt_app_source_a2d_state, param->conn_stat.state);
