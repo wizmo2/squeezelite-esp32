@@ -27,6 +27,7 @@
 #include "esp_console.h"
 #include "argtable3/argtable3.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/timers.h"
 #include "freertos/event_groups.h"
 #include "esp_wifi.h"
 #include "esp_netif.h"
@@ -99,8 +100,6 @@ static void initialise_wifi(void)
         return;
     }
     esp_netif_init();
-    // Now moved to esp_app_main: wifi_event_group = xEventGroupCreate();
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
     ESP_ERROR_CHECK( esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &event_handler, NULL) );
@@ -112,8 +111,12 @@ static void initialise_wifi(void)
 	led_blink(LED_GREEN, 250, 250);
 }
 
-static bool wifi_join(const char *ssid, const char *pass, int timeout_ms)
+static void wifi_join(void *arg)
 {
+	const char *ssid = join_args.ssid->sval[0];
+    const char *pass = join_args.password->sval[0];
+	int timeout_ms = join_args.timeout->ival[0];
+	
     initialise_wifi();
     wifi_config_t wifi_config = { 0 };
     strncpy((char *) wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid));
@@ -129,7 +132,12 @@ static bool wifi_join(const char *ssid, const char *pass, int timeout_ms)
 
     int bits = xEventGroupWaitBits(network_event_group, CONNECTED_BIT,
                                    pdFALSE, pdTRUE, timeout_ms / portTICK_PERIOD_MS);
-    return (bits & CONNECTED_BIT) != 0;
+								   
+    if (bits & CONNECTED_BIT) {
+		ESP_LOGI(__func__, "Connected");	
+    } else {
+        ESP_LOGW(__func__, "Connection timed out");
+	}
 }
 
 //static int set_auto_connect(int argc, char **argv)
@@ -172,14 +180,9 @@ static int connect(int argc, char **argv)
         join_args.timeout->ival[0] = JOIN_TIMEOUT_MS;
     }
 
-    bool connected = wifi_join(join_args.ssid->sval[0],
-                               join_args.password->sval[0],
-                               join_args.timeout->ival[0]);
-    if (!connected) {
-        ESP_LOGW(__func__, "Connection timed out");
-        return 1;
-    }
-    ESP_LOGI(__func__, "Connected");
+	// need to use that trick to make sure we use internal stack
+	xTimerStart(xTimerCreate("wifi_join", 1, pdFALSE, NULL, wifi_join), portMAX_DELAY);        
+
     return 0;
 }
 void register_wifi_join()
