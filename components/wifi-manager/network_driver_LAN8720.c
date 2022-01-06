@@ -2,6 +2,9 @@
 #include "network_ethernet.h"
 
 static EXT_RAM_ATTR network_ethernet_driver_t LAN8720;
+static EXT_RAM_ATTR esp_netif_config_t cfg_rmii;
+static EXT_RAM_ATTR esp_netif_inherent_config_t esp_netif_config;
+
 static esp_err_t start(spi_device_handle_t spi_handle, eth_config_t* ethernet_config) {
 #ifdef CONFIG_ETH_PHY_INTERFACE_RMII
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
@@ -22,6 +25,13 @@ static esp_err_t start(spi_device_handle_t spi_handle, eth_config_t* ethernet_co
 }
 
 static void init_config(eth_config_t* ethernet_config) {
+	esp_netif_inherent_config_t loc_esp_netif_config = ESP_NETIF_INHERENT_DEFAULT_ETH();
+    memcpy(&esp_netif_config, &loc_esp_netif_config, sizeof(loc_esp_netif_config));
+	
+	cfg_rmii.base = &esp_netif_config,
+    cfg_rmii.stack = ESP_NETIF_NETSTACK_DEFAULT_ETH;
+	
+    LAN8720.cfg_netif = &cfg_rmii;
     LAN8720.start = start;
 }
 

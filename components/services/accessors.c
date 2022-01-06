@@ -140,17 +140,23 @@ const i2s_platform_config_t * config_i2s_get_from_str(char * dac_config ){
  */
 const eth_config_t * config_eth_get_from_str(char* config ){
 	static EXT_RAM_ATTR eth_config_t eth_config; 
+	eth_config.rst = eth_config.intr = -1;
 
 	PARSE_PARAM_STR(config, "model", '=', eth_config.model, 15);
+	PARSE_PARAM(config, "rst", '=', eth_config.rst);
+	// RMII
 	PARSE_PARAM(config, "mdc", '=', eth_config.mdc);
 	PARSE_PARAM(config, "mdio", '=', eth_config.mdio);
-	PARSE_PARAM(config, "rst", '=', eth_config.rst);
-	PARSE_PARAM(config, "mosi", '=', eth_config.mosi);
-	PARSE_PARAM(config, "miso", '=', eth_config.miso);
+	// SPI
 	PARSE_PARAM(config, "intr", '=', eth_config.intr);
 	PARSE_PARAM(config, "cs", '=', eth_config.cs);
 	PARSE_PARAM(config, "speed", '=', eth_config.speed);
+	/* not used as SPI must be shared
+	PARSE_PARAM(config, "mosi", '=', eth_config.mosi);
+	PARSE_PARAM(config, "miso", '=', eth_config.miso);
 	PARSE_PARAM(config, "clk", '=', eth_config.clk);
+	PARSE_PARAM(config, "host", '=', eth_config.host);
+	*/
 
 	// only system host is available
 	eth_config.host = spi_system_host;
