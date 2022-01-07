@@ -10,6 +10,7 @@
 #endif
 
 #include <pthread.h>
+#include <string>
 
 namespace bell
 {
@@ -51,6 +52,7 @@ namespace bell
             }
             else
             {
+                printf("task on internal %s", this->taskName.c_str());
                 esp_pthread_cfg_t cfg = esp_pthread_get_default_config();
                 cfg.stack_size = stackSize;
                 cfg.inherit_cfg = true;

@@ -246,8 +246,8 @@ void ShimAudioSink::volumeChanged(uint16_t volume) {
 	cspot.cHandler(CSPOT_VOLUME, volume);
 }
 
-void ShimAudioSink::feedPCMFrames(std::vector<uint8_t> &data) {	
-	cspot.dHandler(&data[0], data.size());
+void ShimAudioSink::feedPCMFrames(const uint8_t *data, size_t bytes) {	
+	cspot.dHandler(data, bytes);
 }
 
 /****************************************************************************************

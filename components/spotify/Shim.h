@@ -23,7 +23,7 @@
 class ShimAudioSink : public AudioSink {
 public:
 	ShimAudioSink(void) { softwareVolumeControl = false; }
-    void feedPCMFrames(std::vector<uint8_t> &data);
+    void feedPCMFrames(const uint8_t *data, size_t bytes);
 	virtual void volumeChanged(uint16_t volume);
 };
 

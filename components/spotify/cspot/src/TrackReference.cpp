@@ -19,8 +19,9 @@ TrackReference::TrackReference(TrackRef *ref)
 
 TrackReference::~TrackReference()
 {
-    pb_release(TrackRef_fields, ref);
- }
+    //pb_release(TrackRef_fields, &ref);
+    //pbFree(TrackRef_fields, &ref);
+}
 
 std::vector<uint8_t> TrackReference::base62Decode(std::string uri)
 {

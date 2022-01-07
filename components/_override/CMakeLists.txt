@@ -4,4 +4,4 @@ idf_component_register( SRCS ${srcs}
 )
 
 # CMake is just a pile of crap
-message("overriding ${srcs} !! THIS MUST BE REQUIRED BY ONE COMPONENT BUT NO MAIN !!")
+message("overriding ${srcs} !! THIS MUST BE REQUIRED BY ONE COMPONENT BUT NOT MAIN !!")
