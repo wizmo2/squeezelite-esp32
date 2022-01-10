@@ -6,10 +6,10 @@
 #error Regenerate this file with the current version of nanopb generator.
 #endif
 
-PB_BIND(TrackRef, TrackRef, 2)
+PB_BIND(TrackRef, TrackRef, AUTO)
 
 
-PB_BIND(State, State, 4)
+PB_BIND(State, State, AUTO)
 
 
 PB_BIND(Capability, Capability, 2)
