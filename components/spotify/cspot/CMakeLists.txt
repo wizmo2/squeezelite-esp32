@@ -45,5 +45,6 @@ endif()
 add_library(cspot STATIC ${SOURCES} ${PROTO_SRCS})
 # PUBLIC to propagate includes from bell to cspot dependents
 target_compile_definitions(bell PUBLIC PB_ENABLE_MALLOC)
+target_compile_definitions(bell PUBLIC PB_FIELD_32BIT)
 target_link_libraries(cspot PUBLIC ${EXTRA_LIBS})
 target_include_directories(cspot PUBLIC "include" ${GENERATED_INCLUDES} ${NANOPB_INCLUDE_DIRS})

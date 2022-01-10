@@ -62,23 +62,28 @@ typedef struct _Capability {
     char stringValue[50][50]; 
 } Capability;
 
+typedef PB_BYTES_ARRAY_T(128) TrackRef_gid_t;
 typedef struct _TrackRef { 
-    pb_bytes_array_t *gid; 
-    char *uri; 
+    bool has_gid;
+    TrackRef_gid_t gid; 
+    bool has_uri;
+    char uri[256]; 
     bool has_queued;
     bool queued; 
-    char *context; 
+    pb_callback_t context; 
 } TrackRef;
 
 typedef struct _DeviceState { 
-    char *sw_version; 
+    bool has_sw_version;
+    char sw_version[64]; 
     bool has_is_active;
     bool is_active; 
     bool has_can_play;
     bool can_play; 
     bool has_volume;
     uint32_t volume; 
-    char *name; 
+    bool has_name;
+    char name[64]; 
     bool has_error_code;
     uint32_t error_code; 
     bool has_became_active_at;
@@ -90,7 +95,8 @@ typedef struct _DeviceState {
 } DeviceState;
 
 typedef struct _State { 
-    char *context_uri; 
+    bool has_context_uri;
+    char context_uri[256]; 
     bool has_index;
     uint32_t index; 
     bool has_position_ms;
@@ -113,8 +119,10 @@ typedef struct _State {
 typedef struct _Frame { 
     bool has_version;
     uint32_t version; 
-    char *ident; 
-    char *protocol_version; 
+    bool has_ident;
+    char ident[64]; 
+    bool has_protocol_version;
+    char protocol_version[64]; 
     bool has_seq_nr;
     uint32_t seq_nr; 
     bool has_typ;
@@ -130,7 +138,7 @@ typedef struct _Frame {
     bool has_state_update_id;
     int64_t state_update_id; 
     pb_size_t recipient_count;
-    char **recipient; 
+    char recipient[64][64]; 
 } Frame;
 
 
@@ -153,16 +161,16 @@ extern "C" {
 #endif
 
 /* Initializer values for message structs */
-#define TrackRef_init_default                    {NULL, NULL, false, 0, NULL}
-#define State_init_default                       {NULL, false, 0, false, 0, false, _PlayStatus_MIN, false, 0, {{NULL}, NULL}, false, 0, false, 0, false, 0, 0, {TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default}}
+#define TrackRef_init_default                    {false, {0, {0}}, false, "", false, 0, {{NULL}, NULL}}
+#define State_init_default                       {false, "", false, 0, false, 0, false, _PlayStatus_MIN, false, 0, {{NULL}, NULL}, false, 0, false, 0, false, 0, 0, {TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default}}
 #define Capability_init_default                  {false, _CapabilityType_MIN, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0, {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}}
-#define DeviceState_init_default                 {NULL, false, 0, false, 0, false, 0, NULL, false, 0, false, 0, {{NULL}, NULL}, 0, {Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default}, {{NULL}, NULL}}
-#define Frame_init_default                       {false, 0, NULL, NULL, false, 0, false, _MessageType_MIN, false, DeviceState_init_default, false, State_init_default, false, 0, false, 0, false, 0, 0, NULL}
-#define TrackRef_init_zero                       {NULL, NULL, false, 0, NULL}
-#define State_init_zero                          {NULL, false, 0, false, 0, false, _PlayStatus_MIN, false, 0, {{NULL}, NULL}, false, 0, false, 0, false, 0, 0, {TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero}}
+#define DeviceState_init_default                 {false, "", false, 0, false, 0, false, 0, false, "", false, 0, false, 0, {{NULL}, NULL}, 0, {Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default}, {{NULL}, NULL}}
+#define Frame_init_default                       {false, 0, false, "", false, "", false, 0, false, _MessageType_MIN, false, DeviceState_init_default, false, State_init_default, false, 0, false, 0, false, 0, 0, {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}}
+#define TrackRef_init_zero                       {false, {0, {0}}, false, "", false, 0, {{NULL}, NULL}}
+#define State_init_zero                          {false, "", false, 0, false, 0, false, _PlayStatus_MIN, false, 0, {{NULL}, NULL}, false, 0, false, 0, false, 0, 0, {TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero}}
 #define Capability_init_zero                     {false, _CapabilityType_MIN, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0, {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}}
-#define DeviceState_init_zero                    {NULL, false, 0, false, 0, false, 0, NULL, false, 0, false, 0, {{NULL}, NULL}, 0, {Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero}, {{NULL}, NULL}}
-#define Frame_init_zero                          {false, 0, NULL, NULL, false, 0, false, _MessageType_MIN, false, DeviceState_init_zero, false, State_init_zero, false, 0, false, 0, false, 0, 0, NULL}
+#define DeviceState_init_zero                    {false, "", false, 0, false, 0, false, 0, false, "", false, 0, false, 0, {{NULL}, NULL}, 0, {Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero}, {{NULL}, NULL}}
+#define Frame_init_zero                          {false, 0, false, "", false, "", false, 0, false, _MessageType_MIN, false, DeviceState_init_zero, false, State_init_zero, false, 0, false, 0, false, 0, 0, {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define Capability_typ_tag                       1
@@ -206,15 +214,15 @@ extern "C" {
 
 /* Struct field encoding specification for nanopb */
 #define TrackRef_FIELDLIST(X, a) \
-X(a, POINTER,  OPTIONAL, BYTES,    gid,               1) \
-X(a, POINTER,  OPTIONAL, STRING,   uri,               2) \
+X(a, STATIC,   OPTIONAL, BYTES,    gid,               1) \
+X(a, STATIC,   OPTIONAL, STRING,   uri,               2) \
 X(a, STATIC,   OPTIONAL, BOOL,     queued,            3) \
-X(a, POINTER,  OPTIONAL, STRING,   context,           4)
-#define TrackRef_CALLBACK NULL
+X(a, CALLBACK, OPTIONAL, STRING,   context,           4)
+#define TrackRef_CALLBACK pb_default_field_callback
 #define TrackRef_DEFAULT NULL
 
 #define State_FIELDLIST(X, a) \
-X(a, POINTER,  OPTIONAL, STRING,   context_uri,       2) \
+X(a, STATIC,   OPTIONAL, STRING,   context_uri,       2) \
 X(a, STATIC,   OPTIONAL, UINT32,   index,             3) \
 X(a, STATIC,   OPTIONAL, UINT32,   position_ms,       4) \
 X(a, STATIC,   OPTIONAL, UENUM,    status,            5) \
@@ -236,11 +244,11 @@ X(a, STATIC,   REPEATED, STRING,   stringValue,       3)
 #define Capability_DEFAULT (const pb_byte_t*)"\x08\x01\x00"
 
 #define DeviceState_FIELDLIST(X, a) \
-X(a, POINTER,  OPTIONAL, STRING,   sw_version,        1) \
+X(a, STATIC,   OPTIONAL, STRING,   sw_version,        1) \
 X(a, STATIC,   OPTIONAL, BOOL,     is_active,        10) \
 X(a, STATIC,   OPTIONAL, BOOL,     can_play,         11) \
 X(a, STATIC,   OPTIONAL, UINT32,   volume,           12) \
-X(a, POINTER,  OPTIONAL, STRING,   name,             13) \
+X(a, STATIC,   OPTIONAL, STRING,   name,             13) \
 X(a, STATIC,   OPTIONAL, UINT32,   error_code,       14) \
 X(a, STATIC,   OPTIONAL, INT64,    became_active_at,  15) \
 X(a, CALLBACK, OPTIONAL, STRING,   error_message,    16) \
@@ -252,8 +260,8 @@ X(a, CALLBACK, REPEATED, STRING,   local_uris,       18)
 
 #define Frame_FIELDLIST(X, a) \
 X(a, STATIC,   OPTIONAL, UINT32,   version,           1) \
-X(a, POINTER,  OPTIONAL, STRING,   ident,             2) \
-X(a, POINTER,  OPTIONAL, STRING,   protocol_version,   3) \
+X(a, STATIC,   OPTIONAL, STRING,   ident,             2) \
+X(a, STATIC,   OPTIONAL, STRING,   protocol_version,   3) \
 X(a, STATIC,   OPTIONAL, UINT32,   seq_nr,            4) \
 X(a, STATIC,   OPTIONAL, UENUM,    typ,               5) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  device_state,      7) \
@@ -261,7 +269,7 @@ X(a, STATIC,   OPTIONAL, MESSAGE,  state,            12) \
 X(a, STATIC,   OPTIONAL, UINT32,   position,         13) \
 X(a, STATIC,   OPTIONAL, UINT32,   volume,           14) \
 X(a, STATIC,   OPTIONAL, INT64,    state_update_id,  17) \
-X(a, POINTER,  REPEATED, STRING,   recipient,        18)
+X(a, STATIC,   REPEATED, STRING,   recipient,        18)
 #define Frame_CALLBACK NULL
 #define Frame_DEFAULT (const pb_byte_t*)"\x28\x01\x00"
 #define Frame_device_state_MSGTYPE DeviceState

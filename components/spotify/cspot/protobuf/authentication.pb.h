@@ -58,23 +58,25 @@ typedef enum _AuthenticationType {
 } AuthenticationType;
 
 /* Struct definitions */
+typedef PB_BYTES_ARRAY_T(512) LoginCredentials_auth_data_t;
 typedef struct _LoginCredentials { 
-    char *username; 
+    char username[30]; 
     AuthenticationType typ; 
-    pb_bytes_array_t *auth_data; 
+    LoginCredentials_auth_data_t auth_data; 
 } LoginCredentials;
 
 typedef struct _SystemInfo { 
     CpuFamily cpu_family; 
     Os os; 
-    char *system_information_string; 
-    char *device_id; 
+    char system_information_string[16]; 
+    char device_id[50]; 
 } SystemInfo;
 
 typedef struct _ClientResponseEncrypted { 
     LoginCredentials login_credentials; 
     SystemInfo system_info; 
-    char *version_string; 
+    bool has_version_string;
+    char version_string[32]; 
 } ClientResponseEncrypted;
 
 
@@ -97,12 +99,12 @@ extern "C" {
 #endif
 
 /* Initializer values for message structs */
-#define SystemInfo_init_default                  {_CpuFamily_MIN, _Os_MIN, NULL, NULL}
-#define LoginCredentials_init_default            {NULL, _AuthenticationType_MIN, NULL}
-#define ClientResponseEncrypted_init_default     {LoginCredentials_init_default, SystemInfo_init_default, NULL}
-#define SystemInfo_init_zero                     {_CpuFamily_MIN, _Os_MIN, NULL, NULL}
-#define LoginCredentials_init_zero               {NULL, _AuthenticationType_MIN, NULL}
-#define ClientResponseEncrypted_init_zero        {LoginCredentials_init_zero, SystemInfo_init_zero, NULL}
+#define SystemInfo_init_default                  {_CpuFamily_MIN, _Os_MIN, "", ""}
+#define LoginCredentials_init_default            {"", _AuthenticationType_MIN, {0, {0}}}
+#define ClientResponseEncrypted_init_default     {LoginCredentials_init_default, SystemInfo_init_default, false, ""}
+#define SystemInfo_init_zero                     {_CpuFamily_MIN, _Os_MIN, "", ""}
+#define LoginCredentials_init_zero               {"", _AuthenticationType_MIN, {0, {0}}}
+#define ClientResponseEncrypted_init_zero        {LoginCredentials_init_zero, SystemInfo_init_zero, false, ""}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define LoginCredentials_username_tag            10
@@ -120,22 +122,22 @@ extern "C" {
 #define SystemInfo_FIELDLIST(X, a) \
 X(a, STATIC,   REQUIRED, UENUM,    cpu_family,       10) \
 X(a, STATIC,   REQUIRED, UENUM,    os,               60) \
-X(a, POINTER,  OPTIONAL, STRING,   system_information_string,  90) \
-X(a, POINTER,  OPTIONAL, STRING,   device_id,       100)
+X(a, STATIC,   REQUIRED, STRING,   system_information_string,  90) \
+X(a, STATIC,   REQUIRED, STRING,   device_id,       100)
 #define SystemInfo_CALLBACK NULL
 #define SystemInfo_DEFAULT NULL
 
 #define LoginCredentials_FIELDLIST(X, a) \
-X(a, POINTER,  OPTIONAL, STRING,   username,         10) \
+X(a, STATIC,   REQUIRED, STRING,   username,         10) \
 X(a, STATIC,   REQUIRED, UENUM,    typ,              20) \
-X(a, POINTER,  OPTIONAL, BYTES,    auth_data,        30)
+X(a, STATIC,   REQUIRED, BYTES,    auth_data,        30)
 #define LoginCredentials_CALLBACK NULL
 #define LoginCredentials_DEFAULT NULL
 
 #define ClientResponseEncrypted_FIELDLIST(X, a) \
 X(a, STATIC,   REQUIRED, MESSAGE,  login_credentials,  10) \
 X(a, STATIC,   REQUIRED, MESSAGE,  system_info,      50) \
-X(a, POINTER,  OPTIONAL, STRING,   version_string,   70)
+X(a, STATIC,   OPTIONAL, STRING,   version_string,   70)
 #define ClientResponseEncrypted_CALLBACK NULL
 #define ClientResponseEncrypted_DEFAULT NULL
 #define ClientResponseEncrypted_login_credentials_MSGTYPE LoginCredentials
@@ -151,9 +153,9 @@ extern const pb_msgdesc_t ClientResponseEncrypted_msg;
 #define ClientResponseEncrypted_fields &ClientResponseEncrypted_msg
 
 /* Maximum encoded size of messages (where known) */
-/* SystemInfo_size depends on runtime parameters */
-/* LoginCredentials_size depends on runtime parameters */
-/* ClientResponseEncrypted_size depends on runtime parameters */
+#define ClientResponseEncrypted_size             665
+#define LoginCredentials_size                    550
+#define SystemInfo_size                          75
 
 #ifdef __cplusplus
 } /* extern "C" */

@@ -106,7 +106,7 @@ static bool cmd_handler(cspot_event_t event, ...) {
 	switch(event) {
 	case CSPOT_SETUP:
 		actrls_set(controls, false, NULL, actrls_ir_action);
-		displayer_control(DISPLAYER_ACTIVATE, "SPOTIFY");
+		displayer_control(DISPLAYER_ACTIVATE, "SPOTIFY", false);
 		break;
 	case CSPOT_PLAY:
 		displayer_control(DISPLAYER_TIMER_RUN);

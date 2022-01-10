@@ -38,6 +38,7 @@ void 	GDS_Update( struct GDS_Device* Device );
 void 	GDS_SetLayout( struct GDS_Device* Device, bool HFlip, bool VFlip, bool Rotate );
 void 	GDS_SetDirty( struct GDS_Device* Device );
 int 	GDS_GetWidth( struct GDS_Device* Device );
+void 	GDS_SetTextWidth( struct GDS_Device* Device, int TextWidth );
 int 	GDS_GetHeight( struct GDS_Device* Device );
 int 	GDS_GetDepth( struct GDS_Device* Device );
 int 	GDS_GetMode( struct GDS_Device* Device );

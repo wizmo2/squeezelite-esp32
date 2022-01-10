@@ -15,16 +15,16 @@ PB_BIND(Restriction, Restriction, AUTO)
 PB_BIND(Image, Image, AUTO)
 
 
-PB_BIND(ImageGroup, ImageGroup, AUTO)
+PB_BIND(ImageGroup, ImageGroup, 2)
 
 
-PB_BIND(Album, Album, AUTO)
+PB_BIND(Album, Album, 2)
 
 
-PB_BIND(Artist, Artist, AUTO)
+PB_BIND(Artist, Artist, 2)
 
 
-PB_BIND(Track, Track, AUTO)
+PB_BIND(Track, Track, 4)
 
 
 PB_BIND(Episode, Episode, 2)

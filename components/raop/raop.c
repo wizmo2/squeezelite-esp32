@@ -628,6 +628,9 @@ static bool handle_rtsp(raop_ctx_t *ctx, int sock)
 				success = ctx->cmd_cb(RAOP_METADATA, metadata.artist, metadata.album, metadata.title);
 				free_metadata(&metadata);
 			}
+		} else if (body && ((p = kd_lookup(headers, "Content-Type")) != NULL) && strcasestr(p, "image/jpeg")) {			
+			LOG_INFO("[%p]: received JPEG image of %d bytes", ctx, len);
+			ctx->cmd_cb(RAOP_ARTWORK, body, len);
 		} else {
 			char *dump = kd_dump(headers);
 			LOG_INFO("Unhandled SET PARAMETER\n%s", dump);

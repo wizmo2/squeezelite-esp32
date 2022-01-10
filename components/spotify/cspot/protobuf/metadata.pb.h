@@ -24,63 +24,78 @@ typedef enum _AudioFormat {
 } AudioFormat;
 
 /* Struct definitions */
+typedef PB_BYTES_ARRAY_T(128) Artist_gid_t;
 typedef struct _Artist { 
-    pb_bytes_array_t *gid; 
-    char *name; 
+    bool has_gid;
+    Artist_gid_t gid; 
+    bool has_name;
+    char name[512]; 
 } Artist;
 
-typedef struct _Image { 
-    pb_bytes_array_t *file_id; 
-} Image;
-
-typedef struct _ImageGroup { 
-    pb_size_t image_count;
-    struct _Image *image; 
-} ImageGroup;
-
-typedef struct _Restriction { 
-    char *countries_allowed; 
-    char *countries_forbidden; 
-} Restriction;
-
-typedef struct _Album { 
-    pb_callback_t gid; 
-    char *name; 
-    bool has_cover_group;
-    ImageGroup cover_group; 
-} Album;
-
+typedef PB_BYTES_ARRAY_T(128) AudioFile_file_id_t;
 typedef struct _AudioFile { 
-    pb_bytes_array_t *file_id; 
+    bool has_file_id;
+    AudioFile_file_id_t file_id; 
     bool has_format;
     AudioFormat format; 
 } AudioFile;
 
+typedef PB_BYTES_ARRAY_T(128) Image_file_id_t;
+typedef struct _Image { 
+    bool has_file_id;
+    Image_file_id_t file_id; 
+} Image;
+
+typedef struct _Restriction { 
+    bool has_countries_allowed;
+    char countries_allowed[32]; 
+    bool has_countries_forbidden;
+    char countries_forbidden[32]; 
+} Restriction;
+
+typedef struct _ImageGroup { 
+    pb_size_t image_count;
+    Image image[10]; 
+} ImageGroup;
+
+typedef struct _Album { 
+    pb_callback_t gid; 
+    bool has_name;
+    char name[512]; 
+    bool has_cover_group;
+    ImageGroup cover_group; 
+} Album;
+
+typedef PB_BYTES_ARRAY_T(64) Episode_gid_t;
 typedef struct _Episode { 
-    pb_bytes_array_t *gid; 
-    char *name; 
+    bool has_gid;
+    Episode_gid_t gid; 
+    bool has_name;
+    char name[512]; 
     bool has_duration;
     int32_t duration; 
     pb_size_t audio_count;
-    struct _AudioFile *audio; 
-    struct _ImageGroup *covers; 
+    AudioFile audio[10]; 
+    bool has_covers;
+    ImageGroup covers; 
 } Episode;
 
+typedef PB_BYTES_ARRAY_T(64) Track_gid_t;
 typedef struct _Track { 
-    pb_bytes_array_t *gid; 
-    char *name; 
+    bool has_gid;
+    Track_gid_t gid; 
+    bool has_name;
+    char name[512]; 
     bool has_album;
     Album album; 
     pb_size_t artist_count;
-    struct _Artist *artist; 
+    Artist artist[8]; 
     bool has_duration;
     int32_t duration; 
-    pb_size_t restriction_count;
-    struct _Restriction *restriction; 
+    pb_callback_t restriction; 
     pb_size_t file_count;
-    struct _AudioFile *file; 
-    pb_size_t alternative_count;
-    struct _Track *alternative; 
+    AudioFile file[16]; 
+    pb_callback_t alternative; 
 } Track;
 
 
@@ -95,35 +110,35 @@ extern "C" {
 #endif
 
 /* Initializer values for message structs */
-#define AudioFile_init_default                   {NULL, false, _AudioFormat_MIN}
-#define Restriction_init_default                 {NULL, NULL}
-#define Image_init_default                       {NULL}
-#define ImageGroup_init_default                  {0, NULL}
-#define Album_init_default                       {{{NULL}, NULL}, NULL, false, ImageGroup_init_default}
-#define Artist_init_default                      {NULL, NULL}
-#define Track_init_default                       {NULL, NULL, false, Album_init_default, 0, NULL, false, 0, 0, NULL, 0, NULL, 0, NULL}
-#define Episode_init_default                     {NULL, NULL, false, 0, 0, NULL, NULL}
-#define AudioFile_init_zero                      {NULL, false, _AudioFormat_MIN}
-#define Restriction_init_zero                    {NULL, NULL}
-#define Image_init_zero                          {NULL}
-#define ImageGroup_init_zero                     {0, NULL}
-#define Album_init_zero                          {{{NULL}, NULL}, NULL, false, ImageGroup_init_zero}
-#define Artist_init_zero                         {NULL, NULL}
-#define Track_init_zero                          {NULL, NULL, false, Album_init_zero, 0, NULL, false, 0, 0, NULL, 0, NULL, 0, NULL}
-#define Episode_init_zero                        {NULL, NULL, false, 0, 0, NULL, NULL}
+#define AudioFile_init_default                   {false, {0, {0}}, false, _AudioFormat_MIN}
+#define Restriction_init_default                 {false, "", false, ""}
+#define Image_init_default                       {false, {0, {0}}}
+#define ImageGroup_init_default                  {0, {Image_init_default, Image_init_default, Image_init_default, Image_init_default, Image_init_default, Image_init_default, Image_init_default, Image_init_default, Image_init_default, Image_init_default}}
+#define Album_init_default                       {{{NULL}, NULL}, false, "", false, ImageGroup_init_default}
+#define Artist_init_default                      {false, {0, {0}}, false, ""}
+#define Track_init_default                       {false, {0, {0}}, false, "", false, Album_init_default, 0, {Artist_init_default, Artist_init_default, Artist_init_default, Artist_init_default, Artist_init_default, Artist_init_default, Artist_init_default, Artist_init_default}, false, 0, {{NULL}, NULL}, 0, {AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default}, {{NULL}, NULL}}
+#define Episode_init_default                     {false, {0, {0}}, false, "", false, 0, 0, {AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default, AudioFile_init_default}, false, ImageGroup_init_default}
+#define AudioFile_init_zero                      {false, {0, {0}}, false, _AudioFormat_MIN}
+#define Restriction_init_zero                    {false, "", false, ""}
+#define Image_init_zero                          {false, {0, {0}}}
+#define ImageGroup_init_zero                     {0, {Image_init_zero, Image_init_zero, Image_init_zero, Image_init_zero, Image_init_zero, Image_init_zero, Image_init_zero, Image_init_zero, Image_init_zero, Image_init_zero}}
+#define Album_init_zero                          {{{NULL}, NULL}, false, "", false, ImageGroup_init_zero}
+#define Artist_init_zero                         {false, {0, {0}}, false, ""}
+#define Track_init_zero                          {false, {0, {0}}, false, "", false, Album_init_zero, 0, {Artist_init_zero, Artist_init_zero, Artist_init_zero, Artist_init_zero, Artist_init_zero, Artist_init_zero, Artist_init_zero, Artist_init_zero}, false, 0, {{NULL}, NULL}, 0, {AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero}, {{NULL}, NULL}}
+#define Episode_init_zero                        {false, {0, {0}}, false, "", false, 0, 0, {AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero, AudioFile_init_zero}, false, ImageGroup_init_zero}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define Artist_gid_tag                           1
 #define Artist_name_tag                          2
+#define AudioFile_file_id_tag                    1
+#define AudioFile_format_tag                     2
 #define Image_file_id_tag                        1
-#define ImageGroup_image_tag                     1
 #define Restriction_countries_allowed_tag        2
 #define Restriction_countries_forbidden_tag      3
+#define ImageGroup_image_tag                     1
 #define Album_gid_tag                            1
 #define Album_name_tag                           2
 #define Album_cover_group_tag                    17
-#define AudioFile_file_id_tag                    1
-#define AudioFile_format_tag                     2
 #define Episode_gid_tag                          1
 #define Episode_name_tag                         2
 #define Episode_duration_tag                     7
@@ -140,52 +155,52 @@ extern "C" {
 
 /* Struct field encoding specification for nanopb */
 #define AudioFile_FIELDLIST(X, a) \
-X(a, POINTER,  OPTIONAL, BYTES,    file_id,           1) \
+X(a, STATIC,   OPTIONAL, BYTES,    file_id,           1) \
 X(a, STATIC,   OPTIONAL, UENUM,    format,            2)
 #define AudioFile_CALLBACK NULL
 #define AudioFile_DEFAULT NULL
 
 #define Restriction_FIELDLIST(X, a) \
-X(a, POINTER,  OPTIONAL, STRING,   countries_allowed,   2) \
-X(a, POINTER,  OPTIONAL, STRING,   countries_forbidden,   3)
+X(a, STATIC,   OPTIONAL, STRING,   countries_allowed,   2) \
+X(a, STATIC,   OPTIONAL, STRING,   countries_forbidden,   3)
 #define Restriction_CALLBACK NULL
 #define Restriction_DEFAULT NULL
 
 #define Image_FIELDLIST(X, a) \
-X(a, POINTER,  OPTIONAL, BYTES,    file_id,           1)
+X(a, STATIC,   OPTIONAL, BYTES,    file_id,           1)
 #define Image_CALLBACK NULL
 #define Image_DEFAULT NULL
 
 #define ImageGroup_FIELDLIST(X, a) \
-X(a, POINTER,  REPEATED, MESSAGE,  image,             1)
+X(a, STATIC,   REPEATED, MESSAGE,  image,             1)
 #define ImageGroup_CALLBACK NULL
 #define ImageGroup_DEFAULT NULL
 #define ImageGroup_image_MSGTYPE Image
 
 #define Album_FIELDLIST(X, a) \
 X(a, CALLBACK, OPTIONAL, BYTES,    gid,               1) \
-X(a, POINTER,  OPTIONAL, STRING,   name,              2) \
+X(a, STATIC,   OPTIONAL, STRING,   name,              2) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  cover_group,      17)
 #define Album_CALLBACK pb_default_field_callback
 #define Album_DEFAULT NULL
 #define Album_cover_group_MSGTYPE ImageGroup
 
 #define Artist_FIELDLIST(X, a) \
-X(a, POINTER,  OPTIONAL, BYTES,    gid,               1) \
-X(a, POINTER,  OPTIONAL, STRING,   name,              2)
+X(a, STATIC,   OPTIONAL, BYTES,    gid,               1) \
+X(a, STATIC,   OPTIONAL, STRING,   name,              2)
 #define Artist_CALLBACK NULL
 #define Artist_DEFAULT NULL
 
 #define Track_FIELDLIST(X, a) \
-X(a, POINTER,  OPTIONAL, BYTES,    gid,               1) \
-X(a, POINTER,  OPTIONAL, STRING,   name,              2) \
+X(a, STATIC,   OPTIONAL, BYTES,    gid,               1) \
+X(a, STATIC,   OPTIONAL, STRING,   name,              2) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  album,             3) \
-X(a, POINTER,  REPEATED, MESSAGE,  artist,            4) \
+X(a, STATIC,   REPEATED, MESSAGE,  artist,            4) \
 X(a, STATIC,   OPTIONAL, SINT32,   duration,          7) \
-X(a, POINTER,  REPEATED, MESSAGE,  restriction,      11) \
-X(a, POINTER,  REPEATED, MESSAGE,  file,             12) \
-X(a, POINTER,  REPEATED, MESSAGE,  alternative,      13)
-#define Track_CALLBACK NULL
+X(a, CALLBACK, REPEATED, MESSAGE,  restriction,      11) \
+X(a, STATIC,   REPEATED, MESSAGE,  file,             12) \
+X(a, CALLBACK, REPEATED, MESSAGE,  alternative,      13)
+#define Track_CALLBACK pb_default_field_callback
 #define Track_DEFAULT NULL
 #define Track_album_MSGTYPE Album
 #define Track_artist_MSGTYPE Artist
@@ -194,11 +209,11 @@ X(a, POINTER,  REPEATED, MESSAGE,  alternative,      13)
 #define Track_alternative_MSGTYPE Track
 
 #define Episode_FIELDLIST(X, a) \
-X(a, POINTER,  OPTIONAL, BYTES,    gid,               1) \
-X(a, POINTER,  OPTIONAL, STRING,   name,              2) \
+X(a, STATIC,   OPTIONAL, BYTES,    gid,               1) \
+X(a, STATIC,   OPTIONAL, STRING,   name,              2) \
 X(a, STATIC,   OPTIONAL, SINT32,   duration,          7) \
-X(a, POINTER,  REPEATED, MESSAGE,  audio,            12) \
-X(a, POINTER,  OPTIONAL, MESSAGE,  covers,           68)
+X(a, STATIC,   REPEATED, MESSAGE,  audio,            12) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  covers,           68)
 #define Episode_CALLBACK NULL
 #define Episode_DEFAULT NULL
 #define Episode_audio_MSGTYPE AudioFile
@@ -224,14 +239,14 @@ extern const pb_msgdesc_t Episode_msg;
 #define Episode_fields &Episode_msg
 
 /* Maximum encoded size of messages (where known) */
-/* AudioFile_size depends on runtime parameters */
-/* Restriction_size depends on runtime parameters */
-/* Image_size depends on runtime parameters */
-/* ImageGroup_size depends on runtime parameters */
 /* Album_size depends on runtime parameters */
-/* Artist_size depends on runtime parameters */
 /* Track_size depends on runtime parameters */
-/* Episode_size depends on runtime parameters */
+#define Artist_size                              645
+#define AudioFile_size                           133
+#define Episode_size                             3290
+#define ImageGroup_size                          1340
+#define Image_size                               131
+#define Restriction_size                         66
 
 #ifdef __cplusplus
 } /* extern "C" */

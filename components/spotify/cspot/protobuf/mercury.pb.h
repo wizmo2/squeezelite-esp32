@@ -11,8 +11,10 @@
 
 /* Struct definitions */
 typedef struct _Header { 
-    char *uri; 
-    char *method; 
+    bool has_uri;
+    char uri[64]; 
+    bool has_method;
+    char method[32]; 
 } Header;
 
 
@@ -21,8 +23,8 @@ extern "C" {
 #endif
 
 /* Initializer values for message structs */
-#define Header_init_default                      {NULL, NULL}
-#define Header_init_zero                         {NULL, NULL}
+#define Header_init_default                      {false, "", false, ""}
+#define Header_init_zero                         {false, "", false, ""}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define Header_uri_tag                           1
@@ -30,8 +32,8 @@ extern "C" {
 
 /* Struct field encoding specification for nanopb */
 #define Header_FIELDLIST(X, a) \
-X(a, POINTER,  OPTIONAL, STRING,   uri,               1) \
-X(a, POINTER,  OPTIONAL, STRING,   method,            3)
+X(a, STATIC,   OPTIONAL, STRING,   uri,               1) \
+X(a, STATIC,   OPTIONAL, STRING,   method,            3)
 #define Header_CALLBACK NULL
 #define Header_DEFAULT NULL
 
@@ -41,7 +43,7 @@ extern const pb_msgdesc_t Header_msg;
 #define Header_fields &Header_msg
 
 /* Maximum encoded size of messages (where known) */
-/* Header_size depends on runtime parameters */
+#define Header_size                              98
 
 #ifdef __cplusplus
 } /* extern "C" */
