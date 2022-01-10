@@ -186,7 +186,7 @@ typedef struct {
 	size_t max, bytes;
 	bool abort;
 	uint8_t *data;
-	char *url;
+	esp_http_client_handle_t client;
 } http_context_t;
 
 static void http_downloader(void *arg);
@@ -194,32 +194,30 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt);
  
 void http_download(char *url, size_t max, http_download_cb_t callback, void *context) {
 	http_context_t *http_context = (http_context_t*) heap_caps_calloc(sizeof(http_context_t), 1, MALLOC_CAP_SPIRAM);
-
-	http_context->callback = callback;
-	http_context->user_context = context;
-	http_context->max = max;
-	http_context->url = strdup(url);
 	
-	xTaskCreate(http_downloader, "downloader", 4*1024, http_context, ESP_TASK_PRIO_MIN + 1, NULL);
-}
-
-static void http_downloader(void *arg) {
-	http_context_t *http_context = (http_context_t*) arg;
 	esp_http_client_config_t config = {
-		.url = http_context->url,
+		.url = url,
 		.event_handler = http_event_handler,
 		.user_data = http_context,
 		//.cert_pem = howsmyssl_com_root_cert_pem_start,
 		//.skip_cert_common_name_check = true,
 	};	
 		
-	esp_http_client_handle_t client = esp_http_client_init(&config);
-	esp_http_client_perform(client);
-//		esp_http_client_cleanup(client);
+	http_context->callback = callback;
+	http_context->user_context = context;
+	http_context->max = max;
+	http_context->client = esp_http_client_init(&config);
 	
-	free(http_context->url);
+	xTaskCreate(http_downloader, "downloader", 4*1024, http_context, ESP_TASK_PRIO_MIN + 1, NULL);
+}
+
+static void http_downloader(void *arg) {
+	http_context_t *http_context = (http_context_t*) arg;
+
+	esp_http_client_perform(http_context->client);
+	esp_http_client_cleanup(http_context->client);
+	
 	free(http_context);
-	
 	vTaskDelete(NULL);
 }
 
