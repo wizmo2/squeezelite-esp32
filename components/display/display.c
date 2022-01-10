@@ -52,7 +52,8 @@ static EXT_RAM_ATTR struct {
 		bool visible;
 	} duration;
 	struct {
-		bool enable, fit;
+		bool enable, active;
+		bool fit;
 		bool updated;
 		int tick;
 		int offset;
@@ -245,7 +246,7 @@ static void displayer_task(void *args) {
 				GDS_TextLine(display, 1, GDS_TEXT_RIGHT, GDS_TEXT_UPDATE, _line);
 				
 				// if we have not received artwork after 5s, display a default icon
-				if (displayer.artwork.enable && !displayer.artwork.updated && tick - displayer.artwork.tick > pdMS_TO_TICKS(5000)) {
+				if (displayer.artwork.active && !displayer.artwork.updated && tick - displayer.artwork.tick > pdMS_TO_TICKS(5000)) {
 					ESP_LOGI(TAG, "no artwork received, setting default");
 					displayer_artwork((uint8_t*) default_artwork);
 				}	
@@ -265,7 +266,7 @@ static void displayer_task(void *args) {
  * 
  */
 void displayer_artwork(uint8_t *data) {
-	if (!displayer.artwork.enable) return;
+	if (!displayer.artwork.active) return;
 	
 	int x = displayer.artwork.offset ? displayer.artwork.offset + ARTWORK_BORDER : 0;
 	int y = x ? 0 : 32;
@@ -420,7 +421,7 @@ void displayer_control(enum displayer_cmd_e cmd, ...) {
 	switch(cmd) {
 	case DISPLAYER_ACTIVATE: {	
 		char *header = va_arg(args, char*);
-		bool artwork = va_arg(args, int);
+		displayer.artwork.active = displayer.artwork.enable && va_arg(args, int);
 		strncpy(displayer.header, header, HEADER_SIZE);
 		displayer.header[HEADER_SIZE] = '\0';
 		displayer.state = DISPLAYER_ACTIVE;
@@ -431,19 +432,20 @@ void displayer_control(enum displayer_cmd_e cmd, ...) {
 		displayer.duration.visible = false;
 		displayer.offset = displayer.boundary = 0;
 		display_bus(&displayer, DISPLAY_BUS_TAKE);
-		if (artwork) GDS_SetTextWidth(display, displayer.artwork.offset);
+		if (displayer.artwork.active) GDS_SetTextWidth(display, displayer.artwork.offset);
 		vTaskResume(displayer.task);
 		break;
 	}	
 	case DISPLAYER_SUSPEND:		
 		// task will display the line 2 from beginning and suspend
 		displayer.state = DISPLAYER_IDLE;
+		displayer_artwork(NULL);
 		display_bus(&displayer, DISPLAY_BUS_GIVE);
 		break;		
 	case DISPLAYER_SHUTDOWN:
 		// let the task self-suspend (we might be doing i2c_write)
 		GDS_SetTextWidth(display, 0);
-		GDS_Clear(display, GDS_COLOR_BLACK); 
+		displayer_artwork(NULL);
 		displayer.state = DISPLAYER_DOWN;
 		display_bus(&displayer, DISPLAY_BUS_GIVE);
 		break;
