@@ -193,7 +193,7 @@ struct cspot_s* cspot_create(const char *name, cspot_cmd_cb_t cmd_cb, cspot_data
 	cspot.cHandler = cmd_cb;
 	cspot.dHandler = data_cb;
 	strncpy(cspot.name, name, sizeof(cspot.name) - 1);
-    cspot.TaskHandle = xTaskCreateStatic(&cspotTask, "cspot", CSPOT_STACK_SIZE, NULL, CONFIG_ESP32_PTHREAD_TASK_PRIO_DEFAULT, xStack, &xTaskBuffer);
+    cspot.TaskHandle = xTaskCreateStatic(&cspotTask, "cspot", CSPOT_STACK_SIZE, NULL, CONFIG_ESP32_PTHREAD_TASK_PRIO_DEFAULT - 2, xStack, &xTaskBuffer);
 	
 	return &cspot;
 }

@@ -672,7 +672,7 @@ static const u16_t spdif_bmclookup[256] = { //biphase mark encoded values (least
  audio is transmitted first (not the MSB) and that ESP32 libray sends R then L, 
  contrary to what seems to be usually done, so (dst) order had to be changed
 */
-void spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, size_t *count) {
+static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, size_t *count) {
 	register u16_t hi, lo, aux;
 	size_t cnt = *count;
 	

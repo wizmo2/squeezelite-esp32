@@ -13,11 +13,12 @@
 #include <ctype.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "tools.h"
+#include "esp_task.h"
 #include "esp_tls.h"
 #include "esp_http_client.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "tools.h"
 
 const static char TAG[] = "tools";
 
@@ -199,8 +200,6 @@ void http_download(char *url, size_t max, http_download_cb_t callback, void *con
 		.url = url,
 		.event_handler = http_event_handler,
 		.user_data = http_context,
-		//.cert_pem = howsmyssl_com_root_cert_pem_start,
-		//.skip_cert_common_name_check = true,
 	};	
 		
 	http_context->callback = callback;
