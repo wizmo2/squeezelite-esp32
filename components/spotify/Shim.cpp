@@ -119,8 +119,7 @@ static void cspotTask(void *pvParameters) {
             switch (event.eventType) {
             case CSpotEventType::TRACK_INFO: {
                 TrackInfo track = std::get<TrackInfo>(event.data);
-				// duration is in chunks of 0.5 ms
-				cspot.cHandler(CSPOT_TRACK, 44100, track.duration / 2, track.artist.c_str(), 
+				cspot.cHandler(CSPOT_TRACK, 44100, track.duration, track.artist.c_str(), 
 							   track.album.c_str(), track.name.c_str(), track.imageUrl.c_str());
                 break;
             }

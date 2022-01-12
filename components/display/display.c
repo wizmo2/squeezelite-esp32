@@ -284,6 +284,13 @@ void displayer_artwork(uint8_t *data) {
 /****************************************************************************************
  * 
  */
+bool displayer_can_artwork(void) {
+	return displayer.artwork.active;
+}
+
+/****************************************************************************************
+ * 
+ */
 void displayer_metadata(char *artist, char *album, char *title) {
 	char *string = displayer.string, *p;
 	int len = SCROLLABLE_SIZE;

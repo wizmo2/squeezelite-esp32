@@ -144,7 +144,7 @@ static bool cmd_handler(cspot_event_t event, ...) {
 		int duration = va_arg(args, int);
 		char *artist = va_arg(args, char*), *album = va_arg(args, char*), *title = va_arg(args, char*);
 		char *artwork = va_arg(args, char*);
-		if (artwork) {
+		if (artwork && displayer_can_artwork()) {
 			ESP_LOGI(TAG, "requesting artwork %s", artwork);
 			http_download(artwork, 128*1024, got_artwork, NULL);
 		}	

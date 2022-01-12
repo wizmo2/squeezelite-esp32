@@ -40,4 +40,5 @@ void displayer_control(enum displayer_cmd_e cmd, ...);
 void displayer_metadata(char *artist, char *album, char *title);
 void displayer_artwork(uint8_t *data);
 void displayer_timer(enum displayer_time_e mode, int elapsed, int duration);
+bool displayer_can_artwork(void);
 char * display_get_supported_drivers(void);
