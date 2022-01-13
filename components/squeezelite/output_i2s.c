@@ -247,7 +247,7 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 	// common I2S initialization
 	i2s_config.mode = I2S_MODE_MASTER | I2S_MODE_TX;
 	i2s_config.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT;
-	i2s_config.communication_format = I2S_COMM_FORMAT_I2S| I2S_COMM_FORMAT_I2S_MSB;
+	i2s_config.communication_format = I2S_COMM_FORMAT_STAND_I2S;
 	// in case of overflow, do not replay old buffer
 	i2s_config.tx_desc_auto_clear = true;		
 	i2s_config.use_apll = true;

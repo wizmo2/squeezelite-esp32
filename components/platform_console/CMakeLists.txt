@@ -12,3 +12,9 @@ idf_component_register( SRCS
 target_link_libraries(${COMPONENT_LIB}   "-Wl,--undefined=GDS_DrawPixelFast")
 target_link_libraries(${COMPONENT_LIB} ${build_dir}/esp-idf/$<TARGET_PROPERTY:RECOVERY_PREFIX>/lib$<TARGET_PROPERTY:RECOVERY_PREFIX>.a 	)
 target_add_binary_data( __idf_platform_console presets.json BINARY)
+
+set_source_files_properties(cmd_config.c
+    PROPERTIES COMPILE_FLAGS
+    -Wno-unused-function
+)	
+
