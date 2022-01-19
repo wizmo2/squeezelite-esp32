@@ -41,6 +41,8 @@ static struct {
 	.attenuation = ADC_ATTEN_DB_0,
 };	
 
+void (*battery_handler_svc)(float value);
+
 /****************************************************************************************
  * 
  */
@@ -65,6 +67,7 @@ static void battery_callback(TimerHandle_t xTimer) {
 	if (++battery.count == 30) {
 		battery.avg = battery.sum / battery.count;
 		battery.sum = battery.count = 0;
+		if (battery_handler_svc) (battery_handler_svc)(battery.avg);
 		ESP_LOGI(TAG, "Voltage %.2fV", battery.avg);
 	}	
 }

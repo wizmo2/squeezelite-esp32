@@ -281,6 +281,19 @@ CONFIG_LED_GREEN_GPIO=-1
 CONFIG_LED_RED_GPIO=-1
 # end of LED configuration
 
+
+#
+# Audio controls
+#
+CONFIG_AUDIO_CONTROLS=""
+# end of Audio Contorls configuration
+
+#
+# AMP configuration
+#
+CONFIG_AMP_GPIO=-1
+# end of AMP configuration
+
 #
 # Audio JACK
 #

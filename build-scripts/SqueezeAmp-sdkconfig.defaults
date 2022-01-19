@@ -275,6 +275,18 @@ CONFIG_DEFAULT_COMMAND_LINE="squeezelite -o I2S -b 500:2000 -d all=info -C 30 -W
 # end of Squeezelite-ESP32
 
 #
+# Audio controls
+#
+CONFIG_AUDIO_CONTROLS=""
+# end of Audio Contorls configuration
+
+#
+# AMP configuration
+#
+CONFIG_AMP_GPIO=-1
+# end of AMP configuration
+
+#
 # Compiler options
 #
 # CONFIG_COMPILER_OPTIMIZATION_DEFAULT is not set

@@ -75,6 +75,10 @@ sure that using rate_delay would fix that
 #define STATS_PERIOD_MS 5000
 #define STAT_STACK_SIZE	(3*1024)
 
+#ifndef CONFIG_AMP_GPIO_LEVEL
+#define CONFIG_AMP_GPIO_LEVEL 1
+#endif
+
 extern struct outputstate output;
 extern struct buffer *streambuf;
 extern struct buffer *outputbuf;
@@ -101,7 +105,7 @@ static TaskHandle_t stats_task, output_i2s_task;
 static bool stats;
 static struct {
 	int gpio, active;
-} amp_control = { -1, 1 },
+} amp_control = { CONFIG_AMP_GPIO, CONFIG_AMP_GPIO_LEVEL },
   mute_control = { CONFIG_MUTE_GPIO, CONFIG_MUTE_GPIO_LEVEL };
 
 DECLARE_ALL_MIN_MAX;
@@ -171,20 +175,16 @@ static void jack_handler(bool inserted) {
 /****************************************************************************************
  * amp GPIO
  */
+#ifndef AMP_GPIO_LOCKED 
 static void set_amp_gpio(int gpio, char *value) {
 	char *p;
 	
 	if (strcasestr(value, "amp")) {
 		amp_control.gpio = gpio;
 		if ((p = strchr(value, ':')) != NULL) amp_control.active = atoi(p + 1);
-		
-		gpio_pad_select_gpio_x(amp_control.gpio);
-		gpio_set_direction_x(amp_control.gpio, GPIO_MODE_OUTPUT);
-		gpio_set_level_x(amp_control.gpio, !amp_control.active);
-		
-		LOG_INFO("setting amplifier GPIO %d (active:%d)", amp_control.gpio, amp_control.active);
 	}	
 }	
+#endif
 
 /****************************************************************************************
  * Set pin from config string
@@ -347,13 +347,21 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 	jack_handler_chain = jack_handler_svc;
 	jack_handler_svc = jack_handler;
 	
+#ifndef AMP_GPIO_LOCKED	
 	parse_set_GPIO(set_amp_gpio);
+#endif
+
+	if (amp_control.gpio != -1) {
+		gpio_pad_select_gpio_x(amp_control.gpio);
+		gpio_set_direction_x(amp_control.gpio, GPIO_MODE_OUTPUT);
+		gpio_set_level_x(amp_control.gpio, !amp_control.active);
+		LOG_INFO("setting amplifier GPIO %d (active:%d)", amp_control.gpio, amp_control.active);	
+	}	
 
 	if (jack_mutes_amp && jack_inserted_svc()) adac->speaker(false);
 	else adac->speaker(true);
 	
-	adac->headset(jack_inserted_svc());
-	
+	adac->headset(jack_inserted_svc());	
 
 	// create task as a FreeRTOS task but uses stack in internal RAM
 	{
