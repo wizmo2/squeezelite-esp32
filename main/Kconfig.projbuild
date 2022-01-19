@@ -43,6 +43,9 @@ menu "Squeezelite-ESP32"
 	config MUTE_GPIO_LEVEL
 		int
 		default 0
+	config WELL_KNOWN
+		bool
+		default n
 	menu "Target"
 		choice OUTPUT_TYPE
 			prompt "Main system"
@@ -56,17 +59,20 @@ menu "Squeezelite-ESP32"
 				select I2C_LOCKED
 				select LED_LOCKED
 				select SPKFAULT_LOCKED
-			config BASIC_I2C_BT
-				bool "Generic I2S & Bluetooth"				
-			config TWATCH2020	
-				bool "T-WATCH2020 by LilyGo"				
-				select I2C_LOCKED		
+				select WELL_KNOWN
 			config MUSE
 				bool "Muse"
 				select JACK_LOCKED
 				select BAT_LOCKED
 				select I2C_LOCKED
-				select AMP_LOCKED
+				select AMP_LOCKED				
+				select WELL_KNOWN
+			config BASIC_I2C_BT
+				bool "Generic I2S & Bluetooth"				
+			config TWATCH2020	
+				bool "T-WATCH2020 by LilyGo"				
+				select I2C_LOCKED		
+				select WELL_KNOWN				
 		endchoice	
 		config RELEASE_API
 			string "Software update URL"
@@ -129,7 +135,10 @@ menu "Squeezelite-ESP32"
 			string
 			default "[{\"gpio\":32, \"pull\":true, \"debounce\":10, \"normal\":{\"pressed\":\"ACTRLS_VOLDOWN\"}}, {\"gpio\":19, \"pull\":true, \"debounce\":40, \"normal\":{\"pressed\":\"ACTRLS_VOLUP\"}}, {\"gpio\":12, \"pull\":true, \"debounce\":40, \"longpress\":1000, \"normal\":{\"pressed\":\"ACTRLS_TOGGLE\"},\"longpress\":{\"pressed\":\"ACTRLS_POWER\"}}]" if MUSE
 			default ""
-			default -1
+		config BAT_CONFIG
+			default "channel=7,scale=20.24,atten=0" if SQUEEZEAMP
+			default "channel=5,scale=1,atten=3,cells=1" if MUSE
+			default ""			
 		config AMP_GPIO		
 			int
 			default 21 if MUSE
@@ -371,7 +380,7 @@ menu "Squeezelite-ESP32"
 	endmenu
 	
     menu "Audio JACK"	
-		visible if !SQUEEZEAMP && !TWATCH2020 && !MUSE
+		visible if !WELL_KNOWN
 		config JACK_GPIO		
 			int "Jack insertion GPIO"
 			help
@@ -383,7 +392,7 @@ menu "Squeezelite-ESP32"
 	endmenu	
 	
 	menu "Amplifier"	
-		visible if !SQUEEZEAMP && !TWATCH2020 && !MUSE
+		visible if !WELL_KNOWN
 		config AMP_GPIO		
 			int "Amplifier GPIO"
 			help
@@ -395,7 +404,7 @@ menu "Squeezelite-ESP32"
 	endmenu	
 	
 	menu "Speaker Fault"	
-		visible if !SQUEEZEAMP && !TWATCH2020 && !MUSE
+		visible if !WELL_KNOWN
 		config SPKFAULT_GPIO		
 			int "Speaker fault GPIO"
 			help
@@ -405,20 +414,16 @@ menu "Squeezelite-ESP32"
 			int "Level when fault (0/1)"
 			default 0
 	endmenu
+	
 	menu "Battery measure"
-		visible if !SQUEEZEAMP && !TWATCH2020
-		config BAT_CHANNEL
-			int "Set channel (0..7)"
+		visible if !WELL_KNOWN
+		config BAT_CONFIG
+			string "Battery acquisition configuration"
 			help
-				Read a value every 10s on ADC1 on set Channel
-		config BAT_SCALE
-			string "Set scaling factor"
-			depends on BAT_CHANNEL != -1
-			default "20.24" if SQUEEZEAMP
-			default ""
-			help
-				Set the scaling factor for this 12 bits ADC
+				Sets parameters for battery voltage measure
+				channel=<0..7>,scale=<ratio_to_4096>,atten=<adc_atten>,cells=<1..3>
 	endmenu	
+	
 	config DEFAULT_COMMAND_LINE
         string "Default command line to execute"
         default "squeezelite -o I2S -b 500:2000 -d all=info -C 30"

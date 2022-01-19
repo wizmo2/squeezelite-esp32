@@ -7,7 +7,7 @@
 #include <esp_system.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <driver/adc.h>
+//#include <driver/adc.h>
 #include "driver/rmt.h"
 #include "monitor.h"
 
@@ -43,8 +43,6 @@ void ws2812_write_leds(struct led_state new_state);
 static const char TAG[] = "muse";	
 
 static void (*battery_handler_chain)(float value);
-
-static void battery(void *data);
 static void battery_svc(float value);
 
 void target_init(void) { 
@@ -55,10 +53,12 @@ void target_init(void) {
 
 static void battery_svc(float value) {
 	ESP_LOGI(TAG, "Called for battery service with %f", value);
+	// put here your code for LED according to value
 	if (battery_handler_chain) battery_handler_chain(value);
 }
 
 // Battery monitoring
+/*
 static void battery(void *data)
 {
 #define VGREEN  2300
@@ -91,6 +91,7 @@ static void battery(void *data)
 
 	}
 }
+*/
 
 // This is the buffer which the hw peripheral will access while pulsing the output pin
 rmt_item32_t led_data_buffer[LED_BUFFER_ITEMS];

@@ -309,7 +309,7 @@ CONFIG_SPKFAULT_GPIO=-1
 #
 # Battery measure
 #
-CONFIG_BAT_CHANNEL=-1
+CONFIG_BAT_CONFIG=""
 # end of Battery measure
 
 CONFIG_DEFAULT_COMMAND_LINE="squeezelite -o I2S -b 500:2000 -d all=info -C 30 -W"

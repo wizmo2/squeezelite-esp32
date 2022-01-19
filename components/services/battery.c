@@ -35,10 +35,9 @@ static struct {
 	int count;
 	int cells, attenuation;
 	TimerHandle_t timer;
-} battery = {
-	.channel = CONFIG_BAT_CHANNEL,
+} battery = { 
+	.channel = -1,
 	.cells = 2,
-	.attenuation = ADC_ATTEN_DB_0,
 };	
 
 void (*battery_handler_svc)(float value);
@@ -76,17 +75,18 @@ static void battery_callback(TimerHandle_t xTimer) {
  * 
  */
 void battery_svc_init(void) {
-#ifdef CONFIG_BAT_SCALE	
-	battery.scale = atof(CONFIG_BAT_SCALE);
-#endif	
-
-	char *nvs_item = config_alloc_get_default(NVS_TYPE_STR, "bat_config", "n", 0);
-	if (nvs_item) {
-#ifndef CONFIG_BAT_LOCKED		
-		PARSE_PARAM(nvs_item, "channel", '=', battery.channel);
-		PARSE_PARAM(nvs_item, "scale", '=', battery.scale);
-		PARSE_PARAM(nvs_item, "atten", '=', battery.attenuation);
+	char *nvs_item = config_alloc_get_default(NVS_TYPE_STR, "bat_config", "", 0);
+	
+#ifdef CONFIG_BAT_LOCKED
+	char *p = nvs_item;
+	asprintf(&nvs_item, CONFIG_BAT_CONFIG ",%s", p);
+	free(p);
 #endif		
+
+	if (nvs_item) {
+		PARSE_PARAM(nvs_item, "channel", '=', battery.channel);
+		PARSE_PARAM_FLOAT(nvs_item, "scale", '=', battery.scale);
+		PARSE_PARAM(nvs_item, "atten", '=', battery.attenuation);
 		PARSE_PARAM(nvs_item, "cells", '=', battery.cells);
 		free(nvs_item);
 	}	
@@ -99,7 +99,7 @@ void battery_svc_init(void) {
 		battery.timer = xTimerCreate("battery", BATTERY_TIMER / portTICK_RATE_MS, pdTRUE, NULL, battery_callback);
 		xTimerStart(battery.timer, portMAX_DELAY);
 		
-		ESP_LOGI(TAG, "Battery measure channel: %u, scale %f, cells %u, avg %.2fV", battery.channel, battery.scale, battery.cells, battery.avg);		
+		ESP_LOGI(TAG, "Battery measure channel: %u, scale %f, atten %d, cells %u, avg %.2fV", battery.channel, battery.scale, battery.attenuation, battery.cells, battery.avg);		
 	} else {
 		ESP_LOGI(TAG, "No battery");
 	}	
