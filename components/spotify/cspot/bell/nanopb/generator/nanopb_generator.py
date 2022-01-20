@@ -2279,7 +2279,6 @@ def main_plugin():
     data = io.open(sys.stdin.fileno(), "rb").read()
 
     request = plugin_pb2.CodeGeneratorRequest.FromString(data)
-
     try:
         # Versions of Python prior to 2.7.3 do not support unicode
         # input to shlex.split(). Try to convert to str if possible.

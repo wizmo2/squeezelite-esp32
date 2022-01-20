@@ -269,11 +269,6 @@
 			"value": "N",
 			"chg": false
 		},
-		"wifi_smode": {
-			"type": 33,
-			"value": "a",
-			"chg": false
-		},
 		"disable_ps": {
 			"type": 33,
 			"value": "n",
@@ -343,6 +338,12 @@
 			"type": 33,
 			"value": "https://api.github.com/repos/sle118/squeezelite-esp32/releases",
 			"chg": false
+		},
+		"enable_cspot": {
+			"type": 33,
+			"value": "Y",
+			"chg": false
 		}
+		
   	}
 }

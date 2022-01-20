@@ -1,12 +1,8 @@
 /* eslint-disable  */
 var path = require('path');
-const merge = require('webpack-merge');
-const common = require('./webpack.common.js');
 const bodyParser = require('body-parser')
-const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const { config } = require('process');
 const HtmlWebPackPlugin = require('html-webpack-plugin');
-const SpriteLoaderPlugin = require('svg-sprite-loader/plugin');
 const { Command } = require('commander');
 let  cmdLines= { };
 var { parseArgsStringToArgv } = require('string-argv');
@@ -90,6 +86,7 @@ for(const cmdIdx in data.commands.commands){
         (arg.longopts?'--'+arg.longopts:'') + 
         (arg.hasvalue?`${(arg.shortopts || arg.longopts?' ':'')}<${arg.datatype.replace(/[<>]/gm,'')}>`:''));
         //console.log(`   Option: ${optstr}, Glossary: ${arg.glossary}`);
+        if(arg.remark) continue;
         if(arg.mincount>0){
             cmdLines[cmd.name].cmd.requiredOption( optstr,arg.glossary);
         }
@@ -105,15 +102,16 @@ const connectReturnCode = {
       UPDATE_LOST_CONNECTION : 3,
       UPDATE_FAILED_ATTEMPT_AND_RESTORE : 4
   }
-module.exports = merge(common, {
-    mode: 'development',
-    devtool: 'inline-source-map',
+module.exports ={
     entry: {
-        test: './src/test.ts'
-    },    
+        test: './src/test.ts',
+    },
     devServer: {
-        contentBase: path.join(__dirname, 'dist'),
+
+        contentBase: path.resolve(__dirname, './dist'),
         publicPath: '/',
+        open: true,
+        compress: true,
         port: 9100,
         host: '127.0.0.1',//your ip address
         disableHostCheck: true,
@@ -230,25 +228,25 @@ module.exports = merge(common, {
             app.post('/config.json', function(req, res) { 
                 var fwurl='';
                 console.log(`Processing config.json with request body: ${req.body}`);
-                console.log(data.config);
+                console.log(data.config.config);
                 for (const property in req.body.config) {
                     console.log(`${property}: ${req.body.config[property].value}`);
                     if(property=='fwurl'){
                         fwurl=req.body.config[property].value;
                     }
                     else {
-                        if(data.config[property]=== undefined){
+                        if(data.config.config[property]=== undefined){
                             console.log(`Added config value ${property} [${req.body.config[property].value}]`);
-                            data.config[property] = {value: req.body.config[property].value};
+                            data.config.config[property] = {value: req.body.config[property].value};
                         }
-                        else if (data.config[property].value!=req.body.config[property].value){
-                            console.log(`Updated config value ${property}\nFrom: ${data.config[property].value}\nTo: ${req.body.config[property].value}]`);
-                            data.config[property].value=req.body.config[property].value;
+                        else if (data.config.config[property].value!=req.body.config[property].value){
+                            console.log(`Updated config value ${property}\n     From: ${data.config.config[property].value}\n     To: ${req.body.config[property].value}]`);
+                            data.config.config[property].value=req.body.config[property].value;
                         }
                     }
 
                   }
-                res.json( {} ); 
+                res.json( {"result" : "OK" }); 
                 if(fwurl!=='' ){
                     const ota_msg_list= ((data.status.mock_fail_fw_update ?? '')!=='')?data.messages_ota_fail:data.messages_ota;
                     if(data.status.recovery!=1) {
@@ -288,7 +286,7 @@ module.exports = merge(common, {
                         data.status[property]=req.body.status[property];
                     }
                 }
-                res.json( {} ); 
+                res.json( {"result" : "OK" } ); 
             });            
             app.post('/connect.json', function(req, res) { 
                 setTimeout(function(r){
@@ -306,15 +304,15 @@ module.exports = merge(common, {
                     data.status.urc=connectReturnCode.UPDATE_CONNECTION_OK;
                 }
                 }, 1000, req);
-                res.json( {} );
+                res.json( {"result" : "OK" } );
              });
             app.post('/reboot_ota.json', function(req, res) { 
                 data.status.recovery=0;
                 requeueMessages();
-                res.json( {} ); 
+                res.json( {"result" : "OK" } ); 
             });
             app.post('/reboot.json', function(req, res) { 
-                res.json( {} ); 
+                res.json( {"result" : "OK" } ); 
                 requeueMessages();
             });
             app.post('/recovery.json', function(req, res) { 
@@ -324,7 +322,7 @@ module.exports = merge(common, {
                 else {
                     data.status.recovery=1;
                     requeueMessages();
-                    res.json( { } ); 
+                    res.json( {"result" : "OK" } ); 
                 }                
             });
             app.post('/flash.json', function(req, res) { 
@@ -342,7 +340,7 @@ module.exports = merge(common, {
                             requeueMessages();
                             
                         }   
-                        res.json({});                  
+                        res.json({"result" : "OK" });                  
                     }
                     
                 }
@@ -352,22 +350,20 @@ module.exports = merge(common, {
             });                  
             app.delete('/connect.json', function(req, res) { 
                 data.status.ssid='';
-                res.json( {} ); });
-            app.get('/reboot', function(req, res) { res.json( {} ); });
+                res.json({"result" : "OK" }); });
+            app.get('/reboot', function(req, res) { res.json({"result" : "OK" }); });
         },
     },
     plugins: [
-        new MiniCssExtractPlugin({
-            filename: 'css/[name].css',
-            chunkFilename: 'css/[id].css' ,
-        }),
+
         new HtmlWebPackPlugin({
             title: 'SqueezeESP32-test',
             template: './src/test.ejs',
             filename: 'test',
             minify: false,
-            excludeChunks: ['index'],
+            inject: 'body',
+            excludeChunks: ['index','main'],
         })
 
     ],
-});
+}

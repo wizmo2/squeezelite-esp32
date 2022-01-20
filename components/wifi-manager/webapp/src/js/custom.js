@@ -14,7 +14,7 @@ if (!String.prototype.format) {
 if (!String.prototype.encodeHTML) {
   Object.assign(String.prototype, {
     encodeHTML() {
-      return he.encode(this).replace(/\n/g, '<br />')
+      return he.encode(this).replace(/\n/g, '<br />');
     },
   });
 }
@@ -24,7 +24,9 @@ Object.assign(Date.prototype, {
     return this.toLocaleString(undefined, opt);
   },
 });
-
+function isEnabled(val){
+  return val.match("[Yy1]");
+}
 
 const nvsTypes = {
   NVS_TYPE_U8: 0x01,
@@ -70,7 +72,12 @@ const btIcons = {
   stop:  'stop-circle-fill',
   '': '',
 };
-
+const batIcons = [
+  { icon: "battery_0_bar", ranges: [ {f: 5.8, t: 6.8},{f: 8.8, t: 10.2}    ]},
+  { icon: "battery_2_bar", ranges: [ {f: 6.8, t: 7.4},{f: 10.2, t: 11.1}    ]},
+  { icon: "battery_3_bar", ranges: [ {f: 7.4, t: 7.5},{f: 11.1, t: 11.25}    ]},
+  { icon: "battery_4_bar", ranges: [ {f: 7.5, t: 7.8},{f: 11.25, t: 11.7}    ]}
+];
 const btStateIcons = [
   { desc: 'Idle', sub: ['bt_neutral'] },
   { desc: 'Discovering', sub: ['bt_disconnected'] },
@@ -90,11 +97,12 @@ const pillcolors = {
   MESSAGING_ERROR: 'badge-danger',
 };
 const connectReturnCode = {
-  UPDATE_CONNECTION_OK : 0, 
-	UPDATE_FAILED_ATTEMPT : 1,
-	UPDATE_USER_DISCONNECT : 2,
-  UPDATE_LOST_CONNECTION : 3,
-  UPDATE_FAILED_ATTEMPT_AND_RESTORE : 4
+  OK : 0, 
+	FAIL : 1,
+	DISC : 2,
+  LOST : 3,
+  RESTORE : 4,
+  ETH : 5
 }
 const taskStates = {
   0: 'eRunning',
@@ -120,6 +128,9 @@ let flash_state=flash_status_codes.FLASH_NONE;
 let flash_ota_dsc='';
 let flash_ota_pct=0;
 let older_recovery=false;
+let presetsloaded=false;
+let is_i2c_locked=false;
+
 function isFlashExecuting(data){
   return (flash_state!=flash_status_codes.UPLOADING ) && (data.ota_dsc!='' || data.ota_pct>0);
 }
@@ -382,25 +393,16 @@ function handlebtstate(data) {
   
 }
 function handleTemplateTypeRadio(outtype) {
+  $('#o_type').children('span').css({ display : 'none' });
   if (outtype === 'bt') {
-    $('#bt').prop('checked', true);
-    $('#o_bt').attr('display', 'inline');
-    $('#o_spdif').attr('display', 'none');
-    $('#o_i2s').attr('display', 'none');
     output = 'bt';
   } else if (outtype === 'spdif') {
-    $('#spdif').prop('checked', true);
-    $('#o_bt').attr('display', 'none');
-    $('#o_spdif').attr('display', 'inline');
-    $('#o_i2s').attr('display', 'none');
     output = 'spdif';
   } else {
-    $('#i2s').prop('checked', true);
-    $('#o_bt').attr('display', 'none');
-    $('#o_spdif').attr('display', 'none');
-    $('#o_i2s').attr('display', 'inline');
     output = 'i2s';
   }
+  $('#'+output).prop('checked', true);
+  $('#o_'+output).css({ display : 'inline' });
 }
 
 function handleExceptionResponse(xhr, _ajaxOptions, thrownError) {
@@ -465,8 +467,9 @@ let versionName='Squeezelite-ESP32';
 let prevmessage='';
 let project_name=versionName;
 let platform_name=versionName;
+let preset_name='';
 let btSinkNamesOptSel='#cfg-audio-bt_source-sink_name';
-let ConnectedToSSID={};
+let ConnectedTo={};
 let ConnectingToSSID={};
 let lmsBaseUrl;
 let prevLMSIP='';
@@ -546,47 +549,36 @@ function getConfigJson(slimMode) {
   return config;
 }
 
-// eslint-disable-next-line no-unused-vars
-function onFileLoad(elementId, event) {
-  let data = {};
-  try {
-    data = JSON.parse(elementId.srcElement.result);
-  } catch (e) {
-    alert('Parsing failed!\r\n ' + e);
-  }
-  $('input.nvs').each(function(_index, entry) {
-    if (data[entry.id]) {
-      if (data[entry.id] !== entry.value) {
-        console.log(
-          'Changed ' + entry.id + ' ' + entry.value + '==>' + data[entry.id]
-        );
-        $(this).val(data[entry.id]);
+
+
+// pull json file from https://gist.githubusercontent.com/sle118/dae585e157b733a639c12dc70f0910c5/raw/b462691f69e2ad31ac95c547af6ec97afb0f53db/squeezelite-esp32-presets.json and
+// load the names into cfg-hw-preset-model_name
+function loadPresets() {
+  if(presetsloaded) return;
+  presetsloaded = true;
+  $.getJSON(
+    'https://gist.githubusercontent.com/sle118/dae585e157b733a639c12dc70f0910c5/raw/b462691f69e2ad31ac95c547af6ec97afb0f53db/squeezelite-esp32-presets.json',
+    function(data) {
+      $.each(data, function(key, val) {
+          $('#cfg-hw-preset-model_config').append(`<option value="${JSON.stringify(val).replace(/\"/g, '\'')}">${val.name}</option>`);
+      });
+      if(preset_name !== ''){
+        ('#prev_preset').show().val(preset_name);
       }
+      console.log('update prev_preset in case of a change');
     }
-  });
+
+  ).fail(function(jqxhr, textStatus, error) {
+    const err = textStatus + ', ' + error;
+    console.log('Request Failed: ' + err);
+    $('hw-preset-section').hide();
+  }
+  );
 }
 
-// eslint-disable-next-line no-unused-vars
-function onChooseFile(event, onLoadFileHandler) {
-  if (typeof window.FileReader !== 'function') {
-    throw "The file API isn't supported on this browser.";
-  }
-  const input = event.target;
-  if (!input) {
-    throw 'The browser does not properly implement the event object';
-  }
-  if (!input.files) {
-    throw 'This browser does not support the `files` property of the file input.';
-  }
-  if (!input.files[0]) {
-    return undefined;
-  }
-  const file = input.files[0];
-  let fr = new FileReader();
-  fr.onload = onLoadFileHandler;
-  fr.readAsText(file);
-  input.value = '';
-}
+        
+
+
 function delayReboot(duration, cmdname, ota = 'reboot') {
   const url = '/'+ota+'.json';
   $('tbody#tasks').empty();
@@ -672,14 +664,14 @@ window.saveAutoexec1 = function(apply) {
     error: handleExceptionResponse,
     complete: function(response) {
       if (
-        response.responseText.result &&
+        response.responseText &&
         JSON.parse(response.responseText).result === 'OK'
       ) {
         showCmdMessage('cfg-audio-tmpl', 'MESSAGING_INFO', 'Done.\n', true);
         if (apply) {
           delayReboot(1500, 'cfg-audio-tmpl');
         }
-      } else if (response.responseText.result) {
+      } else if (JSON.parse(response.responseText).result) {
         showCmdMessage(
           'cfg-audio-tmpl',
           'MESSAGING_WARNING',
@@ -798,6 +790,51 @@ $(document).ready(function() {
   $('#load-nvs').on('click', function() {
     $('#nvsfilename').trigger('click');
   });
+  $('#nvsfilename').on('change', function() {
+    if (typeof window.FileReader !== 'function') {
+      throw "The file API isn't supported on this browser.";
+    }
+    if (!this.files) {
+      throw 'This browser does not support the `files` property of the file input.';
+    }
+    if (!this.files[0]) {
+      return undefined;
+    }
+    
+    const file = this.files[0];
+    let fr = new FileReader();
+    fr.onload = function(e){
+      let data = {};
+      try {
+        data = JSON.parse(e.target.result);
+      } catch (ex) {
+        alert('Parsing failed!\r\n ' + ex);
+      }
+      $('input.nvs').each(function(_index, entry) {
+        $(this).parent().removeClass('bg-warning').removeClass('bg-success');
+        if (data[entry.id]) {
+          if (data[entry.id] !== entry.value) {
+            console.log(
+              'Changed ' + entry.id + ' ' + entry.value + '==>' + data[entry.id]
+            );
+            $(this).parent().addClass('bg-warning');
+            $(this).val(data[entry.id]);
+          }
+          else {
+            $(this).parent().addClass('bg-success');
+          }
+        }
+      });
+      var changed = $("input.nvs").children('.bg-warning');
+      if(changed) {
+        alert('Highlighted values were changed. Press Commit to change on the device');
+      }
+    }
+    fr.readAsText(file);
+    this.value = null;
+    
+  }
+  );
   $('#clear-syslog').on('click', function() {
     messagecount = 0;
     messageseverity = 'MESSAGING_INFO';
@@ -807,7 +844,7 @@ $(document).ready(function() {
   
   $('#wifiTable').on('click','tr', function() {
     ConnectingToSSID.Action=ConnectingToActions.CONN;
-    if($(this).children('td:eq(1)').text() == ConnectedToSSID.ssid){
+    if($(this).children('td:eq(1)').text() == ConnectedTo.ssid){
       ConnectingToSSID.Action=ConnectingToActions.STS;
        return;
      }
@@ -853,6 +890,39 @@ $(document).ready(function() {
       $('*[href*="-nvs"]').hide();
     }
   });
+ $('#btn-save-cfg-hw-preset').on('click', function(){
+  runCommand(this,false);
+ });
+ $('#btn-commit-cfg-hw-preset').on('click', function(){
+  runCommand(this,true);
+ });
+ $('#btn_reboot_recovery').on('click',function(){
+  handleReboot('recovery');
+ });
+ $('#btn_reboot').on('click',function(){
+  handleReboot('reboot');
+ });
+ $('#btn_flash').on('click',function(){
+  hFlash();
+ });
+ $('#save-autoexec1').on('click',function(){
+  saveAutoexec1(false);
+ });
+ $('#commit-autoexec1').on('click',function(){
+  saveAutoexec1(true);
+ });
+ $('#btn_disconnect').on('click',function(){
+  handleDisconnect();
+ });
+ $('#btnJoin').on('click',function(){
+  handleConnect();
+ });
+ $('#reboot_nav').on('click',function(){
+  handleReboot('reboot');
+ });
+ $('#reboot_ota_nav').on('click',function(){
+  handleReboot('reboot_ota');
+ });
  
   $('#save-as-nvs').on('click', function() {
     const config = getConfigJson(true);
@@ -1061,6 +1131,7 @@ $(document).ready(function() {
 
   // start timers
   startCheckStatusInterval();
+  
 });
 
 // eslint-disable-next-line no-unused-vars
@@ -1085,19 +1156,20 @@ window.setURL = function(button) {
 
 function rssiToIcon(rssi) {
   if (rssi >= -55) {
-    return `signal-wifi-fill`;
+    return `signal_wifi_statusbar_4_bar`;
   } else if (rssi >= -60) {
-    return `signal-wifi-3-fill`;
+    return `network_wifi_3_bar`;
   } else if (rssi >= -65) {
-    return `signal-wifi-2-fill`;
+    return `network_wifi_2_bar`;
   } else if (rssi >= -70) {
-    return `signal-wifi-1-fill`;
+    return `network_wifi_1_bar`;
   } else {   
-    return `signal-wifi-line`;
+    return `signal_wifi_statusbar_null`;
   }
 }
 
 function refreshAP() {
+    if( ConnectedTo.urc === connectReturnCode.ETH) return;
     $.getJSON('/scan.json', async function() {
     await sleep(2000);
     $.getJSON('/ap.json', function(data) {
@@ -1118,13 +1190,9 @@ function refreshAP() {
 }
 function formatAP(ssid, rssi, auth){
   return `<tr data-toggle="modal" data-target="#WifiConnectDialog"><td></td><td>${ssid}</td><td>
-  
-  	<svg style="fill:white; width:1.5rem; height: 1.5rem;">
-				<use xlink:href="#${rssiToIcon(rssi)}"></use>
-			</svg>
-  </td><td>
- 
-  <svg style="fill:white; width:1.5rem; height: 1.5rem;">
+  <span class="material-icons" style="fill:white; display: inline" >${rssiToIcon(rssi)}</span>
+  	</td><td>
+   <svg style="fill:white; width:1.5rem; height: 1.5rem;">
   <use xlink:href="#lock${(auth == 0 ? '-unlock':'')}-fill"></use>
 </svg>
 
@@ -1132,6 +1200,7 @@ function formatAP(ssid, rssi, auth){
 }
 function refreshAPHTML2(data) {
   let h = '';
+  $('#tab-wifi').show();
   $('#wifiTable tr td:first-of-type').text('');
   $('#wifiTable tr').removeClass('table-success table-warning');
   if(data){
@@ -1144,19 +1213,29 @@ function refreshAPHTML2(data) {
     $('#wifiTable').append(formatAP('Manual add', 0,0));
     $('#wifiTable tr:last').addClass('table-light text-dark').addClass('manual_add');
   }
-  if(ConnectedToSSID.ssid && ( ConnectedToSSID.urc === connectReturnCode.UPDATE_CONNECTION_OK || ConnectedToSSID.urc === connectReturnCode.UPDATE_FAILED_ATTEMPT_AND_RESTORE )){
-    const wifiSelector=`#wifiTable td:contains("${ConnectedToSSID.ssid}")`;
-    if($(wifiSelector).filter(function() {return $(this).text() === ConnectedToSSID.ssid;  }).length==0){
-      $('#wifiTable').prepend(`${formatAP(ConnectedToSSID.ssid, ConnectedToSSID.rssi ?? 0, 0)}`);
+  if(ConnectedTo.ssid && ( ConnectedTo.urc === connectReturnCode.OK || ConnectedTo.urc === connectReturnCode.RESTORE )){
+    const wifiSelector=`#wifiTable td:contains("${ConnectedTo.ssid}")`;
+    if($(wifiSelector).filter(function() {return $(this).text() === ConnectedTo.ssid;  }).length==0){
+      $('#wifiTable').prepend(`${formatAP(ConnectedTo.ssid, ConnectedTo.rssi ?? 0, 0)}`);
     }
-    $(wifiSelector).filter(function() {return $(this).text() === ConnectedToSSID.ssid;  }).siblings().first().html('&check;').parent().addClass((ConnectedToSSID.urc === connectReturnCode.UPDATE_CONNECTION_OK?'table-success':'table-warning'));
-    $('span#foot-wifi').html(`SSID: <strong>${ConnectedToSSID.ssid}</strong>, IP: <strong>${ConnectedToSSID.ip}</strong>`);    
-    $('#wifiStsIcon').attr('xlink:href',rssiToIcon(ConnectedToSSID.rssi));
+    $(wifiSelector).filter(function() {return $(this).text() === ConnectedTo.ssid;  }).siblings().first().html('&check;').parent().addClass((ConnectedTo.urc === connectReturnCode.OK?'table-success':'table-warning'));
+    $('span#foot-if').html(`SSID: <strong>${ConnectedTo.ssid}</strong>, IP: <strong>${ConnectedTo.ip}</strong>`);    
+    $('#wifiStsIcon').html(rssiToIcon(ConnectedTo.rssi));
+    $(".if_eth").hide();
+    $('.if_wifi').show();
   }
-  else {
-    $('span#foot-wifi').html('');
+  else if(ConnectedTo.urc !== connectReturnCode.ETH){
+    $('span#foot-if').html('');
   }
   
+}
+function refreshETH() {
+  
+  $(".if_eth").show();
+  $('.if_wifi').hide();
+  if(ConnectedTo.urc === connectReturnCode.ETH ){
+    $('span#foot-if').html(`Network: Ethernet, IP: <strong>${ConnectedTo.ip}</strong>`);    
+  }
 }
 function showTask(task) {
   console.debug(
@@ -1342,25 +1421,25 @@ function hasConnectionChanged(data){
 // netmask: "255.255.255.0"
 // ssid: "MyTestSSID"
 
-  return (data.urc !== ConnectedToSSID.urc || 
-    data.ssid !== ConnectedToSSID.ssid || 
-    data.gw !== ConnectedToSSID.gw  ||
-    data.netmask !== ConnectedToSSID.netmask ||
-    data.ip !== ConnectedToSSID.ip || data.rssi !== ConnectedToSSID.rssi )
+  return (data.urc !== ConnectedTo.urc || 
+    data.ssid !== ConnectedTo.ssid || 
+    data.gw !== ConnectedTo.gw  ||
+    data.netmask !== ConnectedTo.netmask ||
+    data.ip !== ConnectedTo.ip || data.rssi !== ConnectedTo.rssi )
 }
 function handleWifiDialog(data){
   if($('#WifiConnectDialog').is(':visible')){
-    if(ConnectedToSSID.ip) {
-      $('#ipAddress').text(ConnectedToSSID.ip);
+    if(ConnectedTo.ip) {
+      $('#ipAddress').text(ConnectedTo.ip);
     }
-    if(ConnectedToSSID.ssid) {
-      $('#connectedToSSID' ).text(ConnectedToSSID.ssid);
+    if(ConnectedTo.ssid) {
+      $('#connectedToSSID' ).text(ConnectedTo.ssid);
     }    
-    if(ConnectedToSSID.gw) {
-      $('#gateway' ).text(ConnectedToSSID.gw);
+    if(ConnectedTo.gw) {
+      $('#gateway' ).text(ConnectedTo.gw);
     }        
-    if(ConnectedToSSID.netmask) {
-      $('#netmask' ).text(ConnectedToSSID.netmask);
+    if(ConnectedTo.netmask) {
+      $('#netmask' ).text(ConnectedTo.netmask);
     }            
     if(ConnectingToSSID.Action===undefined || (ConnectingToSSID.Action && ConnectingToSSID.Action == ConnectingToActions.STS)) {
       $("*[class*='connecting']").hide();
@@ -1378,30 +1457,30 @@ function handleWifiDialog(data){
     }
     else {
       switch (data.urc) {
-        case connectReturnCode.UPDATE_CONNECTION_OK:
+        case connectReturnCode.OK:
           if(data.ssid && data.ssid===ConnectingToSSID.ssid){
             $("*[class*='connecting']").hide();
             $('.connecting-success').show();            
             ConnectingToSSID.Action = ConnectingToActions.STS;
           }
           break;
-          case connectReturnCode.UPDATE_FAILED_ATTEMPT:
+          case connectReturnCode.FAIL:
           // 
           if(ConnectingToSSID.Action !=ConnectingToActions.STS && ConnectingToSSID.ssid == data.ssid ){
             $("*[class*='connecting']").hide();
             $('.connecting-fail').show();
           }
           break;
-          case connectReturnCode.UPDATE_LOST_CONNECTION:
+          case connectReturnCode.LOST:
     
           break;            
-          case connectReturnCode.UPDATE_FAILED_ATTEMPT_AND_RESTORE:
+          case connectReturnCode.RESTORE:
             if(ConnectingToSSID.Action !=ConnectingToActions.STS && ConnectingToSSID.ssid != data.ssid ){
               $("*[class*='connecting']").hide();
               $('.connecting-fail').show();
             }
           break;
-        case connectReturnCode.UPDATE_USER_DISCONNECT:
+        case connectReturnCode.DISC:
             // that's a manual disconnect
             // if ($('#wifi-status').is(':visible')) {
             //   $('#wifi-status').slideUp('fast', function() {});
@@ -1416,13 +1495,21 @@ function handleWifiDialog(data){
 
   }
 }
-function handleWifiStatus(data) {
+function handleNetworkStatus(data) {
   if(hasConnectionChanged(data)){
-    ConnectedToSSID=data;
-    refreshAPHTML2();
+    ConnectedTo=data;
+    if(ConnectedTo.urc == connectReturnCode.ETH ){
+      refreshETH();
+    } 
+    else {
+      refreshAPHTML2();
+    }
+
   }
   handleWifiDialog(data);
 }
+
+
 
 function batteryToIcon(voltage) {
         /* Assuming Li-ion 18650s as a power source, 3.9V per cell, or above is treated
@@ -1431,25 +1518,17 @@ function batteryToIcon(voltage) {
 					https://learn.adafruit.com/li-ion-and-lipoly-batteries/voltages
 				using the 0.2C discharge profile for the rest of the values.
 			*/
-  if (voltage > 0) {
-    if (inRange(voltage, 5.8, 6.8) || inRange(voltage, 8.8, 10.2)) {
-      return `battery-low-line`;
-    } else if (inRange(voltage, 6.8, 7.4) || inRange(voltage, 10.2, 11.1)) {
-      return `battery-low-line`;
-    } else if (
-      inRange(voltage, 7.4, 7.5) ||
-      inRange(voltage, 11.1, 11.25)
-    ) {
-      return `battery-low-line`;
-    } else if (
-      inRange(voltage, 7.5, 7.8) ||
-      inRange(voltage, 11.25, 11.7)
-    ) {
-      return `battery-fill`;
-    } else {
-      return `battery-line`;
+
+  for (const iconEntry of batIcons) {
+    for (const entryRanges of iconEntry.ranges ) {
+      if(inRange(voltage,entryRanges.f, entryRanges.t)){
+        return iconEntry.icon;
+      }
     }
   }
+  
+    
+  return "battery_full";
 }
 function checkStatus() {
   RepeatCheckStatusInterval();
@@ -1460,7 +1539,7 @@ function checkStatus() {
   getMessages();
   $.getJSON('/status.json', function(data) {
     handleRecoveryMode(data);
-    handleWifiStatus(data);
+    handleNetworkStatus(data);
     handlebtstate(data);
     handle_flash_state({
       ota_pct: (data.ota_pct ?? -1),
@@ -1481,7 +1560,7 @@ function checkStatus() {
       $('span#flash-status').html('');
     }
     if (data.Voltage) {
-     $('#battery').attr('xlink:href', `#${batteryToIcon(data.Voltage)}`);
+     $('#battery').html( `${batteryToIcon(data.Voltage)}`);
      $('#battery').show();
     } else {
       $('#battery').hide();
@@ -1490,6 +1569,13 @@ function checkStatus() {
       // supporting older recovery firmwares - messages will come from the status.json structure
       prevmessage = data.message;
       showLocalMessage(data.message, 'MESSAGING_INFO')
+    }
+    is_i2c_locked = data.is_i2c_locked;
+    if(is_i2c_locked){
+      $('flds-cfg-hw-preset').hide();
+    }
+    else {
+      $('flds-cfg-hw-preset').show();
     }
     $("button[onclick*='handleReboot']").removeClass('rebooting');
 
@@ -1511,7 +1597,7 @@ function checkStatus() {
       });
     }
     
-    $('#o_jack').attr('display', Number(data.Jack) ? 'inline' : 'none');
+    $('#o_jack').css({ display : Number(data.Jack) ? 'inline' : 'none' });
     blockAjax = false;
   }).fail(function(xhr, ajaxOptions, thrownError) {
     handleExceptionResponse(xhr, ajaxOptions, thrownError);
@@ -1595,12 +1681,10 @@ window.runCommand = function(button, reboot) {
       }
     },
     success: function(response) {
-      // var returnedResponse = JSON.parse(response.responseText);
       $('.orec').show();
-      console.log(response.responseText);
+      console.log(response);
       if (
-        response.responseText &&
-        JSON.parse(response.responseText).Result === 'Success' &&
+        JSON.parse(response).Result === 'Success' &&
         reboot
       ) {
         delayReboot(2500, button.attributes.cmdname.value);
@@ -1769,6 +1853,7 @@ function getCommands() {
         });
       }
     });
+    loadPresets();
   }).fail(function(xhr, ajaxOptions, thrownError) {
     if(xhr.status==404){
       $('.orec').hide();
@@ -1817,6 +1902,17 @@ function getConfig() {
         } else if (key === 'rel_api') {
            releaseURL = val;
         }
+        else if (key === 'enable_airplay') {
+          $("#s_airplay").css({ display : isEnabled(val) ? 'inline' : 'none' })
+        }
+        else if (key === 'enable_cspot') {
+          $("#s_cspot").css({ display : isEnabled(val) ? 'inline' : 'none' })
+        }
+        else if (key == 'preset_name') {
+          preset_name = val;
+        }
+        
+        
         $('tbody#nvsTable').append(
           '<tr>' +
             '<td>' +

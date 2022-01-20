@@ -200,6 +200,11 @@ CONFIG_SPI_CONFIG=""
 CONFIG_DISPLAY_CONFIG=""
 CONFIG_ETH_CONFIG=""
 CONFIG_DAC_CONTROLSET=""
+CONFIG_JACK_GPIO=-1
+CONFIG_SPKFAULT_GPIO=-1
+CONFIG_BAT_CHANNEL=-1
+CONFIG_LED_GREEN_GPIO=-1
+CONFIG_LED_RED_GPIO=-1
 # end of Target
 
 #
@@ -277,26 +282,21 @@ CONFIG_ROTARY_ENCODER=""
 #
 # LED configuration
 #
-CONFIG_LED_GREEN_GPIO=-1
-CONFIG_LED_RED_GPIO=-1
 # end of LED configuration
 
 #
 # Audio JACK
 #
-CONFIG_JACK_GPIO=-1
 # end of Audio JACK
 
 #
 # Speaker Fault
 #
-CONFIG_SPKFAULT_GPIO=-1
 # end of Speaker Fault
 
 #
 # Battery measure
 #
-CONFIG_BAT_CHANNEL=-1
 # end of Battery measure
 
 CONFIG_DEFAULT_COMMAND_LINE="squeezelite -o I2S -b 500:2000 -d all=info -C 30 -W"

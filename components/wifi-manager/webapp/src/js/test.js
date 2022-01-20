@@ -2,7 +2,7 @@ let sd = {};
 let rf=false;
 function getStatus() {
         const config = {};
-        window.$(`#valuesTable input:text,  #valuesTable input:checked`).each(function(_index, entry) {
+        $(`#valuesTable input:text,  #valuesTable input:checked`).each(function(_index, entry) {
             switch (entry.attributes.dtype.value) {
                 case 'string':
                     config[entry.name] = entry.value;
@@ -42,11 +42,11 @@ function getStatus() {
 
     }
 
-    window.refreshStatus = function() {
+    var refreshStatus = function() {
         if(Object.keys(sd).length>0){
             if(rf) return;
             rf=true;
-            window.$.getJSON('/status.json', function(data) {
+            $.getJSON('/status.json', function(data) {
                 for (const property in data) {
                     const val = data[property];
                     let input = $(`#val_${property}, #valuesTable input[name="${property}"]`) ;
@@ -64,7 +64,7 @@ function getStatus() {
                     else {
                         
                         if(sd[property]){
-                            window.$('#valuesTable').append(
+                            $('#valuesTable').append(
                                 `<tr><td>${property}</td>
                                 <td >
                                 ${getRadioButton(property)}
@@ -72,8 +72,8 @@ function getStatus() {
                             $(`#${property}_${val ?? 0}`).prop('checked',true);
                         }
                         else {
-                            window.$('#valuesTable').append(`<tr><td>${property}</td><td><input type='text' class='value form-control nvs' id="val_${property}" name='${property}' dtype='${typeof(val)}' ></input></td></tr>`);
-                            window.$(`#val_${property}`).val(val);
+                            $('#valuesTable').append(`<tr><td>${property}</td><td><input type='text' class='value form-control nvs' id="val_${property}" name='${property}' dtype='${typeof(val)}' ></input></td></tr>`);
+                            $(`#val_${property}`).val(val);
                         }
 
 
@@ -90,7 +90,7 @@ function getStatus() {
 
         }
         else {
-            window.$.getJSON('/statusdefinition.json', function(data) {
+            $.getJSON('/statusdefinition.json', function(data) {
                 sd=data;
             })
             .fail(function() {
@@ -106,7 +106,7 @@ function getStatus() {
                 timestamp: Date.now(),
                 status:  getStatus()
             };
-            window.$.ajax({
+            $.ajax({
                 url: '/status.json',
                 dataType: 'text',
                 method: 'POST',
@@ -117,15 +117,15 @@ function getStatus() {
             console.log('sent config JSON with data:', JSON.stringify(data));
     }
 
-    window.$(document).ready(function() {
-        window.$('#save_status').on('click', function() {
+    $(document).ready(function() {
+        $('#save_status').on('click', function() {
             pushStatus();
         });            
-        window.$( "#valuesTable" ).change(function() {
+        $( "#valuesTable" ).change(function() {
             pushStatus();
         });            
         
-        setInterval(window.refreshStatus, 1000);
+        setInterval(refreshStatus, 1000);
         $('svg >> symbol').each(function() { 
             $('#allIcons').append( `<svg style="fill:white; width:1.5rem; height: 1.5rem;">
             <use xlink:href="#${this.id}"></use>

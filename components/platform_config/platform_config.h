@@ -47,6 +47,7 @@ void config_start_timer();
 void config_init();
 void * config_alloc_get_default(nvs_type_t type, const char *key, void * default_value, size_t blob_size);
 void * config_alloc_get_str(const char *key, char *lead, char *fallback);
+void config_get_uint16t_from_str(const char *key, uint16_t *value, uint16_t default_value);
 void config_delete_key(const char *key);
 void config_set_default(nvs_type_t type, const char *key, void * default_value, size_t blob_size);
 void * config_alloc_get(nvs_type_t nvs_type, const char *key) ;

@@ -1,7 +1,9 @@
 {
   "compilerOptions": {
     "baseUrl": "./",
-    "paths": { "*": ["types/*"] },
+    "paths": { 
+      "@/*": [  "src/*"],
+      "@node_modules/*" : ["./node_modules/*"]},
     "outDir": "./dist/",
     "noImplicitAny": true,
     "sourceMap": true,
@@ -9,7 +11,10 @@
     "target": "es2018",
     "composite": true,
 //    "jsx": "react",
-    "allowJs": true
+    "allowJs": true,
+    "allowSyntheticDefaultImports" : true,
+    "esModuleInterop" : true
+
   },
   "exclude": [
     "./node_modules"

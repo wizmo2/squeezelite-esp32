@@ -205,7 +205,7 @@ cJSON* network_status_update_string(cJSON** root, const char* key, const char* v
         if (cjsonvalue && strcasecmp(cJSON_GetStringValue(cjsonvalue), value) != 0) {
             ESP_LOGD(TAG, "Value %s changed from %s to %s", key, cJSON_GetStringValue(cjsonvalue), value);
             cJSON_SetValuestring(cjsonvalue, value);
-        } else {
+        } else if(!cjsonvalue){
             cJSON_AddItemToObject(*root, key, cJSON_CreateString(value));
         }
         network_status_unlock_json_buffer();
@@ -338,8 +338,8 @@ void network_status_update_ip_info(update_reason_code_t update_reason_code) {
         ip_info_cjson = network_status_get_basic_info(&ip_info_cjson);
         ip_info_cjson = network_status_update_number(&ip_info_cjson, "urc", update_reason_code);
         ESP_LOGD(TAG,"Updating ip info with reason code %d. Checking if Wifi interface is connected",update_reason_code);
-        if (network_is_interface_connected(network_wifi_get_interface())) {
-            
+        if (network_is_interface_connected(network_wifi_get_interface()) || update_reason_code == UPDATE_FAILED_ATTEMPT ) {
+            network_status_update_string(ip_info_cjson, "if", "wifi");
             esp_netif_get_ip_info(network_wifi_get_interface(), &ip_info);
             network_status_update_address(ip_info_cjson, &ip_info);
             if (!network_wifi_is_ap_mode()) {
@@ -351,24 +351,15 @@ void network_status_update_ip_info(update_reason_code_t update_reason_code) {
             }
 
         } else {
-            cJSON_DeleteItemFromObjectCaseSensitive(ip_info_cjson, "ip");
-            cJSON_DeleteItemFromObjectCaseSensitive(ip_info_cjson, "netmask");
-            cJSON_DeleteItemFromObjectCaseSensitive(ip_info_cjson, "gw");
             cJSON_DeleteItemFromObjectCaseSensitive(ip_info_cjson, "rssi");
             cJSON_DeleteItemFromObjectCaseSensitive(ip_info_cjson, "ssid");
         }
         ESP_LOGD(TAG,"Checking if ethernet interface is connected");
         if (network_is_interface_connected(network_ethernet_get_interface())) {
-            cJSON* ethernet_ip = cJSON_GetObjectItem(ip_info_cjson, "eth");
-            if (!ethernet_ip) {
-                ethernet_ip = cJSON_CreateObject();
-                cJSON_AddItemToObject(ip_info_cjson, "eth", ethernet_ip);
-            }
+            network_status_update_string(ip_info_cjson, "if", "eth");
             esp_netif_get_ip_info(network_ethernet_get_interface(), &ip_info);
-            network_status_update_address(ethernet_ip, &ip_info);
-        } else {
-            cJSON_DeleteItemFromObjectCaseSensitive(ip_info_cjson, "eth");
-        }
+            network_status_update_address(ip_info_cjson, &ip_info);
+        } 
         network_status_unlock_json_buffer();
     } else {
         ESP_LOGW(TAG, "Unable to lock status json buffer. ");

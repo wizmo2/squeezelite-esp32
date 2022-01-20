@@ -1,19 +1,5 @@
 {
 	"commands":	[{
-			"help":	"WiFi",
-			"hascb":	true,
-			"argtable":	[{
-					"datatype":	"Fast|Comprehensive",
-					"glossary":	"Sets the WiFi Scan Mode. Use Comprehensive where more than one AP has the same name on different channels. This will ensure that the AP with the strongest signal is chosen.",
-					"longopts":	"scanmode",
-					"checkbox":	false,
-					"hasvalue":	true,
-					"mincount":	0,
-					"maxcount":	1
-				}],
-			"hint":	" [--scanmode=Fast|Comprehensive]",
-			"name":	"cfg-syst-wifi"
-		}, {
 			"help":	"Get the current size of free heap memory",
 			"hascb":	false,
 			"name":	"free"
@@ -21,9 +7,18 @@
 			"help":	"Services",
 			"hascb":	true,
 			"argtable":	[{
+					"glossary":	"Spotify (cspot)",
+					"longopts":	"cspot",
+					"checkbox":	true,
+					"remark":	false,
+					"hasvalue":	false,
+					"mincount":	0,
+					"maxcount":	1
+				}, {
 					"glossary":	"Bluetooth Speaker",
 					"longopts":	"BT_Speaker",
 					"checkbox":	true,
+					"remark":	false,
 					"hasvalue":	false,
 					"mincount":	0,
 					"maxcount":	1
@@ -31,6 +26,7 @@
 					"glossary":	"AirPlay",
 					"longopts":	"AirPlay",
 					"checkbox":	true,
+					"remark":	false,
 					"hasvalue":	false,
 					"mincount":	0,
 					"maxcount":	1
@@ -40,11 +36,20 @@
 					"longopts":	"telnet",
 					"shortopts":	"t",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
+				}, {
+					"glossary":	"System Statistics. Use only for troubleshooting",
+					"longopts":	"stats",
+					"checkbox":	true,
+					"remark":	false,
+					"hasvalue":	false,
+					"mincount":	0,
+					"maxcount":	1
 				}],
-			"hint":	" [--BT_Speaker] [--AirPlay] [-t Disabled|Telnet Only|Telnet and Serial]",
+			"hint":	" [--cspot] [--BT_Speaker] [--AirPlay] [-t Disabled|Telnet Only|Telnet and Serial] [--stats]",
 			"name":	"cfg-syst-services"
 		}, {
 			"help":	"Get minimum size of free heap memory found during execution",
@@ -54,16 +59,17 @@
 			"help":	"Device Name",
 			"hascb":	true,
 			"argtable":	[{
-					"datatype":	"Bureau-OLED",
+					"datatype":	"squeezelite-1fe714",
 					"glossary":	"New Name",
 					"longopts":	"name",
 					"shortopts":	"n",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
 				}],
-			"hint":	" [-n Bureau-OLED]",
+			"hint":	" [-n squeezelite-1fe714]",
 			"name":	"cfg-syst-name"
 		}, {
 			"help":	"Get version of chip and SDK",
@@ -82,6 +88,21 @@
 			"hascb":	false,
 			"name":	"restart_ota"
 		}, {
+			"help":	"Preset Options",
+			"hascb":	true,
+			"argtable":	[{
+					"datatype":	"SqueezeAMP|T-WATCH2020 by LilyGo",
+					"glossary":	"Known Board Name.\nFor known boards, several systems parameters will be updated",
+					"longopts":	"model_config",
+					"checkbox":	false,
+					"remark":	false,
+					"hasvalue":	true,
+					"mincount":	1,
+					"maxcount":	1
+				}],
+			"hint":	" --model_config=SqueezeAMP|T-WATCH2020 by LilyGo",
+			"name":	"cfg-hw-preset"
+		}, {
 			"help":	"General Audio Options",
 			"hascb":	true,
 			"argtable":	[{
@@ -90,6 +111,7 @@
 					"longopts":	"jack_behavior",
 					"shortopts":	"j",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -105,6 +127,7 @@
 					"longopts":	"sink_name",
 					"shortopts":	"n",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	1,
 					"maxcount":	1
@@ -114,6 +137,7 @@
 					"longopts":	"pin_code",
 					"shortopts":	"p",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	1,
 					"maxcount":	1
@@ -124,10 +148,11 @@
 			"help":	"DAC Options",
 			"hascb":	true,
 			"argtable":	[{
-					"datatype":	"TAS57xx|TAS5713|AC101|WM8978|I2S",
+					"datatype":	"TAS57xx|TAS5713|AC101|WM8978|ES8388|",
 					"glossary":	"DAC Model Name",
 					"longopts":	"model_name",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	1,
 					"maxcount":	1
@@ -136,30 +161,34 @@
 					"glossary":	"Clock GPIO. e.g. 33",
 					"longopts":	"clock",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
-					"mincount":	1,
+					"mincount":	0,
 					"maxcount":	1
 				}, {
 					"datatype":	"<n>",
 					"glossary":	"Word Select GPIO. e.g. 25",
 					"longopts":	"wordselect",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
-					"mincount":	1,
+					"mincount":	0,
 					"maxcount":	1
 				}, {
 					"datatype":	"<n>",
 					"glossary":	"Data GPIO. e.g. 32",
 					"longopts":	"data",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
-					"mincount":	1,
+					"mincount":	0,
 					"maxcount":	1
 				}, {
 					"datatype":	"<n>",
 					"glossary":	"Mute GPIO. e.g. 14",
 					"longopts":	"mute_gpio",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -167,6 +196,7 @@
 					"glossary":	"Mute GPIO level. Checked=HIGH, Unchecked=LOW",
 					"longopts":	"mute_level",
 					"checkbox":	true,
+					"remark":	false,
 					"hasvalue":	false,
 					"mincount":	0,
 					"maxcount":	1
@@ -175,6 +205,7 @@
 					"glossary":	"SDA GPIO. e.g. 27",
 					"longopts":	"dac_sda",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -183,6 +214,7 @@
 					"glossary":	"SCL GPIO. e.g. 26",
 					"longopts":	"dac_scl",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -191,6 +223,7 @@
 					"glossary":	"I2C device address. e.g. 106",
 					"longopts":	"dac_i2c",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -198,11 +231,12 @@
 					"glossary":	"Clear configuration",
 					"longopts":	"clear",
 					"checkbox":	true,
+					"remark":	false,
 					"hasvalue":	false,
 					"mincount":	0,
 					"maxcount":	1
 				}],
-			"hint":	" --model_name=TAS57xx|TAS5713|AC101|WM8978|I2S --clock=<n> --wordselect=<n> --data=<n> [--mute_gpio=<n>] [--mute_level] [--dac_sda=<n>] [--dac_scl=<n>] [--dac_i2c=<n>] [--clear]",
+			"hint":	" --model_name=TAS57xx|TAS5713|AC101|WM8978|ES8388| [--clock=<n>] [--wordselect=<n>] [--data=<n>] [--mute_gpio=<n>] [--mute_level] [--dac_sda=<n>] [--dac_scl=<n>] [--dac_i2c=<n>] [--clear]",
 			"name":	"cfg-hw-dac"
 		}, {
 			"help":	"SPDIF Options",
@@ -212,6 +246,7 @@
 					"glossary":	"Clock GPIO. e.g. 33",
 					"longopts":	"clock",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	1,
 					"maxcount":	1
@@ -220,6 +255,7 @@
 					"glossary":	"Word Select GPIO. e.g. 25",
 					"longopts":	"wordselect",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	1,
 					"maxcount":	1
@@ -228,6 +264,7 @@
 					"glossary":	"Data GPIO. e.g. 32",
 					"longopts":	"data",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	1,
 					"maxcount":	1
@@ -235,12 +272,103 @@
 					"glossary":	"Clear configuration",
 					"longopts":	"clear",
 					"checkbox":	true,
+					"remark":	false,
 					"hasvalue":	false,
 					"mincount":	0,
 					"maxcount":	1
 				}],
 			"hint":	" --clock=<n> --wordselect=<n> --data=<n> [--clear]",
 			"name":	"cfg-hw-spdif"
+		}, {
+			"help":	"Rotary Control",
+			"hascb":	true,
+			"argtable":	[{
+					"datatype":	"remark",
+					"glossary":	"One rotary encoder is supported, quadrature shift with press. Such encoders usually have 2 pins for encoders (A and B), and common C that must be set to ground and an optional SW pin for press. A, B and SW must be pulled up, so automatic pull-up is provided by ESP32, but you can add your own resistors. A bit of filtering on A and B (~470nF) helps for debouncing which is not made by software.\r\nEncoder is normally hard-coded to respectively knob left, right and push on LMS and to volume down/up/play toggle on BT and AirPlay.",
+					"checkbox":	false,
+					"remark":	true,
+					"hasvalue":	false,
+					"mincount":	1,
+					"maxcount":	1
+				}, {
+					"datatype":	"gpio",
+					"glossary":	"A/DT gpio",
+					"longopts":	"A",
+					"checkbox":	false,
+					"remark":	false,
+					"hasvalue":	true,
+					"mincount":	1,
+					"maxcount":	1
+				}, {
+					"datatype":	"gpio",
+					"glossary":	"B/CLK gpio",
+					"longopts":	"B",
+					"checkbox":	false,
+					"remark":	false,
+					"hasvalue":	true,
+					"mincount":	1,
+					"maxcount":	1
+				}, {
+					"datatype":	"gpio",
+					"glossary":	"Switch gpio",
+					"longopts":	"SW",
+					"checkbox":	false,
+					"remark":	false,
+					"hasvalue":	true,
+					"mincount":	0,
+					"maxcount":	1
+				}, {
+					"glossary":	"Force Volume down/up/play toggle all the time (even in LMS). ",
+					"longopts":	"volume_lock",
+					"checkbox":	true,
+					"remark":	false,
+					"hasvalue":	false,
+					"mincount":	0,
+					"maxcount":	1
+				}, {
+					"glossary":	"Enable alternate mode mode on long-press. In that mode, left is previous, right is next and press is toggle. Every long press on SW alternates between modes (the main mode actual behavior depends on 'volume').",
+					"longopts":	"longpress",
+					"checkbox":	true,
+					"remark":	false,
+					"hasvalue":	false,
+					"mincount":	0,
+					"maxcount":	1
+				}, {
+					"glossary":	"Single knob full navigation. Left, Right and Press is navigation, with Press always going to lower submenu item. Longpress is 'Play', Double press is 'Back', a quick left-right movement on the encoder is 'Pause'",
+					"longopts":	"knobonly",
+					"checkbox":	true,
+					"remark":	false,
+					"hasvalue":	false,
+					"mincount":	0,
+					"maxcount":	1
+				}, {
+					"datatype":	"ms",
+					"glossary":	"The speed of double click (or left-right) when knob only option is enabled. Be aware that the longer you set double click speed, the less responsive the interface will be. ",
+					"longopts":	"timer",
+					"checkbox":	false,
+					"remark":	false,
+					"hasvalue":	true,
+					"mincount":	0,
+					"maxcount":	1
+				}, {
+					"glossary":	"Clear configuration",
+					"longopts":	"clear",
+					"checkbox":	true,
+					"remark":	false,
+					"hasvalue":	false,
+					"mincount":	0,
+					"maxcount":	1
+				}, {
+					"glossary":	"Send button events as raw values to LMS. No remapping is possible when this is enabled",
+					"longopts":	"raw_mode",
+					"checkbox":	true,
+					"remark":	false,
+					"hasvalue":	false,
+					"mincount":	0,
+					"maxcount":	1
+				}],
+			"hint":	" remark --A=gpio --B=gpio [--SW=gpio] [--volume_lock] [--longpress] [--knobonly] [--timer=ms] [--clear] [--raw_mode]",
+			"name":	"cfg-hw-rotary"
 		}, {
 			"help":	"I2C Bus Parameters",
 			"hascb":	true,
@@ -250,6 +378,7 @@
 					"longopts":	"port",
 					"shortopts":	"p",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -259,6 +388,7 @@
 					"longopts":	"speed",
 					"shortopts":	"f",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -268,6 +398,7 @@
 					"longopts":	"sda",
 					"shortopts":	"d",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -277,6 +408,7 @@
 					"longopts":	"scl",
 					"shortopts":	"c",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -284,6 +416,7 @@
 					"glossary":	"Clear configuration",
 					"longopts":	"clear",
 					"checkbox":	true,
+					"remark":	false,
 					"hasvalue":	false,
 					"mincount":	0,
 					"maxcount":	1
@@ -295,10 +428,21 @@
 			"hascb":	true,
 			"argtable":	[{
 					"datatype":	"<n>",
-					"glossary":	"Data GPIO",
+					"glossary":	"Data OUT GPIO",
 					"longopts":	"data",
 					"shortopts":	"d",
 					"checkbox":	false,
+					"remark":	false,
+					"hasvalue":	true,
+					"mincount":	0,
+					"maxcount":	1
+				}, {
+					"datatype":	"<n>",
+					"glossary":	"Data IN GPIO",
+					"longopts":	"miso",
+					"shortopts":	"d",
+					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -308,6 +452,7 @@
 					"longopts":	"clk",
 					"shortopts":	"k",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -317,6 +462,7 @@
 					"longopts":	"dc",
 					"shortopts":	"c",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -326,6 +472,7 @@
 					"longopts":	"host",
 					"shortopts":	"h",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -333,11 +480,12 @@
 					"glossary":	"Clear configuration",
 					"longopts":	"clear",
 					"checkbox":	true,
+					"remark":	false,
 					"hasvalue":	false,
 					"mincount":	0,
 					"maxcount":	1
 				}],
-			"hint":	" [-d <n>] [-k <n>] [-c <n>] [-h 1|2] [--clear]",
+			"hint":	" [-d <n>] [-d <n>] [-k <n>] [-c <n>] [-h 1|2] [--clear]",
 			"name":	"cfg-hw-spi"
 		}, {
 			"help":	"Scan I2C bus for devices",
@@ -352,6 +500,7 @@
 					"longopts":	"chip",
 					"shortopts":	"c",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	1,
 					"maxcount":	1
@@ -361,6 +510,7 @@
 					"longopts":	"register",
 					"shortopts":	"r",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -370,6 +520,7 @@
 					"longopts":	"length",
 					"shortopts":	"l",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -385,6 +536,7 @@
 					"longopts":	"chip",
 					"shortopts":	"c",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	1,
 					"maxcount":	1
@@ -394,6 +546,7 @@
 					"longopts":	"port",
 					"shortopts":	"p",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -403,6 +556,7 @@
 					"longopts":	"register",
 					"shortopts":	"r",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -410,6 +564,7 @@
 					"datatype":	"<data>",
 					"glossary":	"Specify the data to write to that data address",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	256
@@ -425,6 +580,7 @@
 					"longopts":	"chip",
 					"shortopts":	"c",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	1,
 					"maxcount":	1
@@ -434,6 +590,7 @@
 					"longopts":	"size",
 					"shortopts":	"s",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -449,6 +606,7 @@
 					"longopts":	"type",
 					"shortopts":	"t",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -458,15 +616,17 @@
 					"longopts":	"driver",
 					"shortopts":	"d",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
 				}, {
-					"datatype":	"1|4",
+					"datatype":	"-1|1|4",
 					"glossary":	"Bit Depth (only for SSD1326 displays)",
 					"longopts":	"depth",
 					"shortopts":	"p",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -476,6 +636,7 @@
 					"longopts":	"address",
 					"shortopts":	"a",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -485,6 +646,7 @@
 					"longopts":	"width",
 					"shortopts":	"w",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	1,
 					"maxcount":	1
@@ -494,6 +656,7 @@
 					"longopts":	"height",
 					"shortopts":	"h",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	1,
 					"maxcount":	1
@@ -502,6 +665,7 @@
 					"longopts":	"rotate",
 					"shortopts":	"r",
 					"checkbox":	true,
+					"remark":	false,
 					"hasvalue":	false,
 					"mincount":	0,
 					"maxcount":	1
@@ -509,6 +673,7 @@
 					"glossary":	"Flip horizontally",
 					"longopts":	"hf",
 					"checkbox":	true,
+					"remark":	false,
 					"hasvalue":	false,
 					"mincount":	0,
 					"maxcount":	1
@@ -516,6 +681,7 @@
 					"glossary":	"Flip vertically",
 					"longopts":	"vf",
 					"checkbox":	true,
+					"remark":	false,
 					"hasvalue":	false,
 					"mincount":	0,
 					"maxcount":	1
@@ -525,6 +691,7 @@
 					"longopts":	"speed",
 					"shortopts":	"s",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -534,6 +701,7 @@
 					"longopts":	"cs",
 					"shortopts":	"b",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -543,6 +711,7 @@
 					"longopts":	"back",
 					"shortopts":	"b",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -551,6 +720,7 @@
 					"glossary":	"Reset GPIO",
 					"longopts":	"reset",
 					"checkbox":	false,
+					"remark":	false,
 					"hasvalue":	true,
 					"mincount":	0,
 					"maxcount":	1
@@ -558,24 +728,27 @@
 					"glossary":	"clear configuration and return",
 					"longopts":	"clear",
 					"checkbox":	true,
+					"remark":	false,
 					"hasvalue":	false,
 					"mincount":	0,
 					"maxcount":	1
 				}],
-			"hint":	" [-r] [-t <I2C|SPI>] [-d <SH1106|SSD1306|SSD1322|SSD1326|SSD1327|SSD1675|SSD1351|ST7735|ST7789|ILI9341|>] [-p 1|4] [-a <n>] -w <n> -h <n> [--hf] [--vf] [-s <n>] [-b <n>] [-b <n>] [--reset=<n>] [--clear]",
+			"hint":	" [-r] [-t <I2C|SPI>] [-d <SH1106|SSD1306|SSD1322|SSD1326|SSD1327|SSD1675|SSD1351|ST7735|ST7789|ILI9341|>] [-p -1|1|4] [-a <n>] -w <n> -h <n> [--hf] [--vf] [-s <n>] [-b <n>] [-b <n>] [--reset=<n>] [--clear]",
 			"name":	"cfg-hw-display"
 		}],
 	"values":	{
-		"cfg-syst-wifi":	{
-			"scanmode":	"Fast"
-		},
 		"cfg-syst-services":	{
 			"BT_Speaker":	true,
 			"AirPlay":	true,
-			"telnet":	"Telnet Only"
+			"cspot":	true,
+			"stats":	false,
+			"telnet":	"Telnet and Serial"
 		},
 		"cfg-syst-name":	{
-			"name":	"Bureau-OLED"
+			"name":	"squeezelite-1fe714"
+		},
+		"cfg-hw-preset":	{
+			"model_config":	""
 		},
 		"cfg-audio-general":	{
 			"jack_behavior":	"Subwoofer"
@@ -585,30 +758,23 @@
 			"pin_code":	"0000"
 		},
 		"cfg-hw-dac":	{
-			"clock":	33,
-			"wordselect":	25,
-			"data":	32,
-			"model_name":	"I2S"
+			"dac_sda":	33,
+			"dac_scl":	32,
+			"model_name":	"AC101"
 		},
 		"cfg-hw-spdif":	{
+		},
+		"cfg-hw-rotary":	{
 		},
 		"cfg-hw-i2c":	{
 			"speed":	400000
 		},
 		"cfg-hw-spi":	{
-			"data":	4,
-			"clk":	5,
-			"dc":	18,
+			"data":	13,
+			"clk":	14,
 			"host":	1
 		},
 		"cfg-hw-display":	{
-			"width":	256,
-			"height":	64,
-			"reset":	21,
-			"driver":	"SSD1322",
-			"cs":	19,
-			"speed":	16000000,
-			"type":	"SPI",
 			"rotate":	false,
 			"hf":	false,
 			"vf":	false

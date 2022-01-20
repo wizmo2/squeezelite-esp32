@@ -78,6 +78,7 @@ typedef struct
 	esp_netif_t *wifi_ap_netif;
     uint16_t sta_polling_min_ms;
     uint16_t sta_polling_max_ms;
+    uint16_t ap_duration_ms;
     uint16_t eth_link_down_reboot_ms;
     uint16_t dhcp_timeout;
     uint16_t wifi_dhcp_fail_ms;    
@@ -312,7 +313,7 @@ bool network_is_wifi_prioritized();
 void network_set_timer(uint16_t duration, const char * tag);
 void network_set_hostname(esp_netif_t * netif);
 esp_err_t network_get_ip_info_for_netif(esp_netif_t* netif, tcpip_adapter_ip_info_t* ipInfo);
-void network_start_stop_dhcp(esp_netif_t* netif, bool start);
+void network_start_stop_dhcp_client(esp_netif_t* netif, bool start);
 void network_start_stop_dhcps(esp_netif_t* netif, bool start);
 void network_prioritize_wifi(bool activate);
 #define ADD_ROOT_FORWARD_DECLARATION(name, ...) ADD_STATE_FORWARD_DECLARATION_(name)

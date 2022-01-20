@@ -620,6 +620,15 @@ void config_delete_key(const char *key){
 void * config_alloc_get(nvs_type_t nvs_type, const char *key) {
 	return config_alloc_get_default(nvs_type, key, NULL, 0);
 }
+void config_get_uint16t_from_str(const char *key, uint16_t *value, uint16_t default_value){
+	char * str_value = config_alloc_get(NVS_TYPE_STR, key);
+	if(str_value == NULL){
+		*value = default_value;
+		return NULL;
+	}
+	*value = atoi(str_value);
+	free(str_value);
+}
 
 void * config_alloc_get_str(const char *key, char *lead, char *fallback) {
 	if (lead && *lead) return strdup_psram(lead);

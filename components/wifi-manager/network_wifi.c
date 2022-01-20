@@ -65,7 +65,7 @@ typedef struct known_access_point {
     uint32_t phy_11g : 1;      /**< bit: 1 flag to identify if 11g mode is enabled or not */
     uint32_t phy_11n : 1;      /**< bit: 2 flag to identify if 11n mode is enabled or not */
     uint32_t phy_lr : 1;       /**< bit: 3 flag to identify if low rate is enabled or not */
-    time_t next_try;
+    time_t last_try;
     SLIST_ENTRY(known_access_point)
     next;  //!< next callback
 } known_access_point_t;
@@ -126,6 +126,14 @@ size_t network_wifi_get_known_count() {
     known_access_point_t* it;
     SLIST_FOREACH(it, &s_ap_list, next) {
         count++;
+    }
+    return count;
+}
+size_t network_wifi_get_known_count_in_range() {
+    size_t count = 0;
+    known_access_point_t* it;
+    SLIST_FOREACH(it, &s_ap_list, next) {
+        if(it->found) count++;
     }
     return count;
 }
@@ -237,6 +245,30 @@ void network_wifi_set_found_ap() {
             it->found = false;
         }
     }
+}
+bool network_wifi_known_ap_in_range(){
+    known_access_point_t* it;
+    SLIST_FOREACH(it, &s_ap_list, next) {
+        if (it->found) {
+            return true;
+        }
+    }
+    return false;
+}
+const char * network_wifi_get_next_ap_in_range(){
+    known_access_point_t* it;
+    time_t last_try_min=(esp_timer_get_time() / 1000);
+    SLIST_FOREACH(it, &s_ap_list, next) {
+        if (it->found && it->last_try < last_try_min) {
+            last_try_min = it->last_try;
+        }
+    }
+    SLIST_FOREACH(it, &s_ap_list, next) {
+        if (it->found && it->last_try == last_try_min) {
+            return it->ssid;
+        }
+    }
+    return NULL;
 }
 
 esp_err_t network_wifi_alloc_ap_json(known_access_point_t* item, char** json_string) {
@@ -735,7 +767,7 @@ static void network_wifi_event_handler(void* arg, esp_event_base_t event_base, i
             //		    		reason of disconnection
             wifi_event_sta_disconnected_t* s = (wifi_event_sta_disconnected_t*)event_data;
             char* bssid = network_manager_alloc_get_mac_string(s->bssid);
-            ESP_LOGD(TAG, "WIFI_EVENT_STA_DISCONNECTED. From BSSID: %s, reason code: %d (%s)", STR_OR_BLANK(bssid), s->reason, get_disconnect_code_desc(s->reason));
+            ESP_LOGW(TAG, "WIFI_EVENT_STA_DISCONNECTED. From BSSID: %s, reason code: %d (%s)", STR_OR_BLANK(bssid), s->reason, get_disconnect_code_desc(s->reason));
             FREE_AND_NULL(bssid);
             if (s->reason == WIFI_REASON_ROAMING) {
                 ESP_LOGI(TAG, "WiFi Roaming to new access point");
@@ -1137,9 +1169,17 @@ esp_err_t network_wifi_connect(const char* ssid, const char* password) {
     }
     return err;
 }
+esp_err_t network_wifi_connect_next_in_range(){
+    const char * ssid = network_wifi_get_next_ap_in_range();
+    if(ssid){
+        return network_wifi_connect_ssid(ssid);
+    }
+    return ESP_FAIL;
+}
 esp_err_t network_wifi_connect_ssid(const char* ssid) {
     known_access_point_t* item = network_wifi_get_ap_entry(ssid);
     if (item) {
+        item->last_try = (esp_timer_get_time() / 1000);
         return network_wifi_connect(item->ssid, item->password);
     }
     return ESP_FAIL;

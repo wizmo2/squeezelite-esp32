@@ -100,3 +100,5 @@ node_modules/*
 esp-dsp/
 
 
+
+components/wifi-manager/network_manager_handlers.multi

@@ -75,7 +75,7 @@ int get_root_id(const state_t *  state);
 const state_t* get_root( const state_t* const state);
 static void network_task(void* pvParameters);
 
-void network_start_stop_dhcp(esp_netif_t* netif, bool start) {
+void network_start_stop_dhcp_client(esp_netif_t* netif, bool start) {
     tcpip_adapter_dhcp_status_t status;
     esp_err_t err = ESP_OK;
     ESP_LOGD(TAG, "Checking if DHCP client for STA interface is running");
@@ -95,13 +95,19 @@ void network_start_stop_dhcp(esp_netif_t* netif, bool start) {
         }
         else {
             ESP_LOGI(TAG, "Stopping DHCP client");
-            ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_dhcpc_stop(netif));
+            err = esp_netif_dhcpc_stop(netif);
+            if(err!=ESP_OK){
+                ESP_LOGE(TAG,"Error stopping DHCP Client : %s",esp_err_to_name(err));
+            }
         }
         break;
         case ESP_NETIF_DHCP_STOPPED:
         if(start){
             ESP_LOGI(TAG, "Starting DHCP client");
-            ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_dhcpc_start(netif));
+            err = esp_netif_dhcpc_start(netif);
+            if(err!=ESP_OK){
+                ESP_LOGE(TAG,"Error stopping DHCP Client : %s",esp_err_to_name(err));
+            }
         }
         else {
             ESP_LOGI(TAG, "DHCP client already started");
@@ -110,11 +116,17 @@ void network_start_stop_dhcp(esp_netif_t* netif, bool start) {
         case ESP_NETIF_DHCP_INIT:
         if(start){
             ESP_LOGI(TAG, "Starting DHCP client");
-            ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_dhcpc_start(netif));
+            err = esp_netif_dhcpc_start(netif);
+            if(err!=ESP_OK){
+                ESP_LOGE(TAG,"Error stopping DHCP Client : %s",esp_err_to_name(err));
+            }
         }
         else {
             ESP_LOGI(TAG, "Stopping DHCP client");
-            ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_dhcpc_stop(netif));
+            err = esp_netif_dhcpc_stop(netif);
+            if(err!=ESP_OK){
+                ESP_LOGE(TAG,"Error stopping DHCP Client : %s",esp_err_to_name(err));
+            }
         }
         break;
 
@@ -537,9 +549,8 @@ void network_async_lost_connection(wifi_event_sta_disconnected_t* disconnected_e
     memset(&msg,0x00,sizeof(msg));
     msg.trigger = EN_LOST_CONNECTION;
     ESP_LOGD(TAG, "Posting event %s", event_to_string(msg.trigger));
-    msg.disconnected_event = malloc_init_external(sizeof(wifi_event_sta_disconnected_t));
+    msg.disconnected_event =  clone_obj_psram(disconnected_event,sizeof(wifi_event_sta_disconnected_t));
     if(msg.disconnected_event){
-        memcpy(msg.disconnected_event, disconnected_event,sizeof(wifi_event_sta_disconnected_t));
         xQueueSendToBack(network_queue, &msg, portMAX_DELAY);
     }
     else {
@@ -659,6 +670,11 @@ esp_err_t network_get_hostname(const char** hostname) {
 }
 
 void network_set_timer(uint16_t duration, const char * tag) {
+    if(NM.timer_tag){
+        ESP_LOGD(TAG,"Cancelling timer %s",NM.timer_tag);
+        FREE_AND_NULL(NM.timer_tag);
+        NM.timer_tag = NULL;
+    }
     if (duration > 0) {
         if (!NM.state_timer) {
             ESP_LOGD(TAG, "Starting new pulse check timer with period of %u ms.", duration);
@@ -671,6 +687,10 @@ void network_set_timer(uint16_t duration, const char * tag) {
     } else if (NM.state_timer) {
         ESP_LOGD(TAG, "Stopping timer");
         xTimerStop(NM.state_timer, portMAX_DELAY);
+    }
+    if(tag){
+        ESP_LOGD(TAG, "Setting timer tag to %s", tag);
+        NM.timer_tag = strdup_psram(tag);
     }
 }
 void network_ip_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
