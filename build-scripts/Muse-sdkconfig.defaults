@@ -146,13 +146,6 @@ CONFIG_DEFAULT_AP_MAX_CONNECTIONS=4
 CONFIG_DEFAULT_AP_BEACON_INTERVAL=100
 # end of WiFi Options
 
-#
-# Ethernet Options
-#
-CONFIG_ETH_NODRIVER=y
-# CONFIG_ETH_LAN8720 is not set
-# CONFIG_ETH_DM9051 is not set
-# CONFIG_ETH_W5500 is not set
 CONFIG_ETH_PHY_RST_IO=-1
 CONFIG_ETH_MDC_IO=-1
 CONFIG_ETH_MDIO_IO=-1
@@ -163,7 +156,6 @@ CONFIG_ETH_SPI_CLK_IO=-1
 CONFIG_ETH_SPI_MOSI_IO=-1
 CONFIG_ETH_SPI_MISO_IO=-1
 CONFIG_ETH_SPI_SPEED=20000000
-# end of Ethernet Options
 # end of Network Manager Configuration
 
 CONFIG_LWIP_MAX_SOCKETS=20
@@ -181,6 +173,10 @@ CONFIG_LOGGING_DECODE="info"
 CONFIG_LOGGING_OUTPUT="info"
 # end of Logging
 
+CONFIG_AMP_LOCKED=y
+CONFIG_JACK_LOCKED=y
+CONFIG_BAT_LOCKED=y
+CONFIG_I2C_LOCKED=y
 CONFIG_MUTE_GPIO_LEVEL=0
 CONFIG_WELL_KNOWN=y
 
@@ -188,27 +184,32 @@ CONFIG_WELL_KNOWN=y
 # Target
 #
 # CONFIG_SQUEEZEAMP is not set
-CONFIG_BASIC_I2C_BT=y
+CONFIG_MUSE=y
+# CONFIG_BASIC_I2C_BT is not set
 # CONFIG_TWATCH2020 is not set
 CONFIG_RELEASE_API="https://api.github.com/repos/sle118/squeezelite-esp32/releases"
 CONFIG_SQUEEZELITE_ESP32_RELEASE_URL="https://github.com/sle118/squeezelite-esp32/releases"
-CONFIG_PROJECT_NAME="Squeezelite-ESP32"
-CONFIG_FW_PLATFORM_NAME="ESP32"
-CONFIG_DAC_CONFIG=""
+CONFIG_PROJECT_NAME="Muse"
+CONFIG_FW_PLATFORM_NAME="Muse"
+CONFIG_DAC_CONFIG="model=I2S,bck=5,ws=25,do=26,di=35,i2c=16,sda=18,scl=23,mck"
 CONFIG_SPDIF_CONFIG=""
 CONFIG_GPIO_EXP_CONFIG=""
 CONFIG_SPI_CONFIG=""
 CONFIG_DISPLAY_CONFIG=""
 CONFIG_ETH_CONFIG=""
-CONFIG_DAC_CONTROLSET=""
+CONFIG_DAC_CONTROLSET="{\"init\":[ {\"reg\":0,\"val\":128}, {\"reg\":0,\"val\":0}, {\"reg\":25,\"val\":4}, {\"reg\":1,\"val\":80}, {\"reg\":2,\"val\":0},	{\"reg\":8,\"val\":0}, {\"reg\":4,\"val\":192},	{\"reg\":0,\"val\":18}, {\"reg\":1,\"val\":0}, {\"reg\":23,\"val\":24}, {\"reg\":24,\"val\":2}, {\"reg\":38,\"val\":9}, {\"reg\":39,\"val\":144}, {\"reg\":42,\"val\":144}, {\"reg\":43,\"val\":128}, {\"reg\":45,\"val\":128}, {\"reg\":27,\"val\":0}, {\"reg\":26,\"val\":0}, {\"reg\":2,\"val\":240}, {\"reg\":2,\"val\":0},	{\"reg\":29,\"val\":28}, {\"reg\":4,\"val\":48}, {\"reg\":25,\"val\":0} ]}"
+CONFIG_AUDIO_CONTROLS="[{\"gpio\":32, \"pull\":true, \"debounce\":10, \"normal\":{\"pressed\":\"ACTRLS_VOLDOWN\"}}, {\"gpio\":19, \"pull\":true, \"debounce\":40, \"normal\":{\"pressed\":\"ACTRLS_VOLUP\"}}, {\"gpio\":12, \"pull\":true, \"debounce\":40, \"longpress\":1000, \"normal\":{\"pressed\":\"ACTRLS_TOGGLE\"},\"longpress\":{\"pressed\":\"ACTRLS_POWER\"}}]"
+CONFIG_BAT_CONFIG="channel=5,scale=1,atten=3,cells=1"
+CONFIG_AMP_GPIO=21
+CONFIG_JACK_GPIO=34
+CONFIG_SPKFAULT_GPIO=-1
+CONFIG_BAT_CHANNEL=-1
+CONFIG_LED_GREEN_GPIO=22
+CONFIG_LED_RED_GPIO=-1
 # end of Target
 
 #
 # Audio settings
-#
-
-#
-# DAC settings
 #
 
 #
@@ -229,16 +230,10 @@ CONFIG_I2C_SCL=-1
 # end of I2C settings
 
 CONFIG_MUTE_GPIO=-1
-# end of DAC settings
-
-#
-# SPDIF settings
-#
 CONFIG_SDIF_NUM=0
 CONFIG_SPDIF_BCK_IO=-1
 CONFIG_SPDIF_WS_IO=-1
 CONFIG_SPDIF_DO_IO=-1
-# end of SPDIF settings
 
 #
 # A2DP settings
@@ -275,44 +270,8 @@ CONFIG_SET_GPIO=""
 CONFIG_ROTARY_ENCODER=""
 # end of Various I/O
 
-#
-# LED configuration
-#
-CONFIG_LED_GREEN_GPIO=-1
-CONFIG_LED_RED_GPIO=-1
-# end of LED configuration
-
-
-#
-# Audio controls
-#
-CONFIG_AUDIO_CONTROLS=""
-# end of Audio Contorls configuration
-
-#
-# AMP configuration
-#
-CONFIG_AMP_GPIO=-1
-# end of AMP configuration
-
-#
-# Audio JACK
-#
-CONFIG_JACK_GPIO=-1
-# end of Audio JACK
-
-#
-# Speaker Fault
-#
-CONFIG_SPKFAULT_GPIO=-1
-# end of Speaker Fault
-
-#
-# Battery measure
-#
-CONFIG_BAT_CONFIG=""
-# end of Battery measure
-
+CONFIG_JACK_GPIO_LEVEL=0
+CONFIG_AMP_GPIO_LEVEL=1
 CONFIG_DEFAULT_COMMAND_LINE="squeezelite -o I2S -b 500:2000 -d all=info -C 30 -W"
 # end of Squeezelite-ESP32
 
