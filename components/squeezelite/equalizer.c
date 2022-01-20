@@ -89,16 +89,14 @@ void equalizer_close(void) {
  */
 void equalizer_update(s8_t *gain) {
 	char config[EQ_BANDS * 4 + 1] = { };
-	char *p = config;
+	int n = 0;
 	
 	for (int i = 0; i < EQ_BANDS; i++) {
 		equalizer.gain[i] = gain[i];
-		if (gain[i] < 0) *p++ = '-';
-		*p++ = (gain[i] / 10) + 0x30;
-		*p++ = (gain[i] % 10) + 0x30;
-		if (i < EQ_BANDS - 1) *p++ = ',';
+		n += sprintf(config + n, "%d,", gain[i]);
 	}
 	
+	config[n-1] = '\0';
 	config_set_value(NVS_TYPE_STR, "equalizer", config);					
 	equalizer.update = true;
 }

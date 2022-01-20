@@ -9,7 +9,7 @@
 PB_BIND(SystemInfo, SystemInfo, 2)
 
 
-PB_BIND(LoginCredentials, LoginCredentials, AUTO)
+PB_BIND(LoginCredentials, LoginCredentials, 2)
 
 
 PB_BIND(ClientResponseEncrypted, ClientResponseEncrypted, 2)

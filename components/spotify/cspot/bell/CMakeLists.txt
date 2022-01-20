@@ -7,8 +7,6 @@ option(BELL_DISABLE_CODECS "Disable libhelix AAC and MP3 codecs" OFF)
 #set(BELL_EXTERNAL_CJSON "" CACHE STRING "External cJSON library target name, optional")
 #set(BELL_EXTERNAL_TREMOR "" CACHE STRING "External tremor library target name, optional")
 
-add_definitions(-DPB_ENABLE_MALLOC)
-
 # Include nanoPB library
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/nanopb/extra)
 find_package(Nanopb REQUIRED)
@@ -98,3 +96,4 @@ message(${NANOPB_INCLUDE_DIRS})
 # PUBLIC to propagate esp-idf includes to bell dependents
 target_link_libraries(bell PUBLIC ${EXTRA_LIBS})
 target_include_directories(bell PUBLIC "include" ${EXTRA_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_definitions(bell PUBLIC PB_ENABLE_MALLOC)

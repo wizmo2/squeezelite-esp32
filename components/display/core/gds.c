@@ -235,12 +235,13 @@ void GDS_SetContrast( struct GDS_Device* Device, uint8_t Contrast ) {
 		ledc_update_duty( LEDC_HIGH_SPEED_MODE, Device->Backlight.Channel );		
 	}
 }
-	
+
 void GDS_SetLayout( struct GDS_Device* Device, bool HFlip, bool VFlip, bool Rotate ) { if (Device->SetLayout) Device->SetLayout( Device, HFlip, VFlip, Rotate ); }
 void GDS_SetDirty( struct GDS_Device* Device ) { Device->Dirty = true; }
-int	GDS_GetWidth( struct GDS_Device* Device ) { return Device ? Device->Width : 0; }
-int	GDS_GetHeight( struct GDS_Device* Device ) { return Device ? Device->Height : 0; }
-int	GDS_GetDepth( struct GDS_Device* Device ) { return Device ? Device->Depth : 0; }
-int	GDS_GetMode( struct GDS_Device* Device ) { return Device ? Device->Mode : 0; }
+int	 GDS_GetWidth( struct GDS_Device* Device ) { return Device ? Device->Width : 0; }
+void GDS_SetTextWidth( struct GDS_Device* Device, int TextWidth ) { Device->TextWidth = Device && TextWidth && TextWidth < Device->Width ? TextWidth : Device->Width; }
+int	 GDS_GetHeight( struct GDS_Device* Device ) { return Device ? Device->Height : 0; }
+int	 GDS_GetDepth( struct GDS_Device* Device ) { return Device ? Device->Depth : 0; }
+int	 GDS_GetMode( struct GDS_Device* Device ) { return Device ? Device->Mode : 0; }
 void GDS_DisplayOn( struct GDS_Device* Device ) { if (Device->DisplayOn) Device->DisplayOn( Device ); }
 void GDS_DisplayOff( struct GDS_Device* Device ) { if (Device->DisplayOff) Device->DisplayOff( Device ); }

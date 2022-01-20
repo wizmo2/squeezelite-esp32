@@ -53,6 +53,9 @@ char* 		strdup_psram(const char * source);
 const char* str_or_unknown(const char * str);
 const char* str_or_null(const char * str);
 
+typedef void (*http_download_cb_t)(uint8_t* data, size_t len, void *context);
+void		http_download(char *url, size_t max, http_download_cb_t callback, void *context);
+
 extern const char unknown_string_placeholder[];
 
 #ifdef __cplusplus

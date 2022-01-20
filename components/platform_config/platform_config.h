@@ -14,6 +14,11 @@ extern "C" {
 	if ((__p = strcasestr(S, P)) && (__p = strchr(__p, C))) V = atoi(__p+1); 	\
 } while (0)
 
+#define PARSE_PARAM_FLOAT(S,P,C,V) do {												\
+	char *__p;																	\
+	if ((__p = strcasestr(S, P)) && (__p = strchr(__p, C))) V = atof(__p+1); 	\
+} while (0)
+
 #define PARSE_PARAM_STR(S,P,C,V,I) do {						\
 	char *__p;                                              \
 	if ((__p = strstr(S, P)) && (__p = strchr(__p, C))) {	\

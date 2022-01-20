@@ -62,6 +62,27 @@ typedef struct _Capability {
     char stringValue[50][50]; 
 } Capability;
 
+typedef struct _State { 
+    char *context_uri; 
+    bool has_index;
+    uint32_t index; 
+    bool has_position_ms;
+    uint32_t position_ms; 
+    bool has_status;
+    PlayStatus status; 
+    bool has_position_measured_at;
+    uint64_t position_measured_at; 
+    pb_callback_t context_description; 
+    bool has_shuffle;
+    bool shuffle; 
+    bool has_repeat;
+    bool repeat; 
+    bool has_playing_track_index;
+    uint32_t playing_track_index; 
+    pb_size_t track_count;
+    struct _TrackRef *track; 
+} State;
+
 typedef struct _TrackRef { 
     pb_bytes_array_t *gid; 
     char *uri; 
@@ -88,27 +109,6 @@ typedef struct _DeviceState {
     Capability capabilities[17]; 
     pb_callback_t local_uris; 
 } DeviceState;
-
-typedef struct _State { 
-    char *context_uri; 
-    bool has_index;
-    uint32_t index; 
-    bool has_position_ms;
-    uint32_t position_ms; 
-    bool has_status;
-    PlayStatus status; 
-    bool has_position_measured_at;
-    uint64_t position_measured_at; 
-    pb_callback_t context_description; 
-    bool has_shuffle;
-    bool shuffle; 
-    bool has_repeat;
-    bool repeat; 
-    bool has_playing_track_index;
-    uint32_t playing_track_index; 
-    pb_size_t track_count;
-    TrackRef track[100]; 
-} State;
 
 typedef struct _Frame { 
     bool has_version;
@@ -154,12 +154,12 @@ extern "C" {
 
 /* Initializer values for message structs */
 #define TrackRef_init_default                    {NULL, NULL, false, 0, NULL}
-#define State_init_default                       {NULL, false, 0, false, 0, false, _PlayStatus_MIN, false, 0, {{NULL}, NULL}, false, 0, false, 0, false, 0, 0, {TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default, TrackRef_init_default}}
+#define State_init_default                       {NULL, false, 0, false, 0, false, _PlayStatus_MIN, false, 0, {{NULL}, NULL}, false, 0, false, 0, false, 0, 0, NULL}
 #define Capability_init_default                  {false, _CapabilityType_MIN, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0, {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}}
 #define DeviceState_init_default                 {NULL, false, 0, false, 0, false, 0, NULL, false, 0, false, 0, {{NULL}, NULL}, 0, {Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default, Capability_init_default}, {{NULL}, NULL}}
 #define Frame_init_default                       {false, 0, NULL, NULL, false, 0, false, _MessageType_MIN, false, DeviceState_init_default, false, State_init_default, false, 0, false, 0, false, 0, 0, NULL}
 #define TrackRef_init_zero                       {NULL, NULL, false, 0, NULL}
-#define State_init_zero                          {NULL, false, 0, false, 0, false, _PlayStatus_MIN, false, 0, {{NULL}, NULL}, false, 0, false, 0, false, 0, 0, {TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero, TrackRef_init_zero}}
+#define State_init_zero                          {NULL, false, 0, false, 0, false, _PlayStatus_MIN, false, 0, {{NULL}, NULL}, false, 0, false, 0, false, 0, 0, NULL}
 #define Capability_init_zero                     {false, _CapabilityType_MIN, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0, {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}}
 #define DeviceState_init_zero                    {NULL, false, 0, false, 0, false, 0, NULL, false, 0, false, 0, {{NULL}, NULL}, 0, {Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero, Capability_init_zero}, {{NULL}, NULL}}
 #define Frame_init_zero                          {false, 0, NULL, NULL, false, 0, false, _MessageType_MIN, false, DeviceState_init_zero, false, State_init_zero, false, 0, false, 0, false, 0, 0, NULL}
@@ -168,6 +168,16 @@ extern "C" {
 #define Capability_typ_tag                       1
 #define Capability_intValue_tag                  2
 #define Capability_stringValue_tag               3
+#define State_context_uri_tag                    2
+#define State_index_tag                          3
+#define State_position_ms_tag                    4
+#define State_status_tag                         5
+#define State_position_measured_at_tag           7
+#define State_context_description_tag            8
+#define State_shuffle_tag                        13
+#define State_repeat_tag                         14
+#define State_playing_track_index_tag            26
+#define State_track_tag                          27
 #define TrackRef_gid_tag                         1
 #define TrackRef_uri_tag                         2
 #define TrackRef_queued_tag                      3
@@ -182,16 +192,6 @@ extern "C" {
 #define DeviceState_error_message_tag            16
 #define DeviceState_capabilities_tag             17
 #define DeviceState_local_uris_tag               18
-#define State_context_uri_tag                    2
-#define State_index_tag                          3
-#define State_position_ms_tag                    4
-#define State_status_tag                         5
-#define State_position_measured_at_tag           7
-#define State_context_description_tag            8
-#define State_shuffle_tag                        13
-#define State_repeat_tag                         14
-#define State_playing_track_index_tag            26
-#define State_track_tag                          27
 #define Frame_version_tag                        1
 #define Frame_ident_tag                          2
 #define Frame_protocol_version_tag               3
@@ -223,7 +223,7 @@ X(a, CALLBACK, OPTIONAL, STRING,   context_description,   8) \
 X(a, STATIC,   OPTIONAL, BOOL,     shuffle,          13) \
 X(a, STATIC,   OPTIONAL, BOOL,     repeat,           14) \
 X(a, STATIC,   OPTIONAL, UINT32,   playing_track_index,  26) \
-X(a, STATIC,   REPEATED, MESSAGE,  track,            27)
+X(a, POINTER,  REPEATED, MESSAGE,  track,            27)
 #define State_CALLBACK pb_default_field_callback
 #define State_DEFAULT NULL
 #define State_track_MSGTYPE TrackRef

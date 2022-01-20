@@ -71,6 +71,7 @@ extern const uint8_t server_cert_pem_end[] asm("_binary_github_pem_end");
 // as an exception _init function don't need include
 extern void services_init(void);
 extern void	display_init(char *welcome);
+extern void target_init(void);
 const char * str_or_unknown(const char * str) { return (str?str:unknown_string_placeholder); }
 const char * str_or_null(const char * str) { return (str?str:null_string_placeholder); }
 bool is_recovery_running;
@@ -446,6 +447,7 @@ void app_main()
 	ESP_LOGI(TAG,"Initializing display");
 	display_init("SqueezeESP32");
 	MEMTRACE_PRINT_DELTA();
+	target_init();
 	if(is_recovery_running && display){
 		GDS_ClearExt(display, true);
 		GDS_SetFont(display, &Font_line_2 );

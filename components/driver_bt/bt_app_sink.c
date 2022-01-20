@@ -172,7 +172,7 @@ static bool cmd_handler(bt_sink_cmd_t cmd, ...) {
 	// now handle events for display
 	switch(cmd) {
 	case BT_SINK_AUDIO_STARTED:
-		displayer_control(DISPLAYER_ACTIVATE, "BLUETOOTH");
+		displayer_control(DISPLAYER_ACTIVATE, "BLUETOOTH", false);
 		break;
 	case BT_SINK_AUDIO_STOPPED:
 		displayer_control(DISPLAYER_SUSPEND);

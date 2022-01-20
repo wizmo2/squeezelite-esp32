@@ -86,7 +86,7 @@ static void SetContrast( struct GDS_Device* Device, uint8_t Contrast ) {
     Device->WriteCommand( Device, Contrast );
 }
 
-static void SPIParams(int Speed, uint8_t *mode, uint8_t *CS_pre, uint8_t *CS_post) {
+static void SPIParams(int Speed, uint8_t *mode, uint16_t *CS_pre, uint8_t *CS_post) {
 	*CS_post = Speed / (8*1000*1000);
 }
 

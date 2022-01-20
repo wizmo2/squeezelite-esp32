@@ -21,6 +21,11 @@ set_source_files_properties(mad.c pcm.c flac.c alac.c helix-aac.c vorbis.c opus.
     -Wno-maybe-uninitialized 
 )
 
+set_source_files_properties(wm8978/wm8978.c
+    PROPERTIES COMPILE_FLAGS
+    -Wno-unused-function
+)	
+
 add_definitions(-DLINKALL -DLOOPBACK -DNO_FAAD -DEMBEDDED -DTREMOR_ONLY -DCUSTOM_VERSION=${BUILD_NUMBER})
 
 if (${DEPTH} EQUAL "32")

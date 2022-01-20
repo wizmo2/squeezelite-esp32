@@ -13,6 +13,7 @@
 #include "display.h"
 #include "accessors.h"
 #include "network_services.h"
+#include "tools.h"
 #include "cspot_private.h"
 #include "cspot_sink.h"
 
@@ -88,6 +89,19 @@ const static actrls_t controls = {
 };
 
 /****************************************************************************************
+ * Download callback
+ */
+void got_artwork(uint8_t* data, size_t len, void *context) {
+	if (data) {
+		ESP_LOGI(TAG, "got artwork of %zu bytes", len);
+		displayer_artwork(data);
+		free(data);
+	} else {
+		ESP_LOGW(TAG, "artwork error or too large %zu", len);
+	}
+}
+
+/****************************************************************************************
  * Command handler
  */
 static bool cmd_handler(cspot_event_t event, ...) {
@@ -106,7 +120,7 @@ static bool cmd_handler(cspot_event_t event, ...) {
 	switch(event) {
 	case CSPOT_SETUP:
 		actrls_set(controls, false, NULL, actrls_ir_action);
-		displayer_control(DISPLAYER_ACTIVATE, "SPOTIFY");
+		displayer_control(DISPLAYER_ACTIVATE, "SPOTIFY", true);
 		break;
 	case CSPOT_PLAY:
 		displayer_control(DISPLAYER_TIMER_RUN);
@@ -129,6 +143,11 @@ static bool cmd_handler(cspot_event_t event, ...) {
 		uint32_t sample_rate = va_arg(args, uint32_t);
 		int duration = va_arg(args, int);
 		char *artist = va_arg(args, char*), *album = va_arg(args, char*), *title = va_arg(args, char*);
+		char *artwork = va_arg(args, char*);
+		if (artwork && displayer_can_artwork()) {
+			ESP_LOGI(TAG, "requesting artwork %s", artwork);
+			http_download(artwork, 128*1024, got_artwork, NULL);
+		}	
 		displayer_metadata(artist, album, title);
 		displayer_timer(DISPLAYER_ELAPSED, loaded ? -1 : 0, duration);
 		loaded = false;

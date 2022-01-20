@@ -1109,7 +1109,6 @@ cJSON * get_gpio_list(bool refresh) {
 	}
 	gpio_list= cJSON_CreateArray();
 	
-#ifndef CONFIG_BAT_LOCKED
 	char *bat_config = config_alloc_get_default(NVS_TYPE_STR, "bat_config", NULL, 0);
 	if (bat_config) {
 		int channel = -1;
@@ -1121,11 +1120,6 @@ cJSON * get_gpio_list(bool refresh) {
 		}
 		free(bat_config);
 	}
-#else
-		if(adc1_pad_get_io_num(CONFIG_BAT_CHANNEL,&gpio_num )==ESP_OK){
-			cJSON_AddItemToArray(gpio_list,get_gpio_entry("bat","other",gpio_num,true));
-		}
-#endif
 	gpio_list=get_GPIO_nvs_list(gpio_list);
 	gpio_list=get_SPDIF_GPIO(gpio_list,is_spdif_config_locked());
 	gpio_list=get_Rotary_GPIO(gpio_list);

@@ -10,8 +10,8 @@ SpotifyTrack::SpotifyTrack(std::shared_ptr<MercuryManager> manager, std::shared_
 {
     this->manager = manager;
     this->fileId = std::vector<uint8_t>();
-    episodeInfo = Episode_init_default;
-    trackInfo = Track_init_default;
+    episodeInfo = {};
+    trackInfo = {};
 
     mercuryCallback trackResponseLambda = [=](std::unique_ptr<MercuryResponse> res) {
         this->trackInformationCallback(std::move(res), position_ms, isPaused);
@@ -84,13 +84,15 @@ void SpotifyTrack::trackInformationCallback(std::unique_ptr<MercuryResponse> res
     int altIndex = 0;
     while (!canPlayTrack())
     {
-        trackInfo.restriction = trackInfo.alternative[altIndex].restriction;
-        trackInfo.restriction_count = trackInfo.alternative[altIndex].restriction_count;
-        trackInfo.gid = trackInfo.alternative[altIndex].gid;
-        trackInfo.file = trackInfo.alternative[altIndex].file;
-        altIndex++;
+        std::swap(trackInfo.restriction, trackInfo.alternative[altIndex].restriction);
+        std::swap(trackInfo.restriction_count, trackInfo.alternative[altIndex].restriction_count);
+        std::swap(trackInfo.file, trackInfo.alternative[altIndex].file);
+        std::swap(trackInfo.file_count, trackInfo.alternative[altIndex].file_count);
+        std::swap(trackInfo.gid, trackInfo.alternative[altIndex].gid);
+
         CSPOT_LOG(info, "Trying alternative %d", altIndex);
     }
+
     auto trackId = pbArrayToVector(trackInfo.gid);
     this->fileId = std::vector<uint8_t>();
 

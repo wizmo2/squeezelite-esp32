@@ -119,8 +119,8 @@ static void cspotTask(void *pvParameters) {
             switch (event.eventType) {
             case CSpotEventType::TRACK_INFO: {
                 TrackInfo track = std::get<TrackInfo>(event.data);
-				// duration is in chunks of 0.5 ms
-				cspot.cHandler(CSPOT_TRACK, 44100, track.duration / 2, track.artist.c_str(), track.album.c_str(), track.name.c_str());
+				cspot.cHandler(CSPOT_TRACK, 44100, track.duration, track.artist.c_str(), 
+							   track.album.c_str(), track.name.c_str(), track.imageUrl.c_str());
                 break;
             }
             case CSpotEventType::PLAY_PAUSE: {
@@ -192,7 +192,7 @@ struct cspot_s* cspot_create(const char *name, cspot_cmd_cb_t cmd_cb, cspot_data
 	cspot.cHandler = cmd_cb;
 	cspot.dHandler = data_cb;
 	strncpy(cspot.name, name, sizeof(cspot.name) - 1);
-    cspot.TaskHandle = xTaskCreateStatic(&cspotTask, "cspot", CSPOT_STACK_SIZE, NULL, CONFIG_ESP32_PTHREAD_TASK_PRIO_DEFAULT, xStack, &xTaskBuffer);
+    cspot.TaskHandle = xTaskCreateStatic(&cspotTask, "cspot", CSPOT_STACK_SIZE, NULL, CONFIG_ESP32_PTHREAD_TASK_PRIO_DEFAULT - 2, xStack, &xTaskBuffer);
 	
 	return &cspot;
 }

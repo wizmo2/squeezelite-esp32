@@ -75,7 +75,7 @@ bool GDS_I2CAttachDevice( struct GDS_Device* Device, int Width, int Height, int 
     Device->RSTPin = RSTPin;
 	Device->Backlight.Pin = BacklightPin;	
 	Device->IF = GDS_IF_I2C;
-	Device->Width = Width;
+	Device->Width = Device->TextWidth = Width;
 	Device->Height = Height;
 	
 	if ( RSTPin >= 0 ) {

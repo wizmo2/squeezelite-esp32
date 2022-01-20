@@ -142,7 +142,7 @@ static unsigned OutHandlerDirect(JDEC *Decoder, void *Bitmap, JRECT *Frame) {
 	JpegCtx *Context = (JpegCtx*) Decoder->device;
     uint8_t *Pixels = (uint8_t*) Bitmap;
 	int Shift = 8 - Context->Depth;
-	
+
 	// decoded image is RGB888, shift only make sense for grayscale
 	if (Context->Mode == GDS_RGB888) {
 		OUTHANDLERDIRECT(Scaler888, 0);
@@ -167,7 +167,7 @@ static unsigned OutHandlerDirect(JDEC *Decoder, void *Bitmap, JRECT *Frame) {
 static void* DecodeJPEG(uint8_t *Source, int *Width, int *Height, float Scale, bool SizeOnly, int RGB_Mode) {
     JDEC Decoder;
     JpegCtx Context;
-	char *Scratch = calloc(SCRATCH_SIZE, 1);
+	char *Scratch = malloc(SCRATCH_SIZE);
 	
     if (!Scratch) {
         ESP_LOGE(TAG, "Cannot allocate workspace");
@@ -372,7 +372,7 @@ bool GDS_DrawJPEG(struct GDS_Device* Device, uint8_t *Source, int x, int y, int 
     JDEC Decoder;
     JpegCtx Context;
 	bool Ret = false;
-	char *Scratch = calloc(SCRATCH_SIZE, 1);
+	char *Scratch = malloc(SCRATCH_SIZE);
 	
     if (!Scratch) {
         ESP_LOGE(TAG, "Cannot allocate workspace");

@@ -9,7 +9,7 @@
 PB_BIND(TrackRef, TrackRef, AUTO)
 
 
-PB_BIND(State, State, 4)
+PB_BIND(State, State, AUTO)
 
 
 PB_BIND(Capability, Capability, 2)
