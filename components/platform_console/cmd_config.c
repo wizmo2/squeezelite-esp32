@@ -23,6 +23,7 @@
 
 const char * desc_squeezelite ="Squeezelite Options";
 const char * desc_dac= "DAC Options";
+const char * desc_cspotc= "Spotify (cSpot) Options";
 const char * desc_preset= "Preset Options";
 const char * desc_spdif= "SPDIF Options";
 const char * desc_audio= "General Audio Options";
@@ -114,7 +115,12 @@ static struct{
 //		struct arg_dbl *control_delay;
 		struct arg_end *end;
 } bt_source_args;
-
+static struct {
+	struct arg_str *deviceName;
+//	struct arg_int *volume;
+	struct arg_int *bitrate;
+	struct arg_end *end;
+} cspot_args;
 static struct {
     struct arg_int *clock;
     struct arg_int *wordselect;
@@ -586,6 +592,49 @@ static int is_valid_gpio_number(int gpio, const char * name, FILE *f, bool manda
 	}
 	return 0;
 }
+static int do_cspot_config(int argc, char **argv){
+	char * name = NULL;
+    int nerrors = arg_parse_msg(argc, argv,(struct arg_hdr **)&cspot_args);
+    if (nerrors != 0) {
+        return 1;
+    }
+
+	char *buf = NULL;
+	size_t buf_size = 0;
+	FILE *f = open_memstream(&buf, &buf_size);
+	if (f == NULL) {
+		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.");
+		return 1;
+	}
+
+	cJSON * cspot_config = config_alloc_get_cjson("cspot_config");
+	if(!cspot_config){
+		nerrors++;
+		fprintf(f,"error: Unable to get cspot config.\n");
+	}
+	else {
+		cjson_update_string(&cspot_config,cspot_args.deviceName->hdr.longopts,cspot_args.deviceName->count>0?cspot_args.deviceName->sval[0]:NULL);
+//		cjson_update_number(&cspot_config,cspot_args.volume->hdr.longopts,cspot_args.volume->count>0?cspot_args.volume->ival[0]:0);
+		cjson_update_number(&cspot_config,cspot_args.bitrate->hdr.longopts,cspot_args.bitrate->count>0?cspot_args.bitrate->ival[0]:0);
+	}
+	
+	if(!nerrors ){
+		fprintf(f,"Storing cspot parameters.\n");
+		nerrors+=(config_set_cjson_str("cspot_config",cspot_config) !=ESP_OK);
+	}
+	if(nerrors==0){
+		fprintf(f,"Device name changed to %s\n",name);
+	}
+	if(!nerrors ){
+		fprintf(f,"Done.\n");
+	}
+	FREE_AND_NULL(name);
+	fflush (f);
+	cmd_send_messaging(argv[0],nerrors>0?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
+	fclose(f);
+	FREE_AND_NULL(buf);
+	return nerrors;
+}
 static int do_i2s_cmd(int argc, char **argv)
 {
 	i2s_platform_config_t i2s_dac_pin = {
@@ -679,22 +728,46 @@ cJSON * example_cb(){
 }
 
 cJSON * known_model_cb(){
-	const char * key="preset_name";
 	cJSON * values = cJSON_CreateObject();
 	if(!values){
 		ESP_LOGE(TAG,"known_model_cb: Failed to create JSON object");
 		return NULL;
 	}
-	char * name = config_alloc_get_default(NVS_TYPE_STR,key,"",0);
+	char * name = config_alloc_get_default(NVS_TYPE_STR,known_model_args.model_config->hdr.longopts,"",0);
 	if(!name){
-		ESP_LOGE(TAG,"Failed to get board model from nvs key %s ",key);
+		ESP_LOGE(TAG,"Failed to get board model from nvs key %s ",known_model_args.model_config->hdr.longopts);
 	}
 	else {
 		cJSON_AddStringToObject(values,known_model_args.model_config->hdr.longopts,name);
 	}
 	return values;
 }
-
+cJSON * cspot_cb(){
+	cJSON * values = cJSON_CreateObject();
+	if(!values){
+		ESP_LOGE(TAG,"cspot_cb: Failed to create JSON object");
+		return NULL;
+	}
+	cJSON * cspot_config = config_alloc_get_cjson("cspot_config");
+	if(!cspot_config){
+		ESP_LOGE(TAG,"cspot_cb: Failed to get cspot config");
+		return NULL;
+	}
+	cJSON * cspot_values = cJSON_GetObjectItem(cspot_config,cspot_args.deviceName->hdr.longopts);
+	if(cspot_values){
+		cJSON_AddStringToObject(values,cspot_args.deviceName->hdr.longopts,cJSON_GetStringValue(cspot_values));
+	}
+	cspot_values = cJSON_GetObjectItem(cspot_config,cspot_args.bitrate->hdr.longopts);
+	if(cspot_values){
+		cJSON_AddNumberToObject(values,cspot_args.bitrate->hdr.longopts,cJSON_GetNumberValue(cspot_values));
+	}
+	// cspot_values = cJSON_GetObjectItem(cspot_config,cspot_args.volume->hdr.longopts);
+	// if(cspot_values){
+	// 	cJSON_AddNumberToObject(values,cspot_args.volume->hdr.longopts,cJSON_GetNumberValue(cspot_values));
+	// }
+	cJSON_Delete(cspot_config);
+	return values;
+}
 cJSON * i2s_cb(){
 	cJSON * values = cJSON_CreateObject();
 
@@ -956,85 +1029,6 @@ void replace_char_in_string(char * str, char find, char replace){
 		}
 	}
 }
-
-// static cJSON * get_known_configurations(FILE * f){
-// #ifndef CONFIG_SQUEEZEAMP 
-// 	#define err1_msg "Failed to parse known_configs json.  %s\nError at:\n%s"
-// 	#define err2_msg "Known configs should be an array and it is not: \n%s"
-
-
-// 	const char * known_configs_string = (const char *)_presets_json_start;
-	
-// 	if(!known_configs_string || strlen(known_configs_string)==0){
-// 		return NULL;
-// 	}
-// 	cJSON * known_configs_json = cJSON_Parse(known_configs_string);
-// 	if(!known_configs_json){
-// 		if(f){
-// 			fprintf(f,err1_msg,known_configs_string,STR_OR_BLANK(cJSON_GetErrorPtr()));
-// 		}
-// 		else {
-// 			ESP_LOGE(TAG,err1_msg,known_configs_string,STR_OR_BLANK(cJSON_GetErrorPtr()));
-// 		}
-// 		return NULL;
-// 	}
-// 	else {
-// 		if(!cJSON_IsArray(known_configs_json)){
-// 			if(f){
-// 				fprintf(f,err2_msg,STR_OR_BLANK(cJSON_GetErrorPtr()));
-// 			}
-// 			else {
-// 				ESP_LOGE(TAG,err2_msg,STR_OR_BLANK(cJSON_GetErrorPtr()));
-// 			}
-// 			cJSON_Delete(known_configs_json);
-// 			return NULL;
-// 		}
-		
-// 	}
-// 	return known_configs_json;
-// #else
-// 	return NULL;
-// #endif
-
-// }
-
-// static  cJSON * find_known_model_name(cJSON * root,const char * name, FILE * f, bool * found){
-// 	if(found){
-// 		*found = false;
-// 	}
-// 	if(!root){
-// 		return NULL;
-// 	}
-// 	cJSON * item;
-// 	cJSON_ArrayForEach(item, root){
-// 		if(cJSON_IsObject(item)){
-// 			cJSON * model = cJSON_GetObjectItem(item,"name");
-// 			if(model && cJSON_IsString(model) && strcmp(cJSON_GetStringValue(model),name)==0){
-// 				if(found){
-// 					*found = true;
-// 				}
-// 				return item;
-// 			}
-// 		}
-// 	}
-// 	return NULL;
-// }
-// static esp_err_t is_known_model_name(const char * name, FILE * f, bool * found){
-// 	esp_err_t err = ESP_OK;
-// 	if(found){
-// 		*found = false;
-// 	}
-// 	cJSON * known_configs_json = get_known_configurations(f);
-// 	if(known_configs_json){
-// 		cJSON * known_item = find_known_model_name(known_configs_json,name,f,found);
-// 		if(known_item && found){
-// 			*found = true;
-// 		}
-// 		cJSON_Delete(known_configs_json);
-// 	}
-// 	return err;
-// }
-	
 static esp_err_t save_known_config(cJSON * known_item, const char * name,FILE * f){
 	esp_err_t err = ESP_OK;
 	char * json_string=NULL;
@@ -1050,14 +1044,14 @@ static esp_err_t save_known_config(cJSON * known_item, const char * name,FILE * 
 		cJSON_ArrayForEach(kvp, config_array){
 			cJSON * kvp_value=kvp->child;
 			if(!kvp_value){
-				ESP_LOGE(TAG,"config entry is not an object!");
+				printf("config entry is not an object!\n");
 				err=ESP_FAIL;
 				continue;
 			}
 			char * key = kvp_value->string;
 			char * value = kvp_value->valuestring;
 			if(!key || !value || strlen(key)==0){
-				ESP_LOGE(TAG,"Invalid config entry %s:%s",STR_OR_BLANK(key),STR_OR_BLANK(value));
+				printf("Invalid config entry %s:%s\n",STR_OR_BLANK(key),STR_OR_BLANK(value));
 				err=ESP_FAIL;
 				continue;
 			}
@@ -1065,7 +1059,7 @@ static esp_err_t save_known_config(cJSON * known_item, const char * name,FILE * 
 			fprintf(f,"Storing %s=%s\n",key,value);
 			err = config_set_value(NVS_TYPE_STR,key,value);
 			if(err){
-				fprintf(f,"Failed: %s\n",esp_err_to_name(err));
+				fprintf(f,"Failed to store config value: %s\n",esp_err_to_name(err));
 				break;
 			}
 		}
@@ -1090,45 +1084,6 @@ static esp_err_t save_known_config(cJSON * known_item, const char * name,FILE * 
 	return err;
 }
 
-// char * config_dac_alloc_print_known_config(){
-// 	cJSON * item=NULL;
-// 	char * dac_list=NULL;
-// 	size_t total_len=0;
-// 	cJSON * object = get_known_configurations(NULL);
-// 	if(!object){
-// 		return strdup_psram("");
-// 	}
-// 	// loop through all items, and concatenate model name separated with |
-	
-// 	cJSON_ArrayForEach(item, object){
-// 		if(cJSON_IsObject(item)){
-// 			cJSON * model = cJSON_GetObjectItem(item,"name");
-// 			if(model && cJSON_IsString(model)){
-// 				total_len+=strlen(model->valuestring)+1;
-// 			}
-// 		}
-// 	}
-// 	if(total_len==0){
-// 		ESP_LOGI(TAG,"No known configs found");
-// 		cJSON_Delete(object);
-// 		return NULL;
-// 	}
-// 	dac_list = malloc_init_external(total_len+1);
-// 	if(dac_list){
-// 		cJSON_ArrayForEach(item, object){
-// 			if(cJSON_IsObject(item)){
-// 				cJSON * model = cJSON_GetObjectItem(item,"name");
-// 				if(model && cJSON_IsString(model)){
-// 					strcat(dac_list,model->valuestring);
-// 					strcat(dac_list,"|");
-// 				}
-// 			}
-// 		}
-// 	}
-// 	dac_list[strlen(dac_list)-1]='\0';
-// 	cJSON_Delete(object);
-// 	return dac_list;
-// }
 static int do_register_known_templates_config(int argc, char **argv){
 	esp_err_t err=ESP_OK;
 	int nerrors = arg_parse(argc, argv,(void **)&known_model_args);
@@ -1144,20 +1099,43 @@ static int do_register_known_templates_config(int argc, char **argv){
 		arg_print_errors(f,known_model_args.end,desc_preset);
 	}
 	else {
-		cJSON * known_item = cJSON_Parse(known_model_args.model_config->sval[0]);
+		ESP_LOGD(TAG,"arg: %s",STR_OR_BLANK(known_model_args.model_config->sval[0]));
+		char * model_config = strdup_psram(known_model_args.model_config->sval[0]);
+		char * t = model_config;
+		for(const char * p=known_model_args.model_config->sval[0];*p;p++){
+			if(*p=='\\' && *(p+1)=='"'){
+				*t++='"';
+				p++;
+			}
+			else {
+				*t++=*p;
+			}
+		}
+		*t=0;
+		cJSON * known_item = cJSON_Parse(model_config);
 		if(known_item){
+			ESP_LOGD(TAG,"Parsing success");
 			config_name= cJSON_GetObjectItem(known_item,"name");
-			nerrors+=(err = save_known_config(known_item,config_name,f)!=ESP_OK);
+			if(!config_name || !cJSON_IsString(config_name) || strlen(config_name->valuestring)==0){
+				fprintf(f,"Failed to find name in config\n");
+				err=ESP_FAIL;
+				nerrors++;
+			}
 			if(nerrors==0){
-				const i2s_platform_config_t * i2s_config= config_dac_get();
-				if(i2s_config->scl!=-1 && i2s_config->sda!=-1 && GPIO_IS_VALID_GPIO(i2s_config->scl) && GPIO_IS_VALID_GPIO(i2s_config->sda)){
-					fprintf(f,"Scanning i2c bus for devices\n");
-					cmd_i2ctools_scan_bus(f,i2s_config->sda, i2s_config->scl);
+				const char * name = cJSON_GetStringValue(config_name);
+				nerrors+=(err = save_known_config(known_item,name,f)!=ESP_OK);
+				if(nerrors==0){
+					const i2s_platform_config_t * i2s_config= config_dac_get();
+					if(i2s_config->scl!=-1 && i2s_config->sda!=-1 && GPIO_IS_VALID_GPIO(i2s_config->scl) && GPIO_IS_VALID_GPIO(i2s_config->sda)){
+						fprintf(f,"Scanning i2c bus for devices\n");
+						cmd_i2ctools_scan_bus(f,i2s_config->sda, i2s_config->scl);
+					}
 				}
 			}
 			cJSON_Delete(known_item);
 		}
 		else {
+			ESP_LOGE(TAG,"Parsing error: %s",cJSON_GetErrorPtr());
 			fprintf(f,"Failed to parse JSON: %s\n",cJSON_GetErrorPtr());
 			err=ESP_FAIL;
 		}
@@ -1192,6 +1170,22 @@ static void register_known_templates_config(){
     };
     cmd_to_json_with_cb(&cmd,&known_model_cb);
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
+}
+
+static void register_cspot_config(){
+	cspot_args.deviceName = arg_str1(NULL,"deviceName","","Device Name");
+	cspot_args.bitrate = arg_int1(NULL,"bitrate","96|160|320","Streaming Bitrate (kbps)");
+//	cspot_args.volume = arg_int1(NULL,"volume","","Spotify Volume");
+	cspot_args.end = arg_end(1);
+	 const esp_console_cmd_t cmd = {
+		.command = CFG_TYPE_SYST("cspot"),
+		.help = desc_cspotc,
+		.hint = NULL,
+		.func = &do_cspot_config,
+		.argtable = &cspot_args
+	};
+	cmd_to_json_with_cb(&cmd,&cspot_cb);
+	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
 static void register_i2s_config(void){
 	i2s_args.model_name = arg_str1(NULL,"model_name",STR_OR_BLANK(get_dac_list()),"DAC Model Name");
@@ -1335,6 +1329,7 @@ void register_config_cmd(void){
 	if(!is_dac_config_locked()){
 	 	 register_known_templates_config();
 	}
+	register_cspot_config();
 	register_audio_config();
 //	register_squeezelite_config();
 	register_bt_source_config();

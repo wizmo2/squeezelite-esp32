@@ -62,14 +62,15 @@ const nvsTypes = {
   NVS_TYPE_ANY: 0xff /*! < Must be last */,
 };
 const btIcons = {
-  bt_playing: 'play-circle-fill',
-  bt_disconnected: 'bluetooth-fill',
-  bt_neutral: '',
-  bt_connected: 'bluetooth-connect-fill',
-  bt_disabled: '',
-  play_arrow:  'play-circle-fill',
-  pause: 'pause-circle-fill',
-  stop:  'stop-circle-fill',
+  bt_playing: 'media_bluetooth_on',
+  bt_disconnected: 'media_bluetooth_off',
+  bt_neutral: 'bluetooth',
+  bt_connecting: 'bluetooth_searching',
+  bt_connected: 'bluetooth_connected',
+  bt_disabled: 'bluetooth_disabled',
+  play_arrow:  'play_circle_filled',
+  pause: 'pause_circle',
+  stop:  'stop_circle',
   '': '',
 };
 const batIcons = [
@@ -80,10 +81,10 @@ const batIcons = [
 ];
 const btStateIcons = [
   { desc: 'Idle', sub: ['bt_neutral'] },
-  { desc: 'Discovering', sub: ['bt_disconnected'] },
-  { desc: 'Discovered', sub: ['bt_disconnected'] },
+  { desc: 'Discovering', sub: ['bt_connecting'] },
+  { desc: 'Discovered', sub: ['bt_connecting'] },
   { desc: 'Unconnected', sub: ['bt_disconnected'] },
-  { desc: 'Connecting', sub: ['bt_disconnected'] },
+  { desc: 'Connecting', sub: ['bt_connecting'] },
   { 
     desc: 'Connected',
     sub: ['bt_connected', 'play_arrow', 'bt_playing', 'pause', 'stop'],
@@ -378,19 +379,18 @@ function handlebtstate(data) {
   let icon = '';
   let tt = '';
   if (data.bt_status !== undefined && data.bt_sub_status !== undefined) {
-    const iconsvg = btStateIcons[data.bt_status].sub[data.bt_sub_status];
-    if (iconsvg) {
-      icon = `#${btIcons[iconsvg]}`;
+    const iconindex = btStateIcons[data.bt_status].sub[data.bt_sub_status];
+    if (iconindex) {
+      icon = btIcons[iconindex];
       tt = btStateIcons[data.bt_status].desc;
     } else {
-      icon = `#${btIcons.bt_connected}`;
+      icon = btIcons.bt_connected;
       tt = 'Output status';
     }
   }
-  $('#o_type').title = tt;
-  $('#o_bt').attr('xlink:href',icon);
-
   
+  $('#o_type').attr('title', tt);
+  $('#o_bt').html(icon);
 }
 function handleTemplateTypeRadio(outtype) {
   $('#o_type').children('span').css({ display : 'none' });
@@ -466,6 +466,7 @@ let hostName = '';
 let versionName='Squeezelite-ESP32';
 let prevmessage='';
 let project_name=versionName;
+let board_model='';
 let platform_name=versionName;
 let preset_name='';
 let btSinkNamesOptSel='#cfg-audio-bt_source-sink_name';
@@ -549,35 +550,100 @@ function getConfigJson(slimMode) {
   return config;
 }
 
+function handleHWPreset(allfields,reboot){
+  
+  const selJson = JSON.parse(allfields[0].value);
+  var cmd=allfields[0].attributes.cmdname.value;
+  
+  console.log(`selected model: ${selJson.name}`);
+  let confPayload={
+    timestamp: Date.now(),
+    config : { model_config : {value:selJson.name,type:33 }}
+  };
+  for(const [name, value]  of Object.entries(selJson.config)){
+    const storedval=(typeof value === 'string' || value instanceof String)?value:JSON.stringify(value);
+    confPayload.config[name] = {
+        value : storedval,
+        type: 33,
+    }
+    showCmdMessage(
+      cmd,
+      'MESSAGING_INFO',
+      `Setting ${name}=${storedval} `,
+      true
+    );
+  }
+  
+  showCmdMessage(
+    cmd,
+    'MESSAGING_INFO',
+    `Committing `,
+    true
+  );
+  $.ajax({
+    url: '/config.json',
+    dataType: 'text',
+    method: 'POST',
+    cache: false,
+    contentType: 'application/json; charset=utf-8',
+    data: JSON.stringify(confPayload),
+    error: function(xhr, _ajaxOptions, thrownError){
+      handleExceptionResponse(xhr, _ajaxOptions, thrownError);
+      showCmdMessage(
+        cmd,
+        'MESSAGING_ERROR',
+        `Unexpected error ${(thrownError !== '')?thrownError:'with return status = '+xhr.status} `,
+        true
+      );        
+    },
+    success: function(response) {
+      showCmdMessage(
+        cmd,
+        'MESSAGING_INFO',
+        `Saving complete `,
+        true
+      );
+      console.log(response);
+      if (reboot) {
+        delayReboot(2500, cmd);
+      }
+    },
+  });
+
+
+  
+  
+
+}
 
 
 // pull json file from https://gist.githubusercontent.com/sle118/dae585e157b733a639c12dc70f0910c5/raw/b462691f69e2ad31ac95c547af6ec97afb0f53db/squeezelite-esp32-presets.json and
-// load the names into cfg-hw-preset-model_name
 function loadPresets() {
+  if($("#cfg-hw-preset-model_config").length == 0) return;
   if(presetsloaded) return;
   presetsloaded = true;
+  $('#cfg-hw-preset-model_config').html('<option>--</option>');
   $.getJSON(
-    'https://gist.githubusercontent.com/sle118/dae585e157b733a639c12dc70f0910c5/raw/b462691f69e2ad31ac95c547af6ec97afb0f53db/squeezelite-esp32-presets.json',
+    'https://gist.githubusercontent.com/sle118/dae585e157b733a639c12dc70f0910c5/raw/',
+    {_: new Date().getTime()},
     function(data) {
       $.each(data, function(key, val) {
-          $('#cfg-hw-preset-model_config').append(`<option value="${JSON.stringify(val).replace(/\"/g, '\'')}">${val.name}</option>`);
+          $('#cfg-hw-preset-model_config').append(`<option value='${JSON.stringify(val).replace(/"/g, '\"').replace(/\'/g, '\"')}'>${val.name}</option>`);
+          if(preset_name !=='' && preset_name==val.name){
+            $('#cfg-hw-preset-model_config').val(preset_name);
+          }
       });
       if(preset_name !== ''){
         ('#prev_preset').show().val(preset_name);
-      }
-      console.log('update prev_preset in case of a change');
+      }      
     }
 
   ).fail(function(jqxhr, textStatus, error) {
     const err = textStatus + ', ' + error;
     console.log('Request Failed: ' + err);
-    $('hw-preset-section').hide();
   }
   );
 }
-
-        
-
 
 function delayReboot(duration, cmdname, ota = 'reboot') {
   const url = '/'+ota+'.json';
@@ -736,9 +802,6 @@ window.handleConnect = function(){
 
 }
 $(document).ready(function() {
-  $('#wifiTable').on('click','tr', function() {
-
-  });
   $('#fw-url-input').on('input', function() {
     if($(this).val().length>8 && ($(this).val().startsWith('http://') || $(this).val().startsWith('https://'))){
       $('#start-flash').show();
@@ -890,12 +953,6 @@ $(document).ready(function() {
       $('*[href*="-nvs"]').hide();
     }
   });
- $('#btn-save-cfg-hw-preset').on('click', function(){
-  runCommand(this,false);
- });
- $('#btn-commit-cfg-hw-preset').on('click', function(){
-  runCommand(this,true);
- });
  $('#btn_reboot_recovery').on('click',function(){
   handleReboot('recovery');
  });
@@ -1192,15 +1249,11 @@ function formatAP(ssid, rssi, auth){
   return `<tr data-toggle="modal" data-target="#WifiConnectDialog"><td></td><td>${ssid}</td><td>
   <span class="material-icons" style="fill:white; display: inline" >${rssiToIcon(rssi)}</span>
   	</td><td>
-   <svg style="fill:white; width:1.5rem; height: 1.5rem;">
-  <use xlink:href="#lock${(auth == 0 ? '-unlock':'')}-fill"></use>
-</svg>
-
+    <span class="material-icons">${(auth == 0 ? 'no_encryption':'lock')}</span>
   </td></tr>`;
 }
 function refreshAPHTML2(data) {
   let h = '';
-  $('#tab-wifi').show();
   $('#wifiTable tr td:first-of-type').text('');
   $('#wifiTable tr').removeClass('table-success table-warning');
   if(data){
@@ -1221,8 +1274,7 @@ function refreshAPHTML2(data) {
     $(wifiSelector).filter(function() {return $(this).text() === ConnectedTo.ssid;  }).siblings().first().html('&check;').parent().addClass((ConnectedTo.urc === connectReturnCode.OK?'table-success':'table-warning'));
     $('span#foot-if').html(`SSID: <strong>${ConnectedTo.ssid}</strong>, IP: <strong>${ConnectedTo.ip}</strong>`);    
     $('#wifiStsIcon').html(rssiToIcon(ConnectedTo.rssi));
-    $(".if_eth").hide();
-    $('.if_wifi').show();
+
   }
   else if(ConnectedTo.urc !== connectReturnCode.ETH){
     $('span#foot-if').html('');
@@ -1230,9 +1282,7 @@ function refreshAPHTML2(data) {
   
 }
 function refreshETH() {
-  
-  $(".if_eth").show();
-  $('.if_wifi').hide();
+
   if(ConnectedTo.urc === connectReturnCode.ETH ){
     $('span#foot-if').html(`Network: Ethernet, IP: <strong>${ConnectedTo.ip}</strong>`);    
   }
@@ -1496,13 +1546,17 @@ function handleWifiDialog(data){
   }
 }
 function handleNetworkStatus(data) {
-  if(hasConnectionChanged(data)){
+  if(hasConnectionChanged(data) || !data.urc){
     ConnectedTo=data;
-    if(ConnectedTo.urc == connectReturnCode.ETH ){
-      refreshETH();
+    $(".if_eth").hide();
+    $('.if_wifi').hide();    
+    if(!data.urc || ConnectedTo.urc == connectReturnCode.ETH ){
+      $('.if_wifi').show();  
+      refreshAPHTML2();      
     } 
     else {
-      refreshAPHTML2();
+      $(".if_eth").show();
+      refreshETH();
     }
 
   }
@@ -1546,15 +1600,18 @@ function checkStatus() {
       ota_dsc: (data.ota_dsc ??''),
       event: flash_events.PROCESS_OTA_STATUS
     });
+
     if (data.project_name && data.project_name !== '') {
       project_name = data.project_name;
     }
     if(data.platform_name && data.platform_name!==''){
       platform_name = data.platform_name;
     }
+    if(board_model==='') board_model = project_name;
+    if(board_model==='') board_model = 'Squeezelite-ESP32';
     if (data.version && data.version !== '') {
       versionName=data.version;
-      $("#navtitle").html(`${project_name}${recovery?'<br>[recovery]':''}`);
+      $("#navtitle").html(`${board_model}${recovery?'<br>[recovery]':''}`);
       $('span#foot-fw').html(`fw: <strong>${versionName}</strong>, mode: <strong>${recovery?"Recovery":project_name}</strong>`);
     } else {
       $('span#flash-status').html('');
@@ -1614,38 +1671,41 @@ window.runCommand = function(button, reboot) {
     false
   );
   const fields = document.getElementById('flds-' + cmdstring);
+  const allfields = fields?.querySelectorAll('select,input');
+  if(cmdstring ==='cfg-hw-preset') return handleHWPreset(allfields,reboot);
   cmdstring += ' ';
   if (fields) {
-    const allfields = fields.querySelectorAll('select,input');
-    for (var i = 0; i < allfields.length; i++) {
-      const attr = allfields[i].attributes;
+
+    for(const field of allfields) {
       let qts = '';
       let opt = '';
-      let isSelect = $(allfields[i]).is('select');
-      const hasValue=attr.hasvalue.value === 'true';
-      const validVal=(isSelect && allfields[i].value !== '--' ) || ( !isSelect && allfields[i].value !== '' );
+      let attr=field.attributes;
+      let isSelect = $(field).is('select');
+      const hasValue=attr?.hasvalue?.value === 'true';
+      const validVal=(isSelect && field.value !== '--' ) || ( !isSelect && field.value !== '' );
 
       if ( !hasValue|| hasValue && validVal)  {
-        if (attr.longopts.value !== 'undefined') {
-          opt += '--' + attr.longopts.value;
-        } else if (attr.shortopts.value !== 'undefined') {
+        if (attr?.longopts?.value !== 'undefined') {
+          opt += '--' + attr?.longopts?.value;
+        } else if (attr?.shortopts?.value !== 'undefined') {
           opt = '-' + attr.shortopts.value;
         }
 
-        if (attr.hasvalue.value === 'true') {
-          if (allfields[i].value !== '') {
-            qts = /\s/.test(allfields[i].value) ? '"' : '';
-            cmdstring += opt + ' ' + qts + allfields[i].value + qts + ' ';
+        if (attr?.hasvalue?.value === 'true') {
+          if (attr?.value !== '') {
+            qts = /\s/.test(field.value) ? '"' : '';
+            cmdstring += opt + ' ' + qts + field.value + qts + ' ';
           }
         } else {
           // this is a checkbox
-          if (allfields[i].checked) {
+          if (field?.checked) {
             cmdstring += opt + ' ';
           }
         }
       }
     }
   }
+  
   console.log(cmdstring);
 
   const data = {
@@ -1705,13 +1765,7 @@ function getCommands() {
         const isConfig = cmdParts[0] === 'cfg';
         const targetDiv = '#tab-' + cmdParts[0] + '-' + cmdParts[1];
         let innerhtml = '';
-
-        // innerhtml+='<tr class="table-light"><td>'+(isConfig?'<h1>':'');
-        innerhtml +=
-          '<div class="card text-white mb-3"><div class="card-header">' +
-          command.help.encodeHTML().replace(/\n/g, '<br />') +
-          '</div><div class="card-body">';
-        innerhtml += '<fieldset id="flds-' + command.name + '">';
+        innerhtml += `<div class="card text-white mb-3"><div class="card-header">${command.help.encodeHTML().replace(/\n/g, '<br />')}</div><div class="card-body"><fieldset id="flds-${command.name}">`;
         if (command.argtable) {
           command.argtable.forEach(function(arg) {
             let placeholder = arg.datatype || '';
@@ -1719,8 +1773,6 @@ function getCommands() {
             const curvalue =  getLongOps(data,command.name,arg.longopts);
 
             let attributes = 'hasvalue=' + arg.hasvalue + ' ';
-
-            // attributes +='datatype="'+arg.datatype+'" ';
             attributes += 'longopts="' + arg.longopts + '" ';
             attributes += 'shortopts="' + arg.shortopts + '" ';
             attributes += 'checkbox=' + arg.checkbox + ' ';
@@ -1738,25 +1790,9 @@ function getCommands() {
               attributes += ' style="visibility: hidden;"';
             }
             if (arg.checkbox) {
-              innerhtml +=
-                '<div class="form-check"><label class="form-check-label">';
-              innerhtml +=
-                '<input type="checkbox" ' +
-                attributes +
-                ' class="form-check-input ' +
-                extraclass +
-                '" value="" >' +
-                arg.glossary.encodeHTML() +
-                '<small class="form-text text-muted">Previous value: ' +
-                (curvalue ? 'Checked' : 'Unchecked') +
-                '</small></label>';
+              innerhtml += `<div class="form-check"><label class="form-check-label"><input type="checkbox" ${attributes} class="form-check-input ${extraclass}" value="" >${arg.glossary.encodeHTML()}<small class="form-text text-muted">Previous value: ${(curvalue ? 'Checked' : 'Unchecked')}</small></label>`;
             } else {
-              innerhtml +=
-                '<div class="form-group" ><label for="' +
-                ctrlname +
-                '">' +
-                arg.glossary.encodeHTML() +
-                '</label>';
+              innerhtml +=`<div class="form-group" ><label for="${ctrlname}">${arg.glossary.encodeHTML()}</label>`;
               if (placeholder.includes('|')) {
                 extraclass = placeholder.startsWith('+') ? ' multiple ' : '';
                 placeholder = placeholder
@@ -1770,54 +1806,23 @@ function getCommands() {
                 });
                 innerhtml += '</select>';
               } else {
-                innerhtml +=
-                  '<input type="text" class="form-control ' +
-                  extraclass +
-                  '" placeholder="' +
-                  placeholder +
-                  '" ' +
-                  attributes +
-                  '>';
+                innerhtml +=`<input type="text" class="form-control ${extraclass}" placeholder="${placeholder}" ${attributes}>`;
               }
-              innerhtml +=
-                '<small class="form-text text-muted">Previous value: ' +
-                (curvalue || '') +
-                '</small>';
+              innerhtml +=`<small class="form-text text-muted">Previous value: ${(curvalue || '')}</small>`;
             }
             innerhtml += '</div>';
           });
         }
-        innerhtml += '<div style="margin-top: 16px;">';
-        innerhtml +=
-          '<div class="toast show" role="alert" aria-live="assertive" aria-atomic="true" style="display: none;" id="toast_' +
-          command.name +
-          '">';
-        innerhtml +=
-          '<div class="toast-header"><strong class="mr-auto">Result</strong><button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close" onclick="$(this).parent().parent().hide()">';
-        innerhtml +=
-          '<span aria-hidden="true">×</span></button></div><div class="toast-body" id="msg_' +
-          command.name +
-          '"></div></div>';
+        innerhtml += `<div style="margin-top: 16px;">
+        <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true" style="display: none;" id="toast_${command.name}">
+        <div class="toast-header"><strong class="mr-auto">Result</strong><button type="button" class="ml-2 mb-1 close click_to_close" data-dismiss="toast" aria-label="Close" >
+        <span aria-hidden="true">×</span></button></div><div class="toast-body" id="msg_${command.name}"></div></div>`;
         if (isConfig) {
           innerhtml +=
-            '<button type="submit" class="btn btn-info" id="btn-save-' +
-            command.name +
-            '" cmdname="' +
-            command.name +
-            '" onclick="runCommand(this,false)">Save</button>';
-          innerhtml +=
-            '<button type="submit" class="btn btn-warning" id="btn-commit-' +
-            command.name +
-            '" cmdname="' +
-            command.name +
-            '" onclick="runCommand(this,true)">Apply</button>';
+`<button type="submit" class="btn btn-info sclk" id="btn-save-${command.name}" cmdname="${command.name}">Save</button>
+<button type="submit" class="btn btn-warning cclk" id="btn-commit-${command.name}" cmdname="${command.name}">Apply</button>`;
         } else {
-          innerhtml +=
-            '<button type="submit" class="btn btn-success" id="btn-run-' +
-            command.name +
-            '" cmdname="' +
-            command.name +
-            '" onclick="runCommand(this,false)">Execute</button>';
+          innerhtml +=`<button type="submit" class="btn btn-success sclk" id="btn-run-${command.name}" cmdname="${command.name}">Execute</button>`;
         }
         innerhtml += '</div></fieldset></div></div>';
         if (isConfig) {
@@ -1827,7 +1832,9 @@ function getCommands() {
         }
       }
     });
-
+    $(".click_to_close").on('click', function(){$(this).parent().parent().hide()});
+    $(".sclk").on('click',function(){runCommand(this,false);});
+    $(".cclk").on('click',function(){runCommand(this,true);});
     data.commands.forEach(function(command) {
       $('[cmdname=' + command.name + ']:input').val('');
       $('[cmdname=' + command.name + ']:checkbox').prop('checked', false);
@@ -1861,7 +1868,6 @@ function getCommands() {
     else {
       handleExceptionResponse(xhr, ajaxOptions, thrownError);
     }
-    
     $('#commands-list').empty();
     blockAjax = false;
   });
@@ -1911,7 +1917,9 @@ function getConfig() {
         else if (key == 'preset_name') {
           preset_name = val;
         }
-        
+        else if (key=='board_model') {
+          board_model=val;
+        }
         
         $('tbody#nvsTable').append(
           '<tr>' +

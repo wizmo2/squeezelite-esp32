@@ -16,6 +16,12 @@ const { merge } = require('webpack-merge');
 const devserver = require('./webpack/webpack.dev.js');
 const fs = require('fs');
 const zlib = require("zlib");
+const PurgeCSSPlugin = require('purgecss-webpack-plugin')
+
+
+const PATHS = {
+  src: path.join(__dirname, 'src')
+}
 
 class BuildEventsHook {
   constructor(name, fn, stage = 'afterEmit') {
@@ -30,13 +36,12 @@ class BuildEventsHook {
 
 
 module.exports = (env, options) => (
-  merge(options.mode === "production" ? {} : devserver,
+  merge(env.WEBPACK_SERVE ?  devserver : {},
     {
       entry: 
       {
           index: './src/index.ts'
       },
-      devtool: "source-map",
       module: {
         rules: [
           {
@@ -61,11 +66,10 @@ module.exports = (env, options) => (
             ]
           }, 
           {
-            test: /\.scss$|\.css$/,
-            use: [
-              // options.mode !== "production"
-              //   ? "style-loader": 
-                {
+            test: /\.s[ac]ss$/i,
+            
+            use:  [
+               {
                   loader: MiniCssExtractPlugin.loader,
                   options: {
                     publicPath: "../",
@@ -81,7 +85,7 @@ module.exports = (env, options) => (
                 },
               },
               "sass-loader",
-            ],
+            ]
           },
           {
             test: /\.js$/,
@@ -175,18 +179,11 @@ module.exports = (env, options) => (
       //   minRatio: 0.8,
       //   deleteOriginalAssets: false
       // }),
-      new CompressionPlugin({
-          //filename: '[path].gz[query]',
-          test: /\.js$|\.css$|\.html$/,
-          filename: "[path][base].gz",
-
-          algorithm: 'gzip',
-          
-          threshold: 100,
-          minRatio: 0.8,
-      }),
         new MiniCssExtractPlugin({
           filename: "css/[name].[contenthash].css",
+        }),
+        new PurgeCSSPlugin({
+          paths: glob.sync(`${PATHS.src}/**/*`,  { nodir: true }),
         }),
         new webpack.ProvidePlugin({
           $: "jquery",
@@ -196,6 +193,16 @@ module.exports = (env, options) => (
           Util: "exports-loader?Util!bootstrap/js/dist/util",
           Dropdown: "exports-loader?Dropdown!bootstrap/js/dist/dropdown",
         }),
+        new CompressionPlugin({
+          //filename: '[path].gz[query]',
+          test: /\.js$|\.css$|\.html$/,
+          filename: "[path][base].gz",
+
+          algorithm: 'gzip',
+          
+          threshold: 100,
+          minRatio: 0.8,
+      }),
         new BuildEventsHook('Update C App', 
           function (stats, arguments) {
             if (options.mode !== "production") return;
@@ -253,7 +260,6 @@ extern const uint8_t * resource_map_end[];`;
                 let lookupMapStart = 'const uint8_t * resource_map_start[] = {\n';
                 let lookupMapEnd = 'const uint8_t * resource_map_end[] = {\n';
                 let cMake = '';
-                list.push('./dist/index.html.gz');
                 list.forEach(fileName => {
 
                   let exportName = fileName.match(regex)[2].replace(/[\. \-]/gm, '_');
@@ -262,8 +268,8 @@ extern const uint8_t * resource_map_end[];`;
                   lookupDef += '\t"/' + relativeName + '",\n';
                   lookupMapStart += '\t_' + exportName + '_start,\n';
                   lookupMapEnd += '\t_' + exportName + '_end,\n';
-                  cMake += `target_add_binary_data( __idf_wifi-manager ${path.posix.relative(path.posix.resolve(process.cwd(),'..','..'),fileName)
-                } BINARY)\n`;
+                  cMake += `target_add_binary_data( __idf_wifi-manager ${path.posix.relative(path.posix.resolve(process.cwd(),'..','..'),fileName)} BINARY)\n`;
+                  console.log(`Post build: adding cmake file reference to ${path.posix.relative(path.posix.resolve(process.cwd(),'..','..'),fileName)} from C project.`);
                 });
 
                 lookupDef += '""\n};\n';
@@ -329,20 +335,16 @@ extern const uint8_t * resource_map_end[];`;
           //new BundleAnalyzerPlugin()
 
         ],
-        // runtimeChunk: 'single',
-        // splitChunks: {
-        //     chunks: 'all',
-        //     // maxInitialRequests: Infinity,
-        //     // minSize: 0,
-        //     cacheGroups: {
-        //         vendor: {
-        //             test: /node_modules/, // you may add "vendor.js" here if you want to
-        //             name: "node-modules",
-        //             chunks: "initial",
-        //             enforce: true
-        //         },
-        //     }
-        //   }
+        splitChunks: {
+          cacheGroups: {
+            styles: {
+              name: 'styles',
+              test: /\.css$/,
+              chunks: 'all',
+              enforce: true
+            }
+          }
+        }
       },
       //   output: {
       //     filename: "[name].js",

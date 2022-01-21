@@ -83,7 +83,7 @@ typedef struct
     uint16_t dhcp_timeout;
     uint16_t wifi_dhcp_fail_ms;    
 	queue_message * event_parameters;
-    const char * timer_tag;
+    char * timer_tag;
 } network_t;
 
 

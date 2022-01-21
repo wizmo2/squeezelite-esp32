@@ -40,7 +40,7 @@ extern void register_squeezelite();
 
 static EXT_RAM_ATTR QueueHandle_t uart_queue;
 static EXT_RAM_ATTR struct {
-		uint8_t _buf[128];
+		uint8_t _buf[512];
 		StaticRingbuffer_t _ringbuf;
 		RingbufHandle_t handle;
 		QueueSetHandle_t queue_set;

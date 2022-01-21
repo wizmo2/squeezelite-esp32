@@ -346,6 +346,35 @@ typedef enum {
     SCANNING,
     PROCESSING_NAME
 } scanstate_t;
+int set_cspot_player_name(FILE * f,const char * name){
+    int ret=0;
+    cJSON * cspot_config = config_alloc_get_cjson("cspot_config");
+    if(cspot_config==NULL){
+        fprintf(f,"Unable to get cspot_config\n");
+        return 1;
+    }
+    cJSON * player_name = cJSON_GetObjectItemCaseSensitive(cspot_config,"deviceName");
+    if(player_name==NULL){
+        fprintf(f,"Unable to get deviceName\n");
+        ret=1;
+    }
+    if(strcmp(player_name->valuestring,name)==0){
+        fprintf(f,"CSpot device name not changed.\n");
+        ret=0;
+    }
+    else{
+        cJSON_SetValuestring(player_name,name);
+        if(setnamevar("cspot_config",f,cJSON_Print(cspot_config))!=0){
+            fprintf(f,"Unable to set cspot_config\n");
+            ret=1;
+        }
+        else{
+            fprintf(f,"CSpot device name set to %s\n",name);
+        }
+    }
+    cJSON_Delete(cspot_config);
+    return ret;
+}
 int set_squeezelite_player_name(FILE * f,const char * name){
 	char * nvs_config= config_alloc_get(NVS_TYPE_STR, "autoexec1");
 	char **argv = NULL;
@@ -442,6 +471,7 @@ static int setdevicename(int argc, char **argv)
 	nerrors+=setnamevar("bt_name", f, name);
 	nerrors+=setnamevar("host_name", f, name);
     nerrors+=set_squeezelite_player_name(f, name);
+    nerrors+=set_cspot_player_name(f, name);
 	if(nerrors==0){
 		fprintf(f,"Device name changed to %s\n",name);
 	}

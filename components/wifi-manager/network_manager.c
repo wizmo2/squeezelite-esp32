@@ -670,28 +670,25 @@ esp_err_t network_get_hostname(const char** hostname) {
 }
 
 void network_set_timer(uint16_t duration, const char * tag) {
-    if(NM.timer_tag){
-        ESP_LOGD(TAG,"Cancelling timer %s",NM.timer_tag);
-        FREE_AND_NULL(NM.timer_tag);
-        NM.timer_tag = NULL;
-    }
     if (duration > 0) {
+        if(tag){
+            ESP_LOGD(TAG, "Setting timer tag to %s", tag);
+            NM.timer_tag = strdup_psram(tag);
+        }
         if (!NM.state_timer) {
-            ESP_LOGD(TAG, "Starting new pulse check timer with period of %u ms.", duration);
+            ESP_LOGD(TAG, "Starting %s timer with period of %u ms.", STR_OR_ALT(NM.timer_tag,"anonymous"), duration);
             NM.state_timer = xTimerCreate("background STA", pdMS_TO_TICKS(duration), pdFALSE, NULL, network_timer_cb);
         } else {
-            ESP_LOGD(TAG, "Changing the pulse timer period to %u ms.", duration);
+            ESP_LOGD(TAG, "Changing %s timer period to %u ms.", STR_OR_ALT(NM.timer_tag,"anonymous"),duration);
             xTimerChangePeriod(NM.state_timer, pdMS_TO_TICKS(duration), portMAX_DELAY);
         }
         xTimerStart(NM.state_timer, portMAX_DELAY);
     } else if (NM.state_timer) {
-        ESP_LOGD(TAG, "Stopping timer");
+        ESP_LOGD(TAG,"Stopping timer %s",STR_OR_ALT(NM.timer_tag,"anonymous"));
         xTimerStop(NM.state_timer, portMAX_DELAY);
+        FREE_AND_NULL(NM.timer_tag);
     }
-    if(tag){
-        ESP_LOGD(TAG, "Setting timer tag to %s", tag);
-        NM.timer_tag = strdup_psram(tag);
-    }
+
 }
 void network_ip_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
     ip_event_got_ip_t* s = NULL;

@@ -187,53 +187,7 @@ void network_status_update_basic_info() {
     // locking happens below this level
     network_status_get_basic_info(&ip_info_cjson);
 }
-cJSON* network_status_update_string(cJSON** root, const char* key, const char* value) {
-    if (network_status_lock_json_buffer(portMAX_DELAY)) {
-        if (*root == NULL) {
-            *root = cJSON_CreateObject();
-            if (*root == NULL) {
-                ESP_LOGE(TAG, "Error creating cJSON object!");
-            }
-        }
 
-        if (!key || !value || strlen(key) == 0) {
-            ESP_LOGE(TAG, "network_status_update_string. Invalid key or value passed! key: %s, value: %s", STR_OR_ALT(key, ""), STR_OR_ALT(value, ""));
-            network_status_unlock_json_buffer();
-            return *root;
-        }
-        cJSON* cjsonvalue = cJSON_GetObjectItemCaseSensitive(*root, key);
-        if (cjsonvalue && strcasecmp(cJSON_GetStringValue(cjsonvalue), value) != 0) {
-            ESP_LOGD(TAG, "Value %s changed from %s to %s", key, cJSON_GetStringValue(cjsonvalue), value);
-            cJSON_SetValuestring(cjsonvalue, value);
-        } else if(!cjsonvalue){
-            cJSON_AddItemToObject(*root, key, cJSON_CreateString(value));
-        }
-        network_status_unlock_json_buffer();
-    } else {
-        ESP_LOGW(TAG, "Unable to lock status json buffer. ");
-    }
-    return *root;
-}
-cJSON* network_status_update_number(cJSON** root, const char* key, int value) {
-    if (network_status_lock_json_buffer(portMAX_DELAY)) {
-        if (*root == NULL) {
-            *root = cJSON_CreateObject();
-        }
-
-        if (key  && strlen(key) != 0) {
-            cJSON* cjsonvalue = cJSON_GetObjectItemCaseSensitive(*root, key);
-            if (cjsonvalue) {
-                cJSON_SetNumberValue(cjsonvalue, value);
-            } else {
-                cJSON_AddNumberToObject(*root, key, value);
-            }
-        }
-        network_status_unlock_json_buffer();
-    } else {
-        ESP_LOGW(TAG, "Unable to lock status json buffer. ");
-    }
-    return *root;
-}
 cJSON* network_status_update_float(cJSON** root, const char* key, float value) {
     if (network_status_lock_json_buffer(portMAX_DELAY)) {
         if (*root == NULL) {
@@ -274,26 +228,44 @@ cJSON* network_status_update_bool(cJSON** root, const char* key, bool value) {
     }
     return *root;
 }
+cJSON * network_update_cjson_string(cJSON** root, const char* key, const char* value){
+    if (network_status_lock_json_buffer(portMAX_DELAY)) {
+        cjson_update_string(root, key, value);
+        network_status_unlock_json_buffer();
+    } else {
+        ESP_LOGW(TAG, "Unable to lock status json buffer. ");
+    }
+    return *root;
+}
+cJSON * network_update_cjson_number(cJSON** root, const char* key, int value){
+    if (network_status_lock_json_buffer(portMAX_DELAY)) {
+        cjson_update_number(root, key, value);
+        network_status_unlock_json_buffer();
+    } else {
+        ESP_LOGW(TAG, "Unable to lock status json buffer. ");
+    }
+    return *root;
+}
 cJSON* network_status_get_basic_info(cJSON** old) {
     if (network_status_lock_json_buffer(portMAX_DELAY)) {
         network_t* nm = network_get_state_machine();
         monitor_gpio_t* mgpio = get_jack_insertion_gpio();
         const esp_app_desc_t* desc = esp_ota_get_app_description();
 
-        *old = network_status_update_string(old, "project_name", desc->project_name);
+        *old = network_update_cjson_string(old, "project_name", desc->project_name);
 #ifdef CONFIG_FW_PLATFORM_NAME
-        *old = network_status_update_string(old, "platform_name", CONFIG_FW_PLATFORM_NAME);
+        *old = network_update_cjson_string(old, "platform_name", CONFIG_FW_PLATFORM_NAME);
 #endif
-        *old = network_status_update_string(old, "version", desc->version);
+        *old = network_update_cjson_string(old, "version", desc->version);
         if (release_url != NULL)
-            *old = network_status_update_string(old, "release_url", release_url);
-        *old = network_status_update_number(old, "recovery", is_recovery_running ? 1 : 0);
+            *old = network_update_cjson_string(old, "release_url", release_url);
+        *old = network_update_cjson_number(old, "recovery", is_recovery_running ? 1 : 0);
         *old = network_status_update_bool(old, "Jack", mgpio->gpio >= 0 && jack_inserted_svc());
         *old = network_status_update_float(old, "Voltage", battery_value_svc());
-        *old = network_status_update_number(old, "disconnect_count", nm->num_disconnect);
+        *old = network_update_cjson_number(old, "disconnect_count", nm->num_disconnect);
         *old = network_status_update_float(old, "avg_conn_time", nm->num_disconnect > 0 ? (nm->total_connected_time / nm->num_disconnect) : 0);
-        *old = network_status_update_number(old, "bt_status", bt_app_source_get_a2d_state());
-        *old = network_status_update_number(old, "bt_sub_status", bt_app_source_get_media_state());
+        *old = network_update_cjson_number(old, "bt_status", bt_app_source_get_a2d_state());
+        *old = network_update_cjson_number(old, "bt_sub_status", bt_app_source_get_media_state());
 #if CONFIG_I2C_LOCKED
         *old = network_status_update_bool(old, "is_i2c_locked", true);
 #else
@@ -303,15 +275,15 @@ cJSON* network_status_get_basic_info(cJSON** old) {
             *old = network_status_update_bool(old, "eth_up", network_ethernet_is_up());
         }
         if (lms_server_cport > 0) {
-            *old = network_status_update_number(old, "lms_cport", lms_server_cport);
+            *old = network_update_cjson_number(old, "lms_cport", lms_server_cport);
         }
 
         if (lms_server_port > 0) {
-            *old = network_status_update_number(old, "lms_port", lms_server_port);
+            *old = network_update_cjson_number(old, "lms_port", lms_server_port);
         }
 
         if (strlen(lms_server_ip) > 0) {
-            *old = network_status_update_string(old, "lms_ip", lms_server_ip);
+            *old = network_update_cjson_string(old, "lms_ip", lms_server_ip);
         }
         ESP_LOGV(TAG, "network_status_get_basic_info done");
         network_status_unlock_json_buffer();
@@ -325,9 +297,9 @@ void network_status_update_address(cJSON* root, esp_netif_ip_info_t* ip_info) {
         ESP_LOGE(TAG, "Cannor update IP address. JSON structure or ip_info is null");
         return;
     }
-    network_status_update_string(&root, "ip", ip4addr_ntoa((ip4_addr_t*)&ip_info->ip));
-    network_status_update_string(&root, "netmask", ip4addr_ntoa((ip4_addr_t*)&ip_info->netmask));
-    network_status_update_string(&root, "gw", ip4addr_ntoa((ip4_addr_t*)&ip_info->gw));
+    network_update_cjson_string(&root, "ip", ip4addr_ntoa((ip4_addr_t*)&ip_info->ip));
+    network_update_cjson_string(&root, "netmask", ip4addr_ntoa((ip4_addr_t*)&ip_info->netmask));
+    network_update_cjson_string(&root, "gw", ip4addr_ntoa((ip4_addr_t*)&ip_info->gw));
 }
 void network_status_update_ip_info(update_reason_code_t update_reason_code) {
     ESP_LOGV(TAG, "network_status_update_ip_info called");
@@ -336,18 +308,18 @@ void network_status_update_ip_info(update_reason_code_t update_reason_code) {
         /* generate the connection info with success */
 
         ip_info_cjson = network_status_get_basic_info(&ip_info_cjson);
-        ip_info_cjson = network_status_update_number(&ip_info_cjson, "urc", update_reason_code);
+        ip_info_cjson = network_update_cjson_number(&ip_info_cjson, "urc", (int)update_reason_code);
         ESP_LOGD(TAG,"Updating ip info with reason code %d. Checking if Wifi interface is connected",update_reason_code);
         if (network_is_interface_connected(network_wifi_get_interface()) || update_reason_code == UPDATE_FAILED_ATTEMPT ) {
-            network_status_update_string(ip_info_cjson, "if", "wifi");
+            network_update_cjson_string(&ip_info_cjson, "if", "wifi");
             esp_netif_get_ip_info(network_wifi_get_interface(), &ip_info);
             network_status_update_address(ip_info_cjson, &ip_info);
             if (!network_wifi_is_ap_mode()) {
                 /* wifi is active, and associated to an AP */
                 wifi_ap_record_t ap;
                 esp_wifi_sta_get_ap_info(&ap);
-                network_status_update_string(&ip_info_cjson, "ssid", ((char*)ap.ssid));
-                network_status_update_number(&ip_info_cjson, "rssi", ap.rssi);
+                network_update_cjson_string(&ip_info_cjson, "ssid", ((char*)ap.ssid));
+                network_update_cjson_number(&ip_info_cjson, "rssi", ap.rssi);
             }
 
         } else {
@@ -356,7 +328,7 @@ void network_status_update_ip_info(update_reason_code_t update_reason_code) {
         }
         ESP_LOGD(TAG,"Checking if ethernet interface is connected");
         if (network_is_interface_connected(network_ethernet_get_interface())) {
-            network_status_update_string(ip_info_cjson, "if", "eth");
+            network_update_cjson_string(&ip_info_cjson, "if", "eth");
             esp_netif_get_ip_info(network_ethernet_get_interface(), &ip_info);
             network_status_update_address(ip_info_cjson, &ip_info);
         } 

@@ -224,8 +224,6 @@ static state_machine_result_t NETWORK_INSTANTIATED_STATE_handler(state_machine_t
     network_t* const nm = (network_t *)State_Machine;
     State_Machine->State = &network_states[NETWORK_INSTANTIATED_STATE];
     State_Machine->Event = EN_START;
-      char * valuestr=NULL;
-
     config_get_uint16t_from_str("pollmx",&nm->sta_polling_max_ms,600);
     nm->sta_polling_max_ms = nm->sta_polling_max_ms * 1000;
     config_get_uint16t_from_str("apdelay",&nm->ap_duration_ms,20);

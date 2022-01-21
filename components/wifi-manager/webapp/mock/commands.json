@@ -61,7 +61,7 @@
 			"argtable":	[{
 					"datatype":	"squeezelite-1fe714",
 					"glossary":	"New Name",
-					"longopts":	"name",
+					"longopts":	"new_name",
 					"shortopts":	"n",
 					"checkbox":	false,
 					"remark":	false,
@@ -745,10 +745,10 @@
 			"telnet":	"Telnet and Serial"
 		},
 		"cfg-syst-name":	{
-			"name":	"squeezelite-1fe714"
+			"new_name":	"squeezelite-1fe714"
 		},
 		"cfg-hw-preset":	{
-			"model_config":	""
+			"model_config":	"previous config value"
 		},
 		"cfg-audio-general":	{
 			"jack_behavior":	"Subwoofer"

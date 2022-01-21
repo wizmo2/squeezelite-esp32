@@ -52,6 +52,8 @@ void config_start_timer();
 void config_init();
 void * config_alloc_get_default(nvs_type_t type, const char *key, void * default_value, size_t blob_size);
 void * config_alloc_get_str(const char *key, char *lead, char *fallback);
+cJSON * config_alloc_get_cjson(const char *key);
+esp_err_t config_set_cjson_str(const char *key, cJSON *value);
 void config_get_uint16t_from_str(const char *key, uint16_t *value, uint16_t default_value);
 void config_delete_key(const char *key);
 void config_set_default(nvs_type_t type, const char *key, void * default_value, size_t blob_size);
@@ -61,7 +63,8 @@ char * config_alloc_get_json(bool bFormatted);
 esp_err_t config_set_value(nvs_type_t nvs_type, const char *key, const void * value);
 nvs_type_t  config_get_item_type(cJSON * entry);
 void * config_safe_alloc_get_entry_value(nvs_type_t nvs_type, cJSON * entry);
-
+cJSON* cjson_update_number(cJSON** root, const char* key, int value);
+cJSON* cjson_update_string(cJSON** root, const char* key, const char* value);
 #ifdef __cplusplus
 }
 #endif
