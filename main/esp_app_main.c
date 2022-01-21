@@ -71,7 +71,7 @@ extern const uint8_t server_cert_pem_end[] asm("_binary_github_pem_end");
 // as an exception _init function don't need include
 extern void services_init(void);
 extern void	display_init(char *welcome);
-extern void target_init(void);
+extern void target_init(char *target);
 const char * str_or_unknown(const char * str) { return (str?str:unknown_string_placeholder); }
 const char * str_or_null(const char * str) { return (str?str:null_string_placeholder); }
 bool is_recovery_running;
@@ -365,6 +365,8 @@ void register_default_nvs(){
     register_default_string_val("pollmin","15");
     register_default_string_val("ethtmout","8");
     register_default_string_val("dhcp_tmout","8");
+	register_default_string_val("target", CONFIG_TARGET);
+	
 	wait_for_commit();
 	ESP_LOGD(TAG,"Done setting default values in nvs.");
 }
@@ -447,7 +449,11 @@ void app_main()
 	ESP_LOGI(TAG,"Initializing display");
 	display_init("SqueezeESP32");
 	MEMTRACE_PRINT_DELTA();
-	target_init();
+	char *target = config_alloc_get_default(NVS_TYPE_STR, "target", CONFIG_TARGET, 0);
+	if (target) {
+		target_init(target);
+		free(target);
+	}
 	if(is_recovery_running && display){
 		GDS_ClearExt(display, true);
 		GDS_SetFont(display, &Font_line_2 );

@@ -43,7 +43,7 @@ menu "Squeezelite-ESP32"
 	config MUTE_GPIO_LEVEL
 		int
 		default 0
-	config WELL_KNOWN
+	config TARGET_LOCKED
 		bool
 		default n
 	menu "Target"
@@ -59,20 +59,20 @@ menu "Squeezelite-ESP32"
 				select I2C_LOCKED
 				select LED_LOCKED
 				select SPKFAULT_LOCKED
-				select WELL_KNOWN
+				select TARGET_LOCKED
 			config MUSE
 				bool "Muse"
 				select JACK_LOCKED
 				select BAT_LOCKED
 				select I2C_LOCKED
 				select AMP_LOCKED				
-				select WELL_KNOWN
+				select TARGET_LOCKED
 			config BASIC_I2C_BT
 				bool "Generic I2S & Bluetooth"				
 			config TWATCH2020	
 				bool "T-WATCH2020 by LilyGo"				
 				select I2C_LOCKED		
-				select WELL_KNOWN				
+				select TARGET_LOCKED				
 		endchoice	
 		config RELEASE_API
 			string "Software update URL"
@@ -136,8 +136,13 @@ menu "Squeezelite-ESP32"
 			default "[{\"gpio\":32, \"pull\":true, \"debounce\":10, \"normal\":{\"pressed\":\"ACTRLS_VOLDOWN\"}}, {\"gpio\":19, \"pull\":true, \"debounce\":40, \"normal\":{\"pressed\":\"ACTRLS_VOLUP\"}}, {\"gpio\":12, \"pull\":true, \"debounce\":40, \"longpress\":1000, \"normal\":{\"pressed\":\"ACTRLS_TOGGLE\"},\"longpress\":{\"pressed\":\"ACTRLS_POWER\"}}]" if MUSE
 			default ""
 		config BAT_CONFIG
+			string
 			default "channel=7,scale=20.24,atten=0" if SQUEEZEAMP
 			default "channel=5,scale=1,atten=3,cells=1" if MUSE
+			default ""			
+		config TARGET
+			string
+			default "muse" if MUSE
 			default ""			
 		config AMP_GPIO		
 			int
@@ -380,7 +385,7 @@ menu "Squeezelite-ESP32"
 	endmenu
 	
     menu "Audio JACK"	
-		visible if !WELL_KNOWN
+		visible if !TARGET_LOCKED
 		config JACK_GPIO		
 			int "Jack insertion GPIO"
 			help
@@ -392,7 +397,7 @@ menu "Squeezelite-ESP32"
 	endmenu	
 	
 	menu "Amplifier"	
-		visible if !WELL_KNOWN
+		visible if !TARGET_LOCKED
 		config AMP_GPIO		
 			int "Amplifier GPIO"
 			help
@@ -404,7 +409,7 @@ menu "Squeezelite-ESP32"
 	endmenu	
 	
 	menu "Speaker Fault"	
-		visible if !WELL_KNOWN
+		visible if !TARGET_LOCKED
 		config SPKFAULT_GPIO		
 			int "Speaker fault GPIO"
 			help
@@ -416,7 +421,7 @@ menu "Squeezelite-ESP32"
 	endmenu
 	
 	menu "Battery measure"
-		visible if !WELL_KNOWN
+		visible if !TARGET_LOCKED
 		config BAT_CONFIG
 			string "Battery acquisition configuration"
 			help

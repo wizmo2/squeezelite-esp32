@@ -10,6 +10,7 @@
 //#include <driver/adc.h>
 #include "driver/rmt.h"
 #include "monitor.h"
+#include "targets.h"
 
 /////////////////////////////////////////////////////////////////
 //*********************** NeoPixels  ***************************
@@ -44,11 +45,15 @@ static const char TAG[] = "muse";
 
 static void (*battery_handler_chain)(float value);
 static void battery_svc(float value);
+static bool init(void);
 
-void target_init(void) { 
+const struct target_s target_muse = { "muse", init };
+
+static bool init(void) { 
 	battery_handler_chain = battery_handler_svc;
 	battery_handler_svc = battery_svc;
 	ESP_LOGI(TAG, "Initializing for Muse");
+	return true;
 }
 
 static void battery_svc(float value) {
