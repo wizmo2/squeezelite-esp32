@@ -481,7 +481,7 @@ void app_main()
 
 	if(!is_recovery_running){
 		ESP_LOGD(TAG,"Getting audio control mapping ");
-		char *actrls_config = config_alloc_get_default(NVS_TYPE_STR, "actrls_config", NULL, 0);
+		char *actrls_config = config_alloc_get_default(NVS_TYPE_STR, "actrls_config", CONFIG_AUDIO_CONTROLS, 0);
 		if (actrls_init(actrls_config) == ESP_OK) {
 			ESP_LOGD(TAG,"Initializing audio control buttons type %s", actrls_config);	
 		} else {
