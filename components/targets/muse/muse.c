@@ -52,51 +52,27 @@ const struct target_s target_muse = { "muse", init };
 static bool init(void) { 
 	battery_handler_chain = battery_handler_svc;
 	battery_handler_svc = battery_svc;
+	ws2812_control_init();
 	ESP_LOGI(TAG, "Initializing for Muse");
 	return true;
 }
 
-static void battery_svc(float value) {
-	ESP_LOGI(TAG, "Called for battery service with %f", value);
-	// put here your code for LED according to value
-	if (battery_handler_chain) battery_handler_chain(value);
-}
+#define VGREEN  4.0
+#define VRED    3.6
 
-// Battery monitoring
-/*
-static void battery(void *data)
-{
-#define VGREEN  2300
-#define VRED    2000
-#define NM      10
-  static int val;
-  static int V[NM];
-  static int I=0;
-  int S;
-  for(int i=0;i<NM;i++)V[i]=VGREEN;
-  vTaskDelay(1000 / portTICK_PERIOD_MS);	  
-  struct led_state new_state;
-  ws2812_control_init();
-// init ADC interface for battery survey
-  adc1_config_width(ADC_WIDTH_BIT_12);
-  adc1_config_channel_atten(ADC1_GPIO33_CHANNEL, ADC_ATTEN_DB_11);
-  while(true)
-	{
-	vTaskDelay(1000 / portTICK_PERIOD_MS);	
-	V[I++] = adc1_get_raw(ADC1_GPIO33_CHANNEL);
-	if(I >= NM)I = 0;
-	S = 0;
-	for(int i=0;i<NM;i++)S = S + V[i];	
-	val = S / NM;	
-	new_state.leds[0] = YELLOW;
-	if(val > VGREEN) new_state.leds[0] = GREEN;	
-	if(val < VRED) new_state.leds[0] = RED;
-        printf("====> %d  %6x\n", val, new_state.leds[0]);	        
+static void battery_svc(float value) {
+	struct led_state new_state;
+	
+	ESP_LOGI(TAG, "Called for battery service with %f", value);
+	
+	if (value > VGREEN) new_state.leds[0] = GREEN;	
+	else if (value < VRED) new_state.leds[0] = RED;
+	else new_state.leds[0] = YELLOW;
+
 	ws2812_write_leds(new_state);	        
 
-	}
+	if (battery_handler_chain) battery_handler_chain(value);
 }
-*/
 
 // This is the buffer which the hw peripheral will access while pulsing the output pin
 rmt_item32_t led_data_buffer[LED_BUFFER_ITEMS];
@@ -139,5 +115,5 @@ void setup_rmt_data_buffer(struct led_state new_state)
       mask >>= 1;
     }
   }
-  }
+}
 
