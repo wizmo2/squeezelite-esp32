@@ -66,8 +66,9 @@ esp_err_t network_wifi_connect_active_ssid();
 esp_err_t network_wifi_erase_known_ap();
 esp_err_t network_wifi_set_sta_mode();
 size_t network_wifi_get_known_count();
+size_t network_wifi_get_known_count_in_range();
 esp_err_t network_wifi_built_known_ap_list();
-
+esp_err_t network_wifi_connect_next_in_range();
 const wifi_sta_config_t* network_wifi_load_active_config();
 #ifdef __cplusplus
 }

@@ -224,31 +224,18 @@ static state_machine_result_t NETWORK_INSTANTIATED_STATE_handler(state_machine_t
     network_t* const nm = (network_t *)State_Machine;
     State_Machine->State = &network_states[NETWORK_INSTANTIATED_STATE];
     State_Machine->Event = EN_START;
-      char * valuestr=NULL;
-    valuestr=config_alloc_get_default(NVS_TYPE_STR,"pollmx","600",0);
-    if (valuestr) {
-        nm->sta_polling_max_ms = atoi(valuestr)*1000;
-        ESP_LOGD(TAG, "sta_polling_max_ms set to %d", nm->sta_polling_max_ms);
-        FREE_AND_NULL(valuestr);
-    }   
-    valuestr=config_alloc_get_default(NVS_TYPE_STR,"pollmin","15",0);
-    if (valuestr) {
-        nm->sta_polling_min_ms = atoi(valuestr)*1000;
-        ESP_LOGD(TAG, "sta_polling_min_ms set to %d", nm->sta_polling_min_ms);
-        FREE_AND_NULL(valuestr);
-    }
-    valuestr=config_alloc_get_default(NVS_TYPE_STR,"ethtmout","30",0);
-    if (valuestr) {
-        nm->eth_link_down_reboot_ms = atoi(valuestr)*1000;
-        ESP_LOGD(TAG, "ethtmout set to %d", nm->eth_link_down_reboot_ms);
-        FREE_AND_NULL(valuestr);
-    }
-    valuestr=config_alloc_get_default(NVS_TYPE_STR,"dhcp_tmout","30",0);
-    if(valuestr){
-        nm->dhcp_timeout = atoi(valuestr)*1000;
-        ESP_LOGD(TAG, "dhcp_timeout set to %d", nm->dhcp_timeout);
-        FREE_AND_NULL(valuestr);
-    }
+    config_get_uint16t_from_str("pollmx",&nm->sta_polling_max_ms,600);
+    nm->sta_polling_max_ms = nm->sta_polling_max_ms * 1000;
+    config_get_uint16t_from_str("apdelay",&nm->ap_duration_ms,20);
+    nm->ap_duration_ms = nm->ap_duration_ms * 1000;
+    config_get_uint16t_from_str("pollmin",&nm->sta_polling_min_ms,15);
+    nm->sta_polling_min_ms = nm->sta_polling_min_ms*1000;
+    config_get_uint16t_from_str("ethtmout",&nm->eth_link_down_reboot_ms,30);
+    nm->eth_link_down_reboot_ms = nm->eth_link_down_reboot_ms*1000;
+    config_get_uint16t_from_str("dhcp_tmout",&nm->dhcp_timeout,30);
+    nm->dhcp_timeout = nm->dhcp_timeout*1000;
+    ESP_LOGI(TAG,"Network manager configuration: polling max %d, polling min %d, ap delay %d, dhcp timeout %d, eth timeout %d",
+        nm->sta_polling_max_ms,nm->sta_polling_min_ms,nm->ap_duration_ms,nm->dhcp_timeout, nm->eth_link_down_reboot_ms);
     HANDLE_GLOBAL_EVENT(State_Machine);
     if (State_Machine->Event == EN_START) {
         result= local_traverse_state(State_Machine, &network_states[NETWORK_INITIALIZING_STATE],__FUNCTION__);
@@ -400,6 +387,7 @@ static state_machine_result_t NETWORK_ETH_ACTIVE_STATE_handler(state_machine_t* 
         case EN_SCAN:
             ESP_LOGW(TAG,"Wifi  scan cannot be executed in this state");
             network_wifi_built_known_ap_list();
+            result = EVENT_HANDLED;
             break;
         case EN_DELETE: {
             ESP_LOGD(TAG, "WiFi disconnected by user");
@@ -429,7 +417,7 @@ static state_machine_result_t NETWORK_ETH_ACTIVE_STATE_exit_handler(state_machin
 static state_machine_result_t ETH_CONNECTING_NEW_STATE_entry_handler(state_machine_t* const State_Machine) {
     network_t* const nm = (network_t *)State_Machine;
     network_handler_entry_print(State_Machine,true);
-    network_start_stop_dhcp(nm->wifi_netif, true);
+    network_start_stop_dhcp_client(nm->wifi_netif, true);
     network_wifi_connect(nm->event_parameters->ssid,nm->event_parameters->password);
     FREE_AND_NULL(nm->event_parameters->ssid);
     FREE_AND_NULL(nm->event_parameters->password);
@@ -707,7 +695,7 @@ static state_machine_result_t WIFI_CONFIGURING_STATE_exit_handler(state_machine_
 static state_machine_result_t WIFI_CONFIGURING_CONNECT_STATE_entry_handler(state_machine_t* const State_Machine) {
     network_t* const nm = (network_t *)State_Machine;
     network_handler_entry_print(State_Machine,true);
-    network_start_stop_dhcp(nm->wifi_netif, true);
+    network_start_stop_dhcp_client(nm->wifi_netif, true);
     network_wifi_connect(nm->event_parameters->ssid,nm->event_parameters->password);
     FREE_AND_NULL(nm->event_parameters->ssid);
     FREE_AND_NULL(nm->event_parameters->password);
@@ -723,7 +711,7 @@ static state_machine_result_t WIFI_CONFIGURING_CONNECT_STATE_handler(state_machi
     switch (State_Machine->Event) {
         case EN_CONNECTED:
             result=EVENT_HANDLED;
-            ESP_LOGD(TAG,"Wifi was connected. Waiting for IP address");
+            ESP_LOGI(TAG,"Wifi was connected. Waiting for IP address");
             network_set_timer(nm->dhcp_timeout,"DHCP Timeout");
             break;
         case EN_GOT_IP:
@@ -731,6 +719,16 @@ static state_machine_result_t WIFI_CONFIGURING_CONNECT_STATE_handler(state_machi
             result= local_traverse_state(State_Machine, &Wifi_Configuring_State[WIFI_CONFIGURING_CONNECT_SUCCESS_STATE],__FUNCTION__);
             break;
         case EN_LOST_CONNECTION:
+            if(nm->event_parameters->disconnected_event->reason == WIFI_REASON_ASSOC_LEAVE) {
+                ESP_LOGI(TAG,"Wifi was disconnected from previous access point. Waiting to connect.");
+            }
+            else {
+                network_status_update_ip_info(UPDATE_FAILED_ATTEMPT);
+                result = local_traverse_state(State_Machine, &Wifi_Configuring_State[WIFI_CONFIGURING_STATE],__FUNCTION__);
+            }
+            break;
+        case EN_TIMER:
+            ESP_LOGW(TAG,"Connection timeout.  (%s)",STR_OR_ALT(nm->timer_tag, "Unknown"));
             network_status_update_ip_info(UPDATE_FAILED_ATTEMPT);
             result = local_traverse_state(State_Machine, &Wifi_Configuring_State[WIFI_CONFIGURING_STATE],__FUNCTION__);
             break;
@@ -764,43 +762,13 @@ static state_machine_result_t WIFI_CONFIGURING_CONNECT_SUCCESS_STATE_entry_handl
 static state_machine_result_t WIFI_CONFIGURING_CONNECT_SUCCESS_STATE_handler(state_machine_t* const State_Machine) {
     network_handler_print(State_Machine,true);
     state_machine_result_t result = EVENT_HANDLED;
+    network_t* const nm = (network_t *)State_Machine;
     switch (State_Machine->Event) {
          case EN_UPDATE_STATUS:
             network_status_update_basic_info();
-            result= local_traverse_state(State_Machine, &Wifi_Configuring_State[WIFI_CONFIGURING_CONNECT_SUCCESS_GOTOSTA_STATE],__FUNCTION__);
+            network_set_timer(nm->ap_duration_ms,"Access point teardown"); // set a timer to tear down the AP mode
             break;
-        default:
-            result= EVENT_UN_HANDLED;
-    }
-    // Process global handler at the end, since we want to overwrite
-    // UPDATE_STATUS with our own logic above
-    HANDLE_GLOBAL_EVENT(State_Machine);
-    network_handler_print(State_Machine,false);
-    return result;
-}
-static state_machine_result_t WIFI_CONFIGURING_CONNECT_SUCCESS_STATE_exit_handler(state_machine_t* const State_Machine) {
-    network_exit_handler_print(State_Machine,true);
-    network_exit_handler_print(State_Machine,false);
-    return EVENT_HANDLED;
-}
-
-
-
-/********************************************************************************************* 
- * WIFI_CONFIGURING_CONNECT_SUCCESS_GOTOSTA_STATE
- */
-static state_machine_result_t WIFI_CONFIGURING_CONNECT_SUCCESS_GOTOSTA_STATE_entry_handler(state_machine_t* const State_Machine) {
-    network_handler_entry_print(State_Machine,true);
-    ESP_LOGD(TAG, "Waiting for next status update event to turn off AP.");
-    NETWORK_EXECUTE_CB(State_Machine);
-    network_handler_entry_print(State_Machine,false);
-    return EVENT_HANDLED;
-}
-static state_machine_result_t WIFI_CONFIGURING_CONNECT_SUCCESS_GOTOSTA_STATE_handler(state_machine_t* const State_Machine) {
-    network_handler_print(State_Machine,true);
-    state_machine_result_t result = EVENT_HANDLED;
-    switch (State_Machine->Event) {
-         case EN_UPDATE_STATUS:
+        case EN_TIMER:
             network_status_update_basic_info();
             result= local_traverse_state(State_Machine, &Wifi_Active_State[WIFI_CONNECTED_STATE],__FUNCTION__);
             break;
@@ -813,11 +781,14 @@ static state_machine_result_t WIFI_CONFIGURING_CONNECT_SUCCESS_GOTOSTA_STATE_han
     network_handler_print(State_Machine,false);
     return result;
 }
-static state_machine_result_t WIFI_CONFIGURING_CONNECT_SUCCESS_GOTOSTA_STATE_exit_handler(state_machine_t* const State_Machine) {
+static state_machine_result_t WIFI_CONFIGURING_CONNECT_SUCCESS_STATE_exit_handler(state_machine_t* const State_Machine) {
     network_exit_handler_print(State_Machine,true);
+    network_set_timer(0,NULL);
     network_exit_handler_print(State_Machine,false);
     return EVENT_HANDLED;
 }
+
+
 
 
 /********************************************************************************************* 
@@ -826,7 +797,7 @@ static state_machine_result_t WIFI_CONFIGURING_CONNECT_SUCCESS_GOTOSTA_STATE_exi
 static state_machine_result_t WIFI_CONNECTING_STATE_entry_handler(state_machine_t* const State_Machine) {
     network_t* const nm = (network_t *)State_Machine;
     network_handler_entry_print(State_Machine,true);
-    network_start_stop_dhcp(nm->wifi_netif, true);
+    network_start_stop_dhcp_client(nm->wifi_netif, true);
     network_connect_active_ssid(State_Machine);
     nm->STA_duration = nm->sta_polling_min_ms;
     /* create timer for background STA connection */
@@ -868,7 +839,7 @@ static state_machine_result_t WIFI_CONNECTING_STATE_exit_handler(state_machine_t
 static state_machine_result_t WIFI_CONNECTING_NEW_STATE_entry_handler(state_machine_t* const State_Machine) {
     network_t* const nm = (network_t *)State_Machine;
     network_handler_entry_print(State_Machine,true);
-    network_start_stop_dhcp(nm->wifi_netif, true);
+    network_start_stop_dhcp_client(nm->wifi_netif, true);
     network_wifi_connect(nm->event_parameters->ssid,nm->event_parameters->password);
     FREE_AND_NULL(nm->event_parameters->ssid);
     FREE_AND_NULL(nm->event_parameters->password);

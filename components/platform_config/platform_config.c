@@ -620,6 +620,40 @@ void config_delete_key(const char *key){
 void * config_alloc_get(nvs_type_t nvs_type, const char *key) {
 	return config_alloc_get_default(nvs_type, key, NULL, 0);
 }
+cJSON * config_alloc_get_cjson(const char *key){
+	char * conf_str = config_alloc_get_default(NVS_TYPE_STR, key, NULL, 0);
+	if(conf_str==NULL){
+		ESP_LOGE(TAG, "Unable to get config value for key [%s]", key);
+		return NULL;
+	}
+	cJSON * conf_json = cJSON_Parse(conf_str);
+	free(conf_str);
+	if(conf_json==NULL){
+		ESP_LOGE(TAG, "Unable to parse config value for key [%s]", key);
+		return NULL;
+	}
+	return conf_json;
+}
+esp_err_t config_set_cjson_str(const char *key, cJSON *value){
+	char * value_str = cJSON_PrintUnformatted(value);
+	if(value_str==NULL){
+		ESP_LOGE(TAG, "Unable to print cJSON for key [%s]", key);
+		return ESP_ERR_INVALID_ARG;
+	}
+	esp_err_t err = config_set_value(NVS_TYPE_STR,key, value_str);
+	free(value_str);
+	cJSON_Delete(value);
+	return err;
+}
+void config_get_uint16t_from_str(const char *key, uint16_t *value, uint16_t default_value){
+	char * str_value = config_alloc_get(NVS_TYPE_STR, key);
+	if(str_value == NULL){
+		*value = default_value;
+		return NULL;
+	}
+	*value = atoi(str_value);
+	free(str_value);
+}
 
 void * config_alloc_get_str(const char *key, char *lead, char *fallback) {
 	if (lead && *lead) return strdup_psram(lead);
@@ -716,7 +750,42 @@ esp_err_t config_set_value(nvs_type_t nvs_type, const char *key, const void * va
 	config_unlock();
 	return result;
 }
+cJSON* cjson_update_string(cJSON** root, const char* key, const char* value) {
+	if (*root == NULL) {
+		*root = cJSON_CreateObject();
+		if (*root == NULL) {
+			ESP_LOGE(TAG, "Error creating cJSON object!");
+		}
+	}
+	if (!key || !value || strlen(key) == 0) {
+		ESP_LOGE(TAG, "cjson_update_string. Invalid key or value passed! key: %s, value: %s", STR_OR_ALT(key, ""), STR_OR_ALT(value, ""));
+		return *root;
+	}
+	cJSON* cjsonvalue = cJSON_GetObjectItemCaseSensitive(*root, key);
+	if (cjsonvalue && strcasecmp(cJSON_GetStringValue(cjsonvalue), value) != 0) {
+		ESP_LOGD(TAG, "Value %s changed from %s to %s", key, cJSON_GetStringValue(cjsonvalue), value);
+		cJSON_SetValuestring(cjsonvalue, value);
+	} else if(!cjsonvalue){
+		ESP_LOGD(TAG, "Adding new value %s: %s", key, value);
+		cJSON_AddItemToObject(*root, key, cJSON_CreateString(value));
+	}
+    return *root;
+}
+cJSON* cjson_update_number(cJSON** root, const char* key, int value) {
 
+	if (*root == NULL) {
+		*root = cJSON_CreateObject();
+	}
+	if (key  && strlen(key) != 0) {
+		cJSON* cjsonvalue = cJSON_GetObjectItemCaseSensitive(*root, key);
+		if (cjsonvalue) {
+			cJSON_SetNumberValue(cjsonvalue, value);
+		} else {
+			cJSON_AddNumberToObject(*root, key, value);
+		}
+	}
+    return *root;
+}
 IMPLEMENT_SET_DEFAULT(uint8_t,NVS_TYPE_U8);
 IMPLEMENT_SET_DEFAULT(int8_t,NVS_TYPE_I8);
 IMPLEMENT_SET_DEFAULT(uint16_t,NVS_TYPE_U16);

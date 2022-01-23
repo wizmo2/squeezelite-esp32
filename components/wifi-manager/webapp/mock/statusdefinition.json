@@ -3,7 +3,9 @@
 		"Wifi Connection OK": 0,
 		"Wifi Failed Connect Attempt": 1,
 		"WiFi User Disconnect": 2,
-		"WiFi Lost Connection": 3
+		"WiFi Lost Connection": 3,
+		"Wifi update failed attempt and restore" : 4,
+		"Ethernet Connected": 5		
 	},
 	"bt_status": {
 		"Idle": 0,

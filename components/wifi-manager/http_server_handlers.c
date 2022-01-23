@@ -3,7 +3,6 @@ Copyright (c) 2017-2021 Sebastien L
 */
 
 #include "http_server_handlers.h"
-
 #include "esp_http_server.h"
 #include "cmd_system.h"
 #include <inttypes.h>
@@ -302,7 +301,10 @@ static esp_err_t set_content_type_from_file(httpd_req_t *req, const char *filena
         return httpd_resp_set_type(req, "text/javascript");
     } else if (IS_FILE_EXT(filename, ".json")) {
         return httpd_resp_set_type(req, HTTPD_TYPE_JSON);
+    } else if (IS_FILE_EXT(filename, ".map")) {
+        return httpd_resp_set_type(req, "map");
     }
+
 
     /* This is a limited set only */
     /* For any other type always set as plain text */
@@ -368,7 +370,6 @@ esp_err_t resource_filehandler(httpd_req_t *req){
    ESP_LOGD_LOC(TAG, "serving [%s]", req->uri);
 
    const char *filename = get_path_from_uri(filepath, req->uri, sizeof(filepath));
-
    if (!filename) {
 	   ESP_LOGE_LOC(TAG, "Filename is too long");
 	   /* Respond with 500 Internal Server Error */
@@ -382,7 +383,9 @@ esp_err_t resource_filehandler(httpd_req_t *req){
 	   return ESP_FAIL;
    }
 
-
+	if(strlen(filename) !=0 && IS_FILE_EXT(filename, ".map")){
+		return httpd_resp_sendstr(req, "");
+	}
 	int idx=-1;
 	if((idx=resource_get_index(filename))>=0){
 	    set_content_type_from_file(req, filename);
@@ -441,7 +444,6 @@ esp_err_t console_cmd_get_handler(httpd_req_t *req){
 }
 esp_err_t console_cmd_post_handler(httpd_req_t *req){
 	char success[]="{\"Result\" : \"Success\" }";
-	char failed[]="{\"Result\" : \"Failed\" }";
 	ESP_LOGD_LOC(TAG, "serving [%s]", req->uri);
 	//bool bOTA=false;
 	//char * otaURL=NULL;
@@ -482,7 +484,7 @@ esp_err_t console_cmd_post_handler(httpd_req_t *req){
 		// navigate to the first child of the config structure
 		char *cmd = cJSON_GetStringValue(item);
 		if(!console_push(cmd, strlen(cmd) + 1)){
-			httpd_resp_send(req, (const char *)failed, strlen(failed));
+			httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Unable to push command for execution");
 		}
 		else {
 			httpd_resp_send(req, (const char *)success, strlen(success));

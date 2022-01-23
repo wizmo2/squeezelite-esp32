@@ -23,6 +23,7 @@
 
 const char * desc_squeezelite ="Squeezelite Options";
 const char * desc_dac= "DAC Options";
+const char * desc_cspotc= "Spotify (cSpot) Options";
 const char * desc_preset= "Preset Options";
 const char * desc_spdif= "SPDIF Options";
 const char * desc_audio= "General Audio Options";
@@ -48,10 +49,6 @@ extern const struct adac_s *dac_set[];
 #define CODECS_DSD  ""
 #endif
 #define CODECS_MP3  "|mad|mpg"
-extern const uint8_t _presets_json_start[] asm("_binary_presets_json_start");
-extern const uint8_t _presets_json__end[] asm("_binary_presets_json__end");
-
-
 
 #if !defined(MODEL_NAME)
 #define MODEL_NAME SqueezeLite
@@ -94,7 +91,7 @@ static struct {
     struct arg_end *end;
 } i2s_args;
 static struct {
-	struct arg_str *model_name;
+	struct arg_str *model_config;
     struct arg_end *end;
 } known_model_args;
 static struct {
@@ -107,6 +104,7 @@ static struct {
 	struct arg_lit * knobonly;
 	struct arg_int * timer;
 	struct arg_lit * clear;
+	struct arg_lit * raw_mode;
 	struct arg_end * end;
 } rotary_args;
 //config_rotary_get
@@ -117,7 +115,12 @@ static struct{
 //		struct arg_dbl *control_delay;
 		struct arg_end *end;
 } bt_source_args;
-
+static struct {
+	struct arg_str *deviceName;
+//	struct arg_int *volume;
+	struct arg_int *bitrate;
+	struct arg_end *end;
+} cspot_args;
 static struct {
     struct arg_int *clock;
     struct arg_int *wordselect;
@@ -546,6 +549,7 @@ static int do_rotary_cmd(int argc, char **argv){
 		fprintf(f,"error: Cannot use volume lock or longpress option when knob only option selected\n");
 		nerrors++;
 	}
+
 	if(rotary_args.timer->count>0 && rotary_args.timer->ival[0]<0){
 		fprintf(f,"error: knob only timer should be greater than or equal to zero.\n");
 		nerrors++;
@@ -560,6 +564,13 @@ static int do_rotary_cmd(int argc, char **argv){
 		fprintf(f,"Storing rotary parameters.\n");
 		nerrors+=(config_rotary_set(&rotary )!=ESP_OK);
 	}
+	if(!nerrors ){
+		fprintf(f,"Storing raw mode parameter.\n");
+		nerrors+=(config_set_value(NVS_TYPE_STR, "lms_ctrls_raw", rotary_args.raw_mode->count>0?"Y":"N")!=ESP_OK);
+		if(nerrors>0){
+			fprintf(f,"error: Unable to store raw mode parameter.\n");
+		}
+	}	
 	if(!nerrors ){
 		fprintf(f,"Done.\n");
 	}
@@ -580,6 +591,49 @@ static int is_valid_gpio_number(int gpio, const char * name, FILE *f, bool manda
 		target->ival[0]=gpio;
 	}
 	return 0;
+}
+static int do_cspot_config(int argc, char **argv){
+	char * name = NULL;
+    int nerrors = arg_parse_msg(argc, argv,(struct arg_hdr **)&cspot_args);
+    if (nerrors != 0) {
+        return 1;
+    }
+
+	char *buf = NULL;
+	size_t buf_size = 0;
+	FILE *f = open_memstream(&buf, &buf_size);
+	if (f == NULL) {
+		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.");
+		return 1;
+	}
+
+	cJSON * cspot_config = config_alloc_get_cjson("cspot_config");
+	if(!cspot_config){
+		nerrors++;
+		fprintf(f,"error: Unable to get cspot config.\n");
+	}
+	else {
+		cjson_update_string(&cspot_config,cspot_args.deviceName->hdr.longopts,cspot_args.deviceName->count>0?cspot_args.deviceName->sval[0]:NULL);
+//		cjson_update_number(&cspot_config,cspot_args.volume->hdr.longopts,cspot_args.volume->count>0?cspot_args.volume->ival[0]:0);
+		cjson_update_number(&cspot_config,cspot_args.bitrate->hdr.longopts,cspot_args.bitrate->count>0?cspot_args.bitrate->ival[0]:0);
+	}
+	
+	if(!nerrors ){
+		fprintf(f,"Storing cspot parameters.\n");
+		nerrors+=(config_set_cjson_str("cspot_config",cspot_config) !=ESP_OK);
+	}
+	if(nerrors==0){
+		fprintf(f,"Device name changed to %s\n",name);
+	}
+	if(!nerrors ){
+		fprintf(f,"Done.\n");
+	}
+	FREE_AND_NULL(name);
+	fflush (f);
+	cmd_send_messaging(argv[0],nerrors>0?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
+	fclose(f);
+	FREE_AND_NULL(buf);
+	return nerrors;
 }
 static int do_i2s_cmd(int argc, char **argv)
 {
@@ -674,23 +728,46 @@ cJSON * example_cb(){
 }
 
 cJSON * known_model_cb(){
-	const char * key="board_model";
 	cJSON * values = cJSON_CreateObject();
 	if(!values){
 		ESP_LOGE(TAG,"known_model_cb: Failed to create JSON object");
 		return NULL;
 	}
-	char * name = config_alloc_get_default(NVS_TYPE_STR,key,"",0);
+	char * name = config_alloc_get_default(NVS_TYPE_STR,known_model_args.model_config->hdr.longopts,"",0);
 	if(!name){
-		ESP_LOGE(TAG,"Failed to get board model from nvs key %s ",key);
+		ESP_LOGE(TAG,"Failed to get board model from nvs key %s ",known_model_args.model_config->hdr.longopts);
 	}
 	else {
-		cJSON_AddStringToObject(values,known_model_args.model_name->hdr.longopts,name);
+		cJSON_AddStringToObject(values,known_model_args.model_config->hdr.longopts,name);
 	}
-
 	return values;
 }
-
+cJSON * cspot_cb(){
+	cJSON * values = cJSON_CreateObject();
+	if(!values){
+		ESP_LOGE(TAG,"cspot_cb: Failed to create JSON object");
+		return NULL;
+	}
+	cJSON * cspot_config = config_alloc_get_cjson("cspot_config");
+	if(!cspot_config){
+		ESP_LOGE(TAG,"cspot_cb: Failed to get cspot config");
+		return NULL;
+	}
+	cJSON * cspot_values = cJSON_GetObjectItem(cspot_config,cspot_args.deviceName->hdr.longopts);
+	if(cspot_values){
+		cJSON_AddStringToObject(values,cspot_args.deviceName->hdr.longopts,cJSON_GetStringValue(cspot_values));
+	}
+	cspot_values = cJSON_GetObjectItem(cspot_config,cspot_args.bitrate->hdr.longopts);
+	if(cspot_values){
+		cJSON_AddNumberToObject(values,cspot_args.bitrate->hdr.longopts,cJSON_GetNumberValue(cspot_values));
+	}
+	// cspot_values = cJSON_GetObjectItem(cspot_config,cspot_args.volume->hdr.longopts);
+	// if(cspot_values){
+	// 	cJSON_AddNumberToObject(values,cspot_args.volume->hdr.longopts,cJSON_GetNumberValue(cspot_values));
+	// }
+	cJSON_Delete(cspot_config);
+	return values;
+}
 cJSON * i2s_cb(){
 	cJSON * values = cJSON_CreateObject();
 
@@ -746,18 +823,22 @@ cJSON * spdif_cb(){
 }
 cJSON * rotary_cb(){
 	cJSON * values = cJSON_CreateObject();
+	char *p = config_alloc_get_default(NVS_TYPE_STR, "lms_ctrls_raw", "n", 0);
+	bool raw_mode = p && (*p == '1' || *p == 'Y' || *p == 'y');
+	free(p);
 	const rotary_struct_t *rotary= config_rotary_get();
 	
 	if(GPIO_IS_VALID_GPIO(rotary->A ) && rotary->A>=0 && GPIO_IS_VALID_GPIO(rotary->B) && rotary->B>=0){
-		cJSON_AddNumberToObject(values,"A",rotary->A);
-		cJSON_AddNumberToObject(values,"B",rotary->B);
+		cJSON_AddNumberToObject(values,rotary_args.A->hdr.longopts,rotary->A);
+		cJSON_AddNumberToObject(values,rotary_args.B->hdr.longopts,rotary->B);
 		if(GPIO_IS_VALID_GPIO(rotary->SW ) && rotary->SW>=0 ){
-			cJSON_AddNumberToObject(values,"SW",rotary->SW);
+			cJSON_AddNumberToObject(values,rotary_args.SW->hdr.longopts,rotary->SW);
 		}
-		cJSON_AddBoolToObject(values,"volume_lock",rotary->volume_lock);
-		cJSON_AddBoolToObject(values,"longpress",rotary->longpress);
-		cJSON_AddBoolToObject(values,"knobonly",rotary->knobonly);
-		cJSON_AddNumberToObject(values,"timer",rotary->timer);
+		cJSON_AddBoolToObject(values,rotary_args.volume_lock->hdr.longopts,rotary->volume_lock);
+		cJSON_AddBoolToObject(values,rotary_args.longpress->hdr.longopts,rotary->longpress);
+		cJSON_AddBoolToObject(values,rotary_args.knobonly->hdr.longopts,rotary->knobonly);
+		cJSON_AddNumberToObject(values,rotary_args.timer->hdr.longopts,rotary->timer);
+		cJSON_AddNumberToObject(values,rotary_args.raw_mode->hdr.longopts,raw_mode);
 	}
 	return values;
 }
@@ -948,191 +1029,67 @@ void replace_char_in_string(char * str, char find, char replace){
 		}
 	}
 }
-
-static cJSON * get_known_configurations(FILE * f){
-#ifndef CONFIG_SQUEEZEAMP 
-	#define err1_msg "Failed to parse known_configs json.  %s\nError at:\n%s"
-	#define err2_msg "Known configs should be an array and it is not: \n%s"
-
-//extern const uint8_t _presets_json_start[] asm("_binary_presets_json_start");
-//extern const uint8_t _presets_json__end[] asm("_binary_presets_json__end");
-	const char * known_configs_string = (const char *)_presets_json_start;
-	
-	if(!known_configs_string || strlen(known_configs_string)==0){
-		return NULL;
-	}
-	cJSON * known_configs_json = cJSON_Parse(known_configs_string);
-	if(!known_configs_json){
-		if(f){
-			fprintf(f,err1_msg,known_configs_string,STR_OR_BLANK(cJSON_GetErrorPtr()));
-		}
-		else {
-			ESP_LOGE(TAG,err1_msg,known_configs_string,STR_OR_BLANK(cJSON_GetErrorPtr()));
-		}
-		return NULL;
-	}
-	else {
-		if(!cJSON_IsArray(known_configs_json)){
-			if(f){
-				fprintf(f,err2_msg,STR_OR_BLANK(cJSON_GetErrorPtr()));
-			}
-			else {
-				ESP_LOGE(TAG,err2_msg,STR_OR_BLANK(cJSON_GetErrorPtr()));
-			}
-			cJSON_Delete(known_configs_json);
-			return NULL;
-		}
-		
-	}
-	return known_configs_json;
-#else
-	return NULL;
-#endif
-
-}
-
-static  cJSON * find_known_model_name(cJSON * root,const char * name, FILE * f, bool * found){
-	if(found){
-		*found = false;
-	}
-	if(!root){
-		return NULL;
-	}
-	cJSON * item;
-	cJSON_ArrayForEach(item, root){
-		if(cJSON_IsObject(item)){
-			cJSON * model = cJSON_GetObjectItem(item,"name");
-			if(model && cJSON_IsString(model) && strcmp(cJSON_GetStringValue(model),name)==0){
-				if(found){
-					*found = true;
-				}
-				return item;
-			}
-		}
-	}
-	return NULL;
-}
-static esp_err_t is_known_model_name(const char * name, FILE * f, bool * found){
-	esp_err_t err = ESP_OK;
-	if(found){
-		*found = false;
-	}
-	cJSON * known_configs_json = get_known_configurations(f);
-	if(known_configs_json){
-		cJSON * known_item = find_known_model_name(known_configs_json,name,f,found);
-		if(known_item && found){
-			*found = true;
-		}
-		cJSON_Delete(known_configs_json);
-	}
-	return err;
-}
-	
-static esp_err_t save_known_config(const char * name, FILE * f){
+static esp_err_t save_known_config(cJSON * known_item, const char * name,FILE * f){
 	esp_err_t err = ESP_OK;
 	char * json_string=NULL;
-
-	cJSON * known_configs_json = get_known_configurations(f);
-	if(known_configs_json){
-		bool found = false;
-		cJSON * known_item = find_known_model_name(known_configs_json,name,f,&found);
-		if(known_item && found){
-			json_string = cJSON_Print(known_item);
-			ESP_LOGD(TAG,"known_item_string: %s",STR_OR_BLANK(json_string));
-			FREE_AND_NULL(json_string);
-			cJSON * kvp=NULL;
-			cJSON * config_array = cJSON_GetObjectItem(known_item,"config");
-			if(config_array && cJSON_IsArray(config_array)){
-				json_string = cJSON_Print(config_array);
-				ESP_LOGD(TAG,"config_array: %s",STR_OR_BLANK(json_string));
-				FREE_AND_NULL(json_string);
-				cJSON_ArrayForEach(kvp, config_array){
-					cJSON * kvp_value=kvp->child;
-					if(!kvp_value){
-						ESP_LOGE(TAG,"config entry is not an object!");
-						err=ESP_FAIL;
-						continue;
-					}
-					char * key = kvp_value->string;
-					char * value = kvp_value->valuestring;
-					if(!key || !value || strlen(key)==0){
-						ESP_LOGE(TAG,"Invalid config entry %s:%s",STR_OR_BLANK(key),STR_OR_BLANK(value));
-						err=ESP_FAIL;
-						continue;
-					}
-					
-					fprintf(f,"Storing %s=%s\n",key,value);
-					err = config_set_value(NVS_TYPE_STR,key,value);
-					if(err){
-						fprintf(f,"Failed: %s\n",esp_err_to_name(err));
-						break;
-					}
-				}
+	json_string = cJSON_Print(known_item);
+	ESP_LOGD(TAG,"known_item_string: %s",STR_OR_BLANK(json_string));
+	FREE_AND_NULL(json_string);
+	cJSON * kvp=NULL;
+	cJSON * config_array = cJSON_GetObjectItem(known_item,"config");
+	if(config_array && cJSON_IsArray(config_array)){
+		json_string = cJSON_Print(config_array);
+		ESP_LOGD(TAG,"config_array: %s",STR_OR_BLANK(json_string));
+		FREE_AND_NULL(json_string);
+		cJSON_ArrayForEach(kvp, config_array){
+			cJSON * kvp_value=kvp->child;
+			if(!kvp_value){
+				printf("config entry is not an object!\n");
+				err=ESP_FAIL;
+				continue;
 			}
-			else {
-				json_string = cJSON_Print(config_array);
-				char * known_item_string = cJSON_Print(known_item);
-				fprintf(f,"Failed to parse config array. %s\n%s\nKnown item found: %s\n",config_array?cJSON_IsArray(config_array)?"":"NOT AN ARRAY":"config entry not found",STR_OR_BLANK(json_string),STR_OR_BLANK(known_item_string));
-				FREE_AND_NULL(json_string);
-				FREE_AND_NULL(known_item_string);
-				err = ESP_FAIL;
+			char * key = kvp_value->string;
+			char * value = kvp_value->valuestring;
+			if(!key || !value || strlen(key)==0){
+				printf("Invalid config entry %s:%s\n",STR_OR_BLANK(key),STR_OR_BLANK(value));
+				err=ESP_FAIL;
+				continue;
+			}
+			
+			fprintf(f,"Storing %s=%s\n",key,value);
+			err = config_set_value(NVS_TYPE_STR,key,value);
+			if(err){
+				fprintf(f,"Failed to store config value: %s\n",esp_err_to_name(err));
+				break;
 			}
 		}
-		if(err==ESP_OK){
-			err = config_set_value(NVS_TYPE_STR,"board_model",name);
-			if(err!=ESP_OK){
-				fprintf(f,"Failed to save board model %s\n",name);
-			}
-		} 
-		cJSON_Delete(known_configs_json);
 	}
+	else {
+		json_string = cJSON_Print(config_array);
+		char * known_item_string = cJSON_Print(known_item);
+		fprintf(f,"Failed to parse config array. %s\n%s\nKnown item found: %s\n",config_array?cJSON_IsArray(config_array)?"":"NOT AN ARRAY":"config entry not found",STR_OR_BLANK(json_string),STR_OR_BLANK(known_item_string));
+		FREE_AND_NULL(json_string);
+		FREE_AND_NULL(known_item_string);
+		err = ESP_FAIL;
+	}
+	
+
+	if(err==ESP_OK){
+		err = config_set_value(NVS_TYPE_STR,"board_model",name);
+		if(err!=ESP_OK){
+			fprintf(f,"Failed to save board model %s\n",name);
+		}
+	} 
+	
 	return err;
 }
 
-char * config_dac_alloc_print_known_config(){
-	cJSON * item=NULL;
-	char * dac_list=NULL;
-	size_t total_len=0;
-	cJSON * object = get_known_configurations(NULL);
-	if(!object){
-		return strdup_psram("");
-	}
-	// loop through all items, and concatenate model name separated with |
-	
-	cJSON_ArrayForEach(item, object){
-		if(cJSON_IsObject(item)){
-			cJSON * model = cJSON_GetObjectItem(item,"name");
-			if(model && cJSON_IsString(model)){
-				total_len+=strlen(model->valuestring)+1;
-			}
-		}
-	}
-	if(total_len==0){
-		ESP_LOGI(TAG,"No known configs found");
-		cJSON_Delete(object);
-		return NULL;
-	}
-	dac_list = malloc_init_external(total_len+1);
-	if(dac_list){
-		cJSON_ArrayForEach(item, object){
-			if(cJSON_IsObject(item)){
-				cJSON * model = cJSON_GetObjectItem(item,"name");
-				if(model && cJSON_IsString(model)){
-					strcat(dac_list,model->valuestring);
-					strcat(dac_list,"|");
-				}
-			}
-		}
-	}
-	dac_list[strlen(dac_list)-1]='\0';
-	cJSON_Delete(object);
-	return dac_list;
-}
 static int do_register_known_templates_config(int argc, char **argv){
 	esp_err_t err=ESP_OK;
 	int nerrors = arg_parse(argc, argv,(void **)&known_model_args);
 	char *buf = NULL;
 	size_t buf_size = 0;
+	cJSON * config_name =NULL;
 	FILE *f = open_memstream(&buf, &buf_size);
 	if (f == NULL) {
 		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.\n");
@@ -1142,30 +1099,52 @@ static int do_register_known_templates_config(int argc, char **argv){
 		arg_print_errors(f,known_model_args.end,desc_preset);
 	}
 	else {
-		bool found=false;
-    
-        if(nerrors +=(is_known_model_name(known_model_args.model_name->sval[0],f,&found)!=ESP_OK)){
-			fprintf(f,"Error registering known config %s. The model was not found.\n",known_model_args.model_name->sval[0]);
-		}
-		if(nerrors==0 && found){
-			fprintf(f,"Appling template configuration for %s\n",known_model_args.model_name->sval[0]);
-			nerrors+=((err=save_known_config(known_model_args.model_name->sval[0],f))!=ESP_OK);
-		}
-		if(nerrors==0){
-			const i2s_platform_config_t * i2s_config= config_dac_get();
-			if(i2s_config->scl!=-1 && i2s_config->sda!=-1 && GPIO_IS_VALID_GPIO(i2s_config->scl) && GPIO_IS_VALID_GPIO(i2s_config->sda)){
-				fprintf(f,"Scanning i2c bus for devices\n");
-				cmd_i2ctools_scan_bus(f,i2s_config->sda, i2s_config->scl);
+		ESP_LOGD(TAG,"arg: %s",STR_OR_BLANK(known_model_args.model_config->sval[0]));
+		char * model_config = strdup_psram(known_model_args.model_config->sval[0]);
+		char * t = model_config;
+		for(const char * p=known_model_args.model_config->sval[0];*p;p++){
+			if(*p=='\\' && *(p+1)=='"'){
+				*t++='"';
+				p++;
 			}
-
+			else {
+				*t++=*p;
+			}
 		}
-
+		*t=0;
+		cJSON * known_item = cJSON_Parse(model_config);
+		if(known_item){
+			ESP_LOGD(TAG,"Parsing success");
+			config_name= cJSON_GetObjectItem(known_item,"name");
+			if(!config_name || !cJSON_IsString(config_name) || strlen(config_name->valuestring)==0){
+				fprintf(f,"Failed to find name in config\n");
+				err=ESP_FAIL;
+				nerrors++;
+			}
+			if(nerrors==0){
+				const char * name = cJSON_GetStringValue(config_name);
+				nerrors+=(err = save_known_config(known_item,name,f)!=ESP_OK);
+				if(nerrors==0){
+					const i2s_platform_config_t * i2s_config= config_dac_get();
+					if(i2s_config->scl!=-1 && i2s_config->sda!=-1 && GPIO_IS_VALID_GPIO(i2s_config->scl) && GPIO_IS_VALID_GPIO(i2s_config->sda)){
+						fprintf(f,"Scanning i2c bus for devices\n");
+						cmd_i2ctools_scan_bus(f,i2s_config->sda, i2s_config->scl);
+					}
+				}
+			}
+			cJSON_Delete(known_item);
+		}
+		else {
+			ESP_LOGE(TAG,"Parsing error: %s",cJSON_GetErrorPtr());
+			fprintf(f,"Failed to parse JSON: %s\n",cJSON_GetErrorPtr());
+			err=ESP_FAIL;
+		}
         if(err!=ESP_OK){
             nerrors++;
-            fprintf(f,"Error registering known config %s.\n",known_model_args.model_name->sval[0]);
+            fprintf(f,"Error registering known config %s.\n",known_model_args.model_config->sval[0]);
         }
         else {
-            fprintf(f,"Registered known config %s.\n",known_model_args.model_name->sval[0]);
+            fprintf(f,"Registered known config %s.\n",known_model_args.model_config->sval[0]);
         }        
     }
 	
@@ -1179,8 +1158,8 @@ static int do_register_known_templates_config(int argc, char **argv){
 	return (nerrors==0 && err==ESP_OK)?0:1;
 }
 static void register_known_templates_config(){
-	char * known_models = config_dac_alloc_print_known_config();
-	known_model_args.model_name = arg_str1(NULL,"model_name",known_models,"Known Board Name.\nFor known boards, several systems parameters will be updated");
+
+	known_model_args.model_config = arg_str1(NULL,"model_config","SqueezeAMP|T-WATCH2020 by LilyGo","Known Board Name.\nFor known boards, several systems parameters will be updated");
 	known_model_args.end = arg_end(1);
 	 const esp_console_cmd_t cmd = {
         .command = CFG_TYPE_HW("preset"),
@@ -1191,8 +1170,22 @@ static void register_known_templates_config(){
     };
     cmd_to_json_with_cb(&cmd,&known_model_cb);
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
-	FREE_AND_NULL(known_models);
+}
 
+static void register_cspot_config(){
+	cspot_args.deviceName = arg_str1(NULL,"deviceName","","Device Name");
+	cspot_args.bitrate = arg_int1(NULL,"bitrate","96|160|320","Streaming Bitrate (kbps)");
+//	cspot_args.volume = arg_int1(NULL,"volume","","Spotify Volume");
+	cspot_args.end = arg_end(1);
+	 const esp_console_cmd_t cmd = {
+		.command = CFG_TYPE_SYST("cspot"),
+		.help = desc_cspotc,
+		.hint = NULL,
+		.func = &do_cspot_config,
+		.argtable = &cspot_args
+	};
+	cmd_to_json_with_cb(&cmd,&cspot_cb);
+	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
 static void register_i2s_config(void){
 	i2s_args.model_name = arg_str1(NULL,"model_name",STR_OR_BLANK(get_dac_list()),"DAC Model Name");
@@ -1246,6 +1239,7 @@ static void register_rotary_config(void){
 	rotary_args.volume_lock = arg_lit0(NULL,"volume_lock", "Force Volume down/up/play toggle all the time (even in LMS). ");
 	rotary_args.longpress = arg_lit0(NULL,"longpress","Enable alternate mode mode on long-press. In that mode, left is previous, right is next and press is toggle. Every long press on SW alternates between modes (the main mode actual behavior depends on 'volume').");
 	rotary_args.clear = arg_lit0(NULL, "clear", "Clear configuration");
+	rotary_args.raw_mode = arg_lit0(NULL, "raw_mode", "Send button events as raw values to LMS. No remapping is possible when this is enabled");
 	rotary_args.end = arg_end(3);
 	const esp_console_cmd_t cmd = {
         .command = CFG_TYPE_HW("rotary"),
@@ -1333,8 +1327,9 @@ static void register_squeezelite_config(void){
 
 void register_config_cmd(void){
 	if(!is_dac_config_locked()){
-		 register_known_templates_config();
+	 	 register_known_templates_config();
 	}
+	register_cspot_config();
 	register_audio_config();
 //	register_squeezelite_config();
 	register_bt_source_config();
