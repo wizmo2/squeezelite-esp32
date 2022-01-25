@@ -56,6 +56,7 @@ static bool init(void) {
 	
 	ws2812_control_init();
 	float value = battery_value_svc();
+	set_battery_led(value);
 	
 	ESP_LOGI(TAG, "Initializing for Muse %f", value);
 	
