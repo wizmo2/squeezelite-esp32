@@ -198,7 +198,7 @@ CONFIG_SPI_CONFIG=""
 CONFIG_DISPLAY_CONFIG=""
 CONFIG_ETH_CONFIG=""
 CONFIG_DAC_CONTROLSET="{\"init\":[ {\"reg\":0,\"val\":128}, {\"reg\":0,\"val\":0}, {\"reg\":25,\"val\":4}, {\"reg\":1,\"val\":80}, {\"reg\":2,\"val\":0},	{\"reg\":8,\"val\":0}, {\"reg\":4,\"val\":192},	{\"reg\":0,\"val\":18}, {\"reg\":1,\"val\":0}, {\"reg\":23,\"val\":24}, {\"reg\":24,\"val\":2}, {\"reg\":38,\"val\":9}, {\"reg\":39,\"val\":144}, {\"reg\":42,\"val\":144}, {\"reg\":43,\"val\":128}, {\"reg\":45,\"val\":128}, {\"reg\":27,\"val\":0}, {\"reg\":26,\"val\":0}, {\"reg\":2,\"val\":240}, {\"reg\":2,\"val\":0},	{\"reg\":29,\"val\":28}, {\"reg\":4,\"val\":48}, {\"reg\":25,\"val\":0} ]}"
-CONFIG_AUDIO_CONTROLS="[{\"gpio\":32, \"pull\":true, \"debounce\":10, \"normal\":{\"pressed\":\"ACTRLS_VOLDOWN\"}}, {\"gpio\":19, \"pull\":true, \"debounce\":40, \"normal\":{\"pressed\":\"ACTRLS_VOLUP\"}}, {\"gpio\":12, \"pull\":true, \"debounce\":40, \"longpress\":1000, \"normal\":{\"pressed\":\"ACTRLS_TOGGLE\"},\"longpress\":{\"pressed\":\"ACTRLS_POWER\"}}]"
+CONFIG_AUDIO_CONTROLS="[{\"gpio\":32, \"pull\":true, \"debounce\":10, \"normal\":{\"pressed\":\"ACTRLS_VOLDOWN\"}}, {\"gpio\":19, \"pull\":true, \"debounce\":40, \"normal\":{\"pressed\":\"ACTRLS_VOLUP\"}}, {\"gpio\":12, \"pull\":true, \"debounce\":40, \"long_press\":1000, \"normal\":{\"pressed\":\"ACTRLS_TOGGLE\"},\"longpress\":{\"pressed\":\"ACTRLS_POWER\"}}]"
 CONFIG_BAT_CONFIG="channel=5,scale=1,atten=3,cells=1"
 CONFIG_AMP_GPIO=21
 CONFIG_JACK_GPIO=34

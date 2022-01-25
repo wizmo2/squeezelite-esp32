@@ -133,7 +133,7 @@ menu "Squeezelite-ESP32"
 			default ""		
 		config AUDIO_CONTROLS
 			string
-			default "[{\"gpio\":32, \"pull\":true, \"debounce\":10, \"normal\":{\"pressed\":\"ACTRLS_VOLDOWN\"}}, {\"gpio\":19, \"pull\":true, \"debounce\":40, \"normal\":{\"pressed\":\"ACTRLS_VOLUP\"}}, {\"gpio\":12, \"pull\":true, \"debounce\":40, \"longpress\":1000, \"normal\":{\"pressed\":\"ACTRLS_TOGGLE\"},\"longpress\":{\"pressed\":\"ACTRLS_POWER\"}}]" if MUSE
+			default "[{\"gpio\":32, \"pull\":true, \"debounce\":10, \"normal\":{\"pressed\":\"ACTRLS_VOLDOWN\"}}, {\"gpio\":19, \"pull\":true, \"debounce\":40, \"normal\":{\"pressed\":\"ACTRLS_VOLUP\"}}, {\"gpio\":12, \"pull\":true, \"debounce\":40, \"long_press\":1000, \"normal\":{\"pressed\":\"ACTRLS_TOGGLE\"},\"longpress\":{\"pressed\":\"ACTRLS_POWER\"}}]" if MUSE
 			default ""
 		config BAT_CONFIG
 			string

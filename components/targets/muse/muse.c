@@ -46,30 +46,38 @@ static const char TAG[] = "muse";
 static void (*battery_handler_chain)(float value);
 static void battery_svc(float value);
 static bool init(void);
+static void set_battery_led(float value);
 
 const struct target_s target_muse = { "muse", init };
 
 static bool init(void) { 
 	battery_handler_chain = battery_handler_svc;
 	battery_handler_svc = battery_svc;
+	
 	ws2812_control_init();
-	ESP_LOGI(TAG, "Initializing for Muse");
+	float value = battery_value_svc();
+	
+	ESP_LOGI(TAG, "Initializing for Muse %f", value);
+	
 	return true;
 }
 
 #define VGREEN  4.0
 #define VRED    3.6
 
-static void battery_svc(float value) {
+static void set_battery_led(float value) {
 	struct led_state new_state;
-	
-	ESP_LOGI(TAG, "Called for battery service with %f", value);
-	
+
 	if (value > VGREEN) new_state.leds[0] = GREEN;	
 	else if (value < VRED) new_state.leds[0] = RED;
 	else new_state.leds[0] = YELLOW;
 
 	ws2812_write_leds(new_state);	        
+}
+
+static void battery_svc(float value) {
+	set_battery_led(value);
+	ESP_LOGI(TAG, "Called for battery service with %f", value);
 
 	if (battery_handler_chain) battery_handler_chain(value);
 }
