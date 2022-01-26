@@ -449,7 +449,7 @@ void app_main()
 	ESP_LOGI(TAG,"Initializing display");
 	display_init("SqueezeESP32");
 	MEMTRACE_PRINT_DELTA();
-	char *target = config_alloc_get_default(NVS_TYPE_STR, "target", CONFIG_TARGET, 0);
+	char *target = config_alloc_get_str("target", CONFIG_TARGET, NULL);
 	if (target) {
 		target_init(target);
 		free(target);
