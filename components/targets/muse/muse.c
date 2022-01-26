@@ -48,7 +48,7 @@ static void battery_svc(float value);
 static bool init(void);
 static void set_battery_led(float value);
 
-const struct target_s target_muse = { "muse", init };
+const struct target_s target_muse = { .model = "muse", .init = init };
 
 static bool init(void) { 
 	battery_handler_chain = battery_handler_svc;
