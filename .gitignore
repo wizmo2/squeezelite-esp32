@@ -1,78 +1,5 @@
-# Prerequisites
-*.d
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-# Build files with potential private info
 build/
-sdkconfig.old
-
-# =========================
-# Operating System Files
-# =========================
-
-# Windows
-# =========================
-
-# Windows thumbnail cache files
-Thumbs.db
-ehthumbs.db
-ehthumbs_vista.db
-
-# Folder config file
-Desktop.ini
-
-# Recycle Bin used on file shares
-$RECYCLE.BIN/
-
-# Windows Installer files
-*.cab
-*.msi
-*.msm
-*.msp
-
-# Windows shortcuts
-*.lnk
-*.save
-libs/
-
-/cdump.cmd
-/_*
-squeezelite-esp32-jsonblob.zip
-/flash_cmd.txt
-/writeSequeezeEsp.bat
-/writeSequeezeEsp.sh
-all_releases.json
-alltags.txt
-releases.json
-sdkconfig
 
 .vscode/c_cpp_properties.json
 
@@ -82,25 +9,22 @@ sdkconfig
 
 .vscode/tasks.json
 
-components/wifi-manager/.project
-
-components/wifi-manager/.settings/.jsdtscope
-
-components/wifi-manager/.settings/org.eclipse.wst.jsdt.ui.superType.container
-
-components/wifi-manager/.settings/org.eclipse.wst.jsdt.ui.superType.name
-
-components/wifi-manager/res/backup/
-
-*.code-workspace
-
-test/.vscode/
-
-node_modules/*
-esp-dsp/
-
-
+alltags.txt
 
 components/wifi-manager/network_manager_handlers.multi
+
+esp32.code-workspace
+
+sdkconfig.old
+
+test/.vscode/c_cpp_properties.json
+
+test/.vscode/launch.json
+
+test/.vscode/settings.json
+
+test/.vscode/tasks.json
+
+test/sdkconfig
 
 components/wifi-manager/UML-State-Machine-in-C
