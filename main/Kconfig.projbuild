@@ -133,12 +133,12 @@ menu "Squeezelite-ESP32"
 			default ""		
 		config AUDIO_CONTROLS
 			string
-			default "[{\"gpio\":32, \"pull\":true, \"debounce\":10, \"normal\":{\"pressed\":\"ACTRLS_VOLDOWN\"}}, {\"gpio\":19, \"pull\":true, \"debounce\":40, \"normal\":{\"pressed\":\"ACTRLS_VOLUP\"}}, {\"gpio\":12, \"pull\":true, \"debounce\":40, \"longpress\":1000, \"normal\":{\"pressed\":\"ACTRLS_TOGGLE\"},\"longpress\":{\"pressed\":\"ACTRLS_POWER\"}}]" if MUSE
+			default "[{\"gpio\":32, \"pull\":true, \"debounce\":10, \"normal\":{\"pressed\":\"ACTRLS_VOLDOWN\"}}, {\"gpio\":19, \"pull\":true, \"debounce\":40, \"normal\":{\"pressed\":\"ACTRLS_VOLUP\"}}, {\"gpio\":12, \"pull\":true, \"debounce\":40, \"long_press\":1000, \"normal\":{\"pressed\":\"ACTRLS_TOGGLE\"},\"longpress\":{\"pressed\":\"ACTRLS_POWER\"}}]" if MUSE
 			default ""
 		config BAT_CONFIG
 			string
 			default "channel=7,scale=20.24,atten=0" if SQUEEZEAMP
-			default "channel=5,scale=1,atten=3,cells=1" if MUSE
+			default "channel=5,scale=7.48,atten=3,cells=1" if MUSE
 			default ""			
 		config TARGET
 			string
@@ -163,7 +163,6 @@ menu "Squeezelite-ESP32"
 		config LED_GREEN_GPIO
 			int 
 			default 12 if SQUEEZEAMP
-			default 22 if MUSE
 			default -1
 		config LED_RED_GPIO
 			int

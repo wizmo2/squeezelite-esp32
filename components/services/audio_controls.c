@@ -157,7 +157,7 @@ esp_err_t actrls_init(const char *profile_name) {
 	
 	// set infrared GPIO if any
 	parse_set_GPIO(set_ir_gpio);
-	
+
 	if (!err) return actrls_init_json(profile_name, true);
 	else return err;
 }
@@ -508,11 +508,10 @@ static esp_err_t actrls_init_json(const char *profile_name, bool create) {
 	char *config;
 	const cJSON *button;
 	
-	if (!profile_name || !*profile_name) return ESP_OK;
-	
-	config = config_alloc_get_default(NVS_TYPE_STR, profile_name, NULL, 0);
-	if(!config) return ESP_FAIL;
-
+	if (!profile_name) return ESP_OK;
+	if ((config = config_alloc_get_str(profile_name, NULL, CONFIG_AUDIO_CONTROLS)) == NULL) return ESP_FAIL;
+	if (!*config) goto exit;
+		
 	ESP_LOGD(TAG,"Parsing JSON structure %s", config);
 	cJSON *buttons = cJSON_Parse(config);
 	if (buttons == NULL) {
@@ -526,7 +525,8 @@ static esp_err_t actrls_init_json(const char *profile_name, bool create) {
 			if(!cur_config) {
 				ESP_LOGE(TAG,"Config buffer was empty. ");
 				cJSON_Delete(buttons);
-				return ESP_FAIL;
+				err = ESP_FAIL;
+				goto exit;
 			}
 			ESP_LOGD(TAG,"Processing button definitions. ");
 			cJSON_ArrayForEach(button, buttons){
@@ -557,6 +557,8 @@ static esp_err_t actrls_init_json(const char *profile_name, bool create) {
 	// the last init that completes will assigh the first json config object found, which will match
 	// the default config from nvs.
 	json_config = config_root;
+exit:	
+	free(config);
 	return err;
 }
 

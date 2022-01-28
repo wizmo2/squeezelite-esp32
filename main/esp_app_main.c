@@ -449,7 +449,7 @@ void app_main()
 	ESP_LOGI(TAG,"Initializing display");
 	display_init("SqueezeESP32");
 	MEMTRACE_PRINT_DELTA();
-	char *target = config_alloc_get_default(NVS_TYPE_STR, "target", CONFIG_TARGET, 0);
+	char *target = config_alloc_get_str("target", CONFIG_TARGET, NULL);
 	if (target) {
 		target_init(target);
 		free(target);
@@ -481,7 +481,7 @@ void app_main()
 
 	if(!is_recovery_running){
 		ESP_LOGD(TAG,"Getting audio control mapping ");
-		char *actrls_config = config_alloc_get_default(NVS_TYPE_STR, "actrls_config", CONFIG_AUDIO_CONTROLS, 0);
+		char *actrls_config = config_alloc_get_default(NVS_TYPE_STR, "actrls_config", "", 0);
 		if (actrls_init(actrls_config) == ESP_OK) {
 			ESP_LOGD(TAG,"Initializing audio control buttons type %s", actrls_config);	
 		} else {
