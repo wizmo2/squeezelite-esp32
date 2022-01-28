@@ -3,9 +3,8 @@ FROM ubuntu:20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-COPY components/wifi-manager/webapp/package.json /opt
-
 # We need libpython2.7 due to GDB tools
+# we also need npm 8 for the webapp to work
 RUN : \
   && apt-get update \
   && apt-get install -y \
@@ -31,7 +30,7 @@ RUN : \
     wget \
     xz-utils \
     zip \
-	npm \
+    	npm \
 	nodejs \
   && apt-get autoremove -y \
   && rm -rf /var/lib/apt/lists/* \
@@ -39,8 +38,6 @@ RUN : \
   && python -m pip install --upgrade \
     pip \
     virtualenv \
-  && cd /opt \
-  && npm install -g \
   && :
 
 # To build the image for a branch or a tag of IDF, pass --build-arg IDF_CLONE_BRANCH_OR_TAG=name.
@@ -53,7 +50,8 @@ RUN : \
 # docker build . --build-arg IDF_CHECKOUT_REF=8bf14a9238329954c7c5062eeeda569529aedf75  -t sle118/squeezelite-esp32-idfv4-master
 # To run the image interactive (windows): docker run --rm -v %cd%:/project -w /project -it sle118/squeezelite-esp32-idfv4-master
 # to build the web app inside of the interactive session
-# pushd components/wifi-manager/webapp/ && npm rebuild node-sass && npm run-script build && popd
+# pushd components/wifi-manager/webapp/ && npm install && npm run-script build && popd
+
 
 ARG IDF_CLONE_URL=https://github.com/espressif/esp-idf.git
 ARG IDF_CLONE_BRANCH_OR_TAG=master
@@ -87,6 +85,41 @@ RUN : \
 # Ccache is installed, enable it by default
 ENV IDF_CCACHE_ENABLE=1
 COPY docker/entrypoint.sh /opt/esp/entrypoint.sh
+
+# Now install nodejs, npm and the packages we need
+COPY components/wifi-manager/webapp/package.json /opt
+
+ENV NODE_VERSION 8
+
+SHELL ["/bin/bash", "--login", "-c"]
+# Install nvm with node and npm
+# RUN wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash \
+#     && export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")" \
+#     && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" \
+#     && nvm install $NODE_VERSION \
+#     && nvm alias default $NODE_VERSION \
+#     && nvm use default \
+#     && echo installing nodejs version 16  \
+#     && curl -sL https://deb.nodesource.com/setup_16.x | bash - \
+#     && echo installing node modules  \
+#     && cd /opt \
+#     && nvm use default \
+#     && npm install -g \  
+#     && :    
+
+RUN : \
+  && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
+  && apt-get install -y nodejs \
+    && echo installing node modules  \
+    && cd /opt \
+    && npm i -g npm \
+    && node --version \
+    && npm install -g \  
+    && :      
+
+ENV NODE_PATH $NVM_DIR/v$NODE_VERSION/lib/node_modules
+ENV PATH      $NVM_DIR/v$NODE_VERSION/bin:$PATH
+
 
 ENTRYPOINT [ "/opt/esp/entrypoint.sh" ]
 CMD [ "/bin/bash" ]

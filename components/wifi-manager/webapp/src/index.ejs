@@ -14,23 +14,23 @@
 <body class="d-flex flex-column">
 	<header class="navbar navbar-expand-sm navbar-dark  bg-primary sticky-top border-bottom border-dark" id="mainnav">
 		<a class="navbar-brand" id="navtitle" href="#"></a>
-		<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+		<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
 			aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
 			<span class="navbar-toggler-icon"></span>
 		</button>
 		<div class="collapse navbar-collapse" id="navbarSupportedContent">
 			<ul class="nav navbar-nav mr-auto" role="tablist">
-				<li class="nav-item"><a class="nav-link active" data-toggle="tab" aria-controls="profile" role="tab" href="#tab-wifi">WiFi</a></li>
-				<li class="nav-item omsg"><a class="nav-link" data-toggle="tab" aria-controls="profile" role="tab" href="#tab-syslog">Status<span
+				<li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" aria-controls="profile" role="tab" href="#tab-wifi">WiFi</a></li>
+				<li class="nav-item omsg"><a class="nav-link" data-bs-toggle="tab" aria-controls="profile" role="tab" href="#tab-syslog">Status<span
 							class="badge badge-pill badge-success" id="msgcnt"></span></a></li>
-				<li class="nav-item orec"><a class="nav-link" data-toggle="tab" aria-controls="profile" role="tab" href="#tab-cfg-audio">Audio</a></li>
-				<li class="nav-item orec"><a class="nav-link" data-toggle="tab" aria-controls="profile" role="tab" href="#tab-cfg-syst">System</a></li>
-				<li class="nav-item orec"><a class="nav-link" data-toggle="tab" aria-controls="profile" role="tab" href="#tab-cfg-hw">Hardware</a></li>
-				<li class="nav-item"><a class="nav-link" data-toggle="tab"  aria-controls="profile" role="tab" href="#tab-cfg-fw">Updates</a></li>
+				<li class="nav-item orec"><a class="nav-link" data-bs-toggle="tab" aria-controls="profile" role="tab" href="#tab-cfg-audio">Audio</a></li>
+				<li class="nav-item orec"><a class="nav-link" data-bs-toggle="tab" aria-controls="profile" role="tab" href="#tab-cfg-syst">System</a></li>
+				<li class="nav-item orec"><a class="nav-link" data-bs-toggle="tab" aria-controls="profile" role="tab" href="#tab-cfg-hw">Hardware</a></li>
+				<li class="nav-item"><a class="nav-link" data-bs-toggle="tab"  aria-controls="profile" role="tab" href="#tab-cfg-fw">Updates</a></li>
 				<div class="dropdown-divider"></div>
-				<li class="nav-item"><a class="nav-link" data-toggle="tab"  aria-controls="profile" role="tab" href="#tab-nvs">NVS Editor</a></li>
-				<li class="nav-item"><a class="nav-link" data-toggle="tab"  aria-controls="profile" role="tab" href="#tab-commands">Advanced</a></li>
-				<li class="nav-item"><a class="nav-link" data-toggle="tab"  aria-controls="profile" role="tab" href="#tab-credits">Credits</a></li>
+				<li class="nav-item"><a class="nav-link" data-bs-toggle="tab"  aria-controls="profile" role="tab" href="#tab-nvs">NVS Editor</a></li>
+				<li class="nav-item"><a class="nav-link" data-bs-toggle="tab"  aria-controls="profile" role="tab" href="#tab-commands">Advanced</a></li>
+				<li class="nav-item"><a class="nav-link" data-bs-toggle="tab"  aria-controls="profile" role="tab" href="#tab-credits">Credits</a></li>
 			</ul>
 
 		</div>
@@ -40,7 +40,7 @@
 			<span id="o_jack" class="material-icons" style="fill:white; display: none">headphones</span>
 			<span id="s_airplay" class="material-icons"  style="fill:white; display: none">airplay</span>
 			<em id="s_cspot" class="fab fa-spotify" style="fill:white; display: inline"></em>
-			<span data-toggle="tooltip" id="o_type" data-placement="top" title="">
+			<span data-bs-toggle="tooltip" id="o_type" data-bs-placement="top" title="">
 				<span id="o_bt" class="material-icons" style="fill:white; display: none" >bluetooth</span>
 				<span id="o_spdif" class="material-icons" style="fill:white; display: none" >graphic_eq</span>
 				<span id="o_i2s" class="material-icons" style="fill:white; display: none" >speaker</span>
@@ -54,14 +54,13 @@
 		<!-- Button trigger modal -->
   
   <!-- Modal -->
-  <div class="modal fade" id="otadiv" tabindex="-1" role="dialog" aria-labelledby="fwProgressLabel" aria-hidden="true">
-	<div class="modal-dialog" role="document">
+  
+  <div class="modal" id="otadiv" aria-hidden="true">
+	<div class="modal-dialog" >
 	  <div class="modal-content">
 		<div class="modal-header">
 		  <h5 class="modal-title" id="fwProgressLabel">Upgrade Progress</h5>
-		  <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-			<span aria-hidden="true">&times;</span>
-		  </button>
+		  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 		</div>
 		<div class="modal-body">
 			<span id="flash-status"></span>
@@ -72,7 +71,7 @@
 			</div>
 		</div>
 		<div class="modal-footer">
-		  <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+		  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
 		</div>
 	  </div>
 	</div>
@@ -126,8 +125,8 @@
 									placeholder="select entry from list or enter known url" id="fw-url-input">
 							</div>
 							<div class="col-auto">
-								<button type="button" id='start-flash' data-toggle="modal" data-target="#uCnfrm"
-									class="btn btn-warning btn-sm" style="display: none;">Flash Firmware</button>
+								<button type="button" id='start-flash' data-bs-toggle="modal" data-bs-target="#uCnfrm"
+									class="btn btn-warning btn-sm flact" style="display: none;">Flash Firmware</button>
 							</div>
 							
 							<div class="col-auto">
@@ -142,16 +141,14 @@
 						<div class="modal-content">
 							<div class="modal-header">
 								<h5 class="modal-title">Firmware Flash</h5>
-								<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-									<span aria-hidden="true">&times;</span>
-								</button>
+								<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 							</div>
 							<div class="modal-body">
 								<p>Flash URL <span id="selectedFWURL" class="text-break"></span> to device?</p>
 							</div>
 							<div class="modal-footer  ">
-								<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-								<button id="btn_flash" type="button" class="btn btn-warning" data-dismiss="modal" >Ok</button>
+								<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+								<button id="btn_flash" type="button" class="btn btn-warning" data-bs-dismiss="modal" >Ok</button>
 							</div>
 						</div>
 					</div>
@@ -159,14 +156,14 @@
 				<div class="card text-white mb-3" >
 					<div class="card-header">Local Firmware Upload</div>
 					<div class="card-body">
-							<div id="uploaddiv" class="form-group row">
+							<div id="uploaddiv" class="form-group row ">
 									<label for="flashfilename" class="col-auto col-form-label">Local File</label>
 									<div class="col">
 										<input type="file" class="form-control-file" id="flashfilename" aria-describedby="fileHelp">
 								</div>
 								<div class="col-auto">
 									<div class="buttons">
-										<button type="button" class="btn btn-danger" id="fwUpload">Upload!</button>
+										<button type="button" class="btn btn-danger flact" id="fwUpload">Upload!</button>
 									</div>
 								</div>
 							</div>
@@ -237,12 +234,12 @@
 								</label>
 							</div>
 						</div>
-						<div class="toast show" role="alert" aria-live="assertive" aria-atomic="true"
-							style="display: none;" id="toast_cfg-audio-tmpl">
-							<div class="toast-header"><strong class="mr-auto">Result</strong><button type="button"
-									class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close"
-									onclick="hideSurrounding(this)"><span aria-hidden="true">×</span></button></div>
+						<div style="margin-top: 16px;">
+						<div class="toast hide" role="alert" aria-live="assertive" aria-atomic="true"  id="toast_cfg-audio-tmpl">
+							<div class="toast-header"><strong class="mr-auto">Result</strong>
+								<button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button></div>
 							<div class="toast-body" id="msg_cfg-audio-tmpl"></div>
+						</div>
 						</div>
 						<button id="save-autoexec1" type="submit" class="btn btn-info" cmdname="cfg-audio-tmpl">Save</button>
 						<button id="commit-autoexec1" type="submit" class="btn btn-warning" cmdname="cfg-audio-tmpl">Apply</button>
@@ -253,6 +250,7 @@
 		<div class="tab-pane fade active show" id="tab-wifi">
 			<div class="card text-white  mb-3">
 				<div class="card-header">WiFi Status</div>
+				
 				<div class="card-body if_eth" style="display: none">
 					<h2>Connected to Ethernet</h2>
 					<p>WiFi is inactive while connected to a wired network.
@@ -277,9 +275,7 @@
 						<div class="modal-content">
 							<div class="modal-header">
 								<h5 class="modal-title">Disconnect</h5>
-								<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-									<span aria-hidden="true">&times;</span>
-								</button>
+								<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 							</div>
 							<div class="modal-body">
 								<p>Disconnect from network? After disconnecting, the system won't be accessible from
@@ -287,22 +283,19 @@
 										id="apName"></span> with password <span id="apPass"></span> </p>
 							</div>
 							<div class="modal-footer connecting-success connecting-status">
-								<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-								<button id="btn_disconnect" type="button" class="btn btn-warning" data-dismiss="modal">Ok</button>
+								<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+								<button id="btn_disconnect" type="button" class="btn btn-warning" data-bs-dismiss="modal">Ok</button>
 							</div>
 						</div>
 					</div>
 				</div>
-				<div class="modal" id="WifiConnectDialog">
-					<div class="modal-dialog modal-dialog-centered" role="document">
+				<div class="modal" id="WifiConnectDialog" aria-hidden="true">
+					<div class="modal-dialog ">
 						<div class="modal-content">
 							<div class="modal-header">
-								<h5 class="modal-title connecting connecting-init connecting-fail">Connect to WiFi
-								</h5>
+								<h5 class="modal-title connecting connecting-init connecting-fail">Connect to WiFi</h5>
 								<h5 class="modal-title connecting-status connecting-success">Status</h5>
-								<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-									<span aria-hidden="true">&times;</span>
-								</button>
+								<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 							</div>
 							<div class="modal-body">
 								<fieldset class="connecting-init connecting-fail">
@@ -336,7 +329,7 @@
 							<div class="modal-footer ">
 								<button type="button"
 									class="btn btn-secondary connecting-init connecting-fail connecting"
-									data-dismiss="modal">Close</button>
+									data-bs-dismiss="modal">Close</button>
 								<button type="button" id="btnJoin"
 									class="btn btn-primary connecting-init connecting-fail">Join</button>
 								<button type="button" class="connecting btn btn-primary" disabled>
@@ -346,8 +339,8 @@
 							</div>
 
 							<div class="modal-footer connecting-success connecting-status justify-content-between" style=""><button type="button"
-									class="btn btn-primary" data-dismiss="modal">Ok</button><button type="button" class="btn btn-danger"
-									data-toggle="modal" data-dismiss="modal" data-target="#WiFiDisconnectConfirm">Disconnect</button> 
+									class="btn btn-primary" data-bs-dismiss="modal">Ok</button><button type="button" class="btn btn-danger"
+									data-bs-toggle="modal" data-bs-dismiss="modal" data-bs-target="#WiFiDisconnectConfirm">Disconnect</button> 
 							</div>
 						</div>
 					</div>

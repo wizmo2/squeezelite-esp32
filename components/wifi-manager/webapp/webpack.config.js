@@ -18,7 +18,6 @@ const fs = require('fs');
 const zlib = require("zlib");
 const PurgeCSSPlugin = require('purgecss-webpack-plugin')
 
-
 const PATHS = {
   src: path.join(__dirname, 'src')
 }
@@ -65,28 +64,69 @@ module.exports = (env, options) => (
               }
             ]
           }, 
-          {
-            test: /\.s[ac]ss$/i,
+          // {
+          //   test: /\.s[ac]ss$/i,
             
-            use:  [
-               {
-                  loader: MiniCssExtractPlugin.loader,
-                  options: {
-                    publicPath: "../",
-                  },
-                },
-              "css-loader",
+          //   use:  [{
+          //     loader: 'style-loader', // inject CSS to page
+          //   },
+          //      {
+          //         loader: MiniCssExtractPlugin.loader,
+          //         options: {
+          //           publicPath: "../",
+          //         },
+          //       },
+          //     "css-loader",
+          //     {
+          //       loader: "postcss-loader",
+          //       options: {
+          //         postcssOptions: {
+          //           plugins: [["autoprefixer"]],
+          //         },
+          //       },
+          //     },
+          //     "sass-loader",
+          //   ]
+          // },
+          {
+            test: /\.(scss)$/,
+            use: [
+              
               {
-                loader: "postcss-loader",
+                loader: MiniCssExtractPlugin.loader,
                 options: {
-                  postcssOptions: {
-                    plugins: [["autoprefixer"]],
-                  },
+                  publicPath: "../",
                 },
               },
-              "sass-loader",
-            ]
-          },
+            //   {
+            //   // inject CSS to page
+            //   loader: 'style-loader'
+            // }, 
+            {
+              // translates CSS into CommonJS modules
+              loader: 'css-loader'
+            },
+                 
+           {
+              // Run postcss actions
+              loader: 'postcss-loader',
+              options: {
+                // `postcssOptions` is needed for postcss 8.x;
+                // if you use postcss 7.x skip the key
+                postcssOptions: {
+                  // postcss plugins, can be exported to postcss.config.js
+                  plugins: function () {
+                    return [
+                      require('autoprefixer')
+                    ];
+                  }
+                }
+              }
+            }, {
+              // compiles Sass to CSS
+              loader: 'sass-loader'
+            }]
+          },          
           {
             test: /\.js$/,
             exclude: /(node_modules|bower_components)/,
@@ -113,30 +153,6 @@ module.exports = (env, options) => (
             
           }
         },
-          //          {
-          //   test: /\.html$/i,
-          //   use: [
-          //     "html-loader",
-          //     {
-          //       loader: 'markup-inline-loader',
-          //       options: {
-          //         svgo: {
-          //           plugins: [
-          //             {
-          //               removeTitle: true,
-          //             },
-          //             {
-          //               removeUselessStrokeAndFill: false,
-          //             },
-          //             {
-          //               removeUnknownsAndDefaults: false,
-          //             },
-          //           ],
-          //         },
-          //       },
-          //     },
-          //   ]
-          // },
           {
             test: /\.tsx?$/,
             use: 'ts-loader',
@@ -203,9 +219,15 @@ module.exports = (env, options) => (
           threshold: 100,
           minRatio: 0.8,
       }),
+      
         new BuildEventsHook('Update C App', 
           function (stats, arguments) {
+
             if (options.mode !== "production") return;
+            let wifiManagerPath=path.posix.resolve(process.cwd(),'..','..');
+            let buildCRootPath=path.posix.resolve(process.cwd(),'..','..','..','..');
+            let distPath = path.posix.resolve('dist');
+            let posixWebAppPath=path.posix.resolve(process.cwd(),'..');
             fs.appendFileSync('./dist/index.html.gz', 
               zlib.gzipSync(fs.readFileSync('./dist/index.html'), 
               {
@@ -214,11 +236,11 @@ module.exports = (env, options) => (
              }));
             
             var getDirectories = function (src, callback) {
-              var searchPath = path.posix.relative(process.cwd(), path.posix.join(__dirname, src, '/**/*(*.gz|favicon-32x32.png)'));
+              var searchPath = path.posix.join(src, '/**/*(*.gz|favicon-32x32.png)');
               console.log(`Post build: Getting file list from ${searchPath}`);
               glob(searchPath, callback);
             };
-            var cleanUpPath = path.posix.relative(process.cwd(), path.posix.join(__dirname, '../../../build/*.S'));
+            var cleanUpPath = path.posix.join(buildCRootPath, '/build/*.S');
             console.log(`Post build: Cleaning up previous builds in ${cleanUpPath}`);
             glob(cleanUpPath, function (err, list) {
               if (err) {
@@ -239,11 +261,11 @@ module.exports = (env, options) => (
             );
             console.log('Generating C include files from webpack build output');
             getDirectories('./dist', function (err, list) {
+              console.log(`Post build: found ${list.length} files. Relative path: ${wifiManagerPath}.`);
               if (err) {
                 console.log('Error', err);
               } else {
-                const regex = /^(.*\/)([^\/]*)$/
-                const relativeRegex = /((\w+(?<!dist)\/){0,1}[^\/]*)$/
+              
                 let exportDefHead =
 `/***********************************
 webpack_headers
@@ -259,17 +281,18 @@ extern const uint8_t * resource_map_end[];`;
                 let lookupDef = 'const char * resource_lookups[] = {\n';
                 let lookupMapStart = 'const uint8_t * resource_map_start[] = {\n';
                 let lookupMapEnd = 'const uint8_t * resource_map_end[] = {\n';
-                let cMake = '';
-                list.forEach(fileName => {
-
-                  let exportName = fileName.match(regex)[2].replace(/[\. \-]/gm, '_');
-                  let relativeName = fileName.match(relativeRegex)[1];
+                let cMake='';
+                
+                list.forEach(foundFile => {
+                  let exportName = path.basename(foundFile).replace(/[\. \-]/gm, '_');
+                  let cmakeFileName = path.posix.relative(wifiManagerPath,foundFile);
+                  let httpRelativePath=path.posix.join('/',path.posix.relative('dist',foundFile));
                   exportDef += `extern const uint8_t _${exportName}_start[] asm("_binary_${exportName}_start");\nextern const uint8_t _${exportName}_end[] asm("_binary_${exportName}_end");\n`;
-                  lookupDef += '\t"/' + relativeName + '",\n';
+                  lookupDef += `\t"${httpRelativePath}",\n`;
                   lookupMapStart += '\t_' + exportName + '_start,\n';
                   lookupMapEnd += '\t_' + exportName + '_end,\n';
-                  cMake += `target_add_binary_data( __idf_wifi-manager ${path.posix.relative(path.posix.resolve(process.cwd(),'..','..'),fileName)} BINARY)\n`;
-                  console.log(`Post build: adding cmake file reference to ${path.posix.relative(path.posix.resolve(process.cwd(),'..','..'),fileName)} from C project.`);
+                  cMake += `target_add_binary_data( __idf_wifi-manager ${cmakeFileName} BINARY)\n`;
+                  console.log(`Post build: adding cmake file reference to ${cmakeFileName} from C project, with web path ${httpRelativePath}.`);
                 });
 
                 lookupDef += '""\n};\n';
@@ -335,16 +358,16 @@ extern const uint8_t * resource_map_end[];`;
           //new BundleAnalyzerPlugin()
 
         ],
-        splitChunks: {
-          cacheGroups: {
-            styles: {
-              name: 'styles',
-              test: /\.css$/,
-              chunks: 'all',
-              enforce: true
-            }
-          }
-        }
+        // splitChunks: {
+        //   cacheGroups: {
+        //     styles: {
+        //       name: 'styles',
+        //       test: /\.css$/,
+        //       chunks: 'all',
+        //       enforce: true
+        //     }
+        //   }
+        // }
       },
       //   output: {
       //     filename: "[name].js",

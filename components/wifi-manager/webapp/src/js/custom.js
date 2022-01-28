@@ -1,15 +1,19 @@
 import he from 'he';
 import { Promise } from 'es6-promise';
+window.bootstrap = require('bootstrap');
+import Cookies from 'js-cookie';
+
+
 
 if (!String.prototype.format) {
   Object.assign(String.prototype, {
     format() {
       const args = arguments;
-      return this.replace(/{(\d+)}/g, function(match, number) {
+      return this.replace(/{(\d+)}/g, function (match, number) {
         return typeof args[number] !== 'undefined' ? args[number] : match;
       });
-    }, 
-  }); 
+    },
+  });
 }
 if (!String.prototype.encodeHTML) {
   Object.assign(String.prototype, {
@@ -24,8 +28,19 @@ Object.assign(Date.prototype, {
     return this.toLocaleString(undefined, opt);
   },
 });
-function isEnabled(val){
-  return val.match("[Yy1]");
+function handleNVSVisible(){
+  let nvs_previous_checked = isEnabled(Cookies.get("show-nvs"));
+  $('input#show-nvs')[0].checked = nvs_previous_checked ;
+  if ($('input#show-nvs')[0].checked || recovery) {
+      $('*[href*="-nvs"]').show();
+    } else {
+      $('*[href*="-nvs"]').hide();
+    }
+}
+
+
+function isEnabled(val) {
+  return val!=undefined && typeof val === 'string' && val.match("[Yy1]");
 }
 
 const nvsTypes = {
@@ -68,16 +83,16 @@ const btIcons = {
   bt_connecting: 'bluetooth_searching',
   bt_connected: 'bluetooth_connected',
   bt_disabled: 'bluetooth_disabled',
-  play_arrow:  'play_circle_filled',
+  play_arrow: 'play_circle_filled',
   pause: 'pause_circle',
-  stop:  'stop_circle',
+  stop: 'stop_circle',
   '': '',
 };
 const batIcons = [
-  { icon: "battery_0_bar", ranges: [ {f: 5.8, t: 6.8},{f: 8.8, t: 10.2}    ]},
-  { icon: "battery_2_bar", ranges: [ {f: 6.8, t: 7.4},{f: 10.2, t: 11.1}    ]},
-  { icon: "battery_3_bar", ranges: [ {f: 7.4, t: 7.5},{f: 11.1, t: 11.25}    ]},
-  { icon: "battery_4_bar", ranges: [ {f: 7.5, t: 7.8},{f: 11.25, t: 11.7}    ]}
+  { icon: "battery_0_bar", ranges: [{ f: 5.8, t: 6.8 }, { f: 8.8, t: 10.2 }] },
+  { icon: "battery_2_bar", ranges: [{ f: 6.8, t: 7.4 }, { f: 10.2, t: 11.1 }] },
+  { icon: "battery_3_bar", ranges: [{ f: 7.4, t: 7.5 }, { f: 11.1, t: 11.25 }] },
+  { icon: "battery_4_bar", ranges: [{ f: 7.5, t: 7.8 }, { f: 11.25, t: 11.7 }] }
 ];
 const btStateIcons = [
   { desc: 'Idle', sub: ['bt_neutral'] },
@@ -85,7 +100,7 @@ const btStateIcons = [
   { desc: 'Discovered', sub: ['bt_connecting'] },
   { desc: 'Unconnected', sub: ['bt_disconnected'] },
   { desc: 'Connecting', sub: ['bt_connecting'] },
-  { 
+  {
     desc: 'Connected',
     sub: ['bt_connected', 'play_arrow', 'bt_playing', 'pause', 'stop'],
   },
@@ -98,12 +113,12 @@ const pillcolors = {
   MESSAGING_ERROR: 'badge-danger',
 };
 const connectReturnCode = {
-  OK : 0, 
-	FAIL : 1,
-	DISC : 2,
-  LOST : 3,
-  RESTORE : 4,
-  ETH : 5
+  OK: 0,
+  FAIL: 1,
+  DISC: 2,
+  LOST: 3,
+  RESTORE: 4,
+  ETH: 5
 }
 const taskStates = {
   0: 'eRunning',
@@ -116,29 +131,313 @@ const taskStates = {
   /*! < The task being queried is in the Suspended state, or is in the Blocked state with an infinite time out. */
   4: 'eDeleted',
 };
-const flash_status_codes = {
-  NONE : 0,
+let flashState = {
+  NONE: 0,
   REBOOT_TO_RECOVERY: 2,
   SET_FWURL: 5,
   FLASHING: 6,
   DONE: 7,
   UPLOADING: 8,
-  ERROR: 9
-};
-let flash_state=flash_status_codes.FLASH_NONE;
-let flash_ota_dsc='';
-let flash_ota_pct=0;
-let older_recovery=false;
-let presetsloaded=false;
-let is_i2c_locked=false;
+  ERROR: 9,
+  UPLOADCOMPLETE: 10,
+  _state: -1,
+  olderRecovery: false,
+  statusText: '',
+  flashURL: '',
+  flashFileName: '',
+  statusPercent: 0,
+  Completed: false,
+  recovery: false,
+  prevRecovery: false,
+  updateModal: new bootstrap.Modal(document.getElementById('otadiv'), {}),
+  reset: function () {
 
-function isFlashExecuting(data){
-  return (flash_state!=flash_status_codes.UPLOADING ) && (data.ota_dsc!='' || data.ota_pct>0);
+    this.olderRecovery = false;
+    this.statusText = '';
+    this.statusPercent = -1;
+    this.flashURL = '';
+    this.flashFileName = undefined;
+    this.UpdateProgress();
+    $('#rTable tr.release').removeClass('table-success table-warning');
+    $('.flact').prop('disabled', false);
+    $('#flashfilename').value = null;
+    $('#fw-url-input').value = null;
+    if(!this.isStateError()){
+      $('span#flash-status').html('');
+      $('#fwProgressLabel').parent().removeClass('bg-danger');
+    }
+    this._state = this.NONE
+    return this;
+  },
+  isStateUploadComplete: function () {
+    return this._state == this.UPLOADCOMPLETE;
+  },
+  isStateError: function () {
+    return this._state == this.ERROR;
+  },
+  isStateNone: function () {
+    return this._state == this.NONE;
+  },
+  isStateRebootRecovery: function () {
+    return this._state == this.REBOOT_TO_RECOVERY;
+  },
+  isStateSetUrl: function () {
+    return this._state == this.SET_FWURL;
+  },
+  isStateFlashing: function () {
+    return this._state == this.FLASHING;
+  },
+  isStateDone: function () {
+    return this._state == this.DONE;
+  },
+  isStateUploading: function () {
+    return this._state == this.UPLOADING;
+  },
+  init: function () {
+    this._state = this.NONE;
+    return this;
+  },
+
+  SetStateError: function () {
+    this._state = this.ERROR;
+    $('#fwProgressLabel').parent().addClass('bg-danger');
+    return this;
+  },
+  SetStateNone: function () {
+    this._state = this.NONE;
+    return this;
+  },
+  SetStateRebootRecovery: function () {
+    this._state = this.REBOOT_TO_RECOVERY;
+    // Reboot system to recovery mode
+    this.SetStatusText('Starting recovery mode.')
+    $.ajax({
+      url: '/recovery.json',
+      context: this,
+      dataType: 'text',
+      method: 'POST',
+      cache: false,
+      contentType: 'application/json; charset=utf-8',
+      data: JSON.stringify({
+        timestamp: Date.now(),
+      }),
+      error: function (xhr, _ajaxOptions, thrownError) {
+        this.setOTAError(`Unexpected error while trying to restart to recovery. (status=${xhr.status ?? ''}, error=${thrownError ?? ''} ) `);
+      },
+      complete: function (response) {
+        this.SetStatusText('Waiting for system to boot.')
+      },
+    });
+    return this;
+  },
+  SetStateSetUrl: function () {
+    this._state = this.SET_FWURL;
+    this.statusText = 'Sending firmware download location.';
+    let confData = {
+      fwurl: {
+        value: this.flashURL,
+        type: 33,
+      }
+    };
+    post_config(confData);
+    return this;
+  },
+  SetStateFlashing: function () {
+    this._state = this.FLASHING;
+    return this;
+  },
+  SetStateDone: function () {
+    this._state = this.DONE;
+    this.reset();
+    return this;
+  },
+  SetStateUploading: function () {
+    this._state = this.UPLOADING;
+    return this.SetStatusText('Sending file to device.');
+  },
+  SetStateUploadComplete: function () {
+    this._state = this.UPLOADCOMPLETE;
+    return this;
+  },
+
+  isFlashExecuting: function () {
+    return true === (this._state != this.UPLOADING && (this.statusText !== '' || this.statusPercent >= 0));
+  },
+
+
+
+  toString: function () {
+    let keys = Object.keys(this);
+    return keys.find(x => this[x] === this._state);
+  },
+
+  setOTATargets: function () {
+    this.flashURL = '';
+    this.flashFileName = '';
+    this.flashURL = $('#fw-url-input').val();
+    let fileInput = $('#flashfilename')[0].files;
+    if (fileInput.length > 0) {
+      this.flashFileName = fileInput[0];
+    }
+    if (this.flashFileName.length == 0 && this.flashURL.length == 0) {
+      this.setOTAError('Invalid url or file. Cannot start OTA');
+    }
+    return this;
+  },
+
+  setOTAError: function (message) {
+    this.SetStateError().SetStatusPercent(0).SetStatusText(message).reset();
+    return this;
+  },
+
+  ShowDialog: function () {
+    if (!this.isStateNone()) {
+      this.updateModal.show();
+      $('.flact').prop('disabled', true);
+    }
+    return this;
+  },
+
+  SetStatusPercent: function (pct) {
+    var pctChanged = (this.statusPercent != pct);
+    this.statusPercent = pct;
+    if (pctChanged) {
+      if (!this.isStateUploading() && !this.isStateFlashing()) {
+        this.SetStateFlashing();
+      }
+      if (pct == 100) {
+        if (this.isStateFlashing()) {
+          this.SetStateDone();
+        }
+        else if (this.isStateUploading()) {
+          this.statusPercent = 0;
+          this.SetStateFlashing();
+        }
+      }
+      this.UpdateProgress().ShowDialog();
+    }
+    return this;
+  },
+  SetStatusText: function (txt) {
+    var changed = (this.statusText != txt);
+    this.statusText = txt;
+    if (changed) {
+      $('span#flash-status').html(this.statusText);
+      this.ShowDialog();
+    }
+
+    return this;
+  },
+  UpdateProgress: function () {
+    $('.progress-bar')
+      .css('width', this.statusPercent + '%')
+      .attr('aria-valuenow', this.statusPercent)
+      .text(this.statusPercent + '%')
+    $('.progress-bar').html((this.isStateDone() ? 100 : this.statusPercent) + '%');
+    return this;
+  },
+  StartOTA: function () {
+    this.logEvent(this.StartOTA.name);
+    $('#fwProgressLabel').parent().removeClass('bg-danger');
+    this.setOTATargets();
+    if (this.isStateError()) {
+      return this;
+    }
+    if (!recovery) {
+      this.SetStateRebootRecovery();
+    }
+    else {
+      this.SetStateFlashing().TargetReadyStartOTA();
+    }
+
+    return this;
+  },
+  UploadLocalFile: function () {
+    this.SetStateUploading();
+    const xhttp = new XMLHttpRequest();
+    xhttp.context = this;
+    var boundHandleUploadProgressEvent = this.HandleUploadProgressEvent.bind(this);
+    var boundsetOTAError=this.setOTAError.bind(this);
+    xhttp.upload.addEventListener("progress",boundHandleUploadProgressEvent, false);
+    xhttp.onreadystatechange = function () {
+      if (xhttp.readyState === 4) {
+        if (xhttp.status === 0 || xhttp.status === 404) {
+          boundsetOTAError(`Upload Failed. Recovery version might not support uploading. Please use web update instead.`);
+        }
+      }
+    };
+    xhttp.open('POST', '/flash.json', true);
+    xhttp.send(this.flashFileName);
+  },
+  TargetReadyStartOTA: function () {
+    if (recovery && this.prevRecovery && !this.isStateRebootRecovery() && !this.isStateFlashing()) {
+      // this should only execute once, while being in a valid state
+      return this;
+    }
+
+    this.logEvent(this.TargetReadyStartOTA.name);
+    if (!recovery) {
+      console.error('Event TargetReadyStartOTA fired in the wrong mode ');
+      return this;
+    }
+    this.prevRecovery = true;
+
+    if (this.flashFileName !== '') {
+      this.UploadLocalFile();
+    }
+    else if (this.flashURL != '') {
+      this.SetStateSetUrl();
+    }
+    else {
+      this.setOTAError('Invalid URL or file name while trying to start the OTa process')
+    }
+  },
+  HandleUploadProgressEvent: function (data) {
+    this.logEvent(this.HandleUploadProgressEvent.name);
+    this.SetStateUploading().SetStatusPercent(Math.round(data.loaded / data.total * 100)).SetStatusText('Uploading file to device');
+  },
+  EventTargetStatus: function (data) {
+    if (!this.isStateNone()) {
+      this.logEvent(this.EventTargetStatus.name);
+    }
+    if (data.ota_pct ?? -1 >= 0) {
+      this.olderRecovery = true;
+      this.SetStatusPercent(data.ota_pct);
+    }
+    if ((data.ota_dsc ?? '') != '') {
+      this.olderRecovery = true;
+      this.SetStatusText(data.ota_dsc);
+    }
+
+    if (data.recovery != undefined) {
+      this.recovery = data.recovery === 1 ? true : false;
+    }
+    if (this.isStateRebootRecovery() && this.recovery) {
+      this.TargetReadyStartOTA();
+    }
+  },
+  EventOTAMessageClass: function (data) {
+    this.logEvent(this.EventOTAMessageClass.name);
+    var otaData = JSON.parse(data);
+    this.SetStatusPercent(otaData.ota_pct).SetStatusText(otaData.ota_dsc);
+  },
+  logEvent: function (fun) {
+    console.log(`${fun}, flash state ${this.toString()}, recovery: ${this.recovery}, ota pct: ${this.statusPercent}, ota desc: ${this.statusText}`);
+  }
+
+};
+window.hideSurrounding = function (obj) {
+  $(obj).parent().parent().hide();
 }
-function post_config(data){
-  let confPayload={
+
+let presetsloaded = false;
+let is_i2c_locked = false;
+let statusInterval = 2000;
+let messageInterval = 2500;
+function post_config(data) {
+  let confPayload = {
     timestamp: Date.now(),
-    config : data
+    config: data
   };
   $.ajax({
     url: '/config.json',
@@ -150,231 +449,21 @@ function post_config(data){
     error: handleExceptionResponse,
   });
 }
-function process_ota_event(data){
-  if(data.ota_dsc){
-    flash_ota_dsc=data.ota_dsc;
-  }
-  if( data.ota_pct != undefined){
-    flash_ota_pct=data.ota_pct;
-  }
-  
-  if(flash_state==flash_status_codes.ERROR){
-    return;
-  }
-  else if(isFlashExecuting(data)){
-    flash_state=flash_status_codes.FLASHING;
-  }  
-  else if(flash_state==flash_status_codes.FLASHING ){
-    if(flash_ota_pct ==100){
-      // we were processing OTA, and we've reached 100%
-      flash_state=flash_status_codes.DONE;
-      $('#flashfilename').val('');
-    } 
-    else if(flash_ota_pct<0 && older_recovery){
-      // we were processing OTA on an older recovery and we missed the 
-      // end of flashing.
-      console.log('End of flashing from older recovery');
-      if(data.ota_dsc==''){
-        flash_ota_dsc = 'OTA Process Completed';
-      }
-      flash_state=flash_status_codes.DONE;
-    }
-  }
-  else if(flash_state ==flash_status_codes.UPLOADING){ 
-    if(flash_ota_pct ==100){
-      // we were processing OTA, and we've reached 100%
-      // reset the progress bar 
-      flash_ota_pct = 0;
-      flash_state=flash_status_codes.FLASHING;
-    } 
-  }
-}
-function set_ota_error(message){
-  flash_state=flash_status_codes.ERROR;
-  handle_flash_state({
-    ota_pct: 0,
-    ota_dsc: message,
-    event: flash_events.SET_ERROR
-  });  
-}
-function show_update_dialog(){
-  $('#otadiv').modal();
-    if (flash_ota_pct >= 0) {
-      update_progress();
-    }
-    if (flash_ota_dsc !== '') {
-      $('span#flash-status').html(flash_ota_dsc);
-    }
-}
-const flash_events={
-  SET_ERROR: function(data){
-    if(data.ota_dsc){
-      flash_ota_dsc=data.ota_dsc;
-    }
-    else {
-      flash_ota_dsc = 'Error';
-    }
-    flash_ota_pct=data.ota_pct??0;
-    $('#fwProgressLabel').parent().addClass('bg-danger');
-    update_progress();
-    show_update_dialog();
-  },
-  START_OTA : function() {
-    if (flash_state == flash_status_codes.NONE || flash_state == flash_status_codes.ERROR || flash_state == undefined) {
-      $('#fwProgressLabel').parent().removeClass('bg-danger');
-      flash_state=flash_status_codes.REBOOT_TO_RECOVERY;
-      if(!recovery){
-        flash_ota_dsc = 'Starting recovery mode...';
-        // Reboot system to recovery mode
-        const data = {
-          timestamp: Date.now(),
-        };
 
-        $.ajax({
-          url: '/recovery.json',
-          dataType: 'text',
-          method: 'POST',
-          cache: false,
-          contentType: 'application/json; charset=utf-8',
-          data: JSON.stringify(data),
-          error:  function(xhr, _ajaxOptions, thrownError){
-            set_ota_error(`Unexpected error while trying to restart to recovery. (status=${xhr.status??''}, error=${thrownError??''} ) `);
-          },
-          complete: function(response) {
-            console.log(response.responseText);
-          },
-        });     
-      }
-      else {
-        flash_ota_dsc='Starting Update';
-      }
-      show_update_dialog();
-      
-    }
-    else {
-      console.warn('Unexpected status while starting flashing');
-    }    
-  },
-  FOUND_RECOVERY: function(data) {
-    console.log(JSON.stringify(data));
-    const url=$('#fw-url-input').val();
-    if(flash_state == flash_status_codes.REBOOT_TO_RECOVERY){
-        const fileInput = $('#flashfilename')[0].files;
-        if (fileInput.length > 0) {
-          flash_ota_dsc = 'Sending file to device.';
-          flash_state= flash_status_codes.UPLOADING;
-          const uploadPath = '/flash.json';
-          const xhttp = new XMLHttpRequest();
-    //      xhrObj.upload.addEventListener("loadstart", loadStartFunction, false);  
-          xhttp.upload.addEventListener("progress", progressFunction, false);  
-          //xhrObj.upload.addEventListener("load", transferCompleteFunction, false);  
-          xhttp.onreadystatechange = function() {
-            if (xhttp.readyState === 4) {
-              if(xhttp.status === 0 || xhttp.status === 404) {
-                set_ota_error(`Upload Failed. Recovery version might not support uploading. Please use web update instead.`);
-                $('#flashfilename').val('');
-              }
-            }
-          };
-          xhttp.open('POST', uploadPath, true);
-          xhttp.send(fileInput[0] );
-        }
-        else if(url==''){
-          flash_state= flash_status_codes.NONE;
-        }
-        else {
-          flash_ota_dsc = 'Saving firmware URL location.';
-          flash_state= flash_status_codes.SET_FWURL;
-          let confData= { fwurl: {
-                value: $('#fw-url-input').val(),
-                type: 33,
-            }
-          };
-          post_config(confData);          
-        }
-        show_update_dialog();
-    }
-  },
-  PROCESS_OTA_UPLOAD: function(data){
-    flash_state= flash_status_codes.UPLOADING;
-    process_ota_event(data);
-    show_update_dialog();
-  },
-  PROCESS_OTA_STATUS: function(data){
-    if(data.ota_pct>0){
-      older_recovery = true;
-    }
-    if(flash_state == flash_status_codes.REBOOT_TO_RECOVERY){
-      data.event = flash_events.FOUND_RECOVERY;
-      handle_flash_state(data);
-    }
-    else if(flash_state==flash_status_codes.DONE && !recovery){
-      flash_state=flash_status_codes.NONE;
-      $('#rTable tr.release').removeClass('table-success table-warning');
-      $('#fw-url-input').val('');
-    }
 
-    else {
-      process_ota_event(data);
-      if(flash_state && (flash_state >flash_status_codes.NONE && flash_ota_pct>=0) ) {
-        show_update_dialog();
-      }
-    } 
-  },
-  PROCESS_OTA: function(data) {
-    process_ota_event(data);
-    if(flash_state && (flash_state >flash_status_codes.NONE && flash_ota_pct>=0) ) {
-      show_update_dialog();
-    }
-  }
-};
-window.hideSurrounding = function(obj){
-  $(obj).parent().parent().hide();
-}
-function update_progress(){
-  $('.progress-bar')
-    .css('width', flash_ota_pct + '%')
-    .attr('aria-valuenow', flash_ota_pct)
-    .text(flash_ota_pct+'%')
-  $('.progress-bar').html((flash_state==flash_status_codes.DONE?100:flash_ota_pct) + '%');
-
-}
-function handle_flash_state(data) {
-  if(data.event)  {
-    data.event(data);
-  } 
-  else {
-    console.error('Unexpected error while processing handle_flash_state');
-    return;
-  }
-
-}
-window.hFlash = function(){
+window.hFlash = function () {
   // reset file upload selection if any;
-  $('#flashfilename').val('');
-  handle_flash_state({ event: flash_events.START_OTA, url: $('#fw-url-input').val() });
+  $('#flashfilename').value = null
+  flashState.StartOTA();
 }
-window.handleReboot = function(link){
-  
-  if(link=='reboot_ota'){
-    $('#reboot_ota_nav').removeClass('active').prop("disabled",true); delayReboot(500,'', 'reboot_ota');
+window.handleReboot = function (link) {
+  if (link == 'reboot_ota') {
+    $('#reboot_ota_nav').removeClass('active').prop("disabled", true); delayReboot(500, '', 'reboot_ota');
   }
   else {
-    $('#reboot_nav').removeClass('active'); delayReboot(500,'',link);
+    $('#reboot_nav').removeClass('active'); delayReboot(500, '', link);
   }
 }
-function progressFunction(evt){  
-  // if (evt.lengthComputable) {  
-  //   progressBar.max = evt.total;  
-  //   progressBar.value = evt.loaded;  
-  //   percentageDiv.innerHTML = Math.round(evt.loaded / evt.total * 100) + "%";  
-  // }  
-  handle_flash_state({
-    ota_pct: ( Math.round(evt.loaded / evt.total * 100)),
-    ota_dsc: ('Uploading file to device'),
-    event: flash_events.PROCESS_OTA_UPLOAD
-  });  
-}  
 function handlebtstate(data) {
   let icon = '';
   let tt = '';
@@ -388,12 +477,12 @@ function handlebtstate(data) {
       tt = 'Output status';
     }
   }
-  
+
   $('#o_type').attr('title', tt);
   $('#o_bt').html(icon);
 }
 function handleTemplateTypeRadio(outtype) {
-  $('#o_type').children('span').css({ display : 'none' });
+  $('#o_type').children('span').css({ display: 'none' });
   if (outtype === 'bt') {
     output = 'bt';
   } else if (outtype === 'spdif') {
@@ -401,8 +490,8 @@ function handleTemplateTypeRadio(outtype) {
   } else {
     output = 'i2s';
   }
-  $('#'+output).prop('checked', true);
-  $('#o_'+output).css({ display : 'inline' });
+  $('#' + output).prop('checked', true);
+  $('#o_' + output).css({ display: 'inline' });
 }
 
 function handleExceptionResponse(xhr, _ajaxOptions, thrownError) {
@@ -413,12 +502,12 @@ function handleExceptionResponse(xhr, _ajaxOptions, thrownError) {
   }
 }
 function HideCmdMessage(cmdname) {
-  $('#toast_' + cmdname).css('display', 'none');
   $('#toast_' + cmdname)
     .removeClass('table-success')
     .removeClass('table-warning')
     .removeClass('table-danger')
-    .addClass('table-success');
+    .addClass('table-success')
+    .removeClass('show');
   $('#msg_' + cmdname).html('');
 }
 function showCmdMessage(cmdname, msgtype, msgtext, append = false) {
@@ -428,12 +517,12 @@ function showCmdMessage(cmdname, msgtype, msgtext, append = false) {
   } else if (msgtype === 'MESSAGING_ERROR') {
     color = 'table-danger';
   }
-  $('#toast_' + cmdname).css('display', 'block');
   $('#toast_' + cmdname)
     .removeClass('table-success')
     .removeClass('table-warning')
     .removeClass('table-danger')
-    .addClass(color);
+    .addClass(color)
+    .addClass('show');
   let escapedtext = msgtext
     .substring(0, msgtext.length - 1)
     .encodeHTML()
@@ -447,49 +536,47 @@ function showCmdMessage(cmdname, msgtype, msgtext, append = false) {
 
 let releaseURL =
   'https://api.github.com/repos/sle118/squeezelite-esp32/releases';
-  
+
 let recovery = false;
+let messagesHeld = false;
 const commandHeader = 'squeezelite -b 500:2000 -d all=info -C 30 -W';
-let blockAjax = false;
 //let blockFlashButton = false;
 let apList = null;
 //let selectedSSID = '';
 //let checkStatusInterval = null;
 let messagecount = 0;
 let messageseverity = 'MESSAGING_INFO';
-let StatusIntervalActive = false;
-let LastRecoveryState = null;
-let SystemConfig={};
+let SystemConfig = {};
 let LastCommandsState = null;
 var output = '';
 let hostName = '';
-let versionName='Squeezelite-ESP32';
-let prevmessage='';
-let project_name=versionName;
-let board_model='';
-let platform_name=versionName;
-let preset_name='';
-let btSinkNamesOptSel='#cfg-audio-bt_source-sink_name';
-let ConnectedTo={};
-let ConnectingToSSID={};
+let versionName = 'Squeezelite-ESP32';
+let prevmessage = '';
+let project_name = versionName;
+let board_model = '';
+let platform_name = versionName;
+let preset_name = '';
+let btSinkNamesOptSel = '#cfg-audio-bt_source-sink_name';
+let ConnectedTo = {};
+let ConnectingToSSID = {};
 let lmsBaseUrl;
-let prevLMSIP='';
+let prevLMSIP = '';
 const ConnectingToActions = {
-  'CONN' : 0,'MAN' : 1,'STS' : 2,
+  'CONN': 0, 'MAN': 1, 'STS': 2,
 }
 
-Promise.prototype.delay = function(duration) {
+Promise.prototype.delay = function (duration) {
   return this.then(
-    function(value) {
-      return new Promise(function(resolve) {
-        setTimeout(function() {
+    function (value) {
+      return new Promise(function (resolve) {
+        setTimeout(function () {
           resolve(value);
         }, duration);
       });
     },
-    function(reason) {
-      return new Promise(function(_resolve, reject) {
-        setTimeout(function() {
+    function (reason) {
+      return new Promise(function (_resolve, reject) {
+        setTimeout(function () {
           reject(reason);
         }, duration);
       });
@@ -497,21 +584,9 @@ Promise.prototype.delay = function(duration) {
   );
 };
 
-function startCheckStatusInterval() {
-  StatusIntervalActive = true;
-  setTimeout(checkStatus, 3000);
-}
-
-
-function RepeatCheckStatusInterval() {
-  if (StatusIntervalActive) {
-    startCheckStatusInterval();
-  }
-}
-
 function getConfigJson(slimMode) {
   const config = {};
-  $('input.nvs').each(function(_index, entry) {
+  $('input.nvs').each(function (_index, entry) {
     if (!slimMode) {
       const nvsType = parseInt(entry.attributes.nvs_type.value, 10);
       if (entry.id !== '') {
@@ -550,21 +625,21 @@ function getConfigJson(slimMode) {
   return config;
 }
 
-function handleHWPreset(allfields,reboot){
-  
+function handleHWPreset(allfields, reboot) {
+
   const selJson = JSON.parse(allfields[0].value);
-  var cmd=allfields[0].attributes.cmdname.value;
-  
+  var cmd = allfields[0].attributes.cmdname.value;
+
   console.log(`selected model: ${selJson.name}`);
-  let confPayload={
+  let confPayload = {
     timestamp: Date.now(),
-    config : { model_config : {value:selJson.name,type:33 }}
+    config: { model_config: { value: selJson.name, type: 33 } }
   };
-  for(const [name, value]  of Object.entries(selJson.config)){
-    const storedval=(typeof value === 'string' || value instanceof String)?value:JSON.stringify(value);
+  for (const [name, value] of Object.entries(selJson.config)) {
+    const storedval = (typeof value === 'string' || value instanceof String) ? value : JSON.stringify(value);
     confPayload.config[name] = {
-        value : storedval,
-        type: 33,
+      value: storedval,
+      type: 33,
     }
     showCmdMessage(
       cmd,
@@ -573,7 +648,7 @@ function handleHWPreset(allfields,reboot){
       true
     );
   }
-  
+
   showCmdMessage(
     cmd,
     'MESSAGING_INFO',
@@ -587,16 +662,16 @@ function handleHWPreset(allfields,reboot){
     cache: false,
     contentType: 'application/json; charset=utf-8',
     data: JSON.stringify(confPayload),
-    error: function(xhr, _ajaxOptions, thrownError){
+    error: function (xhr, _ajaxOptions, thrownError) {
       handleExceptionResponse(xhr, _ajaxOptions, thrownError);
       showCmdMessage(
         cmd,
         'MESSAGING_ERROR',
-        `Unexpected error ${(thrownError !== '')?thrownError:'with return status = '+xhr.status} `,
+        `Unexpected error ${(thrownError !== '') ? thrownError : 'with return status = ' + xhr.status} `,
         true
-      );        
+      );
     },
-    success: function(response) {
+    success: function (response) {
       showCmdMessage(
         cmd,
         'MESSAGING_INFO',
@@ -611,34 +686,34 @@ function handleHWPreset(allfields,reboot){
   });
 
 
-  
-  
+
+
 
 }
 
 
 // pull json file from https://gist.githubusercontent.com/sle118/dae585e157b733a639c12dc70f0910c5/raw/b462691f69e2ad31ac95c547af6ec97afb0f53db/squeezelite-esp32-presets.json and
 function loadPresets() {
-  if($("#cfg-hw-preset-model_config").length == 0) return;
-  if(presetsloaded) return;
+  if ($("#cfg-hw-preset-model_config").length == 0) return;
+  if (presetsloaded) return;
   presetsloaded = true;
   $('#cfg-hw-preset-model_config').html('<option>--</option>');
   $.getJSON(
     'https://gist.githubusercontent.com/sle118/dae585e157b733a639c12dc70f0910c5/raw/',
-    {_: new Date().getTime()},
-    function(data) {
-      $.each(data, function(key, val) {
-          $('#cfg-hw-preset-model_config').append(`<option value='${JSON.stringify(val).replace(/"/g, '\"').replace(/\'/g, '\"')}'>${val.name}</option>`);
-          if(preset_name !=='' && preset_name==val.name){
-            $('#cfg-hw-preset-model_config').val(preset_name);
-          }
+    { _: new Date().getTime() },
+    function (data) {
+      $.each(data, function (key, val) {
+        $('#cfg-hw-preset-model_config').append(`<option value='${JSON.stringify(val).replace(/"/g, '\"').replace(/\'/g, '\"')}'>${val.name}</option>`);
+        if (preset_name !== '' && preset_name == val.name) {
+          $('#cfg-hw-preset-model_config').val(preset_name);
+        }
       });
-      if(preset_name !== ''){
+      if (preset_name !== '') {
         ('#prev_preset').show().val(preset_name);
-      }      
+      }
     }
 
-  ).fail(function(jqxhr, textStatus, error) {
+  ).fail(function (jqxhr, textStatus, error) {
     const err = textStatus + ', ' + error;
     console.log('Request Failed: ' + err);
   }
@@ -646,12 +721,12 @@ function loadPresets() {
 }
 
 function delayReboot(duration, cmdname, ota = 'reboot') {
-  const url = '/'+ota+'.json';
+  const url = '/' + ota + '.json';
   $('tbody#tasks').empty();
   $('#tasks_sect').css('visibility', 'collapse');
   Promise.resolve({ cmdname: cmdname, url: url })
     .delay(duration)
-    .then(function(data) {
+    .then(function (data) {
       if (data.cmdname.length > 0) {
         showCmdMessage(
           data.cmdname,
@@ -674,11 +749,11 @@ function delayReboot(duration, cmdname, ota = 'reboot') {
           timestamp: Date.now(),
         }),
         error: handleExceptionResponse,
-        complete: function() {
+        complete: function () {
           console.log('reboot call completed');
           Promise.resolve(data)
             .delay(6000)
-            .then(function(rdata) {
+            .then(function (rdata) {
               if (rdata.cmdname.length > 0) {
                 HideCmdMessage(rdata.cmdname);
               }
@@ -690,7 +765,7 @@ function delayReboot(duration, cmdname, ota = 'reboot') {
     });
 }
 // eslint-disable-next-line no-unused-vars
-window.saveAutoexec1 = function(apply) {
+window.saveAutoexec1 = function (apply) {
   showCmdMessage('cfg-audio-tmpl', 'MESSAGING_INFO', 'Saving.\n', false);
   let commandLine = commandHeader + ' -n "' + $('#player').val() + '"';
   if (output === 'bt') {
@@ -728,7 +803,7 @@ window.saveAutoexec1 = function(apply) {
     contentType: 'application/json; charset=utf-8',
     data: JSON.stringify(data),
     error: handleExceptionResponse,
-    complete: function(response) {
+    complete: function (response) {
       if (
         response.responseText &&
         JSON.parse(response.responseText).result === 'OK'
@@ -756,26 +831,26 @@ window.saveAutoexec1 = function(apply) {
   });
   console.log('sent data:', JSON.stringify(data));
 }
-window.handleDisconnect = function(){
-   $.ajax({
-       url: '/connect.json',
-       dataType: 'text',
-       method: 'DELETE',
-       cache: false,
-       contentType: 'application/json; charset=utf-8',
-       data: JSON.stringify({
-         timestamp: Date.now(),
-       }),
-     });
+window.handleDisconnect = function () {
+  $.ajax({
+    url: '/connect.json',
+    dataType: 'text',
+    method: 'DELETE',
+    cache: false,
+    contentType: 'application/json; charset=utf-8',
+    data: JSON.stringify({
+      timestamp: Date.now(),
+    }),
+  });
 }
-function setPlatformFilter(val){
-  if($('.upf').filter(function(){ return $(this).text().toUpperCase()===val.toUpperCase()}).length>0){
+function setPlatformFilter(val) {
+  if ($('.upf').filter(function () { return $(this).text().toUpperCase() === val.toUpperCase() }).length > 0) {
     $('#splf').val(val).trigger('input');
     return true;
   }
   return false;
 }
-window.handleConnect = function(){
+window.handleConnect = function () {
   ConnectingToSSID.ssid = $('#manual_ssid').val();
   ConnectingToSSID.pwd = $('#manual_pwd').val();
   ConnectingToSSID.dhcpname = $('#dhcp-name2').val();
@@ -798,62 +873,78 @@ window.handleConnect = function(){
   });
 
   // now we can re-set the intervals regardless of result
-  startCheckStatusInterval();
 
 }
-$(document).ready(function() {
-  $('#fw-url-input').on('input', function() {
-    if($(this).val().length>8 && ($(this).val().startsWith('http://') || $(this).val().startsWith('https://'))){
+$(document).ready(function () {
+  handleNVSVisible();
+  flashState.init();
+  $('#fw-url-input').on('input', function () {
+    if ($(this).val().length > 8 && ($(this).val().startsWith('http://') || $(this).val().startsWith('https://'))) {
       $('#start-flash').show();
-    } 
+    }
     else {
       $('#start-flash').hide();
     }
   });
-  $('.upSrch').on('input', function() {
+  $('.upSrch').on('input', function () {
     const val = this.value;
-    $("#rTable tr").removeClass(this.id+'_hide');
-    if(val.length>0) {
-      $(`#rTable td:nth-child(${$(this).parent().index()+1})`).filter(function(){ 
+    $("#rTable tr").removeClass(this.id + '_hide');
+    if (val.length > 0) {
+      $(`#rTable td:nth-child(${$(this).parent().index() + 1})`).filter(function () {
         return !$(this).text().toUpperCase().includes(val.toUpperCase());
-      }).parent().addClass(this.id+'_hide');
+      }).parent().addClass(this.id + '_hide');
     }
     $('[class*="_hide"]').hide();
     $('#rTable tr').not('[class*="_hide"]').show()
 
   });
-  setTimeout(refreshAP,1500);
+  setTimeout(refreshAP, 1500);
 
-  
-  $('#otadiv').on('hidden.bs.modal', function () {
-    // reset flash status. This should stop the state machine from
-    // executing steps up to flashing itself.
-    flash_state=flash_status_codes.NONE;
-  });
-  $('#WifiConnectDialog').on('shown.bs.modal', function () {
+  $('#WifiConnectDialog')[0].addEventListener('shown.bs.modal', function (event) {
     $("*[class*='connecting']").hide();
-    if(ConnectingToSSID.Action!==ConnectingToActions.STS){
+
+    if (event?.relatedTarget) {
+      ConnectingToSSID.Action = ConnectingToActions.CONN;
+      if ($(event.relatedTarget).children('td:eq(1)').text() == ConnectedTo.ssid) {
+        ConnectingToSSID.Action = ConnectingToActions.STS;
+      }
+      else {
+        if (!$(event.relatedTarget).is(':last-child')) {
+          ConnectingToSSID.ssid = $(event.relatedTarget).children('td:eq(1)').text();
+          $('#manual_ssid').val(ConnectingToSSID.ssid);
+        }
+        else {
+          ConnectingToSSID.Action = ConnectingToActions.MAN;
+          ConnectingToSSID.ssid = '';
+          $('#manual_ssid').val(ConnectingToSSID.ssid);
+        }
+      }
+    }
+
+
+    if (ConnectingToSSID.Action !== ConnectingToActions.STS) {
       $('.connecting-init').show();
-      $('#manual_ssid').trigger('focus');      
+      $('#manual_ssid').trigger('focus');
     }
     else {
       handleWifiDialog();
     }
-  })
-  $('#WifiConnectDialog').on('hidden.bs.modal', function () {
+  });
+
+  $('#WifiConnectDialog')[0].addEventListener('hidden.bs.modal', function () {
     $('#WifiConnectDialog input').val('');
-  })
-  
-  $('#uCnfrm').on('shown.bs.modal', function () {
+  });
+
+  $('#uCnfrm')[0].addEventListener('shown.bs.modal', function () {
     $('#selectedFWURL').text($('#fw-url-input').val());
-  })
- 
+  });
+
   $('input#show-commands')[0].checked = LastCommandsState === 1;
   $('a[href^="#tab-commands"]').hide();
-  $('#load-nvs').on('click', function() {
+  $('#load-nvs').on('click', function () {
     $('#nvsfilename').trigger('click');
   });
-  $('#nvsfilename').on('change', function() {
+  $('#nvsfilename').on('change', function () {
     if (typeof window.FileReader !== 'function') {
       throw "The file API isn't supported on this browser.";
     }
@@ -863,17 +954,17 @@ $(document).ready(function() {
     if (!this.files[0]) {
       return undefined;
     }
-    
+
     const file = this.files[0];
     let fr = new FileReader();
-    fr.onload = function(e){
+    fr.onload = function (e) {
       let data = {};
       try {
         data = JSON.parse(e.target.result);
       } catch (ex) {
         alert('Parsing failed!\r\n ' + ex);
       }
-      $('input.nvs').each(function(_index, entry) {
+      $('input.nvs').each(function (_index, entry) {
         $(this).parent().removeClass('bg-warning').removeClass('bg-success');
         if (data[entry.id]) {
           if (data[entry.id] !== entry.value) {
@@ -889,52 +980,34 @@ $(document).ready(function() {
         }
       });
       var changed = $("input.nvs").children('.bg-warning');
-      if(changed) {
+      if (changed) {
         alert('Highlighted values were changed. Press Commit to change on the device');
       }
     }
     fr.readAsText(file);
     this.value = null;
-    
+
   }
   );
-  $('#clear-syslog').on('click', function() {
+  $('#clear-syslog').on('click', function () {
     messagecount = 0;
     messageseverity = 'MESSAGING_INFO';
     $('#msgcnt').text('');
     $('#syslogTable').html('');
   });
-  
-  $('#wifiTable').on('click','tr', function() {
-    ConnectingToSSID.Action=ConnectingToActions.CONN;
-    if($(this).children('td:eq(1)').text() == ConnectedTo.ssid){
-      ConnectingToSSID.Action=ConnectingToActions.STS;
-       return;
-     }
-     if(!$(this).is(':last-child')){
-      ConnectingToSSID.ssid=$(this).children('td:eq(1)').text();
-      $('#manual_ssid').val(ConnectingToSSID.ssid);
-     } 
-     else {
-       ConnectingToSSID.Action=ConnectingToActions.MAN;
-       ConnectingToSSID.ssid='';
-       $('#manual_ssid').val(ConnectingToSSID.ssid);
-     }
-   });
 
-
-  $('#ok-credits').on('click', function() {
-    $('#credits').slideUp('fast', function() {});
-    $('#app').slideDown('fast', function() {});
+  $('#ok-credits').on('click', function () {
+    $('#credits').slideUp('fast', function () { });
+    $('#app').slideDown('fast', function () { });
   });
 
-  $('#acredits').on('click', function(event) {
+  $('#acredits').on('click', function (event) {
     event.preventDefault();
-    $('#app').slideUp('fast', function() {});
-    $('#credits').slideDown('fast', function() {});
+    $('#app').slideUp('fast', function () { });
+    $('#credits').slideDown('fast', function () { });
   });
 
-  $('input#show-commands').on('click', function() {
+  $('input#show-commands').on('click', function () {
     this.checked = this.checked ? 1 : 0;
     if (this.checked) {
       $('a[href^="#tab-commands"]').show();
@@ -945,43 +1018,40 @@ $(document).ready(function() {
     }
   });
 
-  $('input#show-nvs').on('click', function() {
+  $('input#show-nvs').on('click', function () {
     this.checked = this.checked ? 1 : 0;
-    if (this.checked) {
-      $('*[href*="-nvs"]').show();
-    } else {
-      $('*[href*="-nvs"]').hide();
-    }
+    Cookies.set("show-nvs", this.checked?'Y':'N');
+    handleNVSVisible();
   });
- $('#btn_reboot_recovery').on('click',function(){
-  handleReboot('recovery');
- });
- $('#btn_reboot').on('click',function(){
-  handleReboot('reboot');
- });
- $('#btn_flash').on('click',function(){
-  hFlash();
- });
- $('#save-autoexec1').on('click',function(){
-  saveAutoexec1(false);
- });
- $('#commit-autoexec1').on('click',function(){
-  saveAutoexec1(true);
- });
- $('#btn_disconnect').on('click',function(){
-  handleDisconnect();
- });
- $('#btnJoin').on('click',function(){
-  handleConnect();
- });
- $('#reboot_nav').on('click',function(){
-  handleReboot('reboot');
- });
- $('#reboot_ota_nav').on('click',function(){
-  handleReboot('reboot_ota');
- });
- 
-  $('#save-as-nvs').on('click', function() {
+  $('#btn_reboot_recovery').on('click', function () {
+    handleReboot('recovery');
+  });
+  $('#btn_reboot').on('click', function () {
+    handleReboot('reboot');
+  });
+  $('#btn_flash').on('click', function () {
+    hFlash();
+  });
+  $('#save-autoexec1').on('click', function () {
+    saveAutoexec1(false);
+  });
+  $('#commit-autoexec1').on('click', function () {
+    saveAutoexec1(true);
+  });
+  $('#btn_disconnect').on('click', function () {
+    handleDisconnect();
+  });
+  $('#btnJoin').on('click', function () {
+    handleConnect();
+  });
+  $('#reboot_nav').on('click', function () {
+    handleReboot('reboot');
+  });
+  $('#reboot_ota_nav').on('click', function () {
+    handleReboot('reboot_ota');
+  });
+
+  $('#save-as-nvs').on('click', function () {
     const config = getConfigJson(true);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(
@@ -998,44 +1068,45 @@ $(document).ready(function() {
     document.body.removeChild(a);
   });
 
-  $('#save-nvs').on('click', function() {
+  $('#save-nvs').on('click', function () {
     post_config(getConfigJson(false));
   });
-  
-  $('#fwUpload').on('click', function() {
+
+  $('#fwUpload').on('click', function () {
     const fileInput = document.getElementById('flashfilename').files;
     if (fileInput.length === 0) {
       alert('No file selected!');
     } else {
-      handle_flash_state({ event: flash_events.START_OTA, file: fileInput[0] });
+      $('#fw-url-input').value = null;
+      flashState.StartOTA();
     }
-    
+
   });
-   $('[name=output-tmpl]').on('click', function() {
+  $('[name=output-tmpl]').on('click', function () {
     handleTemplateTypeRadio(this.id);
   });
 
-  $('#chkUpdates').on('click', function() {
+  $('#chkUpdates').on('click', function () {
     $('#rTable').html('');
-    $.getJSON(releaseURL, function(data) {
+    $.getJSON(releaseURL, function (data) {
       let i = 0;
       const branches = [];
-      data.forEach(function(release) {
+      data.forEach(function (release) {
         const namecomponents = release.name.split('#');
         const branch = namecomponents[3];
         if (!branches.includes(branch)) {
           branches.push(branch);
         }
       });
-      let fwb='';
-      branches.forEach(function(branch) {
+      let fwb = '';
+      branches.forEach(function (branch) {
         fwb += '<option value="' + branch + '">' + branch + '</option>';
       });
       $('#fwbranch').append(fwb);
 
-      data.forEach(function(release) {
+      data.forEach(function (release) {
         let url = '';
-        release.assets.forEach(function(asset) {
+        release.assets.forEach(function (asset) {
           if (asset.name.match(/\.bin$/)) {
             url = asset.browser_download_url;
           }
@@ -1044,8 +1115,8 @@ $(document).ready(function() {
         const ver = namecomponents[0];
         const cfg = namecomponents[2];
         const branch = namecomponents[3];
-        var bits = ver.substr(ver.lastIndexOf('-')+1);
-        bits = (bits =='32' || bits == '16')?bits:'';
+        var bits = ver.substr(ver.lastIndexOf('-') + 1);
+        bits = (bits == '32' || bits == '16') ? bits : '';
 
         let body = release.body;
         body = body.replace(/'/gi, '"');
@@ -1053,31 +1124,31 @@ $(document).ready(function() {
           /[\s\S]+(### Revision Log[\s\S]+)### ESP-IDF Version Used[\s\S]+/,
           '$1'
         );
-        body = body.replace(/- \(.+?\) /g, '- ');
+        body = body.replace(/- \(.+?\) /g, '- ').encodeHTML();
         $('#rTable').append(`<tr class='release ' fwurl='${url}'>
-        <td data-toggle='tooltip' title='${body}'>${ver}</td><td>${new Date(release.created_at).toLocalShort()}
+        <td data-bs-toggle='tooltip' title='${body}'>${ver}</td><td>${new Date(release.created_at).toLocalShort()}
         </td><td class='upf'>${cfg}</td><td>${branch}</td><td>${bits}</td></tr>`
         );
       });
       if (i > 7) {
         $('#releaseTable').append(
           "<tr id='showall'>" +
-            "<td colspan='6'>" +
-            "<input type='button' id='showallbutton' class='btn btn-info' value='Show older releases' />" +
-            '</td>' +
-            '</tr>'
+          "<td colspan='6'>" +
+          "<input type='button' id='showallbutton' class='btn btn-info' value='Show older releases' />" +
+          '</td>' +
+          '</tr>'
         );
-        $('#showallbutton').on('click', function() {
+        $('#showallbutton').on('click', function () {
           $('tr.hide').removeClass('hide');
           $('tr#showall').addClass('hide');
         });
       }
       $('#searchfw').css('display', 'inline');
-      if(!setPlatformFilter(platform_name)){
+      if (!setPlatformFilter(platform_name)) {
         setPlatformFilter(project_name)
       }
-      $('#rTable tr.release').on('click', function() {
-        var url=this.attributes['fwurl'].value;
+      $('#rTable tr.release').on('click', function () {
+        var url = this.attributes['fwurl'].value;
         if (lmsBaseUrl) {
           url = url.replace(/.*\/download\//, lmsBaseUrl + '/plugins/SqueezeESP32/firmware/');
         }
@@ -1087,17 +1158,17 @@ $(document).ready(function() {
         $(this).addClass('table-success table-warning');
       });
 
-    }).fail(function() {
+    }).fail(function () {
       alert('failed to fetch release history!');
-    });    
+    });
   });
-    $('#fwcheck').on('click', function() {    
+  $('#fwcheck').on('click', function () {
     $('#releaseTable').html('');
     $('#fwbranch').empty();
-    $.getJSON(releaseURL, function(data) {
+    $.getJSON(releaseURL, function (data) {
       let i = 0;
       const branches = [];
-      data.forEach(function(release) {
+      data.forEach(function (release) {
         const namecomponents = release.name.split('#');
         const branch = namecomponents[3];
         if (!branches.includes(branch)) {
@@ -1105,14 +1176,14 @@ $(document).ready(function() {
         }
       });
       let fwb;
-      branches.forEach(function(branch) {
+      branches.forEach(function (branch) {
         fwb += '<option value="' + branch + '">' + branch + '</option>';
       });
       $('#fwbranch').append(fwb);
 
-      data.forEach(function(release) {
+      data.forEach(function (release) {
         let url = '';
-        release.assets.forEach(function(asset) {
+        release.assets.forEach(function (asset) {
           if (asset.name.match(/\.bin$/)) {
             url = asset.browser_download_url;
           }
@@ -1133,51 +1204,51 @@ $(document).ready(function() {
         const trclass = i++ > 6 ? ' hide' : '';
         $('#releaseTable').append(
           "<tr class='release" +
-            trclass +
-            "'>" +
-            "<td data-toggle='tooltip' title='" +
-            body +
-            "'>" +
-            ver +
-            '</td>' +
-            '<td>' +
-            new Date(release.created_at).toLocalShort() +
-            '</td>' +
-            '<td>' +
-            cfg +
-            '</td>' +
-            '<td>' +
-            idf +
-            '</td>' +
-            '<td>' +
-            branch +
-            '</td>' +
-            "<td><input type='button' class='btn btn-success' value='Select' data-url='" +
-            url +
-            "' onclick='setURL(this);' /></td>" +
-            '</tr>'
+          trclass +
+          "'>" +
+          "<td data-bs-toggle='tooltip' title='" +
+          body +
+          "'>" +
+          ver +
+          '</td>' +
+          '<td>' +
+          new Date(release.created_at).toLocalShort() +
+          '</td>' +
+          '<td>' +
+          cfg +
+          '</td>' +
+          '<td>' +
+          idf +
+          '</td>' +
+          '<td>' +
+          branch +
+          '</td>' +
+          "<td><input type='button' class='btn btn-success' value='Select' data-bs-url='" +
+          url +
+          "' onclick='setURL(this);' /></td>" +
+          '</tr>'
         );
       });
       if (i > 7) {
         $('#releaseTable').append(
           "<tr id='showall'>" +
-            "<td colspan='6'>" +
-            "<input type='button' id='showallbutton' class='btn btn-info' value='Show older releases' />" +
-            '</td>' +
-            '</tr>'
+          "<td colspan='6'>" +
+          "<input type='button' id='showallbutton' class='btn btn-info' value='Show older releases' />" +
+          '</td>' +
+          '</tr>'
         );
-        $('#showallbutton').on('click', function() {
+        $('#showallbutton').on('click', function () {
           $('tr.hide').removeClass('hide');
           $('tr#showall').addClass('hide');
         });
       }
       $('#searchfw').css('display', 'inline');
-    }).fail(function() {
+    }).fail(function () {
       alert('failed to fetch release history!');
     });
   });
 
-  $('#updateAP').on('click', function() {
+  $('#updateAP').on('click', function () {
     refreshAP();
     console.log('refresh AP');
   });
@@ -1185,20 +1256,19 @@ $(document).ready(function() {
   // first time the page loads: attempt to get the connection status and start the wifi scan
   getConfig();
   getCommands();
+  getMessages();
+  checkStatus();
 
-  // start timers
-  startCheckStatusInterval();
-  
 });
 
 // eslint-disable-next-line no-unused-vars
-window.setURL = function(button) {
+window.setURL = function (button) {
   let url = button.dataset.url;
 
-  $('[data-url^="http"]')
+  $('[data-bs-url^="http"]')
     .addClass('btn-success')
     .removeClass('btn-danger');
-  $('[data-url="' + url + '"]')
+  $('[data-bs-url="' + url + '"]')
     .addClass('btn-danger')
     .removeClass('btn-success');
 
@@ -1220,19 +1290,19 @@ function rssiToIcon(rssi) {
     return `network_wifi_2_bar`;
   } else if (rssi >= -70) {
     return `network_wifi_1_bar`;
-  } else {   
+  } else {
     return `signal_wifi_statusbar_null`;
   }
 }
 
 function refreshAP() {
-    if( ConnectedTo.urc === connectReturnCode.ETH) return;
-    $.getJSON('/scan.json', async function() {
+  if (ConnectedTo.urc === connectReturnCode.ETH) return;
+  $.getJSON('/scan.json', async function () {
     await sleep(2000);
-    $.getJSON('/ap.json', function(data) {
+    $.getJSON('/ap.json', function (data) {
       if (data.length > 0) {
         // sort by signal strength
-        data.sort(function(a, b) {
+        data.sort(function (a, b) {
           const x = a.rssi;
           const y = b.rssi;
           // eslint-disable-next-line no-nested-ternary
@@ -1243,124 +1313,119 @@ function refreshAP() {
 
       }
     });
-  }); 
+  });
 }
-function formatAP(ssid, rssi, auth){
-  return `<tr data-toggle="modal" data-target="#WifiConnectDialog"><td></td><td>${ssid}</td><td>
+function formatAP(ssid, rssi, auth) {
+  return `<tr data-bs-toggle="modal" data-bs-target="#WifiConnectDialog"><td></td><td>${ssid}</td><td>
   <span class="material-icons" style="fill:white; display: inline" >${rssiToIcon(rssi)}</span>
   	</td><td>
-    <span class="material-icons">${(auth == 0 ? 'no_encryption':'lock')}</span>
+    <span class="material-icons">${(auth == 0 ? 'no_encryption' : 'lock')}</span>
   </td></tr>`;
 }
 function refreshAPHTML2(data) {
   let h = '';
   $('#wifiTable tr td:first-of-type').text('');
   $('#wifiTable tr').removeClass('table-success table-warning');
-  if(data){
-    data.forEach(function(e) {
-      h+=formatAP(e.ssid, e.rssi, e.auth);
+  if (data) {
+    data.forEach(function (e) {
+      h += formatAP(e.ssid, e.rssi, e.auth);
     });
     $('#wifiTable').html(h);
   }
-  if($('.manual_add').length == 0){
-    $('#wifiTable').append(formatAP('Manual add', 0,0));
+  if ($('.manual_add').length == 0) {
+    $('#wifiTable').append(formatAP('Manual add', 0, 0));
     $('#wifiTable tr:last').addClass('table-light text-dark').addClass('manual_add');
   }
-  if(ConnectedTo.ssid && ( ConnectedTo.urc === connectReturnCode.OK || ConnectedTo.urc === connectReturnCode.RESTORE )){
-    const wifiSelector=`#wifiTable td:contains("${ConnectedTo.ssid}")`;
-    if($(wifiSelector).filter(function() {return $(this).text() === ConnectedTo.ssid;  }).length==0){
+  if (ConnectedTo.ssid && (ConnectedTo.urc === connectReturnCode.OK || ConnectedTo.urc === connectReturnCode.RESTORE)) {
+    const wifiSelector = `#wifiTable td:contains("${ConnectedTo.ssid}")`;
+    if ($(wifiSelector).filter(function () { return $(this).text() === ConnectedTo.ssid; }).length == 0) {
       $('#wifiTable').prepend(`${formatAP(ConnectedTo.ssid, ConnectedTo.rssi ?? 0, 0)}`);
     }
-    $(wifiSelector).filter(function() {return $(this).text() === ConnectedTo.ssid;  }).siblings().first().html('&check;').parent().addClass((ConnectedTo.urc === connectReturnCode.OK?'table-success':'table-warning'));
-    $('span#foot-if').html(`SSID: <strong>${ConnectedTo.ssid}</strong>, IP: <strong>${ConnectedTo.ip}</strong>`);    
+    $(wifiSelector).filter(function () { return $(this).text() === ConnectedTo.ssid; }).siblings().first().html('&check;').parent().addClass((ConnectedTo.urc === connectReturnCode.OK ? 'table-success' : 'table-warning'));
+    $('span#foot-if').html(`SSID: <strong>${ConnectedTo.ssid}</strong>, IP: <strong>${ConnectedTo.ip}</strong>`);
     $('#wifiStsIcon').html(rssiToIcon(ConnectedTo.rssi));
 
   }
-  else if(ConnectedTo.urc !== connectReturnCode.ETH){
+  else if (ConnectedTo.urc !== connectReturnCode.ETH) {
     $('span#foot-if').html('');
   }
-  
+
 }
 function refreshETH() {
 
-  if(ConnectedTo.urc === connectReturnCode.ETH ){
-    $('span#foot-if').html(`Network: Ethernet, IP: <strong>${ConnectedTo.ip}</strong>`);    
+  if (ConnectedTo.urc === connectReturnCode.ETH) {
+    $('span#foot-if').html(`Network: Ethernet, IP: <strong>${ConnectedTo.ip}</strong>`);
   }
 }
 function showTask(task) {
   console.debug(
     this.toLocaleString() +
-      '\t' +
-      task.nme +
-      '\t' +
-      task.cpu +
-      '\t' +
-      taskStates[task.st] +
-      '\t' +
-      task.minstk +
-      '\t' +
-      task.bprio +
-      '\t' +
-      task.cprio +
-      '\t' +
-      task.num
+    '\t' +
+    task.nme +
+    '\t' +
+    task.cpu +
+    '\t' +
+    taskStates[task.st] +
+    '\t' +
+    task.minstk +
+    '\t' +
+    task.bprio +
+    '\t' +
+    task.cprio +
+    '\t' +
+    task.num
   );
   $('tbody#tasks').append(
     '<tr class="table-primary"><th scope="row">' +
-      task.num +
-      '</th><td>' +
-      task.nme +
-      '</td><td>' +
-      task.cpu +
-      '</td><td>' +
-      taskStates[task.st] +
-      '</td><td>' +
-      task.minstk +
-      '</td><td>' +
-      task.bprio +
-      '</td><td>' +
-      task.cprio +
-      '</td></tr>'
+    task.num +
+    '</th><td>' +
+    task.nme +
+    '</td><td>' +
+    task.cpu +
+    '</td><td>' +
+    taskStates[task.st] +
+    '</td><td>' +
+    task.minstk +
+    '</td><td>' +
+    task.bprio +
+    '</td><td>' +
+    task.cprio +
+    '</td></tr>'
   );
 }
-function btExists(name){
-  return getBTSinkOpt(name).length>0;
+function btExists(name) {
+  return getBTSinkOpt(name).length > 0;
 }
-function getBTSinkOpt(name){
+function getBTSinkOpt(name) {
   return $(`${btSinkNamesOptSel} option:contains('${name}')`);
 }
 function getMessages() {
-  $.getJSON('/messages.json', async function(data) {
+  $.getJSON('/messages.json', async function (data) {
     for (const msg of data) {
       const msgAge = msg.current_time - msg.sent_time;
       var msgTime = new Date();
       msgTime.setTime(msgTime.getTime() - msgAge);
       switch (msg.class) {
         case 'MESSAGING_CLASS_OTA':
-          var otaData = JSON.parse(msg.message);
-          handle_flash_state({
-            ota_pct: (otaData.ota_pct ?? -1),
-            ota_dsc: (otaData.ota_dsc ??''),
-            event: flash_events.PROCESS_OTA
-          });
+          flashState.EventOTAMessageClass(msg.message);
           break;
         case 'MESSAGING_CLASS_STATS':
           // for task states, check structure : task_state_t
           var statsData = JSON.parse(msg.message);
           console.debug(
             msgTime.toLocalShort() +
-              ' - Number of running tasks: ' +
-              statsData.ntasks
+            ' - Number of running tasks: ' +
+            statsData.ntasks
           );
           console.debug(
             msgTime.toLocalShort() +
-              '\tname' +
-              '\tcpu' +
-              '\tstate' +
-              '\tminstk' +
-              '\tbprio' +
-              '\tcprio' +
-              '\tnum'
+            '\tname' +
+            '\tcpu' +
+            '\tstate' +
+            '\tminstk' +
+            '\tbprio' +
+            '\tcprio' +
+            '\tnum'
           );
           if (statsData.tasks) {
             if ($('#tasks_sect').css('visibility') === 'collapse') {
@@ -1368,7 +1433,7 @@ function getMessages() {
             }
             $('tbody#tasks').html('');
             statsData.tasks
-              .sort(function(a, b) {
+              .sort(function (a, b) {
                 return b.cpu - a.cpu;
               })
               .forEach(showTask, msgTime);
@@ -1385,48 +1450,59 @@ function getMessages() {
           showCmdMessage(msgparts[1], msg.type, msgparts[2], true);
           break;
         case 'MESSAGING_CLASS_BT':
-          if($("#cfg-audio-bt_source-sink_name").is('input')){
-          var attr=$("#cfg-audio-bt_source-sink_name")[0].attributes;
-          var attrs='';
-          for (var j = 0; j < attr.length; j++) {
-              if(attr.item(j).name!="type"){
-                attrs+=`${attr.item(j).name } = "${attr.item(j).value}" `;
+          if ($("#cfg-audio-bt_source-sink_name").is('input')) {
+            var attr = $("#cfg-audio-bt_source-sink_name")[0].attributes;
+            var attrs = '';
+            for (var j = 0; j < attr.length; j++) {
+              if (attr.item(j).name != "type") {
+                attrs += `${attr.item(j).name} = "${attr.item(j).value}" `;
               }
+            }
+            var curOpt = $("#cfg-audio-bt_source-sink_name")[0].value;
+            $("#cfg-audio-bt_source-sink_name").replaceWith(`<select id="cfg-audio-bt_source-sink_name" ${attrs}><option value="${curOpt}" data-bs-description="${curOpt}">${curOpt}</option></select> `);
           }
-          var curOpt=$("#cfg-audio-bt_source-sink_name")[0].value;
-            $("#cfg-audio-bt_source-sink_name").replaceWith(`<select id="cfg-audio-bt_source-sink_name" ${attrs}><option value="${curOpt}" data-description="${curOpt}">${curOpt}</option></select> `);
-          }
-          JSON.parse(msg.message).forEach(function(btEntry) {
+          JSON.parse(msg.message).forEach(function (btEntry) {
             //<input type="text" class="form-control bg-success" placeholder="name" hasvalue="true" longopts="sink_name" shortopts="n" checkbox="false" cmdname="cfg-audio-bt_source" id="cfg-audio-bt_source-sink_name" name="cfg-audio-bt_source-sink_name">
             //<select hasvalue="true" longopts="jack_behavior" shortopts="j" checkbox="false" cmdname="cfg-audio-general" id="cfg-audio-general-jack_behavior" name="cfg-audio-general-jack_behavior" class="form-control "><option>--</option><option>Headphones</option><option>Subwoofer</option></select>            
-            if(!btExists(btEntry.name)){
+            if (!btExists(btEntry.name)) {
               $("#cfg-audio-bt_source-sink_name").append(`<option>${btEntry.name}</option>`);
-              showMessage({ type:msg.type, message:`BT Audio device found: ${btEntry.name} RSSI: ${btEntry.rssi} `}, msgTime);
+              showMessage({ type: msg.type, message: `BT Audio device found: ${btEntry.name} RSSI: ${btEntry.rssi} ` }, msgTime);
             }
-            getBTSinkOpt(btEntry.name).attr('data-description', `${btEntry.name} (${btEntry.rssi}dB)`)
-                                      .attr('rssi',btEntry.rssi)
-                                      .attr('value',btEntry.name)
-                                      .text(`${btEntry.name} [${btEntry.rssi}dB]`).trigger('change');
-            
+            getBTSinkOpt(btEntry.name).attr('data-bs-description', `${btEntry.name} (${btEntry.rssi}dB)`)
+              .attr('rssi', btEntry.rssi)
+              .attr('value', btEntry.name)
+              .text(`${btEntry.name} [${btEntry.rssi}dB]`).trigger('change');
+
           });
-          $(btSinkNamesOptSel).append($(`${btSinkNamesOptSel} option`).remove().sort(function(a, b) { 
-              console.log(`${parseInt($(a).attr('rssi'))} < ${parseInt( $(b).attr('rssi'))} ? `);
-              return parseInt($(a).attr('rssi')) < parseInt( $(b).attr('rssi')) ? 1 : -1; 
-            }));
+          $(btSinkNamesOptSel).append($(`${btSinkNamesOptSel} option`).remove().sort(function (a, b) {
+            console.log(`${parseInt($(a).attr('rssi'))} < ${parseInt($(b).attr('rssi'))} ? `);
+            return parseInt($(a).attr('rssi')) < parseInt($(b).attr('rssi')) ? 1 : -1;
+          }));
           break;
         default:
           break;
       }
     }
-  }).fail(function(xhr, ajaxOptions, thrownError){
-      if(xhr.status==404){
-        $('.orec').hide(); // system commands won't be available either
-      } 
-      else {
-        handleExceptionResponse(xhr, ajaxOptions, thrownError);
-      }
-      
+    setTimeout(getMessages,messageInterval);
+  }).fail(function (xhr, ajaxOptions, thrownError) {
+    
+    if (xhr.status == 404) {
+      $('.orec').hide(); // system commands won't be available either
+      messagesHeld = true;
     }
+    else {
+      handleExceptionResponse(xhr, ajaxOptions, thrownError);
+    }
+    if(xhr.status == 0 && xhr.readyState ==0){
+      // probably a timeout. Target is rebooting? 
+      setTimeout(getMessages,messageInterval*2); // increase duration if a failure happens
+    }
+    else if(!messagesHeld){
+      // 404 here means we rebooted to an old recovery
+      setTimeout(getMessages,messageInterval); // increase duration if a failure happens
+    }
+    
+  }
   );
 
   /*
@@ -1439,17 +1515,7 @@ cpu is cpu percent used
 */
 }
 function handleRecoveryMode(data) {
-  const locRecovery= data.recovery ??0;
-  if (LastRecoveryState !== locRecovery) {
-    LastRecoveryState = locRecovery;
-    $('input#show-nvs')[0].checked = LastRecoveryState === 1;
-  }
-  if ($('input#show-nvs')[0].checked) {
-    $('*[href*="-nvs"]').show();
-
-  } else {
-    $('*[href*="-nvs"]').hide();
-  }
+  const locRecovery = data.recovery ?? 0;
   if (locRecovery === 1) {
     recovery = true;
     $('.recovery_element').show();
@@ -1457,86 +1523,91 @@ function handleRecoveryMode(data) {
     $('#boot-button').html('Reboot');
     $('#boot-form').attr('action', '/reboot_ota.json');
   } else {
+    if(!recovery && messagesHeld){
+      messagesHeld=false;
+      setTimeout(getMessages,messageInterval); // increase duration if a failure happens
+    }
     recovery = false;
+    
     $('.recovery_element').hide();
     $('.ota_element').show();
     $('#boot-button').html('Recovery');
     $('#boot-form').attr('action', '/recovery.json');
   }
+  
 }
 
-function hasConnectionChanged(data){
-// gw: "192.168.10.1"
-// ip: "192.168.10.225"
-// netmask: "255.255.255.0"
-// ssid: "MyTestSSID"
+function hasConnectionChanged(data) {
+  // gw: "192.168.10.1"
+  // ip: "192.168.10.225"
+  // netmask: "255.255.255.0"
+  // ssid: "MyTestSSID"
 
-  return (data.urc !== ConnectedTo.urc || 
-    data.ssid !== ConnectedTo.ssid || 
-    data.gw !== ConnectedTo.gw  ||
+  return (data.urc !== ConnectedTo.urc ||
+    data.ssid !== ConnectedTo.ssid ||
+    data.gw !== ConnectedTo.gw ||
     data.netmask !== ConnectedTo.netmask ||
-    data.ip !== ConnectedTo.ip || data.rssi !== ConnectedTo.rssi )
+    data.ip !== ConnectedTo.ip || data.rssi !== ConnectedTo.rssi)
 }
-function handleWifiDialog(data){
-  if($('#WifiConnectDialog').is(':visible')){
-    if(ConnectedTo.ip) {
+function handleWifiDialog(data) {
+  if ($('#WifiConnectDialog').is(':visible')) {
+    if (ConnectedTo.ip) {
       $('#ipAddress').text(ConnectedTo.ip);
     }
-    if(ConnectedTo.ssid) {
-      $('#connectedToSSID' ).text(ConnectedTo.ssid);
-    }    
-    if(ConnectedTo.gw) {
-      $('#gateway' ).text(ConnectedTo.gw);
-    }        
-    if(ConnectedTo.netmask) {
-      $('#netmask' ).text(ConnectedTo.netmask);
-    }            
-    if(ConnectingToSSID.Action===undefined || (ConnectingToSSID.Action && ConnectingToSSID.Action == ConnectingToActions.STS)) {
+    if (ConnectedTo.ssid) {
+      $('#connectedToSSID').text(ConnectedTo.ssid);
+    }
+    if (ConnectedTo.gw) {
+      $('#gateway').text(ConnectedTo.gw);
+    }
+    if (ConnectedTo.netmask) {
+      $('#netmask').text(ConnectedTo.netmask);
+    }
+    if (ConnectingToSSID.Action === undefined || (ConnectingToSSID.Action && ConnectingToSSID.Action == ConnectingToActions.STS)) {
       $("*[class*='connecting']").hide();
       $('.connecting-status').show();
     }
-    if(SystemConfig.ap_ssid){
+    if (SystemConfig.ap_ssid) {
       $('#apName').text(SystemConfig.ap_ssid.value);
     }
-    if(SystemConfig.ap_pwd){
+    if (SystemConfig.ap_pwd) {
       $('#apPass').text(SystemConfig.ap_pwd.value);
-    }    
-    if(!data)
-    {
+    }
+    if (!data) {
       return;
     }
     else {
       switch (data.urc) {
         case connectReturnCode.OK:
-          if(data.ssid && data.ssid===ConnectingToSSID.ssid){
+          if (data.ssid && data.ssid === ConnectingToSSID.ssid) {
             $("*[class*='connecting']").hide();
-            $('.connecting-success').show();            
+            $('.connecting-success').show();
             ConnectingToSSID.Action = ConnectingToActions.STS;
           }
           break;
-          case connectReturnCode.FAIL:
+        case connectReturnCode.FAIL:
           // 
-          if(ConnectingToSSID.Action !=ConnectingToActions.STS && ConnectingToSSID.ssid == data.ssid ){
+          if (ConnectingToSSID.Action != ConnectingToActions.STS && ConnectingToSSID.ssid == data.ssid) {
             $("*[class*='connecting']").hide();
             $('.connecting-fail').show();
           }
           break;
-          case connectReturnCode.LOST:
-    
-          break;            
-          case connectReturnCode.RESTORE:
-            if(ConnectingToSSID.Action !=ConnectingToActions.STS && ConnectingToSSID.ssid != data.ssid ){
-              $("*[class*='connecting']").hide();
-              $('.connecting-fail').show();
-            }
+        case connectReturnCode.LOST:
+
+          break;
+        case connectReturnCode.RESTORE:
+          if (ConnectingToSSID.Action != ConnectingToActions.STS && ConnectingToSSID.ssid != data.ssid) {
+            $("*[class*='connecting']").hide();
+            $('.connecting-fail').show();
+          }
           break;
         case connectReturnCode.DISC:
-            // that's a manual disconnect
-            // if ($('#wifi-status').is(':visible')) {
-            //   $('#wifi-status').slideUp('fast', function() {});
-            //   $('span#foot-wifi').html('');
-    
-            // }                 
+          // that's a manual disconnect
+          // if ($('#wifi-status').is(':visible')) {
+          //   $('#wifi-status').slideUp('fast', function() {});
+          //   $('span#foot-wifi').html('');
+
+          // }                 
           break;
         default:
           break;
@@ -1546,14 +1617,14 @@ function handleWifiDialog(data){
   }
 }
 function handleNetworkStatus(data) {
-  if(hasConnectionChanged(data) || !data.urc){
-    ConnectedTo=data;
+  if (hasConnectionChanged(data) || !data.urc) {
+    ConnectedTo = data;
     $(".if_eth").hide();
-    $('.if_wifi').hide();    
-    if(!data.urc || ConnectedTo.urc == connectReturnCode.ETH ){
-      $('.if_wifi').show();  
-      refreshAPHTML2();      
-    } 
+    $('.if_wifi').hide();
+    if (!data.urc || ConnectedTo.urc != connectReturnCode.ETH) {
+      $('.if_wifi').show();
+      refreshAPHTML2();
+    }
     else {
       $(".if_eth").show();
       refreshETH();
@@ -1566,69 +1637,61 @@ function handleNetworkStatus(data) {
 
 
 function batteryToIcon(voltage) {
-        /* Assuming Li-ion 18650s as a power source, 3.9V per cell, or above is treated
-				as full charge (>75% of capacity).  3.4V is empty. The gauge is loosely
-				following the graph here:
-					https://learn.adafruit.com/li-ion-and-lipoly-batteries/voltages
-				using the 0.2C discharge profile for the rest of the values.
-			*/
+  /* Assuming Li-ion 18650s as a power source, 3.9V per cell, or above is treated
+  as full charge (>75% of capacity).  3.4V is empty. The gauge is loosely
+  following the graph here:
+    https://learn.adafruit.com/li-ion-and-lipoly-batteries/voltages
+  using the 0.2C discharge profile for the rest of the values.
+*/
 
   for (const iconEntry of batIcons) {
-    for (const entryRanges of iconEntry.ranges ) {
-      if(inRange(voltage,entryRanges.f, entryRanges.t)){
+    for (const entryRanges of iconEntry.ranges) {
+      if (inRange(voltage, entryRanges.f, entryRanges.t)) {
         return iconEntry.icon;
       }
     }
   }
-  
-    
+
+
   return "battery_full";
 }
 function checkStatus() {
-  RepeatCheckStatusInterval();
-  if (blockAjax) {
-    return;
-  }
-  blockAjax = true;
-  getMessages();
-  $.getJSON('/status.json', function(data) {
+
+  $.getJSON('/status.json', function (data) {
     handleRecoveryMode(data);
+    handleNVSVisible();
     handleNetworkStatus(data);
     handlebtstate(data);
-    handle_flash_state({
-      ota_pct: (data.ota_pct ?? -1),
-      ota_dsc: (data.ota_dsc ??''),
-      event: flash_events.PROCESS_OTA_STATUS
-    });
+    flashState.EventTargetStatus(data);
 
     if (data.project_name && data.project_name !== '') {
       project_name = data.project_name;
     }
-    if(data.platform_name && data.platform_name!==''){
+    if (data.platform_name && data.platform_name !== '') {
       platform_name = data.platform_name;
     }
-    if(board_model==='') board_model = project_name;
-    if(board_model==='') board_model = 'Squeezelite-ESP32';
+    if (board_model === '') board_model = project_name;
+    if (board_model === '') board_model = 'Squeezelite-ESP32';
     if (data.version && data.version !== '') {
-      versionName=data.version;
-      $("#navtitle").html(`${board_model}${recovery?'<br>[recovery]':''}`);
-      $('span#foot-fw').html(`fw: <strong>${versionName}</strong>, mode: <strong>${recovery?"Recovery":project_name}</strong>`);
+      versionName = data.version;
+      $("#navtitle").html(`${board_model}${recovery ? '<br>[recovery]' : ''}`);
+      $('span#foot-fw').html(`fw: <strong>${versionName}</strong>, mode: <strong>${recovery ? "Recovery" : project_name}</strong>`);
     } else {
       $('span#flash-status').html('');
     }
     if (data.Voltage) {
-     $('#battery').html( `${batteryToIcon(data.Voltage)}`);
-     $('#battery').show();
+      $('#battery').html(`${batteryToIcon(data.Voltage)}`);
+      $('#battery').show();
     } else {
       $('#battery').hide();
     }
-    if((data.message??'')!='' && prevmessage != data.message){
+    if ((data.message ?? '') != '' && prevmessage != data.message) {
       // supporting older recovery firmwares - messages will come from the status.json structure
       prevmessage = data.message;
       showLocalMessage(data.message, 'MESSAGING_INFO')
     }
     is_i2c_locked = data.is_i2c_locked;
-    if(is_i2c_locked){
+    if (is_i2c_locked) {
       $('flds-cfg-hw-preset').hide();
     }
     else {
@@ -1638,31 +1701,36 @@ function checkStatus() {
 
     if (typeof lmsBaseUrl == "undefined" || data.lms_ip != prevLMSIP && data.lms_ip && data.lms_port) {
       const baseUrl = 'http://' + data.lms_ip + ':' + data.lms_port;
-      prevLMSIP=data.lms_ip;
+      prevLMSIP = data.lms_ip;
       $.ajax({
-        url: baseUrl + '/plugins/SqueezeESP32/firmware/-check.bin', 
+        url: baseUrl + '/plugins/SqueezeESP32/firmware/-check.bin',
         type: 'HEAD',
         dataType: 'text',
         cache: false,
-        error: function() {
+        error: function () {
           // define the value, so we don't check it any more.
           lmsBaseUrl = '';
         },
-        success: function() {
+        success: function () {
           lmsBaseUrl = baseUrl;
         }
       });
     }
-    
-    $('#o_jack').css({ display : Number(data.Jack) ? 'inline' : 'none' });
-    blockAjax = false;
-  }).fail(function(xhr, ajaxOptions, thrownError) {
+    $('#o_jack').css({ display: Number(data.Jack) ? 'inline' : 'none' });
+    setTimeout(checkStatus,statusInterval);
+  }).fail(function (xhr, ajaxOptions, thrownError) {
     handleExceptionResponse(xhr, ajaxOptions, thrownError);
-    blockAjax = false;
+    if(xhr.status == 0 && xhr.readyState ==0){
+      // probably a timeout. Target is rebooting? 
+      setTimeout(checkStatus,messageInterval*2); // increase duration if a failure happens
+    }
+    else {
+      setTimeout(checkStatus,messageInterval); // increase duration if a failure happens
+    }
   });
 }
 // eslint-disable-next-line no-unused-vars
-window.runCommand = function(button, reboot) {
+window.runCommand = function (button, reboot) {
   let cmdstring = button.attributes.cmdname.value;
   showCmdMessage(
     button.attributes.cmdname.value,
@@ -1672,19 +1740,19 @@ window.runCommand = function(button, reboot) {
   );
   const fields = document.getElementById('flds-' + cmdstring);
   const allfields = fields?.querySelectorAll('select,input');
-  if(cmdstring ==='cfg-hw-preset') return handleHWPreset(allfields,reboot);
+  if (cmdstring === 'cfg-hw-preset') return handleHWPreset(allfields, reboot);
   cmdstring += ' ';
   if (fields) {
 
-    for(const field of allfields) {
+    for (const field of allfields) {
       let qts = '';
       let opt = '';
-      let attr=field.attributes;
+      let attr = field.attributes;
       let isSelect = $(field).is('select');
-      const hasValue=attr?.hasvalue?.value === 'true';
-      const validVal=(isSelect && field.value !== '--' ) || ( !isSelect && field.value !== '' );
+      const hasValue = attr?.hasvalue?.value === 'true';
+      const validVal = (isSelect && field.value !== '--') || (!isSelect && field.value !== '');
 
-      if ( !hasValue|| hasValue && validVal)  {
+      if (!hasValue || hasValue && validVal) {
         if (attr?.longopts?.value !== 'undefined') {
           opt += '--' + attr?.longopts?.value;
         } else if (attr?.shortopts?.value !== 'undefined') {
@@ -1705,7 +1773,7 @@ window.runCommand = function(button, reboot) {
       }
     }
   }
-  
+
   console.log(cmdstring);
 
   const data = {
@@ -1720,27 +1788,27 @@ window.runCommand = function(button, reboot) {
     cache: false,
     contentType: 'application/json; charset=utf-8',
     data: JSON.stringify(data),
-    error: function(xhr, _ajaxOptions, thrownError){
-      var cmd=JSON.parse(this.data  ).command;
-      if(xhr.status==404){
+    error: function (xhr, _ajaxOptions, thrownError) {
+      var cmd = JSON.parse(this.data).command;
+      if (xhr.status == 404) {
         showCmdMessage(
-          cmd.substr(0,cmd.indexOf(' ')),
+          cmd.substr(0, cmd.indexOf(' ')),
           'MESSAGING_ERROR',
-          `${recovery?'Limited recovery mode active. Unsupported action ':'Unexpected error while processing command'}`,
+          `${recovery ? 'Limited recovery mode active. Unsupported action ' : 'Unexpected error while processing command'}`,
           true
         );
       }
       else {
         handleExceptionResponse(xhr, _ajaxOptions, thrownError);
         showCmdMessage(
-          cmd.substr(0,cmd.indexOf(' ')-1),
+          cmd.substr(0, cmd.indexOf(' ') - 1),
           'MESSAGING_ERROR',
-          `Unexpected error ${(thrownError !== '')?thrownError:'with return status = '+xhr.status}`,
+          `Unexpected error ${(thrownError !== '') ? thrownError : 'with return status = ' + xhr.status}`,
           true
-        );        
+        );
       }
     },
-    success: function(response) {
+    success: function (response) {
       $('.orec').show();
       console.log(response);
       if (
@@ -1752,14 +1820,14 @@ window.runCommand = function(button, reboot) {
     },
   });
 }
-function getLongOps(data, name, longopts){
-  return data.values[name]!==undefined?data.values[name][longopts]:"";
+function getLongOps(data, name, longopts) {
+  return data.values[name] !== undefined ? data.values[name][longopts] : "";
 }
 function getCommands() {
-  $.getJSON('/commands.json', function(data) {
+  $.getJSON('/commands.json', function (data) {
     console.log(data);
     $('.orec').show();
-    data.commands.forEach(function(command) {
+    data.commands.forEach(function (command) {
       if ($('#flds-' + command.name).length === 0) {
         const cmdParts = command.name.split('-');
         const isConfig = cmdParts[0] === 'cfg';
@@ -1767,10 +1835,10 @@ function getCommands() {
         let innerhtml = '';
         innerhtml += `<div class="card text-white mb-3"><div class="card-header">${command.help.encodeHTML().replace(/\n/g, '<br />')}</div><div class="card-body"><fieldset id="flds-${command.name}">`;
         if (command.argtable) {
-          command.argtable.forEach(function(arg) {
+          command.argtable.forEach(function (arg) {
             let placeholder = arg.datatype || '';
             const ctrlname = command.name + '-' + arg.longopts;
-            const curvalue =  getLongOps(data,command.name,arg.longopts);
+            const curvalue = getLongOps(data, command.name, arg.longopts);
 
             let attributes = 'hasvalue=' + arg.hasvalue + ' ';
             attributes += 'longopts="' + arg.longopts + '" ';
@@ -1790,9 +1858,9 @@ function getCommands() {
               attributes += ' style="visibility: hidden;"';
             }
             if (arg.checkbox) {
-              innerhtml += `<div class="form-check"><label class="form-check-label"><input type="checkbox" ${attributes} class="form-check-input ${extraclass}" value="" >${arg.glossary.encodeHTML()}<small class="form-text text-muted">Previous value: ${(curvalue ? 'Checked' : 'Unchecked')}</small></label>`;
+              innerhtml += `<div class="form-check"><label class="form-check-label"><input type="checkbox" ${attributes} class="form-check-input ${extraclass}" value="" >${arg.glossary.encodeHTML()}</label>`;
             } else {
-              innerhtml +=`<div class="form-group" ><label for="${ctrlname}">${arg.glossary.encodeHTML()}</label>`;
+              innerhtml += `<div class="form-group" ><label for="${ctrlname}">${arg.glossary.encodeHTML()}</label>`;
               if (placeholder.includes('|')) {
                 extraclass = placeholder.startsWith('+') ? ' multiple ' : '';
                 placeholder = placeholder
@@ -1801,28 +1869,32 @@ function getCommands() {
                   .replace('>', '');
                 innerhtml += `<select ${attributes} class="form-control ${extraclass}" >`;
                 placeholder = '--|' + placeholder;
-                placeholder.split('|').forEach(function(choice) {
+                placeholder.split('|').forEach(function (choice) {
                   innerhtml += '<option >' + choice + '</option>';
                 });
                 innerhtml += '</select>';
               } else {
-                innerhtml +=`<input type="text" class="form-control ${extraclass}" placeholder="${placeholder}" ${attributes}>`;
+                innerhtml += `<input type="text" class="form-control ${extraclass}" placeholder="${placeholder}" ${attributes}>`;
               }
-              innerhtml +=`<small class="form-text text-muted">Previous value: ${(curvalue || '')}</small>`;
             }
-            innerhtml += '</div>';
+
+            innerhtml += `${arg.checkbox ? '</div>' : ''}<small class="form-text text-muted">Previous value: ${arg.checkbox ? (curvalue ? 'Checked' : 'Unchecked') : (curvalue || '')}</small>${arg.checkbox ? '' : '</div>'}`;
           });
         }
         innerhtml += `<div style="margin-top: 16px;">
-        <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true" style="display: none;" id="toast_${command.name}">
-        <div class="toast-header"><strong class="mr-auto">Result</strong><button type="button" class="ml-2 mb-1 close click_to_close" data-dismiss="toast" aria-label="Close" >
-        <span aria-hidden="true">×</span></button></div><div class="toast-body" id="msg_${command.name}"></div></div>`;
+        <div class="toast hide" role="alert" aria-live="assertive" aria-atomic="true" id="toast_${command.name}">
+        <div class="toast-header">
+        <strong class="mr-auto">Result</strong
+          <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="msg_${command.name}"></div>
+      </div>`;
         if (isConfig) {
           innerhtml +=
-`<button type="submit" class="btn btn-info sclk" id="btn-save-${command.name}" cmdname="${command.name}">Save</button>
+            `<button type="submit" class="btn btn-info sclk" id="btn-save-${command.name}" cmdname="${command.name}">Save</button>
 <button type="submit" class="btn btn-warning cclk" id="btn-commit-${command.name}" cmdname="${command.name}">Apply</button>`;
         } else {
-          innerhtml +=`<button type="submit" class="btn btn-success sclk" id="btn-run-${command.name}" cmdname="${command.name}">Execute</button>`;
+          innerhtml += `<button type="submit" class="btn btn-success sclk" id="btn-run-${command.name}" cmdname="${command.name}">Execute</button>`;
         }
         innerhtml += '</div></fieldset></div></div>';
         if (isConfig) {
@@ -1832,16 +1904,15 @@ function getCommands() {
         }
       }
     });
-    $(".click_to_close").on('click', function(){$(this).parent().parent().hide()});
-    $(".sclk").on('click',function(){runCommand(this,false);});
-    $(".cclk").on('click',function(){runCommand(this,true);});
-    data.commands.forEach(function(command) {
+    $(".sclk").off('click').on('click', function () { runCommand(this, false); });
+    $(".cclk").off('click').on('click', function () { runCommand(this, true); });
+    data.commands.forEach(function (command) {
       $('[cmdname=' + command.name + ']:input').val('');
       $('[cmdname=' + command.name + ']:checkbox').prop('checked', false);
       if (command.argtable) {
-        command.argtable.forEach(function(arg) {
+        command.argtable.forEach(function (arg) {
           const ctrlselector = '#' + command.name + '-' + arg.longopts;
-          const ctrlValue = getLongOps(data,command.name,arg.longopts);
+          const ctrlValue = getLongOps(data, command.name, arg.longopts);
           if (arg.checkbox) {
             $(ctrlselector)[0].checked = ctrlValue;
           } else {
@@ -1861,26 +1932,26 @@ function getCommands() {
       }
     });
     loadPresets();
-  }).fail(function(xhr, ajaxOptions, thrownError) {
-    if(xhr.status==404){
+  }).fail(function (xhr, ajaxOptions, thrownError) {
+    if (xhr.status == 404) {
       $('.orec').hide();
-    } 
+    }
     else {
       handleExceptionResponse(xhr, ajaxOptions, thrownError);
     }
     $('#commands-list').empty();
-    blockAjax = false;
+
   });
 }
 
 function getConfig() {
-  $.getJSON('/config.json', function(entries) {
+  $.getJSON('/config.json', function (entries) {
     $('#nvsTable tr').remove();
-    const data = (entries.config? entries.config : entries);
+    const data = (entries.config ? entries.config : entries);
     SystemConfig = data;
     Object.keys(data)
       .sort()
-      .forEach(function(key) {
+      .forEach(function (key) {
         let val = data[key].value;
         if (key === 'autoexec') {
           if (data.autoexec.value === '0') {
@@ -1906,34 +1977,34 @@ function getConfig() {
           document.title = val;
           hostName = val;
         } else if (key === 'rel_api') {
-           releaseURL = val;
+          releaseURL = val;
         }
         else if (key === 'enable_airplay') {
-          $("#s_airplay").css({ display : isEnabled(val) ? 'inline' : 'none' })
+          $("#s_airplay").css({ display: isEnabled(val) ? 'inline' : 'none' })
         }
         else if (key === 'enable_cspot') {
-          $("#s_cspot").css({ display : isEnabled(val) ? 'inline' : 'none' })
+          $("#s_cspot").css({ display: isEnabled(val) ? 'inline' : 'none' })
         }
         else if (key == 'preset_name') {
           preset_name = val;
         }
-        else if (key=='board_model') {
-          board_model=val;
+        else if (key == 'board_model') {
+          board_model = val;
         }
-        
+
         $('tbody#nvsTable').append(
           '<tr>' +
-            '<td>' +
-            key +
-            '</td>' +
-            "<td class='value'>" +
-            "<input type='text' class='form-control nvs' id='" +
-            key +
-            "'  nvs_type=" +
-            data[key].type +
-            ' >' +
-            '</td>' +
-            '</tr>'
+          '<td>' +
+          key +
+          '</td>' +
+          "<td class='value'>" +
+          "<input type='text' class='form-control nvs' id='" +
+          key +
+          "'  nvs_type=" +
+          data[key].type +
+          ' >' +
+          '</td>' +
+          '</tr>'
         );
         $('input#' + key).val(data[key].value);
       });
@@ -1943,28 +2014,27 @@ function getConfig() {
     if (entries.gpio) {
       $('#pins').show();
       $('tbody#gpiotable tr').remove();
-      entries.gpio.forEach(function(gpioEntry) {
+      entries.gpio.forEach(function (gpioEntry) {
         $('tbody#gpiotable').append(
           '<tr class=' +
-            (gpioEntry.fixed ? 'table-secondary' : 'table-primary') +
-            '><th scope="row">' +
-            gpioEntry.group +
-            '</th><td>' +
-            gpioEntry.name +
-            '</td><td>' +
-            gpioEntry.gpio +
-            '</td><td>' +
-            (gpioEntry.fixed ? 'Fixed' : 'Configuration') +
-            '</td></tr>'
+          (gpioEntry.fixed ? 'table-secondary' : 'table-primary') +
+          '><th scope="row">' +
+          gpioEntry.group +
+          '</th><td>' +
+          gpioEntry.name +
+          '</td><td>' +
+          gpioEntry.gpio +
+          '</td><td>' +
+          (gpioEntry.fixed ? 'Fixed' : 'Configuration') +
+          '</td></tr>'
         );
       });
     }
     else {
       $('#pins').hide();
     }
-  }).fail(function(xhr, ajaxOptions, thrownError) {
+  }).fail(function (xhr, ajaxOptions, thrownError) {
     handleExceptionResponse(xhr, ajaxOptions, thrownError);
-    blockAjax = false;
   });
 }
 function showLocalMessage(message, severity) {
@@ -2002,15 +2072,15 @@ function showMessage(msg, msgTime) {
 
   $('#syslogTable').append(
     "<tr class='" +
-      color +
-      "'>" +
-      '<td>' +
-      msgTime.toLocalShort() +
-      '</td>' +
-      '<td>' +
-      msg.message.encodeHTML() +
-      '</td>' +
-      '</tr>'
+    color +
+    "'>" +
+    '<td>' +
+    msgTime.toLocalShort() +
+    '</td>' +
+    '<td>' +
+    msg.message.encodeHTML() +
+    '</td>' +
+    '</tr>'
   );
 }
 

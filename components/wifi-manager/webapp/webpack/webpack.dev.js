@@ -22,7 +22,11 @@ const data = {
     status: require("../mock/status.json"),
     messages_ota_fail: require("../mock/messages_ota_fail.json"),
     messages_ota_flash: require("../mock/messages_ota_flash.json"),
-    messages_ota: require("../mock/messages_ota.json")
+    messages_ota: require("../mock/messages_ota.json"),
+    rebooting: false,
+    reboottime: Date.now(),
+    devServer:{}
+
 };
 const messagingTypes= {
 	MESSAGING_INFO : 'MESSAGING_INFO',
@@ -36,6 +40,31 @@ const messagingClass= {
 	MESSAGING_CLASS_CFGCMD: 'MESSAGING_CLASS_CFGCMD',
 	MESSAGING_CLASS_BT: 'MESSAGING_CLASS_BT'
 } ;
+
+function rebooting(){
+    let duration=10000;
+    console.log(`Simulating a reboot of ${duration}ms`);
+    data.reboottime = Date.now() + duration;
+    data.rebooting=true;
+    setTimeout(() => {  
+        data.rebooting=false; 
+        console.log("Reboot completed!"); 
+    }, duration);
+}
+function sleep(milliseconds) {
+    const date = Date.now();
+    let currentDate = null;
+    do {
+      currentDate = Date.now();
+    } while (currentDate - date < milliseconds);
+  }
+function waitForReboot(){
+    while(Date.now() < data.reboottime){
+        sleep(500);
+        console.log(`Waiting for reboot to finish.`);
+    }
+}
+
 function requeueMessages(){
     data.messagequeue = [];
     data.messagequeue.push(...data.messages);
@@ -109,23 +138,60 @@ module.exports ={
     devtool:"source-map",
     devServer: {
 
-        contentBase: path.resolve(__dirname, './dist'),
-        publicPath: '/',
+        
+        static: {
+            directory: path.resolve(__dirname, './dist'),
+            staticOptions: {},
+            // Don't be confused with `devMiddleware.publicPath`, it is `publicPath` for static directory
+            // Can be:
+            // publicPath: ['/static-public-path-one/', '/static-public-path-two/'],
+            publicPath: "/",
+            // Can be:
+            // serveIndex: {} (options for the `serveIndex` option you can find https://github.com/expressjs/serve-index)
+            serveIndex: true,
+            // Can be:
+            // watch: {} (options for the `watch` option you can find https://github.com/paulmillr/chokidar)
+            watch: true,
+          },        
+        devMiddleware: {
+            publicPath: "/",
+
+          },
         open: true,
         compress: true,
-        port: 9100,
+        port: 9100, 
         host: '127.0.0.1',//your ip address
-        disableHostCheck: true,
+        allowedHosts: "all",
         headers: {'Access-Control-Allow-Origin': '*',
     'Accept-Encoding': 'identity'},
+    client: {
+        logging: "verbose",
+        // Can be used only for `errors`/`warnings`
+        //
+        // overlay: {
+        //   errors: true,
+        //   warnings: true,
+        // }
         overlay: true,
+        progress: true,
+      },
+      onListening: function (devServer) {
+        if (!devServer) {
+          throw new Error('webpack-dev-server is not defined');
+        }
+  
+        const port = devServer.server.address().port;
+        console.log('Listening on port:', port);
+      },
 
-        before: function(app) {
-            app.use(bodyParser.json()) // for parsing application/json
-            app.use(bodyParser.urlencoded({ extended: true })) // for parsing application/x-www-form-urlencoded
-            app.get('/ap.json', function(req, res) { res.json( data.ap ); });
-            app.get('/scan.json', function(req, res) { res.json( data.scan ); });
-            app.get('/config.json', function(req, res) { 
+        onBeforeSetupMiddleware: function (devServer) {
+            data.devServer=devServer;
+            devServer.app.use(bodyParser.json()) // for parsing application/json
+            devServer.app.use(bodyParser.urlencoded({ extended: true })) // for parsing application/x-www-form-urlencoded
+            devServer.app.get('/ap.json', function(req, res) {  waitForReboot(); res.json( data.ap ); });
+            devServer.app.get('/scan.json', function(req, res) { waitForReboot(); res.json( data.scan ); });
+            devServer.app.get('/config.json', function(req, res) { 
+                waitForReboot();
                 if(data.status.recovery==1 && (data.status.mock_old_recovery??'')!==''){
                     res.json( data.config.config ); 
                     console.log('Mock old recovery - return config structure without gpio');
@@ -135,7 +201,8 @@ module.exports ={
                 }
             });
 
-            app.get('/status.json', function(req, res) { 
+            devServer.app.get('/status.json', function(req, res) { 
+                waitForReboot();
                 if(data.status_queue_sequence.length>0){
                     const curstatus = JSON.parse(data.status_queue_sequence_queue_sequence.shift());
                     data.status.ota_pct=curstatus.ota_pct??0;
@@ -166,13 +233,15 @@ module.exports ={
                 }                                
                 res.json( data.status ); 
             });
-            app.get('/plugins/SqueezeESP32/firmware/-99', function(req, res) { 
+            devServer.app.get('/plugins/SqueezeESP32/firmware/-99', function(req, res) { 
+                waitForReboot();
                 let has_proxy=  data.status.mock_plugin_has_proxy ?? 'n';
                 const statusCode='xy'.includes((has_proxy).toLowerCase())?200:500;
                 console.log(`Checking if plugin has proxy enabled with option mock_plugin_has_proxy = ${data.status.mock_plugin_has_proxy}. Returning status ${statusCode} `);
                 res.status(statusCode ).json(); 
             });
-            app.get('/messages.json', function(req, res) { 
+            devServer.app.get('/messages.json', function(req, res) { 
+                waitForReboot();
                 if(data.status.recovery==1 && (data.status.mock_old_recovery??'')!==''){
                     console.log('Mocking old recovery, with no commands backend' );
                     res.status(404).end(); 
@@ -189,8 +258,12 @@ module.exports ={
                 data.messagequeue=[];
             });
             
-            app.get('/statusdefinition.json', function(req, res) { res.json( data.statusdefinition ); });
-            app.get('/commands.json', function(req, res) { 
+            devServer.app.get('/statusdefinition.json', function(req, res) { 
+                waitForReboot();
+                res.json( data.statusdefinition ); 
+            });
+            devServer.app.get('/commands.json', function(req, res) { 
+                waitForReboot();
                 if(data.status.recovery==1 && (data.status.mock_old_recovery??'')!==''){
                     console.log('Mocking old recovery, with no commands backend' );
                     res.status(404).end(); 
@@ -200,7 +273,8 @@ module.exports ={
                 }
                 
             });
-            app.post('/commands.json', function(req, res) { 
+            devServer.app.post('/commands.json', function(req, res) { 
+                waitForReboot();
                 if(data.status.recovery==1 && (data.status.mock_old_recovery??'')!==''){
                     console.log('Mocking old recovery, with no commands backend' );
                     res.status(404).end(); 
@@ -226,7 +300,8 @@ module.exports ={
                 }
                 res.json( { 'Result' : 'Success' } ); 
             });
-            app.post('/config.json', function(req, res) { 
+            devServer.app.post('/config.json', function(req, res) { 
+                waitForReboot();
                 var fwurl='';
                 console.log(`Processing config.json with request body: ${req.body}`);
                 console.log(data.config.config);
@@ -260,6 +335,7 @@ module.exports ={
                         }
                         
                     }
+                    
                     var targetQueue='message_queue_sequence';
                     var targetPostEmpty='message_queue_sequence_post_empty';
                     if((data.status.mock_old_recovery??'')!==''){
@@ -275,8 +351,8 @@ module.exports ={
                     }
                 }
             });
-            app.post('/status.json', function(req, res) { 
-
+            devServer.app.post('/status.json', function(req, res) { 
+                waitForReboot();
                 for (const property in req.body.status) {
                     if(data.status[property]=== undefined){
                         console.log(`Added status value ${property} [${req.body.status[property]}]`);
@@ -289,7 +365,8 @@ module.exports ={
                 }
                 res.json( {"result" : "OK" } ); 
             });            
-            app.post('/connect.json', function(req, res) { 
+            devServer.app.post('/connect.json', function(req, res) { 
+                waitForReboot();
                 setTimeout(function(r){
                 if(r.body.ssid.search('fail')>=0){
                     if(data.status.ssid){
@@ -307,27 +384,33 @@ module.exports ={
                 }, 1000, req);
                 res.json( {"result" : "OK" } );
              });
-            app.post('/reboot_ota.json', function(req, res) { 
+            devServer.app.post('/reboot_ota.json', function(req, res) { 
+                waitForReboot();
                 data.status.recovery=0;
                 requeueMessages();
+                rebooting();
                 res.json( {"result" : "OK" } ); 
             });
-            app.post('/reboot.json', function(req, res) { 
+            devServer.app.post('/reboot.json', function(req, res) { 
+                waitForReboot();
                 res.json( {"result" : "OK" } ); 
+                rebooting();
                 requeueMessages();
             });
-            app.post('/recovery.json', function(req, res) { 
+            devServer.app.post('/recovery.json', function(req, res) { 
+                waitForReboot();
                 if((data.status.mock_fail_recovery ?? '')!==''){
                     res.status(404).end(); 
                 }
                 else {
                     data.status.recovery=1;
                     requeueMessages();
+                    rebooting();
                     res.json( {"result" : "OK" } ); 
                 }                
             });
-            app.post('/flash.json', function(req, res) { 
-                
+            devServer.app.post('/flash.json', function(req, res) { 
+                waitForReboot();
                 if(data.status.recovery>0){
                     if((data.status.mock_fail_fw_update ?? '')!=='' || (data.status.mock_old_recovery??'')!==''){
                         console.log('Old recovery mock, or fw fail requested' );
@@ -338,8 +421,8 @@ module.exports ={
                         data.message_queue_sequence.push(...data.messages_ota_flash);
                         data.message_queue_sequence_post_empty = function(){
                             data.status.recovery=0;
+                            rebooting();
                             requeueMessages();
-                            
                         }   
                         res.json({"result" : "OK" });                  
                     }
@@ -349,10 +432,13 @@ module.exports ={
                     res.status(404).end(); 
                 }  
             });                  
-            app.delete('/connect.json', function(req, res) { 
+            devServer.app.delete('/connect.json', function(req, res) { 
+                waitForReboot();
                 data.status.ssid='';
                 res.json({"result" : "OK" }); });
-            app.get('/reboot', function(req, res) { res.json({"result" : "OK" }); });
+            devServer.app.get('/reboot', function(req, res) {
+                waitForReboot();
+                res.json({"result" : "OK" }); });
         },
     },
     plugins: [
@@ -360,7 +446,7 @@ module.exports ={
         new HtmlWebPackPlugin({
             title: 'SqueezeESP32-test',
             template: './src/test.ejs',
-            filename: 'test',
+            filename: 'test.html',
             minify: false,
             inject: 'body',
             excludeChunks: ['index','main'],

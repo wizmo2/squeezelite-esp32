@@ -74,9 +74,9 @@ jobs:
         echo "artifact_file_name=${artifact_file_name}" >> $GITHUB_ENV
         echo "PROJECT_VER=${TARGET_BUILD_NAME}-${{ steps.buildnumber.outputs.build_number }} " >> $GITHUB_ENV
         echo "artifact_bin_file_name=${artifact_bin_file_name}" >> $GITHUB_ENV
-        description=""
-        description=${description}$'------------------------------\n### Revision Log\n\n'
-        description="$description$(git log --pretty=format:'%h %s (%cI) <%an>' --abbrev-commit --max-count=15 | sed --r 's/(^[\*]+)/\\\1/g') "        
+        description=$'### Revision Log\n'
+        githist="$(git log --pretty=format:'%h %s (%cI) <%an>' --abbrev-commit --max-count=15 | sed --r 's/(^[\*]+)/\\\1/g')"
+        description="$description$githist"
         echo 'description<<~EOD' >> $GITHUB_ENV
         echo ${description}>> $GITHUB_ENV
         echo '~EOD' >> $GITHUB_ENV        
