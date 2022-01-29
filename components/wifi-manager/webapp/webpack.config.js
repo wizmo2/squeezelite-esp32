@@ -17,6 +17,8 @@ const devserver = require('./webpack/webpack.dev.js');
 const fs = require('fs');
 const zlib = require("zlib");
 const PurgeCSSPlugin = require('purgecss-webpack-plugin')
+const whitelister = require('purgecss-whitelister');
+
 
 const PATHS = {
   src: path.join(__dirname, 'src')
@@ -129,11 +131,13 @@ module.exports = (env, options) => (
           },          
           {
             test: /\.js$/,
-            exclude: /(node_modules|bower_components)/,
+            //exclude: /(node_modules|bower_components)/,
             use: {
               loader: "babel-loader",
               options: {
                 presets: ["@babel/preset-env"],
+                plugins: ['@babel/plugin-transform-runtime']
+
               },
             },
           },
@@ -199,7 +203,11 @@ module.exports = (env, options) => (
           filename: "css/[name].[contenthash].css",
         }),
         new PurgeCSSPlugin({
-          paths: glob.sync(`${PATHS.src}/**/*`,  { nodir: true }),
+          keyframes: false,
+          paths: glob.sync(`${path.join(__dirname, 'src')}/**/*`, {
+            nodir: true
+          }),
+          whitelist: whitelister('bootstrap/dist/css/bootstrap.css')
         }),
         new webpack.ProvidePlugin({
           $: "jquery",
@@ -224,10 +232,9 @@ module.exports = (env, options) => (
           function (stats, arguments) {
 
             if (options.mode !== "production") return;
-            let wifiManagerPath=path.posix.resolve(process.cwd(),'..','..');
-            let buildCRootPath=path.posix.resolve(process.cwd(),'..','..','..','..');
-            let distPath = path.posix.resolve('dist');
-            let posixWebAppPath=path.posix.resolve(process.cwd(),'..');
+            let buildRootPath = path.join(process.cwd(),'..','..','..');
+            let wifiManagerPath=glob.sync(path.join(buildRootPath,'components/**/wifi-manager*'))[0];
+            let buildCRootPath=glob.sync(buildRootPath)[0];
             fs.appendFileSync('./dist/index.html.gz', 
               zlib.gzipSync(fs.readFileSync('./dist/index.html'), 
               {
@@ -285,7 +292,8 @@ extern const uint8_t * resource_map_end[];`;
                 
                 list.forEach(foundFile => {
                   let exportName = path.basename(foundFile).replace(/[\. \-]/gm, '_');
-                  let cmakeFileName = path.posix.relative(wifiManagerPath,foundFile);
+                  //take the full path of the file and make it relative to the build directory
+                  let cmakeFileName = path.posix.relative(wifiManagerPath,glob.sync(path.resolve(foundFile))[0]);
                   let httpRelativePath=path.posix.join('/',path.posix.relative('dist',foundFile));
                   exportDef += `extern const uint8_t _${exportName}_start[] asm("_binary_${exportName}_start");\nextern const uint8_t _${exportName}_end[] asm("_binary_${exportName}_end");\n`;
                   lookupDef += `\t"${httpRelativePath}",\n`;
@@ -314,9 +322,19 @@ extern const uint8_t * resource_map_end[];`;
       ],
       optimization: {
         minimize: true,
+        providedExports: true,
         minimizer: [
          
-          new TerserPlugin(),
+          new TerserPlugin({
+            terserOptions: {
+              format: {
+                  comments: false,
+              },
+            },
+            extractComments: false,
+          // enable parallel running
+            parallel: true,
+          }),
           new HtmlMinimizerPlugin(),
           new CssMinimizerPlugin(),
           new ImageMinimizerPlugin({
@@ -358,16 +376,16 @@ extern const uint8_t * resource_map_end[];`;
           //new BundleAnalyzerPlugin()
 
         ],
-        // splitChunks: {
-        //   cacheGroups: {
-        //     styles: {
-        //       name: 'styles',
-        //       test: /\.css$/,
-        //       chunks: 'all',
-        //       enforce: true
-        //     }
-        //   }
-        // }
+        splitChunks: {
+          cacheGroups: {
+              vendor: {
+                  name: "node_vendors",
+                  test: /[\\/]node_modules[\\/]/,
+                  chunks: "all",
+              }
+          }
+      }
+      
       },
       //   output: {
       //     filename: "[name].js",

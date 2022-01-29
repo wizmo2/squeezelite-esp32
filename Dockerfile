@@ -2,7 +2,7 @@ FROM ubuntu:20.04
 
 
 ARG DEBIAN_FRONTEND=noninteractive
-
+ENV GCC_TOOLS_BASE=/opt/esp/tools/xtensa-esp32-elf/esp-2021r2-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-
 # We need libpython2.7 due to GDB tools
 # we also need npm 8 for the webapp to work
 RUN : \
@@ -38,6 +38,10 @@ RUN : \
   && python -m pip install --upgrade \
     pip \
     virtualenv \
+  && cd /opt \  
+  && git clone https://github.com/HBehrens/puncover.git \
+  && cd puncover \
+  && python setup.py -q install \
   && :
 
 # To build the image for a branch or a tag of IDF, pass --build-arg IDF_CLONE_BRANCH_OR_TAG=name.
@@ -47,11 +51,13 @@ RUN : \
 #   IDF_CHECKOUT_REF=<some commit on release/vX.Y branch>.
 # The following commit contains the ldgen fix: eab738c79e063b3d6f4c345ea5e1d4f8caef725b
 # to build an image using that commit: docker build . --build-arg IDF_CHECKOUT_REF=eab738c79e063b3d6f4c345ea5e1d4f8caef725b -t sle118/squeezelite-esp32-idfv4-master
-# docker build . --build-arg IDF_CHECKOUT_REF=8bf14a9238329954c7c5062eeeda569529aedf75  -t sle118/squeezelite-esp32-idfv4-master
+# docker build . --build-arg IDF_CHECKOUT_REF=8bf14a92python setup.py -q install38329954c7c5062eeeda569529aedf75  -t sle118/squeezelite-esp32-idfv4-master
 # To run the image interactive (windows): docker run --rm -v %cd%:/project -w /project -it sle118/squeezelite-esp32-idfv4-master
 # to build the web app inside of the interactive session
 # pushd components/wifi-manager/webapp/ && npm install && npm run-script build && popd
-
+#
+# to run the docker with netwotrk port published on the host:
+# docker run --rm -p 5000:5000/tcp -v %cd%:/project -w /project -it sle118/squeezelite-esp32-idfv4-master
 
 ARG IDF_CLONE_URL=https://github.com/espressif/esp-idf.git
 ARG IDF_CLONE_BRANCH_OR_TAG=master
@@ -59,6 +65,7 @@ ARG IDF_CHECKOUT_REF=eab738c79e063b3d6f4c345ea5e1d4f8caef725b
 
 ENV IDF_PATH=/opt/esp/idf
 ENV IDF_TOOLS_PATH=/opt/esp
+
 
 RUN echo IDF_CHECKOUT_REF=$IDF_CHECKOUT_REF IDF_CLONE_BRANCH_OR_TAG=$IDF_CLONE_BRANCH_OR_TAG && \
     git clone --recursive \

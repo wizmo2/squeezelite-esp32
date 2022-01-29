@@ -42,11 +42,11 @@ jobs:
       with:
         path: |
           ~/build
-          ~/components/wifi-manager/webapp/node_modules
         key: ${{ runner.os }}-${{ matrix.node }}
     - name: Set build parameters
       run: |
         git update-index --chmod=+x ./server_certs/getcert.sh
+        git update-index --chmod=+x ./buildFirmware.sh
         git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/protoc
         git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/protoc-gen-nanopb
         git update-index --chmod=+x ./components/spotify/cspot/bell/nanopb/generator/*.py
@@ -91,13 +91,9 @@ jobs:
     - name: Build the firmware
       run: |
         env | grep "artifact\|tag\|GITHUB\|version\|NUMBER\|TARGET" >${TARGET_BUILD_NAME}-env.txt
-        echo "${tag}" >version.txt
         echo pulling custom docker image  ${DOCKER_IMAGE_NAME}
         docker pull ${DOCKER_IMAGE_NAME}
-        docker run --env-file=${TARGET_BUILD_NAME}-env.txt  -v $PWD:/project -w /project ${DOCKER_IMAGE_NAME} /bin/bash -c "pushd components/wifi-manager/webapp/ && npm install && npm run-script build && popd"
-        docker run --env-file=${TARGET_BUILD_NAME}-env.txt  -v $PWD:/project -w /project ${DOCKER_IMAGE_NAME} /bin/bash -c "cp build-scripts/${TARGET_BUILD_NAME}-sdkconfig.defaults sdkconfig"
-        docker run --env-file=${TARGET_BUILD_NAME}-env.txt  -v $PWD:/project -w /project ${DOCKER_IMAGE_NAME} /bin/bash -c "idf.py build -DDEPTH=${{ matrix.depth }} -DBUILD_NUMBER=${BUILD_NUMBER}-${{ matrix.depth }} "
-        docker run --env-file=${TARGET_BUILD_NAME}-env.txt  -v $PWD:/project -w /project ${DOCKER_IMAGE_NAME} /bin/bash -c "zip -r build_output.zip build && zip build/${artifact_file_name} partitions*.csv build/*.bin build/bootloader/bootloader.bin build/partition_table/partition-table.bin build/flash_project_args build/size_*.txt"
+        docker run --env-file=${TARGET_BUILD_NAME}-env.txt  -v $PWD:/project -w /project ${DOCKER_IMAGE_NAME} /bin/bash -c "./buildFirmware.sh"
     # - name: Build Mock firmware
     #   run: |
     #     mkdir -p build
