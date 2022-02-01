@@ -49,5 +49,5 @@ then
 else
     echo "Generating build artifact zip file"
     zip -r build_output.zip build
-    zip build/${artifact_file_name} partitions*.csv build/*.bin build/bootloader/bootloader.bin build/partition_table/partition-table.bin build/flash_project_args build/size_*.txt
+    zip build/${artifact_file_name} partitions*.csv components/ build/*.bin build/bootloader/bootloader.bin build/partition_table/partition-table.bin build/flash_project_args build/size_*.txt
 fi

@@ -1,5 +1,5 @@
-import he from 'he';
-import { Promise } from 'es6-promise';
+var he = require('he');
+var Promise = require('es6-promise').Promise;
 window.bootstrap = require('bootstrap');
 import Cookies from 'js-cookie';
 

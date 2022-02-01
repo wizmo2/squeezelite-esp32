@@ -135,7 +135,6 @@ module.exports ={
     entry: {
         test: './src/test.ts',
     },
-    devtool:"source-map",
     devServer: {
 
         

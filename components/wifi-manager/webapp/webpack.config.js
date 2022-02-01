@@ -37,12 +37,15 @@ class BuildEventsHook {
 
 
 module.exports = (env, options) => (
-  merge(env.WEBPACK_SERVE ?  devserver : {},
+  merge(
+    env.WEBPACK_SERVE ?  devserver : {},
+    env.ANALYZE_SIZE?{ plugins: [ new BundleAnalyzerPlugin() ]}:{},
     {
       entry: 
       {
           index: './src/index.ts'
       },
+      devtool:"source-map",
       module: {
         rules: [
           {
@@ -131,7 +134,7 @@ module.exports = (env, options) => (
           },          
           {
             test: /\.js$/,
-            //exclude: /(node_modules|bower_components)/,
+            exclude: /(node_modules|bower_components)/,
             use: {
               loader: "babel-loader",
               options: {
@@ -162,6 +165,8 @@ module.exports = (env, options) => (
             use: 'ts-loader',
             exclude: /node_modules/,
           },
+          
+          
         ],
       },
       plugins: [
@@ -211,11 +216,11 @@ module.exports = (env, options) => (
         }),
         new webpack.ProvidePlugin({
           $: "jquery",
-          jQuery: "jquery",
-          "window.jQuery": "jquery",
-          Popper: ["popper.js", "default"],
-          Util: "exports-loader?Util!bootstrap/js/dist/util",
-          Dropdown: "exports-loader?Dropdown!bootstrap/js/dist/dropdown",
+//          jQuery: "jquery",
+  //        "window.jQuery": "jquery",
+    //      Popper: ["popper.js", "default"],
+          // Util: "exports-loader?Util!bootstrap/js/dist/util",
+          // Dropdown: "exports-loader?Dropdown!bootstrap/js/dist/dropdown",
         }),
         new CompressionPlugin({
           //filename: '[path].gz[query]',
@@ -373,7 +378,7 @@ extern const uint8_t * resource_map_end[];`;
               },
             },
           }),  
-          //new BundleAnalyzerPlugin()
+          
 
         ],
         splitChunks: {
