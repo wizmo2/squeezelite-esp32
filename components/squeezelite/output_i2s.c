@@ -175,7 +175,7 @@ static void jack_handler(bool inserted) {
 /****************************************************************************************
  * amp GPIO
  */
-#ifndef AMP_GPIO_LOCKED 
+#ifndef AMP_LOCKED 
 static void set_amp_gpio(int gpio, char *value) {
 	char *p;
 	
@@ -347,7 +347,7 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 	jack_handler_chain = jack_handler_svc;
 	jack_handler_svc = jack_handler;
 	
-#ifndef AMP_GPIO_LOCKED	
+#ifndef AMP_LOCKED	
 	parse_set_GPIO(set_amp_gpio);
 #endif
 
