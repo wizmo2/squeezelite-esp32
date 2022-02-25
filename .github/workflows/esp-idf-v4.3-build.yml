@@ -41,7 +41,8 @@ jobs:
       uses: actions/cache@v2
       with:
         path: |
-          ~/build
+          ~/build 
+          ./
         key: ${{ runner.os }}-${{ matrix.node }}
     - name: Set build parameters
       run: |
