@@ -344,10 +344,27 @@
 							</div>
 						</div>
 					</div>
+				<div class="card-body if_wifi" style="display: none" >
+					<table class="table table-hover">
+						<thead>
+							<tr>
+								<th scope="col">Joined</th>
+								<th scope="col">Name</th>
+								<th scope="col">Signal</th>
+								<th scope="col">Security</th>
+							</tr>
+						</thead>
+						<tbody id="wifiTable"></tbody>
+					</table>
+					<button type="button" id="updateAP" class="btn btn-info btn-sm">Scan</button>
+
 				</div>
+
+				
 
 			</div>
 		</div>
+		
 		<div class="tab-pane fade " id="tab-commands">
 			<fieldset id="commands-list"></fieldset>
 		</div>

@@ -51,7 +51,8 @@ QueueHandle_t network_queue;
 BaseType_t network_task_handle;
 static const char TAG[] = "network";
 static TaskHandle_t task_network_manager = NULL;
-RTC_NOINIT_ATTR static bool s_wifi_prioritized = false;
+RTC_NOINIT_ATTR static bool s_wifi_prioritized;
+
 extern esp_reset_reason_t xReason;
 typedef struct network_callback {
     network_status_reached_cb cb;
@@ -282,8 +283,8 @@ static const max_sub_states_t state_max[] = {
 
 void network_start() {
     
-    if(xReason == ESP_RST_POWERON ){
-        ESP_LOGD(TAG, "Power on reset, initializing wifi priotitized to false");
+    if(cold_boot){
+        ESP_LOGI(TAG, "Setting wifi priotitized flag to false");
         s_wifi_prioritized = false;
     }
     ESP_LOGD(TAG, " Creating message queue");

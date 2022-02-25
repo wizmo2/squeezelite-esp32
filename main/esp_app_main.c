@@ -63,6 +63,8 @@ static const char TAG[] = "esp_app_main";
 char * fwurl = NULL;
 RTC_NOINIT_ATTR uint32_t RebootCounter ;
 RTC_NOINIT_ATTR uint32_t RecoveryRebootCounter ;
+RTC_NOINIT_ATTR uint16_t ColdBootIndicatorFlag;
+bool cold_boot=true;
 
 static bool bNetworkConnected=false;
 extern const uint8_t server_cert_pem_start[] asm("_binary_github_pem_start");
@@ -101,7 +103,7 @@ void cb_connection_got_ip(nm_state_t new_state, int sub_state){
 	bNetworkConnected=true;
 
 	led_unpush(LED_GREEN);
-		if(is_recovery_running){
+	if(is_recovery_running){
 		// when running in recovery, send a LMS discovery message 
 		// to find a running instance. This is to enable using 
 		// the plugin's proxy mode for FW download and avoid
@@ -366,7 +368,19 @@ void register_default_nvs(){
     register_default_string_val("ethtmout","8");
     register_default_string_val("dhcp_tmout","8");
 	register_default_string_val("target", CONFIG_TARGET);
-	
+#ifdef CONFIG_CSPOT_SINK
+	char * host_hame = config_alloc_get_default(NVS_TYPE_STR, "host_name", NULL, 0);
+	register_default_string_val("enable_cspot", STR(CONFIG_CSPOT_SINK));
+	cJSON * cspot_config = cJSON_CreateObject();
+	cJSON_AddStringToObject(cspot_config, "deviceName", host_hame);
+	cJSON_AddNumberToObject(cspot_config, "format", 1);
+	cJSON_AddNumberToObject(cspot_config, "volume", 32767);
+	char * cspot_config_str = cJSON_PrintUnformatted(cspot_config);
+	register_default_string_val("cspot_config", cspot_config_str);
+	cJSON_Delete(cspot_config);
+	FREE_AND_NULL(cspot_config_str);
+	FREE_AND_NULL(host_hame);
+#endif
 	wait_for_commit();
 	ESP_LOGD(TAG,"Done setting default values in nvs.");
 }
@@ -392,6 +406,14 @@ esp_reset_reason_t xReason=ESP_RST_UNKNOWN;
 
 void app_main()
 {
+	if(ColdBootIndicatorFlag != 0xFACE ){
+		ESP_LOGI(TAG, "System is booting from power on.");
+		cold_boot = true;
+        ColdBootIndicatorFlag = 0xFACE;
+    }
+	else {
+		cold_boot = false;
+	}
 	const esp_partition_t *running = esp_ota_get_running_partition();
 	is_recovery_running = (running->subtype == ESP_PARTITION_SUBTYPE_APP_FACTORY);
 	xReason = esp_reset_reason();

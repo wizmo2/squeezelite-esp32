@@ -821,6 +821,15 @@ static state_machine_result_t WIFI_CONNECTING_STATE_handler(state_machine_t* con
             ESP_LOGI(TAG, "Timer: %s ",STR_OR_ALT(nm->timer_tag,"Ethernet link not detected"));
             network_connect_active_ssid(State_Machine);
             break;
+        case EN_LOST_CONNECTION:
+            if(nm->event_parameters->disconnected_event->reason == WIFI_REASON_ASSOC_LEAVE) {
+                ESP_LOGI(TAG,"Wifi was disconnected from previous access point. Waiting to connect.");
+            }
+            else if(nm->event_parameters->disconnected_event->reason != WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT) {
+                network_status_update_ip_info(UPDATE_FAILED_ATTEMPT);
+                result = local_traverse_state(State_Machine, &Wifi_Configuring_State[WIFI_CONFIGURING_STATE],__FUNCTION__);
+            }
+            break;
         default:
             result = EVENT_UN_HANDLED;
     }
@@ -1032,7 +1041,7 @@ static state_machine_result_t WIFI_LOST_CONNECTION_STATE_entry_handler(state_mac
     if (nm->retries < WIFI_MANAGER_MAX_RETRY) {
         nm->retries++;
         ESP_LOGD(TAG, " Retrying connection connection, %d/%d.", nm->retries, WIFI_MANAGER_MAX_RETRY);
-        network_connect_active_ssid( State_Machine);
+        network_async(EN_CONNECT);
     } else {
         /* In this scenario the connection was lost beyond repair */
         nm->retries = 0;
@@ -1088,6 +1097,7 @@ static state_machine_result_t WIFI_LOST_CONNECTION_STATE_handler(state_machine_t
 }
 static state_machine_result_t WIFI_LOST_CONNECTION_STATE_exit_handler(state_machine_t* const State_Machine) {
     network_exit_handler_print(State_Machine,true);
+    FREE_AND_NULL(((network_t *)State_Machine)->event_parameters->disconnected_event);
     network_exit_handler_print(State_Machine,false);
     return EVENT_HANDLED;
 }

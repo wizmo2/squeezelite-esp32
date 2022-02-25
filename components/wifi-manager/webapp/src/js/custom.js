@@ -1039,7 +1039,18 @@ $(document).ready(function () {
     saveAutoexec1(true);
   });
   $('#btn_disconnect').on('click', function () {
-    handleDisconnect();
+    ConnectedTo={};
+    refreshAPHTML2();
+    $.ajax({
+      url: '/connect.json',
+      dataType: 'text',
+      method: 'DELETE',
+      cache: false,
+      contentType: 'application/json; charset=utf-8',
+      data: JSON.stringify({
+        timestamp: Date.now(),
+      }),
+    });
   });
   $('#btnJoin').on('click', function () {
     handleConnect();
@@ -1296,7 +1307,7 @@ function rssiToIcon(rssi) {
 }
 
 function refreshAP() {
-  if (ConnectedTo.urc === connectReturnCode.ETH) return;
+  if (ConnectedTo?.urc === connectReturnCode.ETH) return;
   $.getJSON('/scan.json', async function () {
     await sleep(2000);
     $.getJSON('/ap.json', function (data) {
@@ -1346,7 +1357,7 @@ function refreshAPHTML2(data) {
     $('#wifiStsIcon').html(rssiToIcon(ConnectedTo.rssi));
 
   }
-  else if (ConnectedTo.urc !== connectReturnCode.ETH) {
+  else if (ConnectedTo?.urc !== connectReturnCode.ETH) {
     $('span#foot-if').html('');
   }
 

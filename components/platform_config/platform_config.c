@@ -649,7 +649,7 @@ void config_get_uint16t_from_str(const char *key, uint16_t *value, uint16_t defa
 	char * str_value = config_alloc_get(NVS_TYPE_STR, key);
 	if(str_value == NULL){
 		*value = default_value;
-		return NULL;
+		return ;
 	}
 	*value = atoi(str_value);
 	free(str_value);
