@@ -181,12 +181,13 @@ static void Update24( struct GDS_Device* Device ) {
 #endif	
 }
 
-static void SetLayout( struct GDS_Device* Device, bool HFlip, bool VFlip, bool Rotate ) { 
+static void SetLayout( struct GDS_Device* Device, struct GDS_Layout *Layout ) { 
 	struct PrivateSpace *Private = (struct PrivateSpace*) Device->Private;
-	Private->ReMap = HFlip ? (Private->ReMap & ~(1 << 1)) : (Private->ReMap | (1 << 1));
-	Private->ReMap = VFlip ? (Private->ReMap | (1 << 4)) : (Private->ReMap & ~(1 << 4));
+	Private->ReMap = Layout->HFlip ? (Private->ReMap & ~(1 << 1)) : (Private->ReMap | (1 << 1));
+	Private->ReMap = Layout->VFlip ? (Private->ReMap | (1 << 4)) : (Private->ReMap & ~(1 << 4));
 	Device->WriteCommand( Device, 0xA0 );
 	WriteByte( Device, Private->ReMap );
+    Device->WriteCommand( Device, Layout->Invert ? 0xA7 : 0xA6 );	
 }	
 
 static void DisplayOn( struct GDS_Device* Device ) { Device->WriteCommand( Device, 0xAF ); }
@@ -239,7 +240,8 @@ static bool Init( struct GDS_Device* Device ) {
 	
 	// set flip modes & contrast
 	Device->SetContrast( Device, 0x7F );
-	Device->SetLayout( Device, false, false, false );
+	struct GDS_Layout Layout = { };
+	Device->SetLayout( Device, &Layout );
 	
 	// set Adressing Mode Horizontal
 	Private->ReMap |= (0 << 2);

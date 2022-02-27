@@ -117,7 +117,7 @@ struct GDS_Device {
 	void (*SetContrast)( struct GDS_Device* Device, uint8_t Contrast );
 	void (*DisplayOn)( struct GDS_Device* Device );
 	void (*DisplayOff)( struct GDS_Device* Device );
-	void (*SetLayout)( struct GDS_Device* Device, bool HFlip, bool VFlip, bool Rotate );
+	void (*SetLayout)( struct GDS_Device* Device, struct GDS_Layout *Layout );
 	// must provide for depth other than 1 (vertical) and 4 (may provide for optimization)
 	void (*DrawPixelFast)( struct GDS_Device* Device, int X, int Y, int Color );
 	void (*DrawBitmapCBR)(struct GDS_Device* Device, uint8_t *Data, int Width, int Height, int Color );

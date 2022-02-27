@@ -96,13 +96,14 @@ static void Update( struct GDS_Device* Device ) {
 #endif	
 }
 
-static void SetLayout( struct GDS_Device* Device, bool HFlip, bool VFlip, bool Rotate ) { 
+static void SetLayout( struct GDS_Device* Device, struct GDS_Layout *Layout ) { 
 	struct PrivateSpace *Private = (struct PrivateSpace*) Device->Private;
-	Private->ReMap = HFlip ? (Private->ReMap & ~(1 << 1)) : (Private->ReMap | (1 << 1));
-	Private->ReMap = VFlip ? (Private->ReMap | (1 << 4)) : (Private->ReMap & ~(1 << 4));
+	Private->ReMap = Layout->HFlip ? (Private->ReMap & ~(1 << 1)) : (Private->ReMap | (1 << 1));
+	Private->ReMap = Layout->VFlip ? (Private->ReMap | (1 << 4)) : (Private->ReMap & ~(1 << 4));
 	Device->WriteCommand( Device, 0xA0 );
 	Device->WriteData( Device, &Private->ReMap, 1 );
 	WriteDataByte( Device, 0x11 );		
+	Device->WriteCommand( Device, Layout->Invert ? 0xA7 : 0xA6 );
 }	
 
 static void DisplayOn( struct GDS_Device* Device ) { Device->WriteCommand( Device, 0xAF ); }
@@ -145,7 +146,8 @@ static bool Init( struct GDS_Device* Device ) {
 	
 	// set flip modes
 	Private->ReMap = 0;
-	Device->SetLayout( Device, false, false, false);
+	struct GDS_Layout Layout = { };
+	Device->SetLayout( Device, &Layout );
 	
 	// set Display Enhancement
     Device->WriteCommand( Device, 0xB4 );

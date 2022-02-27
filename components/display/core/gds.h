@@ -26,6 +26,12 @@ struct GDS_BacklightPWM {
 	int Channel, Timer, Max;
 	bool Init;
 };
+struct GDS_Layout {
+	bool HFlip, VFlip;
+	bool Rotate;
+	bool Invert; 
+	bool ColorSwap;
+};
 
 typedef struct GDS_Device* GDS_DetectFunc(char *Driver, struct GDS_Device *Device);
 
@@ -35,7 +41,7 @@ void 	GDS_SetContrast( struct GDS_Device* Device, uint8_t Contrast );
 void 	GDS_DisplayOn( struct GDS_Device* Device );
 void 	GDS_DisplayOff( struct GDS_Device* Device ); 
 void 	GDS_Update( struct GDS_Device* Device );
-void 	GDS_SetLayout( struct GDS_Device* Device, bool HFlip, bool VFlip, bool Rotate );
+void 	GDS_SetLayout( struct GDS_Device* Device, struct GDS_Layout* Layout);
 void 	GDS_SetDirty( struct GDS_Device* Device );
 int 	GDS_GetWidth( struct GDS_Device* Device );
 void 	GDS_SetTextWidth( struct GDS_Device* Device, int TextWidth );

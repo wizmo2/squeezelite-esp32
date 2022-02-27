@@ -73,9 +73,10 @@ static void Update( struct GDS_Device* Device ) {
 #endif	
 }
 
-static void SetLayout( struct GDS_Device* Device, bool HFlip, bool VFlip, bool Rotate ) {
-	Device->WriteCommand( Device, HFlip ? 0xA1 : 0xA0 );
-	Device->WriteCommand( Device, VFlip ? 0xC8 : 0xC0 );
+static void SetLayout( struct GDS_Device* Device, struct GDS_Layout *Layout ) { 
+	Device->WriteCommand( Device, Layout->HFlip ? 0xA1 : 0xA0 );
+	Device->WriteCommand( Device, Layout->VFlip ? 0xC8 : 0xC0 );
+    Device->WriteCommand( Device, Layout->Invert ? 0xA7 : 0xA6 );
 }	
 
 static void DisplayOn( struct GDS_Device* Device ) { Device->WriteCommand( Device, 0xAF ); }
@@ -124,7 +125,8 @@ static bool Init( struct GDS_Device* Device ) {
     Device->WriteCommand( Device, 0x40 + 0x00 );
 	Device->SetContrast( Device, 0x7F );
 	// set flip modes
-	Device->SetLayout( Device, false, false, false );
+	struct GDS_Layout Layout = { };
+	Device->SetLayout( Device, &Layout );
 	// no Display Inversion
     Device->WriteCommand( Device, 0xA6 );
 	// set Clocks

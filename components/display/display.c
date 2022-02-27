@@ -141,8 +141,15 @@ void display_init(char *welcome) {
 	if (init) {
 		static DRAM_ATTR StaticTask_t xTaskBuffer __attribute__ ((aligned (4)));
 		static EXT_RAM_ATTR StackType_t xStack[DISPLAYER_STACK_SIZE] __attribute__ ((aligned (4)));
-		
-		GDS_SetLayout(display, strcasestr(config, "HFlip"), strcasestr(config, "VFlip"), strcasestr(config, "rotate"));
+		struct GDS_Layout Layout = {
+			.HFlip = strcasestr(config, "HFlip"), 
+			.VFlip = strcasestr(config, "VFlip"), 
+			.Rotate = strcasestr(config, "rotate"), 
+			.Invert = strcasestr(config, "invert"),
+			.ColorSwap = strcasestr(config, "cswap"),
+		};	
+					
+		GDS_SetLayout(display, &Layout);
 		GDS_SetFont(display, &Font_line_2);
 		GDS_TextPos(display, GDS_FONT_DEFAULT, GDS_TEXT_CENTERED, GDS_TEXT_CLEAR | GDS_TEXT_UPDATE, welcome);
 
