@@ -462,7 +462,8 @@ const display_config_t * config_display_get(){
 		.hflip = false,
 		.type = NULL,
 		.speed = 0,
-		.rotate = false
+		.rotate = false,
+		.invert = false,
 	};
 	char *config = config_alloc_get(NVS_TYPE_STR, "display_config");
 	if (!config) {
@@ -482,7 +483,6 @@ const display_config_t * config_display_get(){
 	PARSE_PARAM(config, "address", '=', dstruct.address);
 	PARSE_PARAM(config, "cs", '=', dstruct.CS_pin);
 	PARSE_PARAM(config, "speed", '=', dstruct.speed);
-	PARSE_PARAM(config, "back", '=', dstruct.back);
 
 	if (strstr(config, "I2C") ) dstruct.type=i2c_name_type;
 	if (strstr(config, "SPI") ) dstruct.type=spi_name_type;
@@ -490,6 +490,7 @@ const display_config_t * config_display_get(){
 	dstruct.hflip= strcasestr(config, "HFlip") ? true : false;
 	dstruct.vflip= strcasestr(config, "VFlip") ? true : false;
 	dstruct.rotate= strcasestr(config, "rotate") ? true : false;
+	dstruct.rotate= strcasestr(config, "invert") ? true : false;
 	return &dstruct;
 }
 

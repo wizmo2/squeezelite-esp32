@@ -34,6 +34,7 @@ struct PrivateSpace {
 	} Offset;
 	uint8_t MADCtl, PageSize;
 	uint8_t Model;
+	bool Invert;
 };
 
 // Functions are not declared to minimize # of lines
@@ -255,7 +256,7 @@ static bool Init( struct GDS_Device* Device ) {
 	else WriteByte( Device, Device->Depth == 24 ? 0x06 : 0x05 );
 	
 	// no Display Inversion
-    Device->WriteCommand( Device, Private->Model == ST7735 ? 0x20 : 0x21 );	
+	Device->WriteCommand( Device, Private->Invert ? 0x21 : 0x20 );	
 		
 	// gone with the wind
 	Device->DisplayOn( Device );
@@ -286,7 +287,7 @@ struct GDS_Device* ST77xx_Detect(char *Driver, struct GDS_Device* Device) {
 
 	struct PrivateSpace* Private = (struct PrivateSpace*) Device->Private;
 	Private->Model = Model;
-
+	
 	if (Model == ST7735) {
 		sscanf(Driver, "%*[^:]%*[^x]%*[^=]=%hu", &Private->Offset.Height);		
 		sscanf(Driver, "%*[^:]%*[^y]%*[^=]=%hu", &Private->Offset.Width);		
@@ -298,6 +299,7 @@ struct GDS_Device* ST77xx_Detect(char *Driver, struct GDS_Device* Device) {
 		Device->Update = Update24;
 	} 	
 	
+	if (Model == ST7789 || strcasestr(Driver, "invert")) Private->Invert = true;
 	if (Model == ST7789) Device->SetContrast = SetContrast;
 
 	return Device;

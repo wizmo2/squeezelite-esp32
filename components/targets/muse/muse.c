@@ -7,7 +7,6 @@
 #include <esp_system.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-//#include <driver/adc.h>
 #include "driver/rmt.h"
 #include "monitor.h"
 #include "targets.h"
@@ -24,14 +23,18 @@
 
 // These values are determined by measuring pulse timing with logic analyzer and adjusting to match datasheet. 
 #define T0H 14  // 0 bit high time
-#define T1H 52 // 1 bit high time
+#define T1H 52  // 1 bit high time
 #define TL  52  // low time for either bit
 
-#define GREEN   0xFF0000
-#define RED 	0x00FF00
-#define BLUE  	0x0000FF
-#define WHITE   0xFFFFFF
-#define YELLOW  0xE0F060
+// sets a color based on RGB from 0..255 and a brightness in % from 0..100
+#define RGB(R,G,B,BR) (((G*BR)/100) << 16) | (((R*BR)/100) << 8) | ((B*BR)/100)
+
+#define RED 	RGB(255,0,0,10)
+#define GREEN   RGB(0,255,0,10)
+#define BLUE  	RGB(0,0,255,10)
+#define WHITE   RGB(255,255,255,10)
+#define YELLOW  RGB(255,118,13,10)
+
 struct led_state {
     uint32_t leds[NUM_LEDS];
 };
