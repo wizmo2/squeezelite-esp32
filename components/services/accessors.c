@@ -490,7 +490,7 @@ const display_config_t * config_display_get(){
 	dstruct.hflip= strcasestr(config, "HFlip") ? true : false;
 	dstruct.vflip= strcasestr(config, "VFlip") ? true : false;
 	dstruct.rotate= strcasestr(config, "rotate") ? true : false;
-	dstruct.rotate= strcasestr(config, "invert") ? true : false;
+	dstruct.invert= strcasestr(config, "invert") ? true : false;
 	return &dstruct;
 }
 

@@ -287,7 +287,7 @@ struct GDS_Device* ST77xx_Detect(char *Driver, struct GDS_Device* Device) {
 
 	struct PrivateSpace* Private = (struct PrivateSpace*) Device->Private;
 	Private->Model = Model;
-	
+
 	if (Model == ST7735) {
 		sscanf(Driver, "%*[^:]%*[^x]%*[^=]=%hu", &Private->Offset.Height);		
 		sscanf(Driver, "%*[^:]%*[^y]%*[^=]=%hu", &Private->Offset.Width);		
