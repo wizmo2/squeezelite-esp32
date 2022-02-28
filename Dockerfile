@@ -51,7 +51,8 @@ RUN : \
 #   IDF_CHECKOUT_REF=<some commit on release/vX.Y branch>.
 # The following commit contains the ldgen fix: eab738c79e063b3d6f4c345ea5e1d4f8caef725b
 # to build an image using that commit: docker build . --build-arg IDF_CHECKOUT_REF=eab738c79e063b3d6f4c345ea5e1d4f8caef725b -t sle118/squeezelite-esp32-idfv4-master
-# docker build . --build-arg IDF_CHECKOUT_REF=8bf14a92python setup.py -q install38329954c7c5062eeeda569529aedf75  -t sle118/squeezelite-esp32-idfv4-master
+# Docker build for release 4.3.2 as of 2022/02/28
+# docker build . --build-arg IDF_CHECKOUT_REF=8bf14a9238329954c7c5062eeeda569529aedf75 -t sle118/squeezelite-esp32-idfv4-master
 # To run the image interactive (windows): docker run --rm -v %cd%:/project -w /project -it sle118/squeezelite-esp32-idfv4-master
 # to build the web app inside of the interactive session
 # pushd components/wifi-manager/webapp/ && npm install && npm run-script build && popd
@@ -61,7 +62,7 @@ RUN : \
 
 ARG IDF_CLONE_URL=https://github.com/espressif/esp-idf.git
 ARG IDF_CLONE_BRANCH_OR_TAG=master
-ARG IDF_CHECKOUT_REF=eab738c79e063b3d6f4c345ea5e1d4f8caef725b
+ARG IDF_CHECKOUT_REF=8bf14a9238329954c7c5062eeeda569529aedf75
 
 ENV IDF_PATH=/opt/esp/idf
 ENV IDF_TOOLS_PATH=/opt/esp
