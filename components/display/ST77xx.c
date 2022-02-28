@@ -195,15 +195,14 @@ static void SetLayout( struct GDS_Device* Device, struct GDS_Layout *Layout ) {
 		if (Layout->Rotate) Private->Offset.Width += Layout->HFlip ? 320 - Device->Width : 0;
 		else Private->Offset.Height += Layout->HFlip ? 320 - Device->Height : 0;
 		Device->WriteCommand( Device, Layout->Invert ? 0x20 : 0x21 );			
-		Private->MADCtl = Layout->ColorSwap ? (Private->MADCtl & ~(1 << 3)) : (Private->MADCtl | (1 << 3));
 	} else {
 		Device->WriteCommand( Device, Layout->Invert ? 0x21 : 0x20 );	
-		Private->MADCtl = Layout->ColorSwap ? (Private->MADCtl | (1 << 3)) : (Private->MADCtl & ~(1 << 3));		
 	}		
 
 	Private->MADCtl = Layout->HFlip ? (Private->MADCtl | (1 << 7)) : (Private->MADCtl & ~(1 << 7));
 	Private->MADCtl = Layout->VFlip ? (Private->MADCtl | (1 << 6)) : (Private->MADCtl & ~(1 << 6));
 	Private->MADCtl = Layout->Rotate ? (Private->MADCtl | (1 << 5)) : (Private->MADCtl & ~(1 << 5));
+	Private->MADCtl = Layout->ColorSwap ? (Private->MADCtl & ~(1 << 3)) : (Private->MADCtl | (1 << 3));	
 
 	Device->WriteCommand( Device, 0x36 );
 	WriteByte( Device, Private->MADCtl );
