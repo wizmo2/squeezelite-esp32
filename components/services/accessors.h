@@ -31,6 +31,8 @@ typedef struct {
 	int depth;
 	const char *type;
 	bool rotate;
+	bool invert;
+	int colorswap;
 } display_config_t;
 
 typedef struct eth_config_struct {

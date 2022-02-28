@@ -188,20 +188,25 @@ static void Update24( struct GDS_Device* Device ) {
 #endif	
 }
 
-static void SetLayout( struct GDS_Device* Device, bool HFlip, bool VFlip, bool Rotate ) { 
+static void SetLayout( struct GDS_Device* Device, struct GDS_Layout *Layout ) { 
 	struct PrivateSpace *Private = (struct PrivateSpace*) Device->Private;
 	
-	Private->MADCtl = HFlip ? (Private->MADCtl | (1 << 7)) : (Private->MADCtl & ~(1 << 7));
-	Private->MADCtl = VFlip ? (Private->MADCtl | (1 << 6)) : (Private->MADCtl & ~(1 << 6));
-	Private->MADCtl = Rotate ? (Private->MADCtl | (1 << 5)) : (Private->MADCtl & ~(1 << 5));
-	
+	if (Private->Model == ST7789) {
+		if (Layout->Rotate) Private->Offset.Width += Layout->HFlip ? 320 - Device->Width : 0;
+		else Private->Offset.Height += Layout->HFlip ? 320 - Device->Height : 0;
+		Device->WriteCommand( Device, Layout->Invert ? 0x20 : 0x21 );			
+		Private->MADCtl = Layout->ColorSwap ? (Private->MADCtl & ~(1 << 3)) : (Private->MADCtl | (1 << 3));
+	} else {
+		Device->WriteCommand( Device, Layout->Invert ? 0x21 : 0x20 );	
+		Private->MADCtl = Layout->ColorSwap ? (Private->MADCtl | (1 << 3)) : (Private->MADCtl & ~(1 << 3));		
+	}		
+
+	Private->MADCtl = Layout->HFlip ? (Private->MADCtl | (1 << 7)) : (Private->MADCtl & ~(1 << 7));
+	Private->MADCtl = Layout->VFlip ? (Private->MADCtl | (1 << 6)) : (Private->MADCtl & ~(1 << 6));
+	Private->MADCtl = Layout->Rotate ? (Private->MADCtl | (1 << 5)) : (Private->MADCtl & ~(1 << 5));
+
 	Device->WriteCommand( Device, 0x36 );
 	WriteByte( Device, Private->MADCtl );
-	
-	if (Private->Model == ST7789) {
-		if (Rotate) Private->Offset.Width += HFlip ? 320 - Device->Width : 0;
-		else Private->Offset.Height += HFlip ? 320 - Device->Height : 0;
-	}
 
 #ifdef SHADOW_BUFFER
 	// force a full refresh (almost ...)
@@ -239,24 +244,22 @@ static bool Init( struct GDS_Device* Device ) {
 	
 	// Sleepout + Booster
 	Device->WriteCommand( Device, 0x11 );
-		
+	
 	// need BGR & Address Mode
 	Private->MADCtl = 1 << 3;
 	Device->WriteCommand( Device, 0x36 );
 	WriteByte( Device, Private->MADCtl );		
-		
+	
 	// set flip modes & contrast
 	GDS_SetContrast( Device, 0x7f );
-	Device->SetLayout( Device, false, false, false );
+	struct GDS_Layout Layout = { };
+	Device->SetLayout( Device, &Layout );
 	
 	// set screen depth (16/18)
 	Device->WriteCommand( Device, 0x3A );
 	if (Private->Model == ST7789) WriteByte( Device, Device->Depth == 24 ? 0x066 : 0x55 );
 	else WriteByte( Device, Device->Depth == 24 ? 0x06 : 0x05 );
 	
-	// no Display Inversion
-    Device->WriteCommand( Device, Private->Model == ST7735 ? 0x20 : 0x21 );	
-		
 	// gone with the wind
 	Device->DisplayOn( Device );
 	Device->Update( Device );

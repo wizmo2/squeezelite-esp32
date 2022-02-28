@@ -191,49 +191,54 @@ static void Update24( struct GDS_Device* Device ) {
 #endif	
 }
 
-static void SetLayout( struct GDS_Device* Device, bool HFlip, bool VFlip, bool Rotate ) { 
+static void SetLayout( struct GDS_Device* Device, struct GDS_Layout *Layout ) { 
 	struct PrivateSpace *Private = (struct PrivateSpace*) Device->Private;
-	ESP_LOGI(TAG, "SetLayout 197 HFlip=%d VFlip=%d Rotate=%d (1=true)", HFlip, VFlip, Rotate);
+	ESP_LOGI(TAG, "SetLayout 197 HFlip=%d VFlip=%d Rotate=%d (1=true)", Layout->HFlip, Layout->VFlip, Layout->Rotate);
 	//        D/CX RDX WRX D17-8 D7 D6 D5 D4 D3  D2 D1 D0 HEX
 	//Command   0   1   ↑    XX  0  0  1  1  0   1  1  0  36h
 	//Parameter 1   1   ↑    XX  MY MX MV ML BGR MH 0  0  00
 	//Orientation 0: MADCtl = 0x80  =   1000 0000 (MY=1)
 	if ((Device->Height)>(Device->Width)){		//Resolution = 320x240
 		Private->MADCtl = (1 << 7);				// 0x80 = default (no Rotation an no Flip)
-		if (HFlip) {							//Flip Horizontal
+		if (Layout->HFlip) {							//Flip Horizontal
 			int a = Private->MADCtl;
 			Private->MADCtl = (a ^ (1 << 7));
 		}
-		if (Rotate) {							//Rotate 180 degr.
+		if (Layout->Rotate) {							//Rotate 180 degr.
 			int a = Private->MADCtl;
 			a = (a ^ (1 << 7));
 			Private->MADCtl = (a ^ (1 << 6));
 		}
-		if (VFlip) {							//Flip Vertical
+		if (Layout->VFlip) {							//Flip Vertical
 			int a = Private->MADCtl;
 			Private->MADCtl = (a ^ (1 << 6));
 		}
 	} else {									//Resolution = 240x320
 		Private->MADCtl = (1 << 5);				// 0x20 = default (no Rotation an no Flip)
-		if (HFlip) {							//Flip Horizontal
+		if (Layout->HFlip) {							//Flip Horizontal
 			int a = Private->MADCtl;
 			Private->MADCtl = (a ^ (1 << 6));
 		}
-		if (Rotate) {							//Rotate 180 degr.
+		if (Layout->Rotate) {							//Rotate 180 degr.
 			int a = Private->MADCtl;
 			a = (a ^ (1 << 7));
 			Private->MADCtl = (a ^ (1 << 6));
 		}
-		if (VFlip) {							//Flip Vertical
+		if (Layout->VFlip) {							//Flip Vertical
 			int a = Private->MADCtl;
 			Private->MADCtl = (a ^ (1 << 7));
 		}
 	}
+	
+	Private->MADCtl = Layout->ColorSwap ? (Private->MADCtl | (1 << 3)) : (Private->MADCtl & ~(1 << 3));
 
 	ESP_LOGI(TAG, "SetLayout 255 Private->MADCtl=%hhu", Private->MADCtl);
 
 	Device->WriteCommand( Device, 0x36 );
 	WriteByte( Device, Private->MADCtl );
+	
+	Device->WriteCommand( Device, Layout->Invert ? 0x21 : 0x20 );
+	
 
 #ifdef SHADOW_BUFFER
 	// force a full refresh (almost ...)
@@ -274,7 +279,8 @@ static bool Init( struct GDS_Device* Device ) {
 			
 	// set flip modes & contrast
 	GDS_SetContrast( Device, 0x7f );
-	Device->SetLayout( Device, false, false, false );
+	struct GDS_Layout Layout = { };
+	Device->SetLayout( Device, &Layout );
 	
 	// set screen depth (16/18) *** INTERFACE PIXEL FORMAT: 0x66=18 bit; 0x55=16 bit
 	Device->WriteCommand( Device, 0x3A );
