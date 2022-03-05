@@ -148,7 +148,7 @@ void display_init(char *welcome) {
 			.Invert = strcasestr(config, "invert"),
 			.ColorSwap = strcasestr(config, "cswap"),
 		};	
-					
+
 		GDS_SetLayout(display, &Layout);
 		GDS_SetFont(display, &Font_line_2);
 		GDS_TextPos(display, GDS_FONT_DEFAULT, GDS_TEXT_CENTERED, GDS_TEXT_CLEAR | GDS_TEXT_UPDATE, welcome);
