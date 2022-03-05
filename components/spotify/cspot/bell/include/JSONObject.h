@@ -2,6 +2,8 @@
 #define JSONOBJECT_H
 #include <cJSON.h>
 #include <string>
+#include <cstring>
+#include <vector>
 
 namespace bell {
     class JSONValue
@@ -24,6 +26,7 @@ namespace bell {
         ~JSONObject();
         JSONValue operator[](std::string index);
         std::string toString();
+        std::vector<uint8_t> toVector();
 
     private:
         cJSON* body;
