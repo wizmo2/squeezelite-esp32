@@ -364,6 +364,8 @@ static bool cspot_cmd_handler(cspot_event_t cmd, va_list args)
 		LOG_INFO("CSpot disconnected");
 		break;
 	case CSPOT_TRACK:
+		_buf_flush(outputbuf);		
+		abort_sink = true;
 		LOG_INFO("CSpot sink new track rate %d", output.next_sample_rate);
 		break;
 	case CSPOT_PLAY:
