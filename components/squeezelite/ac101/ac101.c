@@ -78,9 +78,8 @@ static bool init(char *config, int i2c_port, i2s_config_t *i2s_config) {
 	vTaskDelay(100 / portTICK_PERIOD_MS); 
 	
 	// enable the PLL from BCLK source
-	adac_write_word(AC101_ADDR, PLL_CTRL1, BIN(0000,0001,0100,1111));			// F=1,M=1,PLL,INT=31 (medium)				
-	adac_write_word(AC101_ADDR, PLL_CTRL2, BIN(1000,0110,0000,0000));			// PLL, F=96,N_i=1024-96,F=0,N_f=0*0.2;
-	// adac_write_word(AC101_ADDR, PLL_CTRL2, BIN(1000,0011,1100,0000));										
+	adac_write_word(AC101_ADDR, PLL_CTRL1,	BIN(0000,0001,0100,1111));			// F=1,M=1,PLL,INT=31 (medium)				
+	adac_write_word(AC101_ADDR, PLL_CTRL2,	BIN(1000,0010,0000,0000));			// PLL,N_i=64,N_f=0*0.2
 
 	// clocking system
 	adac_write_word(AC101_ADDR, SYSCLK_CTRL,  BIN(1010,1010,0000,1000));		// PLLCLK, BCLK1, IS1CLK, PLL, SYSCLK 
@@ -90,10 +89,10 @@ static bool init(char *config, int i2c_port, i2s_config_t *i2s_config) {
 	 
 	// analogue config
 #if BYTES_PER_FRAME == 8
-	adac_write_word(AC101_ADDR, I2S1LCK_CTRL, 	 BIN(1000,1000,0111,0000));	// Slave, BCLK=I2S/8,LRCK=32,24bits,I2Smode, Stereo
-	i2s_config->bits_per_sample = 24;
+	// although it's 24 bits only, leave i2c_config.bits_per_sample at 32, DAC will only use what's needed
+	adac_write_word(AC101_ADDR, I2S1LCK_CTRL,    BIN(1000,1000,1011,0000));	// Slave, BCLK=I2S/8,LRCK=64,24bits,I2Smode,Stereo
 #else
-	adac_write_word(AC101_ADDR, I2S1LCK_CTRL, 	 BIN(1000,1000,0101,0000));	// Slave, BCLK=I2S/8,LRCK=32,16bits,I2Smode, Stereo
+	adac_write_word(AC101_ADDR, I2S1LCK_CTRL, 	 BIN(1000,1000,0101,0000));	// Slave, BCLK=I2S/8,LRCK=32,16bits,I2Smode,Stereo
 #endif
 	adac_write_word(AC101_ADDR, I2S1_SDOUT_CTRL, BIN(1100,0000,0000,0000));	// I2S1ADC (R&L) 	
 	adac_write_word(AC101_ADDR, I2S1_SDIN_CTRL,  BIN(1100,0000,0000,0000));	// IS21DAC (R&L)
