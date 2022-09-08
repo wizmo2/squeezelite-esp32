@@ -166,7 +166,7 @@ void i2s_hal_format_config(i2s_hal_context_t *hal, const i2s_config_t *i2s_confi
             break;
     }
 }
-#include "stdio.h"
+
 void i2s_hal_config_param(i2s_hal_context_t *hal, const i2s_config_t *i2s_config)
 {
     //reset i2s
