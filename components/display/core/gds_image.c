@@ -24,6 +24,7 @@ typedef struct {
     const unsigned char *InData;	// Pointer to jpeg data
     int InPos;						// Current position in jpeg data
 	int Width, Height;	
+	uint32_t Pixels;
 	uint8_t Mode;
 	union {
 		void *OutData;
@@ -142,6 +143,8 @@ static unsigned OutHandlerDirect(JDEC *Decoder, void *Bitmap, JRECT *Frame) {
 	JpegCtx *Context = (JpegCtx*) Decoder->device;
     uint8_t *Pixels = (uint8_t*) Bitmap;
 	int Shift = 8 - Context->Depth;
+	
+	Context->Pixels += (Frame->bottom - Frame->top + 1) * (Frame->right - Frame->left + 1);						\
 
 	// decoded image is RGB888, shift only make sense for grayscale
 	if (Context->Mode == GDS_RGB888) {
@@ -418,10 +421,11 @@ bool GDS_DrawJPEG(struct GDS_Device* Device, uint8_t *Source, int x, int y, int 
 		Context.XMin = x - Context.XOfs;
 		Context.YMin = y - Context.YOfs;
 		Context.Mode = Device->Mode;
+		Context.Pixels = 0;
 					
 		// do decompress & draw
 		Res = jd_decomp(&Decoder, OutHandlerDirect, N);
-		if (Res == JDR_OK) {
+		if (Res == JDR_OK && Context.Pixels == Context.Width * Context.Height) {
 			Device->Dirty = true;
 			Ret = true;
 		} else {	

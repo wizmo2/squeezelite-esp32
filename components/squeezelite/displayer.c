@@ -891,7 +891,11 @@ static void grfa_handler(u8_t *data, int len) {
 	artwork.size += size;
 	if (artwork.size == length) {
 		GDS_ClearWindow(display, artwork.x, artwork.y, -1, -1, GDS_COLOR_BLACK);
-		GDS_DrawJPEG(display, artwork.data, artwork.x, artwork.y, artwork.y < displayer.height ? (GDS_IMAGE_RIGHT | GDS_IMAGE_TOP) : GDS_IMAGE_CENTER);
+		xSemaphoreTake(displayer.mutex, portMAX_DELAY);
+		for (int i = 0; i < 2 && !GDS_DrawJPEG(display, artwork.data, artwork.x, artwork.y, artwork.y < displayer.height ? (GDS_IMAGE_RIGHT | GDS_IMAGE_TOP) : GDS_IMAGE_CENTER); i++) {
+			LOG_WARN("JPEG decoding error, pass %d", i+1);
+		}
+		xSemaphoreGive(displayer.mutex);
 		free(artwork.data);
 		artwork.data = NULL;
 	} 
