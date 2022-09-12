@@ -47,7 +47,7 @@ static EXT_RAM_ATTR struct {
 } raop_sync;
 #endif
 
-static bool abort_sink ;
+static enum { SINK_RUNNING, SINK_ABORT, SINK_DISCARD } sink_state;
 
 #define LOCK_O   mutex_lock(outputbuf->mutex)
 #define UNLOCK_O mutex_unlock(outputbuf->mutex)
@@ -77,10 +77,10 @@ static void sink_data_handler(const uint8_t *data, uint32_t len)
 	} 
 
 	LOCK_O;
-	abort_sink = false;
+	if (sink_state == SINK_ABORT) sink_state = SINK_RUNNING;
 
 	// there will always be room at some point
-	while (len && wait && !abort_sink) {
+	while (len && wait && sink_state == SINK_RUNNING) {
 		bytes = min(_buf_space(outputbuf), _buf_cont_write(outputbuf)) / (BYTES_PER_FRAME / 4);
 		bytes = min(len, bytes);
 #if BYTES_PER_FRAME == 4
@@ -95,7 +95,7 @@ static void sink_data_handler(const uint8_t *data, uint32_t len)
 #endif	
 		_buf_inc_writep(outputbuf, bytes * BYTES_PER_FRAME / 4);
 		space = _buf_space(outputbuf);
-		
+
 		len -= bytes;
 		data += bytes;
 				
@@ -156,7 +156,7 @@ static bool bt_sink_cmd_handler(bt_sink_cmd_t cmd, va_list args)
 		_buf_flush(outputbuf);
 		output.state = OUTPUT_STOPPED;
 		output.stop_time = gettime_ms();
-		abort_sink = true;
+		sink_state = SINK_ABORT;
 		LOG_INFO("BT stop");
 		break;
 	case BT_SINK_PAUSE:		
@@ -295,7 +295,7 @@ static bool raop_sink_cmd_handler(raop_event_t event, va_list args)
 			_buf_flush(outputbuf);
 			raop_state = event;
 			if (output.state > OUTPUT_STOPPED) output.state = OUTPUT_STOPPED;
-			abort_sink = true;
+			sink_state = SINK_ABORT;
 			output.frames_played = 0;
 			output.stop_time = gettime_ms();
 			break;
@@ -357,35 +357,42 @@ static bool cspot_cmd_handler(cspot_event_t cmd, va_list args)
 		break;
 	case CSPOT_DISC:
 		_buf_flush(outputbuf);
-		abort_sink = true;
+		sink_state = SINK_ABORT;
 		output.external = 0;
 		output.state = OUTPUT_STOPPED;
 		output.stop_time = gettime_ms();
 		LOG_INFO("CSpot disconnected");
 		break;
 	case CSPOT_TRACK:
-		_buf_flush(outputbuf);		
-		abort_sink = true;
 		LOG_INFO("CSpot sink new track rate %d", output.next_sample_rate);
 		break;
-	case CSPOT_PLAY:
+	case CSPOT_PLAY: {
+		int flush = va_arg(args, int);
+		if (flush) {
+			_buf_flush(outputbuf);		
+			sink_state = SINK_ABORT;
+		} else {
+			sink_state = SINK_RUNNING;			
+		}		
 		output.state = OUTPUT_RUNNING;
 		LOG_INFO("CSpot play");
 		break;
+	}	
 	case CSPOT_SEEK:
-		//TODO: can it be merged with flush (shall we stop)
 		_buf_flush(outputbuf);		
-		abort_sink = true;
+		sink_state = SINK_ABORT;
 		LOG_INFO("CSpot seek by %d", va_arg(args, int));
 		break;
 	case CSPOT_FLUSH:
 		_buf_flush(outputbuf);
-		abort_sink = true;
-		__attribute__ ((fallthrough));
+		sink_state = SINK_DISCARD;
+		output.state = OUTPUT_STOPPED;
+		LOG_INFO("CSpot flush");	
+		break;		
 	case CSPOT_PAUSE:		
 		output.state = OUTPUT_STOPPED;
 		output.stop_time = gettime_ms();
-		LOG_INFO("CSpot pause/flush");
+		LOG_INFO("CSpot pause");
 		break;
 	case CSPOT_VOLUME: {
 		u32_t volume = va_arg(args, u32_t);

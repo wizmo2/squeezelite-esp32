@@ -115,7 +115,6 @@ std::shared_ptr<AudioChunk> MercuryManager::fetchAudioChunk(std::vector<uint8_t>
     this->session->shanConn->sendPacket(static_cast<uint8_t>(MercuryType::AUDIO_CHUNK_REQUEST_COMMAND), buffer);
 
     // Used for broken connection detection
-CSPOT_LOG(info, "requesting Chunk %hu", this->audioChunkSequence - 1);				
     this->lastRequestTimestamp = this->timeProvider->getSyncedTimestamp();
     return this->audioChunkManager->registerNewChunk(this->audioChunkSequence - 1, audioKey, startPos, endPos);
 }

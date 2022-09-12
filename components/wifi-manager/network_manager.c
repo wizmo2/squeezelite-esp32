@@ -294,7 +294,7 @@ void network_start() {
 }
 
 static void event_logger(uint32_t state_machine, uint32_t state, uint32_t event) {
-    ESP_LOGI(TAG, "Handling network manager event state Id %d->[%s]", state, event_to_string(event));
+    ESP_LOGD(TAG, "Handling network manager event state Id %d->[%s]", state, event_to_string(event));
 }
 static const char * get_state_machine_result_string(state_machine_result_t result) {
     switch(result) {

@@ -126,9 +126,12 @@ static void cspotTask(void *pvParameters) {
             case CSpotEventType::PLAY_PAUSE: {
                 bool isPaused = std::get<bool>(event.data);
 				if (isPaused) cspot.cHandler(CSPOT_PAUSE);
-				else cspot.cHandler(CSPOT_PLAY);
+				else cspot.cHandler(CSPOT_PLAY, false);
                 break;
             }
+			case CSpotEventType::PLAYBACK_START:
+				cspot.cHandler(CSPOT_PLAY, (int) std::get<bool>(event.data));
+				break;
 			case CSpotEventType::LOAD:
 				cspot.cHandler(CSPOT_LOAD, std::get<int>(event.data), -1);
 				break;
@@ -347,7 +350,7 @@ void ShimHTTPServer::registerHandler(bell::RequestType requestType, const std::s
 		.user_ctx = NULL,
 	};
 
-	// find athe first free spot and register handler
+	// find the first free spot and register handler
 	for (int i = 0; i < sizeof(uriHandlers)/sizeof(bell::httpHandler); i++) {
 		if (!uriHandlers[i]) {
 			uriHandlers[i] = handler;
