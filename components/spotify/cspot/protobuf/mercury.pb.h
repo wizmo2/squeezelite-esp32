@@ -12,9 +12,9 @@
 /* Struct definitions */
 typedef struct _Header { 
     bool has_uri;
-    char uri[64]; 
+    char uri[256]; 
     bool has_method;
-    char method[32]; 
+    char method[64]; 
 } Header;
 
 
@@ -43,7 +43,7 @@ extern const pb_msgdesc_t Header_msg;
 #define Header_fields &Header_msg
 
 /* Maximum encoded size of messages (where known) */
-#define Header_size                              98
+#define Header_size                              323
 
 #ifdef __cplusplus
 } /* extern "C" */
