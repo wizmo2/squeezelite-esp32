@@ -1,11 +1,16 @@
+# the JPEG library is in ROM but seems to fail randomly (PSRAM issue?)
+set(TJPGD tjpgd)
+
 idf_component_register(SRC_DIRS . core core/ifaces  fonts
 						INCLUDE_DIRS . fonts core
 						REQUIRES platform_config tools esp_common
-						PRIV_REQUIRES services freertos driver           
-						EMBED_FILES note.jpg
-)
+						PRIV_REQUIRES services freertos driver ${TJPGD}
+						EMBED_FILES note.jpg )		
+
+if (NOT TJPGD)
+add_compile_definitions(TJPGD_ROM)												
+endif()
 
 set_source_files_properties(display.c
     PROPERTIES COMPILE_FLAGS
-   -Wno-format-overflow
-)
+   -Wno-format-overflow )
