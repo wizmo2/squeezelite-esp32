@@ -882,31 +882,20 @@ static void grfa_handler(u8_t *data, int len) {
 		artwork.x = htons(pkt->x);
 		artwork.y = htons(pkt->y);
 		artwork.full = artwork.enable && artwork.x == 0 && artwork.y == 0;
-#ifdef TJPGD_ROM
-		xSemaphoreTake(displayer.mutex, portMAX_DELAY);		
-		artwork.ready = false;
-#endif				
 		if (artwork.data) free(artwork.data);
 		artwork.data = malloc(length);		
-#ifdef TJPGD_ROM		
-		xSemaphoreGive(displayer.mutex);
-#endif						
 	}	
 	
 	// copy artwork data
 	memcpy(artwork.data + offset, data + sizeof(struct grfa_packet), size);
 	artwork.size += size;
 	if (artwork.size == length) {
-		xSemaphoreTake(displayer.mutex, portMAX_DELAY);		
-#ifdef TJPGD_ROM
-		artwork.ready = true;		
-#else	
 		GDS_ClearWindow(display, artwork.x, artwork.y, -1, -1, GDS_COLOR_BLACK);
+		xSemaphoreTake(displayer.mutex, portMAX_DELAY);			
 		GDS_DrawJPEG(display, artwork.data, artwork.x, artwork.y, artwork.y < displayer.height ? (GDS_IMAGE_RIGHT | GDS_IMAGE_TOP) : GDS_IMAGE_CENTER);
+		xSemaphoreGive(displayer.mutex);		
 		free(artwork.data);
 		artwork.data = NULL;
-#endif		
-		xSemaphoreGive(displayer.mutex);
 	} 
 		
 	LOG_DEBUG("gfra l:%u x:%hu, y:%hu, o:%u s:%u", length, artwork.x, artwork.y, offset, size);
@@ -1330,16 +1319,6 @@ static void displayer_task(void *args) {
 		if (display && displayer.owned) GDS_Update(display);
 		else if (!led_display) displayer.wake = LONG_WAKE;
 	
-#ifdef TJPGD_ROM	
-		if (artwork.ready) {
-			GDS_ClearWindow(display, artwork.x, artwork.y, -1, -1, GDS_COLOR_BLACK);
-			GDS_DrawJPEG(display, artwork.data, artwork.x, artwork.y, artwork.y < displayer.height ? (GDS_IMAGE_RIGHT | GDS_IMAGE_TOP) : GDS_IMAGE_CENTER);
-			free(artwork.data);
-			artwork.data = NULL;
-			artwork.ready = false;
-		} 
-#endif
-
 		// release semaphore and sleep what's needed
 		xSemaphoreGive(displayer.mutex);
 		
