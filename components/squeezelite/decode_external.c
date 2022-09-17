@@ -25,7 +25,10 @@ static bool enable_bt_sink;
 
 #if CONFIG_CSPOT_SINK
 #include "cspot_sink.h"
+
 static bool enable_cspot;
+#define CSPOT_OUTPUT_SIZE ((48000 * BYTES_PER_FRAME * 2) & ~BYTES_PER_FRAME)
+
 #endif
 
 #if CONFIG_AIRPLAY_SINK
@@ -351,7 +354,7 @@ static bool cspot_cmd_handler(cspot_event_t cmd, va_list args)
 		output.frames_played = 0;
 		output.state = OUTPUT_STOPPED;
 		_buf_flush(outputbuf);
-		_buf_limit(outputbuf, 0);
+		_buf_limit(outputbuf, CSPOT_OUTPUT_SIZE);
 		if (decode.state != DECODE_STOPPED) decode.state = DECODE_ERROR;
 		LOG_INFO("CSpot connected");
 		break;
