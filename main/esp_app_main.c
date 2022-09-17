@@ -369,17 +369,8 @@ void register_default_nvs(){
     register_default_string_val("dhcp_tmout","8");
 	register_default_string_val("target", CONFIG_TARGET);
 #ifdef CONFIG_CSPOT_SINK
-	char * host_hame = config_alloc_get_default(NVS_TYPE_STR, "host_name", NULL, 0);
 	register_default_string_val("enable_cspot", STR(CONFIG_CSPOT_SINK));
-	cJSON * cspot_config = cJSON_CreateObject();
-	cJSON_AddStringToObject(cspot_config, "deviceName", host_hame);
-	cJSON_AddNumberToObject(cspot_config, "format", 1);
-	cJSON_AddNumberToObject(cspot_config, "volume", 32767);
-	char * cspot_config_str = cJSON_PrintUnformatted(cspot_config);
-	register_default_string_val("cspot_config", cspot_config_str);
-	cJSON_Delete(cspot_config);
-	FREE_AND_NULL(cspot_config_str);
-	FREE_AND_NULL(host_hame);
+	register_default_string_val("cspot_config", "");
 #endif
 	wait_for_commit();
 	ESP_LOGD(TAG,"Done setting default values in nvs.");

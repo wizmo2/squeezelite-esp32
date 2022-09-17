@@ -256,7 +256,7 @@ void ShimAudioSink::feedPCMFrames(const uint8_t *data, size_t bytes) {
 /****************************************************************************************
  * NVSFile class to store config
  */
- bool NVSFile::readFile(std::string filename, std::string &fileContent) {
+bool NVSFile::readFile(std::string filename, std::string &fileContent) {
 	auto search = files.find(filename);
     
 	// cache 
