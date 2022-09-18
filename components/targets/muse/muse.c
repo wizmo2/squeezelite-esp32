@@ -110,8 +110,7 @@ void ws2812_control_init(void)
 
 void ws2812_write_leds(struct led_state new_state) {
   setup_rmt_data_buffer(new_state);
-  ESP_ERROR_CHECK(rmt_write_items(LED_RMT_TX_CHANNEL, led_data_buffer, LED_BUFFER_ITEMS, false));
-  ESP_ERROR_CHECK(rmt_wait_tx_done(LED_RMT_TX_CHANNEL, portMAX_DELAY));
+  rmt_write_items(LED_RMT_TX_CHANNEL, led_data_buffer, LED_BUFFER_ITEMS, false);
 }
 
 void setup_rmt_data_buffer(struct led_state new_state) 
