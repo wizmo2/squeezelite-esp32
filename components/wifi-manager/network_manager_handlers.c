@@ -822,7 +822,7 @@ static state_machine_result_t WIFI_CONNECTING_STATE_handler(state_machine_t* con
             network_connect_active_ssid(State_Machine);
             break;
         case EN_LOST_CONNECTION:
-            if(nm->event_parameters->disconnected_event->reason == WIFI_REASON_ASSOC_LEAVE) {
+            if(nm->event_parameters->disconnected_event->reason == WIFI_REASON_ASSOC_LEAVE || nm->event_parameters->disconnected_event->reason == WIFI_REASON_AUTH_EXPIRE || nm->event_parameters->disconnected_event->reason ==  WIFI_REASON_ASSOC_EXPIRE) {
                 ESP_LOGI(TAG,"Wifi was disconnected from previous access point. Waiting to connect.");
             }
             else if(nm->event_parameters->disconnected_event->reason != WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT) {
