@@ -63,6 +63,9 @@ sub initFirmwareDownload {
 					$cb->() if $cb;
 				}
 			}
+			elsif ($cb) {
+				$cb->();
+			}
 		},
 		sub {
 			my ($http, $error) = @_;
@@ -119,10 +122,15 @@ sub prefetchFirmware {
 
 				$cb->($releaseInfo, _gh2lmsUrl($url), $customFwUrl) if $cb;
 			}
+			elsif ($cb) {
+				$cb->();
+			}
 		},
 		sub {
 			my ($http, $error) = @_;
 			$log->error("Failed to get releases from Github: $error");
+
+			$cb->() if $cb;
 		},
 		{
 			timeout => 10,
