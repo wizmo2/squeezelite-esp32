@@ -126,7 +126,7 @@ std::vector<uint8_t> PlainConnection::readBlock(size_t size)
                 break;
             default:
                 if (retries++ > 4) throw std::runtime_error("Error in read");
-
+                goto READ;
             }
         }
         idx += n;
