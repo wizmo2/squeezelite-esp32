@@ -1,3 +1,55 @@
+[% IF useExtJS; extJsScripts = BLOCK %]
+<script type="text/javascript">
+	Ext.onReady(function () {
+		new Ext.util.TaskRunner().start({
+			run: checkEq,
+			interval: 1000
+		});
+	});
+
+	function checkEq() {
+		var eqValues = [];
+		this.lastValues = this.lastValues || [];
+
+		for (var x = 0; x < 10; x++) {
+			eqValues[x] = Ext.get('pref_equalizer.' + x).dom.value || 0;
+		}
+
+		if (eqValues.join() != this.lastValues.join()) {
+			this.lastValues = eqValues;
+			SqueezeJS.Controller.request({
+				params: ['[% playerid %]', ['squeezeesp32', 'seteq', eqValues.join()]]
+			});
+		}
+	}
+</script>
+[% END; ELSIF !useExtJS; pageHeaderScripts = BLOCK %]
+<script type="text/javascript">
+	setInterval(checkEq, 1000);
+
+	function checkEq() {
+		var eqValues = [];
+		this.lastValues = this.lastValues || [];
+
+		for (var x = 0; x < 10; x++) {
+			eqValues[x] = $('pref_equalizer.' + x).value || 0;
+		}
+
+		if (eqValues.join() != this.lastValues.join()) {
+			this.lastValues = eqValues;
+			new Ajax.Request('/jsonrpc.js', {
+				method: 'post',
+				postBody: JSON.stringify({
+					id: 1,
+					method: 'slim.request',
+					params: ['[% playerid %]', ['squeezeesp32', 'seteq', eqValues.join()]]
+				})
+			});
+		}
+	}
+</script>
+[% END; END %]
+
 [% PROCESS settings/header.html %]
 
 	[% WRAPPER setting title="PLUGIN_SQUEEZEESP32_FIRMWARE" desc="" %]
@@ -59,62 +111,36 @@
 			<div>[% "PLUGIN_SQUEEZEESP32_EQUALIZER_SAVE" | string %]</div>
 		[% END %]
 
-		<script TYPE="text/javascript">
-			if (Ext) {
-				Ext.onReady(function () {
-					new Ext.util.TaskRunner().start({
-						run: checkEq,
-						interval: 1000
-					});
-				});
-
-				function checkEq() {
-					var eqValues = [];
-					this.lastValues = this.lastValues || [];
-
-					for (var x = 0; x < 10; x++) {
-						eqValues[x] = Ext.get('pref_equalizer.' + x).dom.value || 0;
-					}
-
-					if (eqValues.join() != this.lastValues.join()) {
-						this.lastValues = eqValues;
-						SqueezeJS.Controller.request({
-							params: ['[% playerid %]', ['squeezeesp32', 'seteq', eqValues.join()]]
-						});
-					}
-				}
-			}
-		</script>
 		[% WRAPPER settingSection %]
 			[% WRAPPER settingGroup title='31Hz' desc="" %]
-			<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.0" id="pref_equalizer.0" value="[% pref_equalizer.0 %]" size="2"">
+				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.0" id="pref_equalizer.0" value="[% pref_equalizer.0 || 0 %]" size="2"">
 			[% END %]
 			[% WRAPPER settingGroup title='62Hz' desc="" %]
-				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.1" id="pref_equalizer.1" value="[% pref_equalizer.1 %]" size="2">
+				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.1" id="pref_equalizer.1" value="[% pref_equalizer.1 || 0 %]" size="2">
 			[% END %]
 			[% WRAPPER settingGroup title='125Hz' desc="" %]
-				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.2" id="pref_equalizer.2" value="[% pref_equalizer.2 %]" size="2">
+				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.2" id="pref_equalizer.2" value="[% pref_equalizer.2 || 0 %]" size="2">
 			[% END %]
 			[% WRAPPER settingGroup title='250Hz' desc="" %]
-				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.3" id="pref_equalizer.3" value="[% pref_equalizer.3 %]" size="2">
+				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.3" id="pref_equalizer.3" value="[% pref_equalizer.3 || 0 %]" size="2">
 			[% END %]
 			[% WRAPPER settingGroup title='500Hz' desc="" %]
-				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.4" id="pref_equalizer.4" value="[% pref_equalizer.4 %]" size="2">
+				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.4" id="pref_equalizer.4" value="[% pref_equalizer.4 || 0 %]" size="2">
 			[% END %]
 			[% WRAPPER settingGroup title='1kHz' desc="" %]
-				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.5" id="pref_equalizer.5" value="[% pref_equalizer.5 %]" size="2">
+				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.5" id="pref_equalizer.5" value="[% pref_equalizer.5 || 0 %]" size="2">
 			[% END %]
 			[% WRAPPER settingGroup title='2kHz' desc="" %]
-				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.6" id="pref_equalizer.6" value="[% pref_equalizer.6 %]" size="2">
+				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.6" id="pref_equalizer.6" value="[% pref_equalizer.6 || 0 %]" size="2">
 			[% END %]
 			[% WRAPPER settingGroup title='4kHz' desc="" %]
-				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.7" id="pref_equalizer.7" value="[% pref_equalizer.7 %]" size="2">
+				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.7" id="pref_equalizer.7" value="[% pref_equalizer.7 || 0 %]" size="2">
 			[% END %]
 			[% WRAPPER settingGroup title='8kHz' desc="" %]
-				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.8" id="pref_equalizer.8" value="[% pref_equalizer.8 %]" size="2">
+				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.8" id="pref_equalizer.8" value="[% pref_equalizer.8 || 0 %]" size="2">
 			[% END %]
 			[% WRAPPER settingGroup title='16kHz' desc="" %]
-				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.9" id="pref_equalizer.9" value="[% pref_equalizer.9 %]" size="2">
+				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.9" id="pref_equalizer.9" value="[% pref_equalizer.9 || 0 %]" size="2">
 			[% END %]
 		[% END %]
 	[% END %]
