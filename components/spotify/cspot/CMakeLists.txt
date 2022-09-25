@@ -26,16 +26,21 @@ if(UNIX AND NOT APPLE)
 endif()
 
 # Build protobuf code
-set(NANOPB_OPTIONS "-I${CMAKE_CURRENT_SOURCE_DIR}")
-file(GLOB PROTOS protobuf/*.proto)
-nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS RELPATH ${CMAKE_CURRENT_SOURCE_DIR} ${PROTOS})
-add_custom_target(generate_proto_sources DEPENDS ${PROTO_SRCS} ${PROTO_HDRS})
-set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS}
-    PROPERTIES GENERATED TRUE)
+#set(NANOPB_OPTIONS "-I${CMAKE_CURRENT_SOURCE_DIR}")
+#file(GLOB PROTOS protobuf/*.proto)
+#nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS RELPATH ${CMAKE_CURRENT_SOURCE_DIR} ${PROTOS})
+#add_custom_target(generate_proto_sources DEPENDS ${PROTO_SRCS} ${PROTO_HDRS})
+#set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS}
+#    PROPERTIES GENERATED TRUE)
+
+file(GLOB SOURCES "src/*.cpp" "src/*.c" "protobuf/*.c")
+message("BEWARE => NOT GENERATING PROTOBUF")
+set(GENERATED_INCLUDES ".")
 
 add_library(cspot STATIC ${SOURCES} ${PROTO_SRCS})
 # PUBLIC to propagate includes from bell to cspot dependents
 target_compile_definitions(bell PUBLIC PB_ENABLE_MALLOC)
 target_compile_definitions(bell PUBLIC PB_FIELD_32BIT)
 target_link_libraries(cspot PUBLIC ${EXTRA_LIBS})
-target_include_directories(cspot PUBLIC "include" ${CMAKE_CURRENT_BINARY_DIR} ${NANOPB_INCLUDE_DIRS})
+#target_include_directories(cspot PUBLIC "include" ${CMAKE_CURRENT_BINARY_DIR} ${NANOPB_INCLUDE_DIRS})
+target_include_directories(cspot PUBLIC "include" ${GENERATED_INCLUDES} ${NANOPB_INCLUDE_DIRS})
