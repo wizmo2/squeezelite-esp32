@@ -32,8 +32,8 @@ our $defaultPrefs = {
 	'analogOutMode'        => 0,
 	'bass'                 => 0,
 	'treble'               => 0,
-	'lineInAlwaysOn'       => 0, 
-	'lineInLevel'          => 50, 
+	'lineInAlwaysOn'       => 0,
+	'lineInLevel'          => 50,
 	'menuItem'             => [qw(
 		NOW_PLAYING
 		BROWSE_MUSIC
@@ -67,50 +67,65 @@ sub minBass { -13 }
 sub init {
 	my $client = shift;
 	my ($id, $caps) = @_;
-	
+
 	my ($depth) = $caps =~ /Depth=(\d+)/;
 	$client->depth($depth || 16);
-	
+
 	if (!$handlersAdded) {
-	
+
 		# Add a handler for line-in/out status changes
 		Slim::Networking::Slimproto::addHandler( LIOS => \&lineInOutStatus );
-	
+
 		# Create a new event for sending LIOS updates
 		Slim::Control::Request::addDispatch(
 			['lios', '_state'],
 			[1, 0, 0, undef],
 		   );
-		
+
 		Slim::Control::Request::addDispatch(
 			['lios', 'linein', '_state'],
 			[1, 0, 0, undef],
 		   );
-		
+
 		Slim::Control::Request::addDispatch(
 			['lios', 'lineout', '_state'],
 			[1, 0, 0, undef],
 		   );
-		
+
 		$handlersAdded = 1;
 
 	}
-	
+
 	$client->SUPER::init(@_);
 	Plugins::SqueezeESP32::FirmwareHelper::init($client);
 
 	main::INFOLOG && $log->is_info && $log->info("SqueezeESP player connected: " . $client->id);
-}	
+}
 
 sub initPrefs {
 	my $client = shift;
-	
+
 	$sprefs->client($client)->init($defaultPrefs);
-	
-	$prefs->client($client)->init( { 
+
+	$prefs->client($client)->init( {
 		equalizer => [(0) x 10],
 		artwork => undef,
 	} );
+
+	$prefs->setValidate({
+		validator => sub {
+			my ($pref, $new, $params, $old, $client) = @_;
+
+			$new ||= [(0) x 10];
+
+			foreach (0..9) {
+				return 0 if $new->[$_] < $client->minBass;
+				return 0 if $new->[$_] > $client->maxBass;
+			}
+
+			return 1;
+		}
+	}, 'equalizer');
 
 	$client->SUPER::initPrefs;
 }
@@ -121,15 +136,15 @@ sub power {
 
 	my $res = $client->SUPER::power($on, @_);
 	return $res unless defined $on;
-	
+
 	if ($on) {
 		$client->update_artwork(1);
 	} else {
 		$client->clear_artwork(1);
 	}
-	
+
 	return $res;
-}	
+}
 
 # Allow the player to define it's display width (and probably more)
 sub playerSettingsFrame {
@@ -162,16 +177,16 @@ sub playerSettingsFrame {
 sub bass {
 	my ($client, $new) = @_;
 	my $value = $client->SUPER::bass($new);
-	
+
 	$client->update_equalizer($value, [2, 1, 3]) if defined $new;
-	
+
 	return $value;
 }
 
 sub treble {
 	my ($client, $new) = @_;
 	my $value = $client->SUPER::treble($new);
-	
+
 	$client->update_equalizer($value, [8, 9, 7]) if defined $new;
 
 	return $value;
@@ -189,8 +204,8 @@ sub send_equalizer {
 sub update_equalizer {
 	my ($client, $value, $index) = @_;
 	return if $client->tone_update;
-	
-	my $equalizer = $prefs->client($client)->get('equalizer');	
+
+	my $equalizer = $prefs->client($client)->get('equalizer');
 	$equalizer->[$index->[0]] = $value;
 	$equalizer->[$index->[1]] = int($value / 2 + 0.5);
 	$equalizer->[$index->[2]] = int($value / 4 + 0.5);
@@ -203,7 +218,7 @@ sub update_tones {
 	$client->tone_update(1);
 	$sprefs->client($client)->set('bass', int(($equalizer->[1] * 2 + $equalizer->[2] + $equalizer->[3] * 4) / 7 + 0.5));
 	$sprefs->client($client)->set('treble', int(($equalizer->[7] * 4 + $equalizer->[8] + $equalizer->[9] * 2) / 7 + 0.5));
-	$client->tone_update(0);	
+	$client->tone_update(0);
 }
 
 sub update_artwork {
@@ -212,7 +227,7 @@ sub update_artwork {
 
 	my $artwork = $cprefs->get('artwork') || return;
 	return unless $artwork->{'enable'} && $client->display->isa("Plugins::SqueezeESP32::Graphics");
-	
+
 	my $header = pack('Nnn', $artwork->{'enable'}, $artwork->{'x'}, $artwork->{'y'});
 	$client->sendFrame( grfa => \$header );
 	$client->display->update;
@@ -267,7 +282,7 @@ sub clear_artwork {
 		if ((!$artwork->{'x'} && !$artwork->{'y'}) || $force) {
 			$client->sendFrame(grfa => \("\x00"x4));
 			$client->display->update;
-		}	
+		}
 	}
 }
 
@@ -284,7 +299,7 @@ sub config_artwork {
 sub reconnect {
 	my $client = shift;
 	$client->SUPER::reconnect(@_);
-	
+
 	$client->pluginData('artwork_md5', '');
 	$client->config_artwork if $client->display->isa("Plugins::SqueezeESP32::Graphics");
 	$client->send_equalizer;
@@ -323,18 +338,18 @@ sub lineOutConnected {
 
 sub lineInOutStatus {
 	my ( $client, $data_ref ) = @_;
-	
+
 	my $state = unpack 'n', $$data_ref;
 
 	my $oldState = {
 		in  => $client->lineInConnected(),
 		out => $client->lineOutConnected(),
 	};
-	
+
 	Slim::Networking::Slimproto::voltage( $client, $state );
 
 	Slim::Control::Request::notifyFromArray( $client, [ 'lios', $state ] );
-	
+
 	if ($oldState->{in} != $client->lineInConnected()) {
 		Slim::Control::Request::notifyFromArray( $client, [ 'lios', 'linein', $client->lineInConnected() ] );
 		if ( Slim::Utils::PluginManager->isEnabled('Slim::Plugin::LineIn::Plugin')) {

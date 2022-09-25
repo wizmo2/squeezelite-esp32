@@ -3,7 +3,7 @@ package Plugins::SqueezeESP32::PlayerSettings;
 use strict;
 use base qw(Slim::Web::Settings);
 use JSON::XS::VersionOneAndTwo;
-use List::Util qw(first);
+use List::Util qw(first min max);
 
 use Slim::Utils::Log;
 use Slim::Utils::Prefs;
@@ -79,9 +79,10 @@ sub handler {
 
 		if ($client->can('depth') && $client->depth == 16) {
 			my $equalizer = $cprefs->get('equalizer');
-			for my $i (0 .. $#{$equalizer}) {
-				$equalizer->[$i] = $paramRef->{"pref_equalizer.$i"} || 0;
+			foreach (0 .. 9) {
+				$equalizer->[$_] = min($client->maxBass, max($client->minBass, $paramRef->{"pref_equalizer.$_"} || 0))
 			}
+			$equalizer = [ splice(@$equalizer, 0, 10) ];
 			$cprefs->set('equalizer', $equalizer);
 			$client->update_tones($equalizer);
 		}
@@ -97,6 +98,7 @@ sub handler {
 	$paramRef->{'pref_equalizer'} = $cprefs->get('equalizer') if $client->can('depth') &&  $client->depth == 16;
 	$paramRef->{'player_ip'} = $client->ip;
 
+	require Plugins::SqueezeESP32::FirmwareHelper;
 	Plugins::SqueezeESP32::FirmwareHelper::initFirmwareDownload($client, sub {
 		my ($currentFWInfo, $newFWUrl, $customFwUrl) = @_;
 
