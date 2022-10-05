@@ -38,9 +38,10 @@ jobs:
         echo "Listing files"
         ls -alt 
         ls -alt .git
+        git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
         git config --list --show-origin
         git status
-
+        
         # build_flags support the following options
         # --mock - to mock the compilation part - this is to be used for testing only
         # --force - to force a release build even if the last commit message doesn't contain the word "release"
