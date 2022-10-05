@@ -1,5 +1,6 @@
 # This is a basic workflow to help you get started with Actions
-name: Test for ESP-IDF v4.3.1
+name: Manually executable test for ESP-IDF v4.3.1
+on: workflow_dispatch
 # on:
 #   push:
 #     branches: 
