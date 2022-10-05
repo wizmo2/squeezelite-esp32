@@ -10,6 +10,6 @@
   <name>PLUGIN_SQUEEZEESP32</name>
   <description>PLUGIN_SQUEEZEESP32_DESC</description>
   <module>Plugins::SqueezeESP32::Plugin</module>
-    <version>0.351</version>
+    <version>0.353</version>
   <creator>Philippe</creator>
 </extensions>

@@ -12,8 +12,11 @@ add_definitions(-DBELL_USE_MBEDTLS)
 add_definitions(-Wno-unused-variable -Wno-unused-const-variable -Wchar-subscripts -Wunused-label -Wmaybe-uninitialized -Wmisleading-indentation)
 
 set(BELL_DISABLE_CODECS ON)
-set(BELL_EXTERNAL_TREMOR "idf::codecs")
-set(BELL_EXTERNAL_CJSON "idf::json")
+set(BELL_DISABLE_SINKS ON)
+set(CSPOT_TARGET_ESP32 ON)
+# becase CMake is so broken, the cache set below overrides a normal "set" for the first build
+set(BELL_EXTERNAL_TREMOR "idf::codecs" CACHE STRING "provide own codecs")
+set(BELL_EXTERNAL_CJSON "idf::json" CACHE STRING "provide own CJSON")
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cspot ${CMAKE_CURRENT_BINARY_DIR}/cspot)
 target_link_libraries(${COMPONENT_LIB} PRIVATE cspot ${EXTRA_REQ_LIBS})
