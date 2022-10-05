@@ -37,6 +37,7 @@ jobs:
         pwd
         echo "Listing files"
         ls -a
+        git status
 
         # build_flags support the following options
         # --mock - to mock the compilation part - this is to be used for testing only
