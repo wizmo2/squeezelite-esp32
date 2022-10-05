@@ -31,6 +31,8 @@ jobs:
       id: build_flags
       run: |
         . /opt/esp/python_env/idf4.3_py3.8_env/bin/activate
+        env
+        ls
         # build_flags support the following options
         # --mock - to mock the compilation part - this is to be used for testing only
         # --force - to force a release build even if the last commit message doesn't contain the word "release"
