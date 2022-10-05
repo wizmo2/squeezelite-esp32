@@ -30,18 +30,8 @@ jobs:
     - name: Set build flags
       id: build_flags
       run: |
-        . /opt/esp/python_env/idf4.3_py3.8_env/bin/activate
-        echo "Listing environment"
-        env
-        echo "Current directory"
-        pwd
-        echo "Listing files"
-        ls -alt 
-        ls -alt .git
         git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
-        git config --list --show-origin
-        git status
-        
+        . /opt/esp/python_env/idf4.3_py3.8_env/bin/activate
         # build_flags support the following options
         # --mock - to mock the compilation part - this is to be used for testing only
         # --force - to force a release build even if the last commit message doesn't contain the word "release"
@@ -141,6 +131,7 @@ jobs:
     - name: Set build parameters
       run: |
         . /opt/esp/python_env/idf4.3_py3.8_env/bin/activate
+        git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
         build_tools.py environment --build ${{ needs.bootstrap.outputs.build_number }} --env_file "$GITHUB_ENV" --node "${{matrix.node}}" --depth ${{matrix.depth}} --major 2 --docker sle118/squeezelite-esp32-idfv43 
         
     - uses: actions/download-artifact@master
