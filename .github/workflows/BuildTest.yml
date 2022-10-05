@@ -1,0 +1,252 @@
+# This is a basic workflow to help you get started with Actions
+name: ESP-IDF v4.3.1
+# on:
+#   push:
+#     branches: 
+#       - '**4.3'
+
+jobs:
+  bootstrap:
+    name: Preparation
+    container:
+      image: sle118/squeezelite-esp32-idfv43
+    outputs:
+      build_number: ${{ steps.buildnumber.outputs.build_number }}
+      ui_build: ${{ steps.build_flags.outputs.ui_build }}
+      release_flag: ${{ steps.build_flags.outputs.release_flag }}      
+      mock: ${{ steps.build_flags.outputs.mock }}            
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 15
+        submodules: true
+    - name: Generate common build number
+      id: buildnumber
+      uses: einaregilsson/build-number@v3
+      with:
+        token: ${{secrets.github_token}}
+    - name: Set build flags
+      id: build_flags
+      run: |
+        . /opt/esp/python_env/idf4.3_py3.8_env/bin/activate
+        # build_flags support the following options
+        # --mock - to mock the compilation part - this is to be used for testing only
+        # --force - to force a release build even if the last commit message doesn't contain the word "release"
+        # --ui_build - to force a ui_build even if the last commit message doesn't contain "[ui-build]"
+        build_tools.py build_flags  --ui_build
+
+  preparation:
+    name: Preparation
+    needs: bootstrap
+    container:
+      image: sle118/squeezelite-esp32-idfv43
+    steps:
+    - name: Show Build Flags        
+      run: |
+          echo "Running with the following options" 
+          echo "Web Build Flag=${{needs.bootstrap.outputs.ui_build}}"
+          echo "Mock flag=${{needs.bootstrap.outputs.mock}}"
+          echo "Release Flag=${{needs.bootstrap.outputs.release_flag}}"      
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 15
+        submodules: true
+    - name: Pull latest 
+      run: |
+        git pull 
+        git submodule update
+    - name: Refresh certificates
+      run: |
+        git update-index --chmod=+x ./server_certs/getcert.sh
+        cd server_certs;./getcert.sh;cat github.pem;cd ..        
+    - name: Setup Node.js dependencies
+      if: ${{ !env.ACT }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+        cache: 'npm'
+        cache-dependency-path: components/wifi-manager/webapp/package.json   
+    - name: Build Web Application
+      if: ${{ needs.bootstrap.outputs.ui_build == 1 }} 
+      run: |
+        cd components/wifi-manager/webapp/ 
+        npm install 
+        npm run-script build
+    - name: Update repository with prebuilt items
+      if:  ${{ needs.bootstrap.outputs.ui_build == 1 || needs.bootstrap.outputs.release_flag == 1 }} 
+      run: |
+        git fetch
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        git add server_certs 
+        git add components/wifi-manager/webapp/*.h 
+        git add components/wifi-manager/webapp/*.c 
+        git add components/wifi-manager/webapp/*.cmake 
+        git add components/wifi-manager/webapp/dist/*
+        git commit -m "Update prebuilt objects [skip actions]"
+        git push  https://${{secrets.github_token}}@github.com/sle118/squeezelite-esp32.git
+    - name: Locally store commonly built objects
+      uses: actions/upload-artifact@v3
+      with:
+        name: prebuilt_objects
+        path: |
+          server_certs 
+          components/wifi-manager/webapp/*.h
+          components/wifi-manager/webapp/*.c
+          components/wifi-manager/webapp/dist/*
+          components/wifi-manager/webapp/*.cmake 
+  build:
+    container:
+      image: sle118/squeezelite-esp32-idfv43
+    needs: [preparation,bootstrap]
+    strategy:
+      max-parallel: 3
+      matrix:
+        #node: [I2S-4MFlash, SqueezeAmp, Muse]
+        #depth: [16, 32]
+        node: [I2S-4MFlash]
+        depth: [16]
+        exclude:
+          - node: Muse
+            depth: 32      
+          - node: bootstrap
+            depth: 32
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 15
+        submodules: true
+    - name: Show Build Flags        
+      run: |
+          echo "Running with the following options" 
+          echo "Web Build Flag=${{needs.bootstrap.outputs.ui_build}}"
+          echo "Mock flag=${{needs.bootstrap.outputs.mock}}"
+          echo "Release Flag=${{needs.bootstrap.outputs.release_flag}}"
+          echo Environment File name: $GITHUB_ENV        
+    - name: Set build parameters
+      run: |
+        . /opt/esp/python_env/idf4.3_py3.8_env/bin/activate
+        build_tools.py environment --build ${{ needs.bootstrap.outputs.build_number }} --env_file "$GITHUB_ENV" --node "${{matrix.node}}" --depth ${{matrix.depth}} --major 2 --docker sle118/squeezelite-esp32-idfv43 
+        
+    - uses: actions/download-artifact@master
+      name: Restore common objects
+      with:
+        name: prebuilt_objects
+    - name: Build the firmware
+      if: ${{ needs.bootstrap.outputs.mock == 0 }} 
+      run: |
+        . ${IDF_PYTHON_ENV_PATH}/bin/activate
+        chmod +x ./components/spotify/cspot/bell/nanopb/generator/protoc
+        chmod +x ./components/spotify/cspot/bell/nanopb/generator/protoc-gen-nanopb
+        chmod +x ./components/spotify/cspot/bell/nanopb/generator/*.py
+        chmod +x ./components/spotify/cspot/bell/nanopb/generator/*.py2
+        chmod +x ./components/spotify/cspot/bell/nanopb/generator/proto/*.py      
+        echo "Copying target sdkconfig"
+        cp build-scripts/${TARGET_BUILD_NAME}-sdkconfig.defaults sdkconfig
+        echo "Building project"
+        idf.py build -DDEPTH=${DEPTH} -DBUILD_NUMBER=${BUILD_NUMBER}-${DEPTH} 
+    - name: Build Mock firmware
+      if: ${{ needs.bootstrap.outputs.mock == 1 }} 
+      run: |
+        mkdir -p build
+        cd build
+        mkdir -p partition_table
+        mkdir -p bootloader
+        echo \\"mock content\\"> ./squeezelite.bin
+        echo \"mock content\"> ./recovery.bin
+        echo \"mock content\"> ./bootloader/bootloader.bin
+        echo \"mock content\"> ./partition_table/partition-table.bin 
+        echo \"mock content\"> ./ota_data_initial.bin
+        echo \"mock content\"> ./flash_project_args 
+        echo \"mock content\"> ./size_comp1.txt
+        echo \"mock content\"> ./size_comp2.txt
+        echo \"mock content\"> ./partitions.csv        
+        echo {  \"write_flash_args\" : [ \"--flash_mode\", \"dio\", \"--flash_size\", \"detect\", \"--flash_freq\", \"80m\" ],  \"flash_settings\" : {      \"flash_mode\": \"dio\",      \"flash_size\": \"detect\",      \"flash_freq\": \"80m\"  },  \"flash_files\" : {      \"0x8000\" : \"partition_table/partition-table.bin\",      \"0xd000\" : \"ota_data_initial.bin\",      \"0x1000\" : \"bootloader/bootloader.bin\",      \"0x10000\" : \"recovery.bin\",      \"0x150000\" : \"squeezelite.bin\"  },  \"partition_table\" : { \"offset\" : \"0x8000\", \"file\" : \"partition_table/partition-table.bin\" },  \"otadata\" : { \"offset\" : \"0xd000\", \"file\" : \"ota_data_initial.bin\" },  \"bootloader\" : { \"offset\" : \"0x1000\", \"file\" : \"bootloader/bootloader.bin\" },  \"app\" : { \"offset\" : \"0x10000\", \"file\" : \"recovery.bin\" },  \"squeezelite\" : { \"offset\" : \"0x150000\", \"file\" : \"squeezelite.bin\" },  \"extra_esptool_args\" : {      \"after\"  : \"hard_reset\",      \"before\" : \"default_reset\"  }  }  > ./flasher_args.json
+    - name: Create Release Artifact Zip 
+      if: ${{ needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0 }}
+      run: |
+        if [ -z "${artifact_file_name}" ]
+        then
+            echo "No artifact file name set.  Will not generate zip file."
+        else
+            echo "Generating build artifact zip file"
+            zip -r build_output.zip build
+            zip build/${artifact_file_name} partitions*.csv components/ build/*.bin build/bootloader/bootloader.bin build/partition_table/partition-table.bin build/flash_project_args build/size_*.txt
+        fi
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      if: ${{ needs.bootstrap.outputs.mock == 0 }}
+      with:
+        name: ${{ env.artifact_prefix }}
+        path: |
+          build/flash_project_args 
+          build/size_comp1.txt
+          build/size_comp2.txt
+          partitions.csv
+          sdkconfig
+          server_certs/github.pem
+          build_output.zip
+    - name: Save Last Build
+      if: ${{ needs.bootstrap.outputs.mock == 0 }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: build_parms
+        path: |
+          build/flash_project_args 
+          build/flasher_args.json
+          partitions.csv
+          sdkconfig
+    - name: Create Release
+      if: ${{ needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0 }}
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+      with:
+        tag_name: ${{ env.tag }}
+        release_name: ${{ env.name }}
+        body: ${{ env.description }}
+        draft: false
+        prerelease: true
+    - name: Upload Release Asset - Squeezelite binary file
+      if: ${{ needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0 }}
+      id: upload-release-asset 
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+        asset_path: build/squeezelite.bin
+        asset_name: ${{ env.artifact_bin_file_name }}
+        asset_content_type: application/octet-stream        
+    - name: Upload Release Asset - Zip file
+      if: ${{ needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0 }}
+      id: upload-release-asset-zip
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+        asset_path: build/${{ env.artifact_file_name }}
+        asset_name: ${{ env.artifact_file_name }}
+        asset_content_type: application/octet-stream          
+  update_web_installer:
+    name: Web Installer
+    if: ${{ needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0 }}
+    needs: [build, preparation,bootstrap]
+    container:
+      image: sle118/squeezelite-esp32-idfv43
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 15
+          submodules: true    
+      - uses: actions/download-artifact@master
+        name: Restore last build
+        with:
+          name: build_parms
+      - name: Update Web Installer Project
+        run: |
+          . /opt/esp/python_env/idf4.3_py3.8_env/bin/activate
+          build_tools.py manifest --flash_file "./build/flasher_args.json" --outdir "./bin_files" --manif_name "manifest" --max_count 3
+          build_tools.py pushinstaller --source "./bin_files" --manif_name "manifest" --target "web-installer" --url "https://github.com/sle118/squeezelite-esp32-installer.git" --artifacts "artifacts" --web_installer_branch "main" --token "${{secrets.github_token}}"

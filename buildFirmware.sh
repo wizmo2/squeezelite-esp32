@@ -3,12 +3,6 @@
 
 
 echo "Build process started"
-pushd components/wifi-manager/webapp/ 
-echo "Installing node.js dependencies"
-npm install 
-echo "Building webapp"
-npm run-script build 
-popd
 echo "Setting up build name and build number"
 if [ -z "${TARGET_BUILD_NAME}" ]
 then

@@ -14,3 +14,7 @@ test/.vscode/tasks.json
 test/sdkconfig
 components/wifi-manager/UML-State-Machine-in-C
 *.bak
+
+envfile.txt
+
+web-installer
