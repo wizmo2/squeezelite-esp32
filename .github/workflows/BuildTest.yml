@@ -36,7 +36,9 @@ jobs:
         echo "Current directory"
         pwd
         echo "Listing files"
-        ls -a
+        ls -alt 
+        ls -alt .git
+        git config --list --show-origin
         git status
 
         # build_flags support the following options
