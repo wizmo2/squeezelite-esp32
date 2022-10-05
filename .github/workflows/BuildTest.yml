@@ -8,7 +8,8 @@ on: workflow_dispatch
 
 jobs:
   bootstrap:
-    name: Preparation
+    name: Global setup
+    runs-on: ubuntu-latest
     container:
       image: sle118/squeezelite-esp32-idfv43
     outputs:
@@ -39,6 +40,7 @@ jobs:
   preparation:
     name: Preparation
     needs: bootstrap
+    runs-on: ubuntu-latest
     container:
       image: sle118/squeezelite-esp32-idfv43
     steps:
@@ -97,6 +99,7 @@ jobs:
           components/wifi-manager/webapp/dist/*
           components/wifi-manager/webapp/*.cmake 
   build:
+    runs-on: ubuntu-latest
     container:
       image: sle118/squeezelite-esp32-idfv43
     needs: [preparation,bootstrap]
@@ -235,6 +238,7 @@ jobs:
     name: Web Installer
     if: ${{ needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0 }}
     needs: [build, preparation,bootstrap]
+    runs-on: ubuntu-latest
     container:
       image: sle118/squeezelite-esp32-idfv43
     steps:
