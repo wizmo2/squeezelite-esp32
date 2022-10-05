@@ -101,6 +101,11 @@ parser.add_argument('--cwd', type=str,help='Working directory', default=os.getcw
 parser.add_argument('--loglevel', type=str,choices={'CRITICAL','ERROR','WARNING','INFO','DEBUG','NOTSET'}, help='Logging level', default='INFO')
 subparsers = parser.add_subparsers( dest='command', required=True)
 
+parser_dir = subparsers.add_parser("list_files",
+                                      add_help=False,
+                                      description="List Files parser",
+                                      help="Display the content of the folder")
+
 parser_manifest = subparsers.add_parser("manifest",
                                       add_help=False,
                                       description="Manifest parser",
@@ -549,39 +554,32 @@ def delete_folder(path):
     os.chmod(path ,stat.S_IWRITE)
     logger.warning(f'Deleting Folder {path}')
     os.rmdir(path)
+def get_file_stats(path)->tuple[int,str,str]:
+  fstat:os.stat_result = pathlib.Path(path).stat()
+    # Convert file size to MB, KB or Bytes
+  mtime = time.strftime("%X %x", time.gmtime(fstat.st_mtime))
+  if (fstat.st_size > 1024 * 1024):
+      return math.ceil(fstat.st_size / (1024 * 1024)), "MB", mtime
+  elif (fstat.st_size > 1024):
+      return math.ceil(fstat.st_size / 1024), "KB", mtime
+  return fstat.st_size, "B", mtime
 
-def get_file_list(path)->list:
+def get_file_list(root_path, max_levels:int=2 )->list:
   outlist:list=[]
-  for root, dirs, files in os.walk(path,topdown=True):
-      for dir in dirs:
-        outlist.append(f'Content of {os.path.join(root, dir)}')
-        get_file_list(os.path.join(root, dir))
-      for fname in files:
-        full_name=os.path.join(root, fname)
-        fstat:os.stat_result = pathlib.Path(full_name).stat()
-          # Convert file size to MB, KB or Bytes
-        if (fstat.st_size > 1024 * 1024):
-            fsize = math.ceil(fstat.st_size / (1024 * 1024))
-            unit = "MB"
-        elif (fstat.st_size > 1024):
-            fsize = math.ceil(fstat.st_size / 1024)
-            unit = "KB"
-        else:
-            fsize = fstat.st_size
-            unit = "B"
-
-        mtime = time.strftime("%X %x", time.gmtime(fstat.st_mtime))
-        outlist.append('\t{:15.80s}{:8d} {:2s} {:18s}'.format(fname,fsize,unit,mtime))
-          
-  if os.path.exists(path):
-    outlist.append(path)
-  outlist.sort()
+  for root, dirs, files in os.walk(root_path):
+      path = root.split(os.sep)
+      if len(path) <= max_levels:
+        outlist.append(f'\n{root}')
+        for file in files:
+          full_name=os.path.join(root, file)
+          fsize,unit,mtime = get_file_stats(full_name)
+          outlist.append('{:s} {:8d} {:2s} {:18s}\t{:s}'.format(len(path) * "---",fsize,unit,mtime,file))
   return outlist
 def get_recursive_list(path)->list:
   outlist:list=[]
   for root, dirs, files in os.walk(path,topdown=True):
       for dir in dirs:
-        get_file_list(os.path.join(root, dir))
+        outlist.extend(get_recursive_list(os.path.join(root, dir)))
       for fname in files:
         outlist.append(fname)
   # if os.path.exists(path):
@@ -709,13 +707,16 @@ def extract_files_from_archive(url):
   z = zipfile.ZipFile(io.BytesIO(platform.content))
   z.extractall(tempfolder)
   return tempfolder
-
+def handle_list_files(args):
+  print(f'Content of {args.cwd}:')
+  print('\n'.join(get_file_list(args.cwd)))
 parser_environment.set_defaults(func=handle_environment, cmd='environment')
 parser_artifacts.set_defaults(func=handle_artifacts, cmd='artifacts')
 parser_manifest.set_defaults(func=handle_manifest, cmd='manifest')
 parser_pushinstaller.set_defaults(func=handle_pushinstaller, cmd='installer')
 parser_show.set_defaults(func=handle_show, cmd='show')    
 parser_build_flags.set_defaults(func=handle_build_flags, cmd='build_flags')    
+parser_dir.set_defaults(func=handle_list_files, cmd='list_files')
 
 
 def main():
@@ -733,3 +734,4 @@ def main():
 
 if __name__ == '__main__':
   main()
+  
