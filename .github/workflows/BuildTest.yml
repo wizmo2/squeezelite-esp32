@@ -1,5 +1,6 @@
 # This is a basic workflow to help you get started with Actions
-name: Test for ESP-IDF v4.3.1
+name: Manually executable test for ESP-IDF v4.3.1
+on: workflow_dispatch
 # on:
 #   push:
 #     branches: 
@@ -7,7 +8,8 @@ name: Test for ESP-IDF v4.3.1
 
 jobs:
   bootstrap:
-    name: Preparation
+    name: Global setup
+    runs-on: ubuntu-latest
     container:
       image: sle118/squeezelite-esp32-idfv43
     outputs:
@@ -28,6 +30,7 @@ jobs:
     - name: Set build flags
       id: build_flags
       run: |
+        git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
         . /opt/esp/python_env/idf4.3_py3.8_env/bin/activate
         # build_flags support the following options
         # --mock - to mock the compilation part - this is to be used for testing only
@@ -38,6 +41,7 @@ jobs:
   preparation:
     name: Preparation
     needs: bootstrap
+    runs-on: ubuntu-latest
     container:
       image: sle118/squeezelite-esp32-idfv43
     steps:
@@ -53,6 +57,7 @@ jobs:
         submodules: true
     - name: Pull latest 
       run: |
+        git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
         git pull 
         git submodule update
     - name: Refresh certificates
@@ -75,7 +80,6 @@ jobs:
     - name: Update repository with prebuilt items
       if:  ${{ needs.bootstrap.outputs.ui_build == 1 || needs.bootstrap.outputs.release_flag == 1 }} 
       run: |
-        git fetch
         git config user.name github-actions
         git config user.email github-actions@github.com
         git add server_certs 
@@ -96,6 +100,7 @@ jobs:
           components/wifi-manager/webapp/dist/*
           components/wifi-manager/webapp/*.cmake 
   build:
+    runs-on: ubuntu-latest
     container:
       image: sle118/squeezelite-esp32-idfv43
     needs: [preparation,bootstrap]
@@ -126,6 +131,8 @@ jobs:
     - name: Set build parameters
       run: |
         . /opt/esp/python_env/idf4.3_py3.8_env/bin/activate
+        git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
+        git status
         build_tools.py environment --build ${{ needs.bootstrap.outputs.build_number }} --env_file "$GITHUB_ENV" --node "${{matrix.node}}" --depth ${{matrix.depth}} --major 2 --docker sle118/squeezelite-esp32-idfv43 
         
     - uses: actions/download-artifact@master
@@ -234,6 +241,7 @@ jobs:
     name: Web Installer
     if: ${{ needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0 }}
     needs: [build, preparation,bootstrap]
+    runs-on: ubuntu-latest
     container:
       image: sle118/squeezelite-esp32-idfv43
     steps:
