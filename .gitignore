@@ -16,5 +16,5 @@ components/wifi-manager/UML-State-Machine-in-C
 *.bak
 
 envfile.txt
-
+artifacts
 web-installer

@@ -160,6 +160,12 @@ parser_build_flags.add_argument('--mock', action='store_true',help='Mock release
 parser_build_flags.add_argument('--force', action='store_true',help='Force a release build')
 parser_build_flags.add_argument('--ui_build', action='store_true',help='Include building the web UI')
 
+def format_commit(commit):
+  #463a9d8b7 Merge branch 'bugfix/ci_deploy_tags_v4.0' into 'release/v4.0' (2020-01-11T14:08:55+08:00)
+  dt = datetime.fromtimestamp(float(commit.author.time), timezone( timedelta(minutes=commit.author.offset) ))
+  timestr = dt.strftime('%c%z')
+  cmesg= commit.message.replace('\n', ' ' )
+  return f'{commit.short_id} {cmesg} ({timestr}) <{commit.author.name}>'.replace('  ', ' ', )
 
 def get_github_data(repo:Repository,api):
     base_url = urlparse(repo.remotes['origin'].url)
@@ -312,6 +318,7 @@ class Releases():
   maxcount:int =0
   branch:str=''
   repo:Repository=None
+  last_commit:Commit = None
   manifest_name:str
   def __init__(self,branch:str,maxcount:int=3) -> None:
     self.maxcount = maxcount
@@ -358,20 +365,27 @@ class Releases():
     elif package.has_artifacts or not with_artifacts:
       self.append(package)
   @classmethod
+  def get_last_commit_message(cls)->str:
+      last:Commit = cls.get_last_commit()
+      if last is None:
+        return ''
+      else:
+        return last.message.replace('\n', ' ')
+  @classmethod
   def get_last_commit(cls)->Commit:
     if cls.repo is None:
       cls.get_repository(os.getcwd())
-      target=cls.repo.head.target
-
-      last_commit=''
-      try:
-        last_commit=cls.repo[last_commit]
-        logger.info(f'Last commit for target {target} is {last_commit}')
-      except Exception as e:
-        logger.error(f'Unable to retrieve last commit for target {target}: {e}')
-        last_commit=None
-      
-    return last_commit
+      head:Reference  = cls.repo.head
+      target=head.target
+      ref:Reference
+      if cls.last_commit is None:
+        try:
+          cls.last_commit=cls.repo[target]
+          logger.info(f'Last commit for {head.shorthand} is {format_commit(cls.last_commit)}')
+        except Exception as e:
+          print(f'::error::Unable to retrieve last commit for {head.shorthand}/{target}: {e}')
+          cls.last_commit=None
+    return cls.last_commit
   @classmethod
   def get_repository(cls,path:str=os.getcwd())->Repository:
     if cls.repo is None:  
@@ -379,9 +393,9 @@ class Releases():
         logger.info(f'Opening repository from {path}')
         cls.repo=Repository(path=path)
       except GitError as ex:
-        print(f'::error::Error while trying to access the repository.')
+        print(f'::error::Unable to access the repository.')
         print(f'::error::Content of {path}:')
-        print('\n::error::'.join(get_file_list(path)))
+        print('\n::error::'.join(get_file_list(path,1)))
         raise 
     return cls.repo
   @classmethod
@@ -428,6 +442,27 @@ class Releases():
         break
 
     return packages
+  @classmethod 
+  def get_commit_list(cls)->list:
+    commit_list = []
+    last:Commit = Releases.get_last_commit()
+    if last is None:
+      return commit_list
+    try:
+      for c in Releases.get_repository().walk(last.id,pygit2.GIT_SORT_TIME):
+        commit_list.append(format_commit(c))
+        if len(commit_list)>10:
+            break
+
+    except Exception as e:
+      print(f'::error::Unable to get commit list starting at {last.id}: {e}')
+
+    return commit_list
+
+  @classmethod
+  def get_commit_list_descriptions(cls)->str:
+    return '<<~EOD\n### Revision Log<br>\n'+'<br>\n'.join(cls.get_commit_list())+'\n~EOD'
+    
   def update(self, *args, **kwargs):
       if args:
           if len(args) > 1:
@@ -466,8 +501,8 @@ def write_github_env(args):
   logger.info(f'Writing environment details to {args.env_file}...')
   with open(args.env_file,  "w") as env_file:
     for attr in [attr for attr in dir(github_env) if not attr.startswith('_')]:
-      line=f'{attr}={getattr(github_env,attr)}'
-      logger.info(line)
+      line=f'{attr}{"=" if attr != "description" else ""}{getattr(github_env,attr)}'
+      print(line)
       env_file.write(f'{line}\n')
       os.environ[attr] = str(getattr(github_env,attr))
   logger.info(f'Done writing environment details to {args.env_file}!')
@@ -479,12 +514,6 @@ def set_workflow_output(args):
     os.environ[attr] = str(getattr(github_env,attr))
   logger.info(f'Done outputting job variables!')  
 
-def format_commit(commit):
-  #463a9d8b7 Merge branch 'bugfix/ci_deploy_tags_v4.0' into 'release/v4.0' (2020-01-11T14:08:55+08:00)
-  dt = datetime.fromtimestamp(float(commit.author.time), timezone( timedelta(minutes=commit.author.offset) ))
-  timestr = dt.strftime('%c%z')
-  cmesg= commit.message.replace('\n', ' ' )
-  return f'{commit.short_id} {cmesg} ({timestr}) <{commit.author.name}>'.replace('  ', ' ', )
 
 def format_artifact_name(base_name:str='',args = AttributeDict(os.environ)):
   return f'{base_name}{args.branch_name}-{args.node}-{args.depth}-{args.major}{args.build}'
@@ -493,7 +522,7 @@ def handle_build_flags(args):
   set_workdir(args)
   logger.info('Setting global build flags')
   last:Commit = Releases.get_last_commit()
-  commit_message:str= last.message.replace('\n', ' ')
+  commit_message:str= Releases.get_last_commit_message()
   github_env.mock=1 if args.mock else 0
   github_env.release_flag=1 if args.mock  or args.force or 'release' in commit_message.lower() else 0
   github_env.ui_build=1 if args.mock or args.ui_build or '[ui-build]' in commit_message.lower() or github_env.release_flag==1 else 0
@@ -502,13 +531,13 @@ def handle_build_flags(args):
 def handle_environment(args):
     set_workdir(args)
     logger.info('Setting environment variables...')
-
+    commit_message:str= Releases.get_last_commit_message()
     last:Commit = Releases.get_last_commit()
-    commit_message:str= last.message.replace('\n', ' ')
-    github_env.author_name=last.author.name
-    github_env.author_email=last.author.email
-    github_env.committer_name=last.committer.name
-    github_env.committer_email=last.committer.email    
+    if last is not None:
+      github_env.author_name=last.author.name
+      github_env.author_email=last.author.email
+      github_env.committer_name=last.committer.name
+      github_env.committer_email=last.committer.email    
     github_env.node=args.node
     github_env.depth=args.depth
     github_env.major=args.major
@@ -527,24 +556,23 @@ def handle_environment(args):
     github_env.artifact_file_name=f"{github_env.artifact_prefix}.zip"
     github_env.artifact_bin_file_name=f"{github_env.artifact_prefix}.bin"
     github_env.PROJECT_VER=f'{args.node}-{ args.build }'
-    commit_list = []
-    for c in [c for i,c in enumerate(Releases.get_repository().walk(last.id,pygit2.GIT_SORT_TIME)) if i<10]:
-      commit_list.append(format_commit(c))
-    github_env.description='### Revision Log<br><<~EOD\n'+'<br>\n'.join(commit_list)+'\n~EOD'
+    github_env.description=Releases.get_commit_list_descriptions()
     write_github_env(args)
 
 def handle_artifacts(args):
     set_workdir(args)
     logger.info(f'Handling artifacts')
     for attr in artifacts_formats:
-      target:str=attr[1].replace(artifacts_formats_outdir,args.outdir).replace(artifacts_formats_prefix,format_artifact_name())
-      logger.debug(f'file {attr[0]} will be copied to {target}')
+      target:str=os.path.relpath(attr[1].replace(artifacts_formats_outdir,args.outdir).replace(artifacts_formats_prefix,format_artifact_name()))
+      source:str=os.path.relpath(attr[0])
+      target_dir:str=os.path.dirname(target)
+      logger.info(f'Copying file {source} to {target}')
       try:
-        os.makedirs(os.path.dirname(target), exist_ok=True)
-        shutil.copyfile(attr[0].rstrip(), target, follow_symlinks=True)
+        os.makedirs(target_dir, exist_ok=True)
+        shutil.copyfile(source, target, follow_symlinks=True)
       except Exception as ex:
-        print(f'::error::Error while copying to {target}' )
-        print(f'::error::Content of {os.path.dirname(attr[0].rstrip())}:')
+        print(f'::error::Error while copying {source} to {target}' )
+        print(f'::error::Content of {target_dir}:')
         print('\n::error::'.join(get_file_list(os.path.dirname(attr[0].rstrip()))))
         raise
 

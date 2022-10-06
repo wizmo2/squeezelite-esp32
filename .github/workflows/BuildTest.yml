@@ -1,10 +1,19 @@
 # This is a basic workflow to help you get started with Actions
 name: Manually executable test for ESP-IDF v4.3.1
-on: workflow_dispatch
-# on:
-#   push:
-#     branches: 
-#       - '**4.3'
+on: 
+  workflow_dispatch:
+    inputs:
+          ui_build:
+            description: 'Rebuild UI'
+            required: true
+            type: boolean
+          release_build:
+            description: 'Release'
+            required: true
+            type: boolean
+  push:
+    branches: 
+      - '**4.3'
 
 jobs:
   bootstrap:
@@ -31,12 +40,14 @@ jobs:
       id: build_flags
       run: |
         git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
+        echo "Dumping environment"
+        env
         . /opt/esp/python_env/idf4.3_py3.8_env/bin/activate
         # build_flags support the following options
         # --mock - to mock the compilation part - this is to be used for testing only
         # --force - to force a release build even if the last commit message doesn't contain the word "release"
         # --ui_build - to force a ui_build even if the last commit message doesn't contain "[ui-build]"
-        build_tools.py build_flags  --ui_build
+        build_tools.py build_flags 
 
   preparation:
     name: Preparation
@@ -51,15 +62,11 @@ jobs:
           echo "Web Build Flag=${{needs.bootstrap.outputs.ui_build}}"
           echo "Mock flag=${{needs.bootstrap.outputs.mock}}"
           echo "Release Flag=${{needs.bootstrap.outputs.release_flag}}"      
+          git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
         submodules: true
-    - name: Pull latest 
-      run: |
-        git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
-        git pull 
-        git submodule update
     - name: Refresh certificates
       run: |
         git update-index --chmod=+x ./server_certs/getcert.sh
@@ -105,12 +112,9 @@ jobs:
       image: sle118/squeezelite-esp32-idfv43
     needs: [preparation,bootstrap]
     strategy:
-      max-parallel: 3
       matrix:
-        #node: [I2S-4MFlash, SqueezeAmp, Muse]
-        #depth: [16, 32]
-        node: [I2S-4MFlash]
-        depth: [16]
+        node: [I2S-4MFlash, SqueezeAmp, Muse]
+        depth: [16, 32]
         exclude:
           - node: Muse
             depth: 32      
