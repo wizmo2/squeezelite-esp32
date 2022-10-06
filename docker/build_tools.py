@@ -52,12 +52,11 @@ except ImportError as ex:
     envlist="\n".join( [f"{k}={v}"  for k,v in sorted(os.environ.items())])
     print(f'{envlist}')
     raise
-
+tool_version= "1.0.6"
 FORMAT = '%(asctime)s %(message)s'
 logging.basicConfig(format=FORMAT)
 logger:logging.Logger = logging.getLogger(__name__)
 github_env= type('', (), {})()
-tool_version= "1.0.5"
 manifest={
     "name": "",
     "version": "",
@@ -362,7 +361,17 @@ class Releases():
   def get_last_commit(cls)->Commit:
     if cls.repo is None:
       cls.get_repository(os.getcwd())
-    return cls.repo[cls.repo.head.target]
+      target=cls.repo.head.target
+
+      last_commit=''
+      try:
+        last_commit=cls.repo[last_commit]
+        logger.info(f'Last commit for target {target} is {last_commit}')
+      except Exception as e:
+        logger.error(f'Unable to retrieve last commit for target {target}: {e}')
+        last_commit=None
+      
+    return last_commit
   @classmethod
   def get_repository(cls,path:str=os.getcwd())->Repository:
     if cls.repo is None:  
@@ -518,7 +527,10 @@ def handle_environment(args):
     github_env.artifact_file_name=f"{github_env.artifact_prefix}.zip"
     github_env.artifact_bin_file_name=f"{github_env.artifact_prefix}.bin"
     github_env.PROJECT_VER=f'{args.node}-{ args.build }'
-    github_env.description='### Revision Log<br><<~EOD\n'+'<br>\n'.join(format_commit(c) for i,c in enumerate(Releases.get_repository().walk(last.id,pygit2.GIT_SORT_TIME)) if i<10)+'\n~EOD'
+    commit_list = []
+    for c in [c for i,c in enumerate(Releases.get_repository().walk(last.id,pygit2.GIT_SORT_TIME)) if i<10]:
+      commit_list.append(format_commit(c))
+    github_env.description='### Revision Log<br><<~EOD\n'+'<br>\n'.join(commit_list)+'\n~EOD'
     write_github_env(args)
 
 def handle_artifacts(args):
@@ -554,7 +566,7 @@ def delete_folder(path):
     os.chmod(path ,stat.S_IWRITE)
     logger.warning(f'Deleting Folder {path}')
     os.rmdir(path)
-def get_file_stats(path)->tuple[int,str,str]:
+def get_file_stats(path):
   fstat:os.stat_result = pathlib.Path(path).stat()
     # Convert file size to MB, KB or Bytes
   mtime = time.strftime("%X %x", time.gmtime(fstat.st_mtime))
@@ -578,13 +590,8 @@ def get_file_list(root_path, max_levels:int=2 )->list:
 def get_recursive_list(path)->list:
   outlist:list=[]
   for root, dirs, files in os.walk(path,topdown=True):
-      for dir in dirs:
-        outlist.extend(get_recursive_list(os.path.join(root, dir)))
       for fname in files:
-        outlist.append(fname)
-  # if os.path.exists(path):
-  #   outlist.append(path)
-  outlist.sort()
+        outlist.append((fname,os.path.join(root,fname)))
   return outlist
 
 def handle_manifest(args):
@@ -672,9 +679,10 @@ def update_files(target_artifacts:str,manif_name:str,source:str):
   new_list:dict = get_new_file_names(manif_name, os.path.abspath(source))
   if os.path.exists(target_artifacts):
     logger.info(f'Removing obsolete files from {target_artifacts}')
-    for f in get_recursive_list(target_artifacts):
+    for entry in get_recursive_list(target_artifacts):
+      f=entry[0]
+      full_target=entry[1]
       if f not in new_list.keys():
-          full_target = os.path.join(target_artifacts,f)
           logger.warning(f'Removing obsolete file {f}')
           os.remove(full_target)
   else:
