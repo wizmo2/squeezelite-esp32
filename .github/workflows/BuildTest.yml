@@ -254,5 +254,6 @@ jobs:
       - name: Update Web Installer Project
         run: |
           . /opt/esp/python_env/idf4.3_py3.8_env/bin/activate
+          git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
           build_tools.py manifest --flash_file "./build/flasher_args.json" --outdir "./bin_files" --manif_name "manifest" --max_count 3
           build_tools.py pushinstaller --source "./bin_files" --manif_name "manifest" --target "web-installer" --url "https://github.com/sle118/squeezelite-esp32-installer.git" --artifacts "artifacts" --web_installer_branch "main" --token "${{secrets.github_token}}"
