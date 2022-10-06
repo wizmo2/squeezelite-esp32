@@ -3,11 +3,11 @@ on:
   workflow_dispatch:
     inputs:
           ui_build:
-            description: 'Rebuild UI'
+            description: 'Force Rebuilding the UI. When not forced, the system will check for [ui-build] in the last commit message to trigger a ui rebuild'
             required: true
             type: boolean
           release_build:
-            description: 'Release'
+            description: 'Force a Release build. When not forced, the system will check for release word in the last commit message to trigger a release'
             required: true
             type: boolean
   # push:
@@ -26,16 +26,6 @@ jobs:
       release_flag: ${{ steps.build_flags.outputs.release_flag }}      
       mock: ${{ steps.build_flags.outputs.mock }}            
     steps:
-    - name: Force UI Rebuild if selected
-      if: ${{ inputs.ui_build }}
-      run: |
-        echo "Workflow dispatched with ui rebuild option selected"
-        echo "ui_build_option='--ui_build'" >> $GITHUB_ENV
-    - name: Force Release if selected
-      if: ${{ inputs.release_build }}
-      run: |
-        echo "Workflow dispatched with release build option selected"
-        echo "release_build_option='--force'" >> $GITHUB_ENV        
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
@@ -49,6 +39,10 @@ jobs:
       id: build_flags
       run: |
         git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
+        [ ${{github.event.inputs.ui_build}} ] && ui_build_option="--ui_build" || ui_build_option="" 
+        [ ${{github.event.inputs.release_build}} ] && release_build_option="--force" || release_build_option="" 
+        echo "ui_build_option=$ui_build_option" >> $GITHUB_ENV
+        echo "release_build_option=$release_build_option" >> $GITHUB_ENV
         echo "Dumping environment"
         env
         . /opt/esp/python_env/idf4.3_py3.8_env/bin/activate
@@ -56,26 +50,15 @@ jobs:
         # --mock - to mock the compilation part - this is to be used for testing only
         # --force - to force a release build even if the last commit message doesn't contain the word "release"
         # --ui_build - to force a ui_build even if the last commit message doesn't contain "[ui-build]"
-        build_tools.py build_flags ${{ env.ui_build_option }} ${{ env.release_build_option }}
-  preparation:
-    name: Preparation
-    needs: bootstrap
-    runs-on: ubuntu-latest
-    container:
-      image: sle118/squeezelite-esp32-idfv43
-    steps:
+        build_tools.py build_flags $ui_build_option $release_build_option 
     - name: Show Build Flags        
       run: |
           echo "Running with the following options" 
-          echo "Web Build Flag=${{needs.bootstrap.outputs.ui_build}}"
-          echo "Mock flag=${{needs.bootstrap.outputs.mock}}"
-          echo "Release Flag=${{needs.bootstrap.outputs.release_flag}}"      
-          git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-        submodules: true
+          echo "Web Build Flag=${{steps.build_flags.outputs.ui_build}}"
+          echo "Mock flag=${{steps.build_flags.outputs.mock}}"
+          echo "Release Flag=${{steps.build_flags.outputs.release_flag}}"      
     - name: Refresh certificates
+      if: ${{ steps.build_flags.outputs.release_flag }}
       run: |
         git update-index --chmod=+x ./server_certs/getcert.sh
         cd server_certs;./getcert.sh;cat github.pem;cd ..        
@@ -87,13 +70,13 @@ jobs:
         cache: 'npm'
         cache-dependency-path: components/wifi-manager/webapp/package.json   
     - name: Build Web Application
-      if: ${{ needs.bootstrap.outputs.ui_build == 1 }} 
+      if: ${{ steps.build_flags.outputs.ui_build == 1 }} 
       run: |
         cd components/wifi-manager/webapp/ 
         npm install 
         npm run-script build
     - name: Update repository with prebuilt items
-      if:  ${{ needs.bootstrap.outputs.ui_build == 1 || needs.bootstrap.outputs.release_flag == 1 }} 
+      if:  ${{ steps.build_flags.outputs.ui_build == 1 || build_flags.outputs.release_flag == 1 }} 
       run: |
         git config user.name github-actions
         git config user.email github-actions@github.com
@@ -118,7 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: sle118/squeezelite-esp32-idfv43
-    needs: [preparation,bootstrap]
+    needs: [bootstrap]
     strategy:
       matrix:
         node: [I2S-4MFlash, SqueezeAmp, Muse]
@@ -192,7 +175,7 @@ jobs:
             zip -r build_output.zip build
             zip build/${artifact_file_name} partitions*.csv components/ build/*.bin build/bootloader/bootloader.bin build/partition_table/partition-table.bin build/flash_project_args build/size_*.txt
         fi
-    - name: Upload Artifacts
+    - name: Upload Build Artifacts
       uses: actions/upload-artifact@v3
       if: ${{ needs.bootstrap.outputs.mock == 0 }}
       with:
@@ -204,8 +187,11 @@ jobs:
           partitions.csv
           sdkconfig
           server_certs/github.pem
+          build/*.bin 
+          build/bootloader/bootloader.bin 
+          build/partition_table/partition-table.bin
           build_output.zip
-    - name: Save Last Build
+    - name: Save Last Build Parameters
       if: ${{ needs.bootstrap.outputs.mock == 0 }}
       uses: actions/upload-artifact@v3
       with:
@@ -252,7 +238,7 @@ jobs:
   update_web_installer:
     name: Web Installer
     if: ${{ needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0 }}
-    needs: [build, preparation,bootstrap]
+    needs: [build, bootstrap]
     runs-on: ubuntu-latest
     container:
       image: sle118/squeezelite-esp32-idfv43
