@@ -76,7 +76,7 @@ jobs:
         npm install 
         npm run-script build
     - name: Update repository with prebuilt items
-      if:  ${{ steps.build_flags.outputs.ui_build == 1 || build_flags.outputs.release_flag == 1 }} 
+      if:  ${{ steps.build_flags.outputs.ui_build == 1 || steps.build_flags.outputs.release_flag == 1 }} 
       run: |
         git config user.name github-actions
         git config user.email github-actions@github.com
