@@ -11,9 +11,9 @@ on:
             description: 'Release'
             required: true
             type: boolean
-  push:
-    branches: 
-      - '**4.3'
+  # push:
+  #   branches: 
+  #     - '**4.3'
 
 jobs:
   bootstrap:
@@ -27,6 +27,12 @@ jobs:
       release_flag: ${{ steps.build_flags.outputs.release_flag }}      
       mock: ${{ steps.build_flags.outputs.mock }}            
     steps:
+    - name: Set Build options from workflow dispatch event
+      run: |
+        ui_build_option="" && [[ ${{ inputs.ui_build }} ]]  && ui_build_option="--ui_build"
+        release_build_option="" && [[ ${{ inputs.release_build }} ]]  && release_build_option="--force"
+        echo "ui_build_option=$ui_build_option" >> $GITHUB_ENV
+        echo "release_build_option=$release_build_option" >> $GITHUB_ENV
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
@@ -47,8 +53,7 @@ jobs:
         # --mock - to mock the compilation part - this is to be used for testing only
         # --force - to force a release build even if the last commit message doesn't contain the word "release"
         # --ui_build - to force a ui_build even if the last commit message doesn't contain "[ui-build]"
-        build_tools.py build_flags 
-
+        build_tools.py build_flags ${{ env.ui_build_option }} ${{ env.release_build_option }}
   preparation:
     name: Preparation
     needs: bootstrap

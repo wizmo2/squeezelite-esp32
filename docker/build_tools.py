@@ -44,7 +44,7 @@ try:
   from genericpath import isdir
 
 except ImportError as ex:
-    print(f'::error::Failed importing module {ex.name}, using interpreter {sys.executable}. \n Installed packages:')
+    print(f'::error Failed importing module {ex.name}, using interpreter {sys.executable}. \n Installed packages:')
     installed_packages = pkg_resources.working_set
     installed_packages_list = sorted(["%s==%s" % (i.key, i.version) for i in installed_packages])
     print('\n'.join(installed_packages_list))
@@ -226,9 +226,9 @@ class BinFile():
       os.makedirs(target_folder, exist_ok=True)
       shutil.copyfile(self.source_full_path, self.target_fullpath, follow_symlinks=True)
     except Exception as ex:
-      print(f'::error::Error while copying {self.source_full_path} to {self.target_fullpath}' )
-      print(f'::error::Content of {os.path.dirname(self.source_full_path.rstrip())}:')
-      print('\n::error::'.join(get_file_list(os.path.dirname(self.source_full_path.rstrip()))))
+      print(f'::error Error while copying {self.source_full_path} to {self.target_fullpath}' )
+      print(f'::error Content of {os.path.dirname(self.source_full_path.rstrip())}:')
+      print('\n::error '.join(get_file_list(os.path.dirname(self.source_full_path.rstrip()))))
       raise
     return self.target_fullpath
   def get_attributes(self):
@@ -383,7 +383,7 @@ class Releases():
           cls.last_commit=cls.repo[target]
           logger.info(f'Last commit for {head.shorthand} is {format_commit(cls.last_commit)}')
         except Exception as e:
-          print(f'::error::Unable to retrieve last commit for {head.shorthand}/{target}: {e}')
+          print(f'::error Unable to retrieve last commit for {head.shorthand}/{target}: {e}')
           cls.last_commit=None
     return cls.last_commit
   @classmethod
@@ -393,9 +393,9 @@ class Releases():
         logger.info(f'Opening repository from {path}')
         cls.repo=Repository(path=path)
       except GitError as ex:
-        print(f'::error::Unable to access the repository.')
-        print(f'::error::Content of {path}:')
-        print('\n::error::'.join(get_file_list(path,1)))
+        print(f'::error Unable to access the repository.')
+        print(f'::error Content of {path}:')
+        print('\n::error '.join(get_file_list(path,1)))
         raise 
     return cls.repo
   @classmethod
@@ -455,7 +455,7 @@ class Releases():
             break
 
     except Exception as e:
-      print(f'::error::Unable to get commit list starting at {last.id}: {e}')
+      print(f'::error Unable to get commit list starting at {last.id}: {e}')
 
     return commit_list
 
@@ -491,10 +491,10 @@ def parse_json(filename:str):
         logger.debug(f'Loading json\n{content}')
         return json.loads(content)
     except JSONDecodeError as ex:
-      print(f'::error::Error parsing {content}')
+      print(f'::error Error parsing {content}')
     except Exception as ex:
-      print(f'::error::Unable to parse flasher args json file. Content of {folder}:')
-      print('\n::error::'.join(get_file_list(folder)))
+      print(f'::error Unable to parse flasher args json file. Content of {folder}:')
+      print('\n::error '.join(get_file_list(folder)))
       raise 
 
 def write_github_env(args):
@@ -571,9 +571,9 @@ def handle_artifacts(args):
         os.makedirs(target_dir, exist_ok=True)
         shutil.copyfile(source, target, follow_symlinks=True)
       except Exception as ex:
-        print(f'::error::Error while copying {source} to {target}' )
-        print(f'::error::Content of {target_dir}:')
-        print('\n::error::'.join(get_file_list(os.path.dirname(attr[0].rstrip()))))
+        print(f'::error Error while copying {source} to {target}' )
+        print(f'::error Content of {target_dir}:')
+        print('\n::error '.join(get_file_list(os.path.dirname(attr[0].rstrip()))))
         raise
 
 def delete_folder(path):
