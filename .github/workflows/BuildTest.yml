@@ -1,4 +1,3 @@
-# This is a basic workflow to help you get started with Actions
 name: Manually executable test for ESP-IDF v4.3.1
 on: 
   workflow_dispatch:
@@ -27,12 +26,16 @@ jobs:
       release_flag: ${{ steps.build_flags.outputs.release_flag }}      
       mock: ${{ steps.build_flags.outputs.mock }}            
     steps:
-    - name: Set Build options from workflow dispatch event
+    - name: Force UI Rebuild if selected
+      if: ${{ inputs.ui_build }}
       run: |
-        ui_build_option="" && [[ ${{ inputs.ui_build }} ]]  && ui_build_option="--ui_build"
-        release_build_option="" && [[ ${{ inputs.release_build }} ]]  && release_build_option="--force"
-        echo "ui_build_option=$ui_build_option" >> $GITHUB_ENV
-        echo "release_build_option=$release_build_option" >> $GITHUB_ENV
+        echo "Workflow dispatched with ui rebuild option selected"
+        echo "ui_build_option='--ui_build'" >> $GITHUB_ENV
+    - name: Force Release if selected
+      if: ${{ inputs.release_build }}
+      run: |
+        echo "Workflow dispatched with release build option selected"
+        echo "release_build_option='--force'" >> $GITHUB_ENV        
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
