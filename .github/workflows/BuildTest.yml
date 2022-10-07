@@ -233,7 +233,7 @@ jobs:
         asset_content_type: application/octet-stream          
   update_web_installer:
     name: Update Web Installer After Release
-    if: ${{ ( always() && !cancelled() ) && ( ( inputs.update_installer == true ) ||  needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0  ) }}
+    if: ${{ ( always() && !cancelled() ) }}
     env:
       WEB_INSTALLER: ${{ secrets.WEB_INSTALLER }}
     runs-on: ubuntu-latest
@@ -241,10 +241,12 @@ jobs:
       image: sle118/squeezelite-esp32-idfv43
     steps:
       - uses: actions/checkout@v2
+        if: ${{  ( inputs.update_installer == true ) ||  (outputs.release_flag == true) ||  needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0    }}
         with:
           fetch-depth: 0
           submodules: true    
       - name: Update Web Installer Project
+        if: ${{  ( inputs.update_installer == true ) ||  (outputs.release_flag == true) ||  needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0    }}
         run: |
           . /opt/esp/python_env/idf4.3_py3.8_env/bin/activate
           git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
