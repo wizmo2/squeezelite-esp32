@@ -224,7 +224,8 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
         asset_path: build/${{ env.artifact_file_name }}
         asset_name: ${{ env.artifact_file_name }}
-        asset_content_type: application/octet-stream          
-    - name: Update Web Installer
-      if:  ${{ needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0 }}
-      uses: sle118/squeezelite-esp32/.github/workflows/web_deploy.yml
+        asset_content_type: application/octet-stream     
+  update_web_installer:
+    name: Update Web Installer After Release
+    if:  ${{( always() && !cancelled() ) && needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0 }}
+    uses: sle118/squeezelite-esp32/.github/workflows/web_deploy.yml
