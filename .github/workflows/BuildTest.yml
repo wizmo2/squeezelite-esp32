@@ -2,25 +2,20 @@ name: Manually executable test for ESP-IDF v4.3.1
 on: 
   workflow_dispatch:
     inputs:
-          ui_build:
-            description: 'Force Rebuilding the UI. When not forced, the system will check for [ui-build] in the last commit message to trigger a ui rebuild'
-            required: true
-            type: boolean
-          release_build:
-            description: 'Force a Release build. When not forced, the system will check for release word in the last commit message to trigger a release'
-            required: true
-            type: boolean
-          update_installer:
-            description: 'Skip the build and only update the web installer'
-            required: true
-            type: boolean            
+      ui_build:
+        description: 'Force Rebuilding the UI. When not forced, the system will check for [ui-build] in the last commit message to trigger a ui rebuild'
+        required: true
+        type: boolean
+      release_build:
+        description: 'Force a Release build. When not forced, the system will check for release word in the last commit message to trigger a release'
+        required: true
+        type: boolean
   # push:
   #   branches: 
   #     - '**4.3'
 
 jobs:
   bootstrap:
-    if: ${{ inputs.update_installer != true }}
     name: Global setup
     runs-on: ubuntu-latest
     container:
@@ -103,7 +98,6 @@ jobs:
           components/wifi-manager/webapp/dist/*
           components/wifi-manager/webapp/*.cmake 
   build:
-    if: ${{ inputs.update_installer != true }}
     runs-on: ubuntu-latest
     container:
       image: sle118/squeezelite-esp32-idfv43
@@ -231,24 +225,6 @@ jobs:
         asset_path: build/${{ env.artifact_file_name }}
         asset_name: ${{ env.artifact_file_name }}
         asset_content_type: application/octet-stream          
-  update_web_installer:
-    name: Update Web Installer After Release
-    if: ${{ ( always() && !cancelled() ) }}
-    env:
-      WEB_INSTALLER: ${{ secrets.WEB_INSTALLER }}
-    runs-on: ubuntu-latest
-    container:
-      image: sle118/squeezelite-esp32-idfv43
-    steps:
-      - uses: actions/checkout@v2
-        if: ${{  ( inputs.update_installer == true ) ||  (outputs.release_flag == true) ||  needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0    }}
-        with:
-          fetch-depth: 0
-          submodules: true    
-      - name: Update Web Installer Project
-        if: ${{  ( inputs.update_installer == true ) ||  (outputs.release_flag == true) ||  needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0    }}
-        run: |
-          . /opt/esp/python_env/idf4.3_py3.8_env/bin/activate
-          git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
-          build_tools.py manifest --flash_file "/build/flash_project_args" --outdir "./bin_files" --manif_name "manifest" --max_count 3
-          build_tools.py pushinstaller --source "./bin_files" --manif_name "manifest" --target "web-installer" --url "https://github.com/sle118/squeezelite-esp32-installer.git" --artifacts "artifacts" --web_installer_branch "main" --token "${{env.WEB_INSTALLER}}"
+    - name: Update Web Installer
+      if:  ${{ needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0 }}
+      uses: sle118/squeezelite-esp32/.github/workflows/web_deploy.yml
