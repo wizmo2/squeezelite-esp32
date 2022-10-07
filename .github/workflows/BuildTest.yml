@@ -227,6 +227,7 @@ jobs:
         asset_content_type: application/octet-stream     
   update_web_installer:
     name: Update Web Installer After Release
+    runs-on: ubuntu-latest
     if:  ${{( always() && !cancelled() ) && needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0 }}
     steps:
       - uses: sle118/squeezelite-esp32/.github/workflows/web_deploy.yml
