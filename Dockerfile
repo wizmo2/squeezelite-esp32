@@ -110,16 +110,7 @@ ENV OPENOCD_SCRIPTS="/opt/esp/tools/openocd-esp32/v0.10.0-esp32-20211111/openocd
 
 ENV IDF_CCACHE_ENABLE=1
 COPY docker/entrypoint.sh /opt/esp/entrypoint.sh
-COPY ./docker/build_tools.py /usr/sbin/build_tools.py
 COPY components/wifi-manager/webapp/package.json /opt
-
-
-RUN : \
-  && echo Changing permissions ********************************************************  \
-  && chmod +x /opt/esp/entrypoint.sh \
-  && chmod +x /usr/sbin/build_tools.py \  
-  && :
-
 
 ENV NODE_VERSION 8
 
@@ -153,7 +144,12 @@ RUN : \
 
 ENV NODE_PATH $NVM_DIR/v$NODE_VERSION/lib/node_modules
 ENV PATH $IDF_PYTHON_ENV_PATH:$NVM_DIR/v$NODE_VERSION/bin:$PATH
-
+COPY ./docker/build_tools.py /usr/sbin/build_tools.py
+RUN : \
+  && echo Changing permissions ********************************************************  \
+  && chmod +x /opt/esp/entrypoint.sh \
+  && chmod +x /usr/sbin/build_tools.py \  
+  && :
 
 ENTRYPOINT [ "/opt/esp/entrypoint.sh" ]
 CMD [ "/bin/bash" ]
