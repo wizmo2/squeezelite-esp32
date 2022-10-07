@@ -1,3 +1,4 @@
+name: Update Web Installer
 on:
   workflow_call:
   workflow_dispatch:
