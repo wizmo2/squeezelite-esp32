@@ -111,6 +111,7 @@ void services_init(void) {
 	if (spi_config->mosi_io_num != -1 && spi_config->sclk_io_num != -1) {
 		spi_bus_initialize( spi_system_host, spi_config, 1 );
 		if (spi_system_dc_gpio != -1) {
+			gpio_reset_pin(spi_system_dc_gpio);
 			gpio_set_direction( spi_system_dc_gpio, GPIO_MODE_OUTPUT );
 			gpio_set_level( spi_system_dc_gpio, 0 );
 		} else {
