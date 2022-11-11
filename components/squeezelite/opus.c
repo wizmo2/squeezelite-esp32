@@ -44,6 +44,7 @@
 
 struct opus {
 	struct OggOpusFile *of;
+	bool end;
 #if FRAME_BUF
 	u8_t *write_buf;
 #endif
@@ -118,7 +119,7 @@ static decode_state opus_decompress(void) {
 
 	LOCK_S;
 
-	if (stream.state <= DISCONNECT && !_buf_used(streambuf)) {
+	if (stream.state <= DISCONNECT && u->end) {
 		UNLOCK_S;
 		return DECODE_COMPLETE;
 	}
@@ -170,6 +171,8 @@ static decode_state opus_decompress(void) {
 		frames = process.max_in_frames;
 		write_buf = process.inbuf;
 	);
+	
+	u->end = frames == 0;
 
 	// write the decoded frames into outputbuf then unpack them (they are 16 bits)
 	n = OP(u, read, u->of, (opus_int16*) write_buf, frames * channels, NULL);
@@ -260,7 +263,8 @@ static void opus_open(u8_t size, u8_t rate, u8_t chan, u8_t endianness) {
 	} else {
 		OP(u, free, u->of);
 		u->of = NULL;
-	}	
+	}
+	u->end = false;
 }
 
 static void opus_close(void) {
