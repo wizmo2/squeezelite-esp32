@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <math.h>
 #include <functional>
 #include <atomic>
 #include <mutex>
@@ -14,7 +15,7 @@
 #include "SpotifyTrack.h"
 #include "AudioSink.h"
 #include <mutex>
-#include "Task.h"
+#include "BellTask.h"
 
 class Player : public bell::Task {
 private:

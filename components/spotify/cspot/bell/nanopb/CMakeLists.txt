@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.12)
 
 project(nanopb C)
 
-set(nanopb_VERSION_STRING nanopb-0.4.6-dev)
+set(nanopb_VERSION_STRING nanopb-0.4.7-dev)
 set(nanopb_SOVERSION 0)
 
 string(REPLACE "nanopb-" "" nanopb_VERSION ${nanopb_VERSION_STRING})
@@ -65,10 +65,10 @@ if(nanopb_BUILD_GENERATOR)
             DESTINATION ${PYTHON_INSTDIR}/proto/
         )
     endforeach()
-endif()
 
-install(FILES generator/proto/_utils.py
-        DESTINATION ${PYTHON_INSTDIR}/proto/)
+    install( FILES generator/proto/_utils.py
+             DESTINATION ${PYTHON_INSTDIR}/proto/ )
+endif()
 
 if(WIN32)
     install(
@@ -123,7 +123,7 @@ if(nanopb_BUILD_RUNTIME)
             ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
         target_include_directories(protobuf-nanopb-static INTERFACE
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-	        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         )
     endif()
 

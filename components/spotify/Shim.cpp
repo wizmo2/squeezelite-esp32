@@ -116,6 +116,7 @@ static void cspotTask(void *pvParameters) {
             spircController = std::make_shared<SpircController>(mercuryManager, cspot.blob->username, audioSink);
 
 			spircController->setEventHandler([](CSpotEvent &event) {
+ESP_LOGI(TAG, "Getting Spotify event %d ", (int) event.eventType);				
             switch (event.eventType) {
             case CSpotEventType::TRACK_INFO: {
                 TrackInfo track = std::get<TrackInfo>(event.data);
@@ -293,18 +294,18 @@ bool NVSFile::flush() {
  * Shim HTTP server for spirc
  */
 static esp_err_t handlerWrapper(httpd_req_t *req) {
-	bell::HTTPRequest request = { };
+	std::unique_ptr<bell::HTTPRequest> request = std::make_unique<bell::HTTPRequest>();
 	char *query = NULL, *body = NULL;
 	bell::httpHandler *handler = (bell::httpHandler*) req->user_ctx;
 	size_t query_len = httpd_req_get_url_query_len(req);
 
-	request.connection = httpd_req_to_sockfd(req);
+	request->connection = httpd_req_to_sockfd(req);
 
 	// get body if any (add '\0' at the end if used as string)
 	if (req->content_len) {
 		body = (char*) calloc(1, req->content_len + 1);
 		int size = httpd_req_recv(req, body, req->content_len);
-		request.body = body;
+		request->body = body;
 		ESP_LOGD(TAG,"wrapper received body %d/%d", size, req->content_len);
 	}
 
@@ -324,7 +325,7 @@ static esp_err_t handlerWrapper(httpd_req_t *req) {
 	while (key) {
 		char *value = strchr(key, '=');
 		*value++ = '\0';
-		request.queryParams[key] = value;
+		request->queryParams[key] = value;
 		ESP_LOGD(TAG,"wrapper received key:%s value:%s", key, value);
 		key = strtok(NULL, "&");
 	};
@@ -337,12 +338,12 @@ static esp_err_t handlerWrapper(httpd_req_t *req) {
 	 and then we'll return. So we can't obtain the response to be sent, as esp_http_server
 	 normally expects, instead respond() will use raw socket and close connection
 	*/
-	(*handler)(request);
+	(*handler)(std::move(request));
 
 	return ESP_OK;
 }
 
-void ShimHTTPServer::registerHandler(bell::RequestType requestType, const std::string &routeUrl, bell::httpHandler handler) {
+void ShimHTTPServer::registerHandler(bell::RequestType requestType, const std::string &routeUrl, bell::httpHandler handler, bool readDataToStr) {
 	httpd_uri_t request = { 
 		.uri = routeUrl.c_str(), 
 		.method = (requestType == bell::RequestType::GET ? HTTP_GET : HTTP_POST),

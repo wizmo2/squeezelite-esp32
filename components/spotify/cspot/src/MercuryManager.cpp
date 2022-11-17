@@ -9,7 +9,7 @@ std::map<MercuryType, std::string> MercuryTypeMap({
     {MercuryType::UNSUB, "UNSUB"},
     });
 
-MercuryManager::MercuryManager(std::unique_ptr<Session> session): bell::Task("mercuryManager", 6 * 1024, 0, 1)
+MercuryManager::MercuryManager(std::unique_ptr<Session> session): bell::Task("mercuryManager", 6 * 1024, 1, 1)
 {
     tempMercuryHeader = {};
     this->timeProvider = std::make_shared<TimeProvider>();
@@ -115,6 +115,7 @@ std::shared_ptr<AudioChunk> MercuryManager::fetchAudioChunk(std::vector<uint8_t>
     this->session->shanConn->sendPacket(static_cast<uint8_t>(MercuryType::AUDIO_CHUNK_REQUEST_COMMAND), buffer);
 
     // Used for broken connection detection
+//CSPOT_LOG(info, "requesting Chunk %hu", this->audioChunkSequence - 1);				
     this->lastRequestTimestamp = this->timeProvider->getSyncedTimestamp();
     return this->audioChunkManager->registerNewChunk(this->audioChunkSequence - 1, audioKey, startPos, endPos);
 }

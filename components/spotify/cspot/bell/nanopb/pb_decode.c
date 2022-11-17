@@ -67,14 +67,12 @@ typedef struct {
 
 static bool checkreturn buf_read(pb_istream_t *stream, pb_byte_t *buf, size_t count)
 {
-    size_t i;
     const pb_byte_t *source = (const pb_byte_t*)stream->state;
     stream->state = (pb_byte_t*)stream->state + count;
     
     if (buf != NULL)
     {
-        for (i = 0; i < count; i++)
-            buf[i] = source[i];
+        memcpy(buf, source, count * sizeof(pb_byte_t));
     }
     
     return true;
@@ -211,18 +209,20 @@ static bool checkreturn pb_decode_varint32_eof(pb_istream_t *stream, uint32_t *d
                     PB_RETURN_ERROR(stream, "varint overflow");
                 }
             }
+            else if (bitpos == 28)
+            {
+                if ((byte & 0x70) != 0 && (byte & 0x78) != 0x78)
+                {
+                    PB_RETURN_ERROR(stream, "varint overflow");
+                }
+                result |= (uint32_t)(byte & 0x0F) << bitpos;
+            }
             else
             {
                 result |= (uint32_t)(byte & 0x7F) << bitpos;
             }
             bitpos = (uint_fast8_t)(bitpos + 7);
         } while (byte & 0x80);
-        
-        if (bitpos == 35 && (byte & 0x70) != 0)
-        {
-            /* The last byte was at bitpos=28, so only bottom 4 bits fit. */
-            PB_RETURN_ERROR(stream, "varint overflow");
-        }
    }
    
    *dest = result;
@@ -243,11 +243,11 @@ bool checkreturn pb_decode_varint(pb_istream_t *stream, uint64_t *dest)
     
     do
     {
-        if (bitpos >= 64)
-            PB_RETURN_ERROR(stream, "varint overflow");
-        
         if (!pb_readbyte(stream, &byte))
             return false;
+
+        if (bitpos >= 63 && (byte & 0xFE) != 0)
+            PB_RETURN_ERROR(stream, "varint overflow");
 
         result |= (uint64_t)(byte & 0x7F) << bitpos;
         bitpos = (uint_fast8_t)(bitpos + 7);
@@ -761,7 +761,10 @@ static bool checkreturn decode_callback_field(pb_istream_t *stream, pb_wire_type
         {
             prev_bytes_left = substream.bytes_left;
             if (!field->descriptor->field_callback(&substream, NULL, field))
-                PB_RETURN_ERROR(stream, "callback failed");
+            {
+                PB_SET_ERROR(stream, substream.errmsg ? substream.errmsg : "callback failed");
+                return false;
+            }
         } while (substream.bytes_left > 0 && substream.bytes_left < prev_bytes_left);
         
         if (!pb_close_string_substream(stream, &substream))

@@ -108,7 +108,7 @@ void SpircController::prevSong() {
 void SpircController::handleFrame(std::vector<uint8_t> &data) {
     pb_release(Frame_fields, &state->remoteFrame);
     pbDecode(state->remoteFrame, Frame_fields, data);
-
+//CSPOT_LOG(info, "FRAME RECEIVED %d", (int) state->remoteFrame.typ);
     switch (state->remoteFrame.typ) {
     case MessageType_kMessageTypeNotify: {
         CSPOT_LOG(debug, "Notify frame");

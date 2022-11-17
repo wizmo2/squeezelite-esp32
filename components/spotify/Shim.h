@@ -44,7 +44,6 @@ private:
 	
 public:
    ShimHTTPServer(httpd_handle_t server, int port) { serverHandle = server; serverPort = port; }
-
-   void registerHandler(bell::RequestType requestType, const std::string &, bell::httpHandler);
+   void registerHandler(bell::RequestType requestType, const std::string &, bell::httpHandler, bool readDataToStr = false);
    void respond(const bell::HTTPResponse &);
 };

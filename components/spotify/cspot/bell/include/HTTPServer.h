@@ -11,16 +11,21 @@
 #include <iostream>
 #include <queue>
 #include <stdio.h>
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include "win32shim.h"
+#else
+#include <sys/select.h>
+#include <sys/socket.h>
+#include <netdb.h>
 #include <unistd.h>
+#endif
 #include <sstream>
 #include <BellLogger.h>
-#include <sys/select.h>
 #include <sys/types.h>
-#include <unistd.h>
 #include <fstream>
-#include <sys/socket.h>
 #include <string>
-#include <netdb.h>
 #include <mutex>
 #include <fcntl.h>
 #include "BaseHTTPServer.h"
@@ -46,7 +51,7 @@ namespace bell
         std::map<int, HTTPConnection> connections;
         void writeResponse(const HTTPResponse &);
         void writeResponseEvents(int connFd);
-        void findAndHandleRoute(std::string &, std::string &, int connectionFd);
+        void findAndHandleRoute(HTTPConnection& connection);
 
         std::vector<std::string> splitUrl(const std::string &url, char delimiter);
         std::mutex responseMutex;
@@ -60,7 +65,7 @@ namespace bell
     public:
         HTTPServer(int serverPort);
 
-        void registerHandler(RequestType requestType, const std::string &, httpHandler);
+        void registerHandler(RequestType requestType, const std::string &, httpHandler, bool readDataToStr = false);
         void respond(const HTTPResponse &);
         void redirectTo(const std::string&, int connectionFd);
         void publishEvent(std::string eventName, std::string eventData);

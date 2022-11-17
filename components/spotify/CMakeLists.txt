@@ -8,7 +8,6 @@ idf_component_register(
 		LDFRAGMENTS "linker.lf"
 )
 
-add_definitions(-DBELL_USE_MBEDTLS)
 add_definitions(-Wno-unused-variable -Wno-unused-const-variable -Wchar-subscripts -Wunused-label -Wmaybe-uninitialized -Wmisleading-indentation)
 
 set(BELL_DISABLE_CODECS ON)
