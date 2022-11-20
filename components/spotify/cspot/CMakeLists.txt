@@ -36,11 +36,17 @@ if(UNIX AND NOT APPLE)
 endif()
 
 # Build protobuf code
+if(0)
 set(NANOPB_OPTIONS "-I${CMAKE_CURRENT_SOURCE_DIR}")
 file(GLOB PROTOS protobuf/*.proto)
 nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS RELPATH ${CMAKE_CURRENT_SOURCE_DIR} ${PROTOS})
 add_custom_target(generate_proto_sources DEPENDS ${PROTO_SRCS} ${PROTO_HDRS})
 set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES GENERATED TRUE)
+else()
+list(APPEND SOURCES "protobuf/authentication.pb.c" "protobuf/keyexchange.pb.c" "protobuf/mercury.pb.c" "protobuf/metadata.pb.c" "protobuf/spirc.pb.c")
+list(APPEND EXTRA_INCLUDES ".")
+message(WARNING "NOT GENERATING PROTOBUF")
+endif()
 
 add_library(cspot STATIC ${SOURCES} ${PROTO_SRCS})
 # PUBLIC to propagate includes from bell to cspot dependents
