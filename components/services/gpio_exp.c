@@ -511,94 +511,39 @@ static gpio_exp_t* find_expander(gpio_exp_t *expander, int *gpio) {
  * MPR121 family : init, direction, read and write
  */
 static esp_err_t mpr121_init(gpio_exp_t* self) {
-	// soft reset the MPR121
-	esp_err_t err = i2c_write(self->phy.port, self->phy.addr, 0x80, 0x63, 1);
+	static const struct {
+		uint8_t addr;
+		uint8_t data;
+	} mpr121_init_table[] = { 
+		{ 0x80, 0x63 }, /* Soft reset */
 
-	/*
-	  There is variance of default values between libraries:
-                  Reg     AN3944     Adafruit_MPR121  BareConductive/MPR121
-	      MHDR    0x2b    0x01       0x01             0x01
-	      NHDR    0x2c    0x01       0x01             0x01
-	      NCLR    0x2d    0x00       0x0e             0x10
-	      FDLR    0x2e    0x00       0x00             0x20
+		{ 0x2b, 0x01 }, { 0x2c, 0x01 }, { 0x2d, 0x10 }, { 0x2e, 0x20 },                /* MHDR, NHDR, NCLR, FDLR */
+		{ 0x2f, 0x01 }, { 0x30, 0x01 }, { 0x31, 0x10 }, { 0x32, 0x20 },                /* MHDF, NHDF, NCLF, FDLF */
+		{ 0x33, 0x01 }, { 0x34, 0x10 }, { 0x35, 0xff },                                /* NHDT, NCLT, FDLT */
+		{ 0x5b, 0x11 }, { 0x5c, 0xff }, { 0x5d, 0x30 },                                /* DTR, AFE1, AFE2 */
+		{ 0x7b, 0x00 }, { 0x7c, 0x00 }, { 0x7d, 0x00 }, { 0x7e, 0x00 }, { 0x7f, 0x00 },/* ACCR0, ACCR1, USL, LSL, TL */
 
-	      MHDF    0x2f    0x01       0x01             0x01
-	      NHDF    0x30    0x01       0x05             0x01
-	      NCLF    0x31    0xff       0x01             0x10
-	      FDLF    0x32    0x20       0x00             0x20
+		{ 0x41, 0x28 }, { 0x42, 0x14 }, /* ELE0: Touch Threshold, Release Threshold */
+		{ 0x43, 0x28 }, { 0x44, 0x14 }, /* ELE1: Touch Threshold, Release Threshold */
+		{ 0x45, 0x28 }, { 0x46, 0x14 }, /* ELE2: Touch Threshold, Release Threshold */
+		{ 0x47, 0x28 }, { 0x48, 0x14 }, /* ELE3: Touch Threshold, Release Threshold */
+		{ 0x49, 0x28 }, { 0x4a, 0x14 }, /* ELE4: Touch Threshold, Release Threshold */
+		{ 0x4b, 0x28 }, { 0x4c, 0x14 }, /* ELE5: Touch Threshold, Release Threshold */
+		{ 0x4d, 0x28 }, { 0x4e, 0x14 }, /* ELE6: Touch Threshold, Release Threshold */
+		{ 0x4f, 0x28 }, { 0x50, 0x14 }, /* ELE7: Touch Threshold, Release Threshold */
+		{ 0x51, 0x28 }, { 0x52, 0x14 }, /* ELE8: Touch Threshold, Release Threshold */
+		{ 0x53, 0x28 }, { 0x54, 0x14 }, /* ELE9: Touch Threshold, Release Threshold */
+		{ 0x55, 0x28 }, { 0x56, 0x14 }, /* ELE10: Touch Threshold, Release Threshold */
+		{ 0x57, 0x28 }, { 0x58, 0x14 }, /* ELE11: Touch Threshold, Release Threshold */
 
-	      NHDT    0x33    ----       0x00             0x01
-	      NCLT    0x34    ----       0x00             0x10
-	      FDLT    0x35    ----       0x00             0xff
+		{ 0x5e, 0xcc }, /* ECR - must be set last */
+		{0, 0} 
+	};
 
-	      DTR     0x5b    ----       0x00             0x11
-	      AFE1    0x5c    ----       0x10             0xff
-	      AFE2    0x5d    0x04       0x20             0x30
-	      ECR     0x5e    0x0c       ----             0xcc
-
-	      ACCR0   0x7b    0x0b       0x0b             0x00
-	      ACCR1   0x7c    ----       ----             0x00
-	      USL     0x7d    0x9c       0xc8             0x00
-	      LSL     0x7e    0x65       0xb4             0x00
-	      TL      0x7f    0x8c       0x82             0x00
-
-	  BareConductive MPR121 values used below.
-	*/
-
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x2b, 0x01, 1); // MHDR
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x2c, 0x01, 1); // NHDR
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x2d, 0x10, 1); // NCLR
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x2e, 0x20, 1); // FDLR
-
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x2f, 0x01, 1); // MHDF
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x30, 0x01, 1); // NHDF
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x31, 0x10, 1); // NCLF
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x32, 0x20, 1); // FDLF
-
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x33, 0x01, 1); // NHDT
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x34, 0x10, 1); // NCLT
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x35, 0xff, 1); // FDLT
-
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x5b, 0x11, 1); // DTR
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x5c, 0xff, 1); // AFE1
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x5d, 0x30, 1); // AFE2
-	                                                                 // ECR set last
-
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x7b, 0x00, 1); // ACCR0
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x7c, 0x00, 1); // ACCR1
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x7d, 0x00, 1); // USL
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x7e, 0x00, 1); // LSL
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x7f, 0x00, 1); // TL
-
-
-	// Touch & Release thresholds
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x41, 0x28, 1); // ELE0 Touch Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x42, 0x14, 1); // ELE0 Release Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x43, 0x28, 1); // ELE1 Touch Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x44, 0x14, 1); // ELE1 Release Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x45, 0x28, 1); // ELE2 Touch Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x46, 0x14, 1); // ELE2 Release Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x47, 0x28, 1); // ELE3 Touch Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x48, 0x14, 1); // ELE3 Release Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x49, 0x28, 1); // ELE4 Touch Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x4a, 0x14, 1); // ELE4 Release Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x4b, 0x28, 1); // ELE5 Touch Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x4c, 0x14, 1); // ELE5 Release Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x4d, 0x28, 1); // ELE6 Touch Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x4e, 0x14, 1); // ELE6 Release Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x4f, 0x28, 1); // ELE7 Touch Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x50, 0x14, 1); // ELE7 Release Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x51, 0x28, 1); // ELE8 Touch Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x52, 0x14, 1); // ELE8 Release Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x53, 0x28, 1); // ELE9 Touch Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x54, 0x14, 1); // ELE9 Release Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x55, 0x28, 1); // ELE10 Touch Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x56, 0x14, 1); // ELE10 Release Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x57, 0x28, 1); // ELE11 Touch Threshold
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x58, 0x14, 1); // ELE11 Release Threshold
-
-	// finally set to run mode with 12 electrodes enabled
-	err |= i2c_write(self->phy.port, self->phy.addr, 0x5e, 0xcc, 1); // ECR
+	esp_err_t err = 0;
+	for (int i = 0; mpr121_init_table[i].addr; i++) {
+		err |= i2c_write(self->phy.port, self->phy.addr, mpr121_init_table[i].addr, mpr121_init_table[i].data, 1);
+	}
 
 	return err;
 }
