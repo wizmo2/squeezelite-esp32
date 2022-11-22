@@ -42,6 +42,7 @@
 #include "gds_draw.h"
 #include "gds_text.h"
 #include "gds_font.h"
+#include "led_vu.h"
 #include "display.h"
 #include "accessors.h"
 #include "cmd_system.h"
@@ -73,6 +74,7 @@ extern const uint8_t server_cert_pem_end[] asm("_binary_github_pem_end");
 // as an exception _init function don't need include
 extern void services_init(void);
 extern void	display_init(char *welcome);
+extern void led_vu_init(void);
 extern void target_init(char *target);
 const char * str_or_unknown(const char * str) { return (str?str:unknown_string_placeholder); }
 const char * str_or_null(const char * str) { return (str?str:null_string_placeholder); }
@@ -368,6 +370,7 @@ void register_default_nvs(){
     register_default_string_val("ethtmout","8");
     register_default_string_val("dhcp_tmout","8");
 	register_default_string_val("target", CONFIG_TARGET);
+	register_default_string_val("led_vu_config", "");
 #ifdef CONFIG_CSPOT_SINK
 	register_default_string_val("enable_cspot", STR(CONFIG_CSPOT_SINK));
 	register_default_string_val("cspot_config", "");
@@ -467,10 +470,18 @@ void app_main()
 		target_init(target);
 		free(target);
 	}
-	if(is_recovery_running && display){
-		GDS_ClearExt(display, true);
-		GDS_SetFont(display, &Font_line_2 );
-		GDS_TextPos(display, GDS_FONT_DEFAULT, GDS_TEXT_CENTERED, GDS_TEXT_CLEAR | GDS_TEXT_UPDATE, "RECOVERY");
+	ESP_LOGI(TAG,"Initializing led_vu");
+	led_vu_init();
+
+	if(is_recovery_running) {
+		if (display) {
+			GDS_ClearExt(display, true);
+			GDS_SetFont(display, &Font_line_2 );
+			GDS_TextPos(display, GDS_FONT_DEFAULT, GDS_TEXT_CENTERED, GDS_TEXT_CLEAR | GDS_TEXT_UPDATE, "RECOVERY");
+		}
+		if(led_display) {
+			led_vu_color_yellow(LED_VU_BRIGHT);
+		}
 	}
 
 
