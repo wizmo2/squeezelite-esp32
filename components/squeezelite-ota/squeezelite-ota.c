@@ -35,6 +35,7 @@
 #include "gds.h"
 #include "gds_text.h"
 #include "gds_draw.h"
+#include "led_vu.h"
 #include "platform_esp32.h"
 #include "lwip/sockets.h"
 #include "globdefs.h"
