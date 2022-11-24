@@ -90,6 +90,7 @@ RUN : \
   && pip show pygit2 \ 
   && python --version \  
   && pip --version \
+  && pip3 install protobuf grpcio-tools \
   && rm -rf $IDF_TOOLS_PATH/dist \
   && :
 

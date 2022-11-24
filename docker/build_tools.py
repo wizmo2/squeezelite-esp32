@@ -517,7 +517,7 @@ class Releases():
                 print(f'Opening repository from {path}')
                 cls.repo = Repository(path=path)
             except GitError as ex:
-                print_error(f"Unable to access the repository.\nContent of {path}:\n{NEWLINE_CHAR.join(get_file_list(path, 1))}")
+                print_error(f"Unable to access the repository({ex}).\nContent of {path}:\n{NEWLINE_CHAR.join(get_file_list(path, 1))}")
                 raise
         return cls.repo
 
@@ -844,6 +844,14 @@ def get_changed_items(repo: Repository) -> Dict:
 def is_dirty(repo: Repository) -> bool:
     return len(get_changed_items(repo)) > 0
 
+def push_with_method(auth_method:str,token:str,remote: Remote,reference):
+    success:bool = False
+    try:
+        remote.push(reference, callbacks=RemoteCallbacks(pygit2.UserPass(auth_method, token)))
+        success=True
+    except Exception as ex:
+        print_error(f'Error pushing with auth method {auth_method}: {ex}.')
+    return success
 
 def push_if_change(repo: Repository, token: str, source_path: str, manif_json):
     if is_dirty(repo):
@@ -861,15 +869,14 @@ def push_if_change(repo: Repository, token: str, source_path: str, manif_json):
         origin: Remote = repo.remotes['origin']
         print(
             f'Pushing commit {format_commit(repo[commit])} to url {origin.url}')
-        credentials = UserPass(token, 'x-oauth-basic')  # passing credentials
         remote: Remote = repo.remotes['origin']
-        # remote.credentials = credentials
-        auth_method = 'x-access-token'
-        remote.push([reference], callbacks=RemoteCallbacks(
-            pygit2.UserPass(auth_method, token)))
-        print(
-            f'::notice Web installer updated for {format_artifact_from_manifest(manif_json)}')
-
+        auth_methods = ['x-access-token','x-oauth-basic']
+        for method in auth_methods:
+            if push_with_method('x-access-token', token, remote, [reference]):
+                print(f'::notice Web installer updated for {format_artifact_from_manifest(manif_json)}')
+                return
+            
+        raise Exception('Unable to push web installer changes to installer repo')
     else:
         print(f'WARNING: No change found. Skipping update')
 
