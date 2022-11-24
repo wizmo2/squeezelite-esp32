@@ -4,6 +4,8 @@
 ## What is this
 Squeezelite-esp32 is an audio software suite made to run on espressif's ESP32 wifi (b/g/n) and bluetooth chipset. It offers the following capabilities
 
+This branch is targeted at wizmo2 [taudio-case](https://github.com/wizmo2/TAudio-Case) project.  It includes some changes specifically for this device and integrations with home-assistant, plus other parrallel developments to sle118/phillippe_44s project.  The tAudio-Case project also includes other device projects, including a bluetooth watcher project and a portable squeezebox soundbar project.
+
 - Stream your local music and connect to all major on-line music providers (Spotify, Deezer, Tidal, Qobuz) using [Logitech Media Server - a.k.a LMS](https://forums.slimdevices.com/) and enjoy multi-room audio synchronization. LMS can be extended by numerous plugins and can be controlled using a Web browser or dedicated applications (iPhone, Android). It can also send audio to UPnP, Sonos, ChromeCast and AirPlay speakers/devices.
 - Stream from a Bluetooth device (iPhone, Android)
 - Stream from an AirPlay controller (iPhone, iTunes ...) and enjoy synchronization multiroom as well (although it's AirPlay 1 only)
@@ -496,6 +498,10 @@ Pull the most recent docker image for the environment:
 ```
 docker pull sle118/squeezelite-esp32-idfv4-master
 ```
+For the v4.3 branch, use the docker image: 
+```
+docker pull sle118/squeezelite-esp32-idfv43
+```
 Then run the container interactively :
 ```
 for windows:
@@ -503,6 +509,7 @@ docker run -v %cd%:/project -w /project -it sle118/squeezelite-esp32-idfv4-maste
 for linux:
 docker run -it -v `pwd`:/workspace/squeezelite-esp32 sle118/squeezelite-esp32-idfv4-master
 ```
+
 The above command will mount this repo into the docker container and start a bash terminal. From there, simply run idf.py build to build, etc. Note that at the time of writing these lines, flashing is not possible for docker running under windows https://github.com/docker/for-win/issues/1018.
 
 ### Manual Install of ESP-IDF
@@ -510,8 +517,11 @@ You can install IDF manually on Linux or Windows (using the Subsystem for Linux)
 
 **Use the esp-idf 4.0 https://github.com/espressif/esp-idf/tree/release/v4.0 and a recent add esp-dsp (after 08/2020)**
 
+**For the master-v4.3 branch, Use the esp-idf release 4.3.2 as of 2022/02/28**
 ## Building Squeezelite-esp32
 When initially cloning the repo, make sure you do it recursively. For example: `git clone --recursive https://github.com/sle118/squeezelite-esp32.git`
+
+To clone the v4.3 branch with all the required components use `git clone --branch master-v4.3 --recursive https://github.com/sle118/squeezelite-esp32.git` 
 	
 Don't forget to choose one of the config files in build_scripts/ and rename it sdkconfig.defaults or sdkconfig as many important WiFi/BT options are set there. **The codecs libraries will not be rebuilt by these scripts (it's a tedious process - see below)**
 
