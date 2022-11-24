@@ -65,7 +65,7 @@ jobs:
         BUILD_NUMBER=${{ needs.job1.outputs.build_number }}
         echo "BUILD_NUMBER=${BUILD_NUMBER}" >> $GITHUB_ENV
         echo "DOCKER_IMAGE_NAME=sle118/squeezelite-esp32-idfv4-master" >> $GITHUB_ENV
-        tag="${TARGET_BUILD_NAME}.${{matrix.depth}}.${BUILD_NUMBER}.${branch_name}"
+        tag="${TARGET_BUILD_NAME}.${{matrix.depth}}.${build_version_prefix}${BUILD_NUMBER}.${branch_name}"
         echo "tag=${tag}" >> $GITHUB_ENV
         last_commit="$(git log --pretty=format:'%s' --max-count=1)"
         if [[ "$last_commit" =~ .*"Release".* ]]; then echo "release_flag=1" >> $GITHUB_ENV; else echo "release_flag=0" >> $GITHUB_ENV; fi
