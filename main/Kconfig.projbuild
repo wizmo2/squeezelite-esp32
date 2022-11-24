@@ -73,6 +73,11 @@ menu "Squeezelite-ESP32"
 				bool "T-WATCH2020 by LilyGo"				
 				select I2C_LOCKED		
 				select TARGET_LOCKED				
+			config TAUDIO
+				bool "TAUDIO by LilyGo"				
+				select BAT_LOCKED
+				select I2C_LOCKED		
+				select TARGET_LOCKED
 		endchoice	
 		config RELEASE_API
 			string "Software update URL"
@@ -96,6 +101,7 @@ menu "Squeezelite-ESP32"
 			string
 			default "SqueezeAmp" if SQUEEZEAMP
 			default "TWATCH" if TWATCH2020
+			default "TAUDIO" if TAUDIO 
 			default "Muse" if MUSE
 			default "ESP32"
 		# AGGREGATES - begin
@@ -104,6 +110,7 @@ menu "Squeezelite-ESP32"
 			string
 			default "model=TAS57xx,bck=33,ws=25,do=32,sda=27,scl=26,mute=14:0" if SQUEEZEAMP
 			default "model=I2S,bck=26,ws=25,do=33,i2c=53,sda=21,scl=22" if TWATCH2020
+			default "model=WM8978,bck=33,ws=25,do=26,sda=19,scl=18,i2c=26" if TAUDIO
 			default "model=I2S,bck=5,ws=25,do=26,di=35,i2c=16,sda=18,scl=23,mck" if MUSE
 			default ""
 		config SPDIF_CONFIG
@@ -381,6 +388,20 @@ menu "Squeezelite-ESP32"
 			depends on LED_RED_GPIO != -1
 			default 0 if SQUEEZEAMP
 			default 1
+	endmenu
+    menu "LED Strip configuration"
+		visible if !TAUDIO
+		config LED_STRIP_GPIO
+			int "Led Strip GPIO"
+			default 22 if TAUDIO			
+			default -1 
+			help
+				Set to -1 for no LED
+		config LED_STRIP_LENGTH
+			int "Led Strip Length"
+			depends on LED_STRIP_GPIO != -1
+			default 19 if TAUDIO
+			default 1 
 	endmenu
 	
     menu "Audio JACK"	
