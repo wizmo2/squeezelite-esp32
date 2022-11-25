@@ -239,7 +239,7 @@ void led_vu_progress_bar(int pct, int bright) {
  * gain - brightness (0-100), rate - color change speed (0-100) 
  * comet - alternate display mode
  */
-void led_vu_spin_dial(int gain, int rate, bool comet) 
+void led_vu_spin_dial(int gain, int rate, int speed, bool comet) 
 {
     if (!led_display) return;
 
@@ -270,18 +270,20 @@ void led_vu_spin_dial(int gain, int rate, bool comet)
     uint8_t gp = g * gain / LED_VU_MAX; 
     uint8_t bp = b * gain / LED_VU_MAX; 
 
-    // set led color_
-    led_strip_set_pixel_rgb(led_display, led_pos, rp, gp, bp);
+    // set led color
+    speed++;
     if (comet) {
+        led_strip_clear(led_display);
         led_strip_set_pixel_rgb(led_display, led_addr(led_pos-1), rp/2, gp/2, bp/2);
         led_strip_set_pixel_rgb(led_display, led_addr(led_pos-2), rp/4, gp/4, bp/4);
         led_strip_set_pixel_rgb(led_display, led_addr(led_pos-3), rp/8, gp/8, bp/8);
-        led_strip_set_pixel_rgb(led_display, led_addr(led_pos-4), 0, 0, 0);
+        //led_strip_set_pixel_rgb(led_display, led_addr(led_pos-4), 0, 0, 0);
+    }
+    for (int i = 0; i < speed; i++) {
+        led_strip_set_pixel_rgb(led_display, led_pos, rp, gp, bp);
+        led_pos = led_addr(++led_pos);
     }
     
-    // next led
-    led_pos = led_addr(++led_pos);
-
     led_strip_show(led_display);
 }
 

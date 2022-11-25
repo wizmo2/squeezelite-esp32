@@ -23,7 +23,7 @@ extern struct led_strip_t* led_display;
 uint16_t led_vu_string_length();
 void led_vu_progress_bar(int pct, int bright);
 void led_vu_display(int vu_l, int vu_r, int bright, bool comet);
-void led_vu_spin_dial(int gain, int rate, bool comet);
+void led_vu_spin_dial(int gain, int rate, int speed, bool comet);
 void led_vu_spectrum(uint8_t* data, int bright, int length, int style);
 void led_vu_color_all(uint8_t r, uint8_t g, uint8_t b);
 void led_vu_data(uint8_t* data, uint16_t offset, uint16_t length);

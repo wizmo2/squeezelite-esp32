@@ -1084,14 +1084,12 @@ static void displayer_update(void) {
 	
 	// actualize led_vu
 	if (led_display && led_visu.mode) {
-		// scale to correct rgb brightness
-		if (led_visu.mode == VISU_VUMETER) vu_scale(led_visu.bars, led_visu.max, meters.levels);
-		else spectrum_scale(led_visu.n, led_visu.bars, led_visu.max, meters.samples);
- 
 		// run built in visualizer effects
 		if (led_visu.mode == VISU_VUMETER) {
+			vu_scale(led_visu.bars, led_visu.max, meters.levels);
 			led_vu_display(led_visu.bars[0].current, led_visu.bars[1].current, led_visu.max, led_visu.style);
 		} else if (led_visu.mode == VISU_SPECTRUM) { 
+			spectrum_scale(led_visu.n, led_visu.bars, led_visu.max, meters.samples);
 			uint8_t* led_data = malloc(led_visu.n);
 			uint8_t* p = (uint8_t*) led_data;
 			for (int i = 0; i < led_visu.n; i++) {
@@ -1101,7 +1099,12 @@ static void displayer_update(void) {
 			led_vu_spectrum(led_data, led_visu.max, led_visu.n, led_visu.style);
 			free(led_data);
 		} else if (led_visu.mode == VISU_WAVEFORM) {
-			led_vu_spin_dial(led_visu.bars[1].current, led_visu.bars[(led_visu.n/2)+1].current * 50 / led_visu.max , led_visu.style);
+			spectrum_scale(led_visu.n, led_visu.bars, led_visu.max, meters.samples);
+			led_vu_spin_dial(
+				led_visu.bars[1].current,
+				 led_visu.bars[(led_visu.n/2)+1].current * 50 / led_visu.max,
+				 led_visu.bars[led_visu.n-2].current * 5 / led_visu.max,
+				 led_visu.style);
 		} 
 	}
 }
