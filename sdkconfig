@@ -190,6 +190,7 @@ CONFIG_MUTE_GPIO_LEVEL=0
 # CONFIG_MUSE is not set
 CONFIG_BASIC_I2C_BT=y
 # CONFIG_TWATCH2020 is not set
+# CONFIG_TAUDIO is not set
 CONFIG_RELEASE_API="https://api.github.com/repos/sle118/squeezelite-esp32/releases"
 CONFIG_SQUEEZELITE_ESP32_RELEASE_URL="https://github.com/sle118/squeezelite-esp32/releases"
 CONFIG_PROJECT_NAME="Squeezelite-ESP32"
@@ -293,6 +294,12 @@ CONFIG_ROTARY_ENCODER=""
 # LED configuration
 #
 # end of LED configuration
+
+#
+# LED Strip configuration
+#
+CONFIG_LED_STRIP_GPIO=-1
+# end of LED Strip configuration
 
 #
 # Audio JACK
