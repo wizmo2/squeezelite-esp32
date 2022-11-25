@@ -188,7 +188,7 @@ static struct {
 	bool enable, full;
 } artwork;
 
-#define MAX_BARS	32
+#define MAX_BARS	48
 #define VISU_ESP32	0x10
 static EXT_RAM_ATTR struct {
 	int bar_gap, bar_width, bar_border;
@@ -206,6 +206,8 @@ static EXT_RAM_ATTR struct {
 		bool active;
 	} back;		
 } visu;
+
+static uint8_t* led_data;
 
 static EXT_RAM_ATTR struct {
 	float fft[FFT_LEN*2], samples[FFT_LEN*2], hanning[FFT_LEN];
@@ -357,6 +359,7 @@ bool sb_displayer_init(void) {
 	
 	if (led_display) {
 		led_visu.config = led_vu_string_length();
+		led_data = malloc(MAX_BARS);
 	}
 	
 	// inform LMS of our screen/led dimensions
@@ -1090,21 +1093,19 @@ static void displayer_update(void) {
 			led_vu_display(led_visu.bars[0].current, led_visu.bars[1].current, led_visu.max, led_visu.style);
 		} else if (led_visu.mode == VISU_SPECTRUM) { 
 			spectrum_scale(led_visu.n, led_visu.bars, led_visu.max, meters.samples);
-			uint8_t* led_data = malloc(led_visu.n);
 			uint8_t* p = (uint8_t*) led_data;
 			for (int i = 0; i < led_visu.n; i++) {
 				*p = led_visu.bars[i].current;
 				p++;
 			}
 			led_vu_spectrum(led_data, led_visu.max, led_visu.n, led_visu.style);
-			free(led_data);
 		} else if (led_visu.mode == VISU_WAVEFORM) {
 			spectrum_scale(led_visu.n, led_visu.bars, led_visu.max, meters.samples);
 			led_vu_spin_dial(
-				led_visu.bars[1].current,
-				 led_visu.bars[(led_visu.n/2)+1].current * 50 / led_visu.max,
-				 led_visu.bars[led_visu.n-2].current * 5 / led_visu.max,
-				 led_visu.style);
+				led_visu.bars[led_visu.n-2].current,
+				led_visu.bars[(led_visu.n/2)+1].current * 50 / led_visu.max,
+				led_visu.bars[1].current * 4 / led_visu.max,
+				led_visu.style);
 		} 
 	}
 }
