@@ -117,6 +117,14 @@ static void bt_app_task_handler(void *arg)
     esp_bt_gap_set_security_param(param_type, &iocap, sizeof(uint8_t));
 #endif
 	
+    /*
+     * Set default parameters for Legacy Pairing
+     * Use variable pin, input pin code when pairing
+     */
+    esp_bt_pin_type_t pin_type = ESP_BT_PIN_TYPE_VARIABLE;
+    esp_bt_pin_code_t pin_code;
+    esp_bt_gap_set_pin(pin_type, 0, pin_code);
+	
 	running = true;
 	
 	while (running) {
