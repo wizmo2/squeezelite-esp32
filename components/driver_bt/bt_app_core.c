@@ -83,25 +83,28 @@ static void bt_app_task_handler(void *arg)
 	
 	esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
-	
-    if ((err = esp_bt_controller_init(&bt_cfg)) != ESP_OK) {
-        ESP_LOGE(TAG, "%s initialize controller failed: %s\n", __func__, esp_err_to_name(err));
-        goto exit;
-    }
+	if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_IDLE ){
+            
+        
+        if ((err = esp_bt_controller_init(&bt_cfg)) != ESP_OK) {
+            ESP_LOGE(TAG, "%s initialize controller failed: %s\n", __func__, esp_err_to_name(err));
+            goto exit;
+        }
 
-    if ((err = esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT)) != ESP_OK) {
-        ESP_LOGE(TAG, "%s enable controller failed: %s\n", __func__, esp_err_to_name(err));
-		goto exit;
-    }
+        if ((err = esp_bt_controller_enable(ESP_BT_MODE_BTDM)) != ESP_OK) {
+            ESP_LOGE(TAG, "%s enable controller failed: %s\n", __func__, esp_err_to_name(err));
+            goto exit;
+        }
 
-    if ((err = esp_bluedroid_init()) != ESP_OK) {
-        ESP_LOGE(TAG, "%s initialize bluedroid failed: %s\n", __func__, esp_err_to_name(err));
-		goto exit;
-    }
+        if ((err = esp_bluedroid_init()) != ESP_OK) {
+            ESP_LOGE(TAG, "%s initialize bluedroid failed: %s\n", __func__, esp_err_to_name(err));
+            goto exit;
+        }
 
-    if ((err = esp_bluedroid_enable()) != ESP_OK) {
-        ESP_LOGE(TAG, "%s enable bluedroid failed: %s\n", __func__, esp_err_to_name(err));
-		goto exit;
+        if ((err = esp_bluedroid_enable()) != ESP_OK) {
+            ESP_LOGE(TAG, "%s enable bluedroid failed: %s\n", __func__, esp_err_to_name(err));
+            goto exit;
+        }
     }
 	
 	/* Bluetooth device name, connection mode and profile set up */

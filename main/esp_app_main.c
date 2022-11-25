@@ -281,28 +281,39 @@ void register_default_string_val(const char * key, char * value){
 	FREE_AND_NULL(existing);
 }
 
-void register_default_with_mac(const char* key,  char* defval) {
+char * alloc_get_string_with_mac(const char * val) {
     uint8_t mac[6];
     char macStr[LOCAL_MAC_SIZE + 1];
     char* fullvalue = NULL;
     esp_read_mac((uint8_t*)&mac, ESP_MAC_WIFI_STA);
     snprintf(macStr, LOCAL_MAC_SIZE - 1, "-%x%x%x", mac[3], mac[4], mac[5]);
-	fullvalue = malloc_init_external(strlen(defval)+sizeof(macStr)+1);
+	fullvalue = malloc_init_external(strlen(val)+sizeof(macStr)+1);
 	if(fullvalue){
-		strcpy(fullvalue, defval);
+		strcpy(fullvalue, val);
 		strcat(fullvalue, macStr);
+	}
+	else {
+		ESP_LOGE(TAG,"Memory allocation failed when getting mac value for %s", val);
+	}
+	return fullvalue;	
+	
+}
+void register_default_with_mac(const char* key,  char* defval) {
+    char * fullvalue=alloc_get_string_with_mac(defval);
+	if(fullvalue){
 		register_default_string_val(key,fullvalue);
 		FREE_AND_NULL(fullvalue);
 	}
 	else {
 		ESP_LOGE(TAG,"Memory allocation failed when registering default value for %s", key);
 	}
-	
 }
 
 void register_default_nvs(){
 #ifdef CONFIG_CSPOT_SINK
 	register_default_string_val("enable_cspot", STR(CONFIG_CSPOT_SINK));
+#else
+	register_default_string_val("enable_cspot", "0");
 #endif
 	
 #ifdef CONFIG_AIRPLAY_SINK
@@ -368,10 +379,23 @@ void register_default_nvs(){
     register_default_string_val("ethtmout","8");
     register_default_string_val("dhcp_tmout","8");
 	register_default_string_val("target", CONFIG_TARGET);
-#ifdef CONFIG_CSPOT_SINK
-	register_default_string_val("enable_cspot", STR(CONFIG_CSPOT_SINK));
-	register_default_string_val("cspot_config", "");
-#endif
+
+	cJSON * cspot_config=config_alloc_get_cjson("cspot_config");
+	if(!cspot_config){
+		char * name = alloc_get_string_with_mac(DEFAULT_HOST_NAME);
+		if(name){
+			cjson_update_string(&cspot_config,"deviceName",name);
+			cjson_update_number(&cspot_config,"bitrate",160);
+			// the call below saves the config and frees the json pointer
+			config_set_cjson_str_and_free("cspot_config",cspot_config);
+			FREE_AND_NULL(name);
+		}
+		else {
+			register_default_string_val("cspot_config", "");
+		}
+		
+	}
+
 	wait_for_commit();
 	ESP_LOGD(TAG,"Done setting default values in nvs.");
 }
@@ -523,8 +547,7 @@ void app_main()
 		network_register_state_callback(NETWORK_INITIALIZING_STATE,-1, "handle_ap_connect", &handle_ap_connect);
 		network_register_state_callback(NETWORK_ETH_ACTIVE_STATE,ETH_ACTIVE_LINKDOWN_STATE, "handle_network_up", &handle_network_up);
 		network_register_state_callback(NETWORK_WIFI_ACTIVE_STATE,WIFI_INITIALIZING_STATE, "handle_network_up", &handle_network_up);
-		MEMTRACE_PRINT_DELTA();
-		
+		MEMTRACE_PRINT_DELTA();	
 	}
 	MEMTRACE_PRINT_DELTA_MESSAGE("Starting Console");
 	console_start();

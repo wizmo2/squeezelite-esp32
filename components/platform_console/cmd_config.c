@@ -593,7 +593,6 @@ static int is_valid_gpio_number(int gpio, const char * name, FILE *f, bool manda
 	return 0;
 }
 static int do_cspot_config(int argc, char **argv){
-	char * name = NULL;
     int nerrors = arg_parse_msg(argc, argv,(struct arg_hdr **)&cspot_args);
     if (nerrors != 0) {
         return 1;
@@ -610,25 +609,30 @@ static int do_cspot_config(int argc, char **argv){
 	cJSON * cspot_config = config_alloc_get_cjson("cspot_config");
 	if(!cspot_config){
 		nerrors++;
-		fprintf(f,"error: Unable to get cspot config.\n");
+		fprintf(f,"error: Unable to get default cspot config.\n");
 	}
-	else {
-		cjson_update_string(&cspot_config,cspot_args.deviceName->hdr.longopts,cspot_args.deviceName->count>0?cspot_args.deviceName->sval[0]:NULL);
-//		cjson_update_number(&cspot_config,cspot_args.volume->hdr.longopts,cspot_args.volume->count>0?cspot_args.volume->ival[0]:0);
-		cjson_update_number(&cspot_config,cspot_args.bitrate->hdr.longopts,cspot_args.bitrate->count>0?cspot_args.bitrate->ival[0]:0);
+	if(cspot_args.deviceName->count>0){
+		cjson_update_string(&cspot_config,cspot_args.deviceName->hdr.longopts,cspot_args.deviceName->sval[0]);
 	}
+	if(cspot_args.bitrate->count>0){
+		cjson_update_number(&cspot_config,cspot_args.bitrate->hdr.longopts,cspot_args.bitrate->ival[0]);
+	}	
 	
 	if(!nerrors ){
 		fprintf(f,"Storing cspot parameters.\n");
-		nerrors+=(config_set_cjson_str("cspot_config",cspot_config) !=ESP_OK);
+		nerrors+=(config_set_cjson_str_and_free("cspot_config",cspot_config) !=ESP_OK);
 	}
-	if(nerrors==0){
-		fprintf(f,"Device name changed to %s\n",name);
+	if(nerrors==0 ){
+		if(cspot_args.deviceName->count>0){
+			fprintf(f,"Device name changed to %s\n",cspot_args.deviceName->sval[0]);
+		}
+		if(cspot_args.bitrate->count>0){
+			fprintf(f,"Bitrate changed to %u\n",cspot_args.bitrate->ival[0]);
+		}
 	}
 	if(!nerrors ){
 		fprintf(f,"Done.\n");
 	}
-	FREE_AND_NULL(name);
 	fflush (f);
 	cmd_send_messaging(argv[0],nerrors>0?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
 	fclose(f);
@@ -761,10 +765,7 @@ cJSON * cspot_cb(){
 	if(cspot_values){
 		cJSON_AddNumberToObject(values,cspot_args.bitrate->hdr.longopts,cJSON_GetNumberValue(cspot_values));
 	}
-	// cspot_values = cJSON_GetObjectItem(cspot_config,cspot_args.volume->hdr.longopts);
-	// if(cspot_values){
-	// 	cJSON_AddNumberToObject(values,cspot_args.volume->hdr.longopts,cJSON_GetNumberValue(cspot_values));
-	// }
+
 	cJSON_Delete(cspot_config);
 	return values;
 }

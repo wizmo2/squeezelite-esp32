@@ -634,7 +634,7 @@ cJSON * config_alloc_get_cjson(const char *key){
 	}
 	return conf_json;
 }
-esp_err_t config_set_cjson_str(const char *key, cJSON *value){
+esp_err_t config_set_cjson_str_and_free(const char *key, cJSON *value){
 	char * value_str = cJSON_PrintUnformatted(value);
 	if(value_str==NULL){
 		ESP_LOGE(TAG, "Unable to print cJSON for key [%s]", key);
