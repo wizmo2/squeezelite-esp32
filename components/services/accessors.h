@@ -33,6 +33,7 @@ typedef struct {
 	bool rotate;
 	bool invert;
 	int colorswap;
+	int mode;
 } display_config_t;
 
 typedef struct eth_config_struct {

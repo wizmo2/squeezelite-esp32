@@ -119,14 +119,15 @@ void display_init(char *welcome) {
 		
 			ESP_LOGI(TAG, "Display is I2C on port %u", address);
 		} else if (strcasestr(config, "SPI") && spi_system_host != -1) {
-			int CS_pin = -1, speed = 0;
+			int CS_pin = -1, speed = 0, mode = 0;
 		
 			PARSE_PARAM(config, "cs", '=', CS_pin);
 			PARSE_PARAM(config, "speed", '=', speed);
+			PARSE_PARAM(config, "mode", '=', mode);
 		
 			init = true;
 			GDS_SPIInit( spi_system_host, spi_system_dc_gpio );
-			GDS_SPIAttachDevice( display, width, height, CS_pin, RST_pin, backlight_pin, speed );
+			GDS_SPIAttachDevice( display, width, height, CS_pin, RST_pin, backlight_pin, speed, mode );
 				
 			ESP_LOGI(TAG, "Display is SPI host %u with cs:%d", spi_system_host, CS_pin);
 		} else {
