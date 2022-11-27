@@ -489,6 +489,7 @@ const display_config_t * config_display_get(){
 	PARSE_PARAM(config, "address", '=', dstruct.address);
 	PARSE_PARAM(config, "cs", '=', dstruct.CS_pin);
 	PARSE_PARAM(config, "speed", '=', dstruct.speed);
+	PARSE_PARAM(config, "back", '=', dstruct.back);
 	PARSE_PARAM(config, "mode", '=', dstruct.mode);
 
 	if (strstr(config, "I2C") ) dstruct.type=i2c_name_type;
