@@ -101,6 +101,7 @@ static struct {
 	struct arg_int *reset;
 	struct arg_lit *clear;
 	struct arg_lit *invert;
+	struct arg_int *mode;
 	struct arg_end *end;
 } i2cdisp_args;
 
@@ -377,6 +378,13 @@ static int do_i2c_set_display(int argc, char **argv)
 		}
 		/* Check "--cs" option */
 		nerrors +=is_output_gpio(i2cdisp_args.cs,f,&config.CS_pin, false);
+	    /* Check "--mode" option */
+		if (i2cdisp_args.mode->count) {
+			config.mode=i2cdisp_args.mode->ival[0];
+		}
+		else {
+			config.mode = 0;
+		}
 	}
 
 	nerrors +=is_output_gpio(i2cdisp_args.reset,f,&config.RST_pin, false);
@@ -964,6 +972,9 @@ cJSON * i2c_set_display_cb(){
 		cJSON_AddBoolToObject(values,"hf",conf->hflip);
 		cJSON_AddBoolToObject(values,"vf",conf->vflip);
 		cJSON_AddBoolToObject(values,"invert",conf->invert);
+		if(conf->mode>=0){
+			cJSON_AddNumberToObject(values,"mode",conf->mode);
+		}	
 	}
 	return values;
 }
@@ -986,6 +997,7 @@ static void register_i2c_set_display(){
 	i2cdisp_args.rotate = 	arg_lit0("r", "rotate", "Rotate 180 degrees");
 	i2cdisp_args.invert = 	arg_lit0("i", "invert", "Invert colors");
 	i2cdisp_args.clear = 	arg_lit0(NULL, "clear", "clear configuration and return");
+	i2cdisp_args.mode = 	arg_int0("m", "mode", "<n>","SPI Only. Transaction Line Mode (Default 0)");
 	i2cdisp_args.end = 		arg_end(8);
 	const esp_console_cmd_t i2c_set_display= {
 		.command = CFG_TYPE_HW("display"),
