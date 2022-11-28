@@ -886,7 +886,7 @@ def push_if_change(repo: Repository, token: str, source_path: str, manif_json):
         remote: Remote = repo.remotes['origin']
         auth_methods = ['x-access-token','x-oauth-basic']
         for method in auth_methods:
-            if push_with_method('x-access-token', token, remote, [reference]):
+            if push_with_method(auth_methods, token, remote, [reference]):
                 print(f'::notice Web installer updated for {format_artifact_from_manifest(manif_json)}')
                 return
             
