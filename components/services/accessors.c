@@ -352,6 +352,10 @@ esp_err_t config_display_set(const display_config_t * config){
 			snprintf(config_buffer2,buffer_size,"%s,speed=%i",config_buffer,config->speed);
 			strcpy(config_buffer,config_buffer2);
 		}
+		if(config->mode >=0 && strcasecmp("SPI",config->type)==0){
+			snprintf(config_buffer2,buffer_size,"%s,mode=%i",config_buffer,config->mode);
+			strcpy(config_buffer,config_buffer2);
+		}
 		snprintf(config_buffer2,buffer_size,"%s,driver=%s%s%s%s",config_buffer,config->drivername,config->hflip?",HFlip":"",config->vflip?",VFlip":"",config->rotate?",rotate":"");
 		strcpy(config_buffer,config_buffer2);
 		log_send_messaging(MESSAGING_INFO,"Updating display configuration to %s",config_buffer);
@@ -465,6 +469,7 @@ const display_config_t * config_display_get(){
 		.rotate = false,
 		.invert = false,
 		.colorswap = 0,
+		.mode = 0,
 	};
 	char *config = config_alloc_get(NVS_TYPE_STR, "display_config");
 	if (!config) {
@@ -484,6 +489,8 @@ const display_config_t * config_display_get(){
 	PARSE_PARAM(config, "address", '=', dstruct.address);
 	PARSE_PARAM(config, "cs", '=', dstruct.CS_pin);
 	PARSE_PARAM(config, "speed", '=', dstruct.speed);
+	PARSE_PARAM(config, "back", '=', dstruct.back);
+	PARSE_PARAM(config, "mode", '=', dstruct.mode);
 
 	if (strstr(config, "I2C") ) dstruct.type=i2c_name_type;
 	if (strstr(config, "SPI") ) dstruct.type=spi_name_type;

@@ -672,9 +672,9 @@ static void filter_inquiry_scan_result(esp_bt_gap_cb_param_t *param)
     	ESP_LOGV(TAG,"--Invalid class of device. Skipping.\n");
     	return;
     }
-    else if (!(esp_bt_gap_get_cod_srvc(cod) & ESP_BT_COD_SRVC_RENDERING))
+    else if (!(esp_bt_gap_get_cod_srvc(cod) & (ESP_BT_COD_SRVC_RENDERING | ESP_BT_COD_SRVC_AUDIO)))
     {
-    	ESP_LOGV(TAG,"--Not a rendering device. Skipping.\n");
+    	ESP_LOGV(TAG,"--Not a rendering or audio device. Skipping.\n");
     	return;
     }
 
