@@ -214,7 +214,8 @@ def format_commit(commit):
     dt = datetime.fromtimestamp(float(commit.author.time), timezone(
         timedelta(minutes=commit.author.offset)))
     timestr = dt.strftime('%c%z')
-    cmesg = commit.message.replace('\n', ' ')
+    cmesg:str = commit.message.replace('\n', ' ')
+    cmesg = cmesg.replace('*','-')
     return f'{commit.short_id} {cmesg} ({timestr}) <{commit.author.name}>'.replace('  ', ' ', )
 
 
@@ -524,7 +525,7 @@ class Releases():
                 print(f'Opening repository from {path}')
                 cls.repo = Repository(path=path)
             except GitError as ex:
-                print_error(f"Unable to access the repository({ex}).\nContent of {path}:\n{NEWLINE_CHAR.join(get_file_list(path, 1))}")
+                Logger.error(f"Unable to access the repository({ex}).\nContent of {path}:\n{Logger.NEWLINE_CHAR.join(get_file_list(path, 1))}")
                 raise
         return cls.repo
 
@@ -863,7 +864,7 @@ def push_with_method(auth_method:str,token:str,remote: Remote,reference):
         remote.push(reference, callbacks=RemoteCallbacks(pygit2.UserPass(auth_method, token)))
         success=True
     except Exception as ex:
-        print_error(f'Error pushing with auth method {auth_method}: {ex}.')
+        Logger.error(f'Error pushing with auth method {auth_method}: {ex}.')
     return success
 
 def push_if_change(repo: Repository, token: str, source_path: str, manif_json):
@@ -883,12 +884,12 @@ def push_if_change(repo: Repository, token: str, source_path: str, manif_json):
         print(
             f'Pushing commit {format_commit(repo[commit])} to url {origin.url}')
         remote: Remote = repo.remotes['origin']
-        # remote.credentials = credentials
-        auth_method = 'x-access-token'
-        remote.push([reference], callbacks=RemoteCallbacks(
-            pygit2.UserPass(auth_method, token)))
-        print(
-            f'::notice Web installer updated for {format_artifact_from_manifest(manif_json)}')
+        auth_methods = ['x-access-token','x-oauth-basic']
+        for method in auth_methods:
+            if push_with_method('x-access-token', token, remote, [reference]):
+                print(f'::notice Web installer updated for {format_artifact_from_manifest(manif_json)}')
+                return
+            
 
     else:
         print(f'WARNING: No change found. Skipping update')
