@@ -312,8 +312,22 @@ void register_default_with_mac(const char* key,  char* defval) {
 void register_default_nvs(){
 #ifdef CONFIG_CSPOT_SINK
 	register_default_string_val("enable_cspot", STR(CONFIG_CSPOT_SINK));
-#else
-	register_default_string_val("enable_cspot", "0");
+	cJSON * cspot_config=config_alloc_get_cjson("cspot_config");
+	if(!cspot_config){
+		char * name = alloc_get_string_with_mac(DEFAULT_HOST_NAME);
+		if(name){
+			cjson_update_string(&cspot_config,"deviceName",name);
+			cjson_update_number(&cspot_config,"bitrate",160);
+			// the call below saves the config and frees the json pointer
+			config_set_cjson_str_and_free("cspot_config",cspot_config);
+			FREE_AND_NULL(name);
+		}
+		else {
+			register_default_string_val("cspot_config", "");
+		}
+		
+	}	
+
 #endif
 	
 #ifdef CONFIG_AIRPLAY_SINK
@@ -379,23 +393,6 @@ void register_default_nvs(){
     register_default_string_val("ethtmout","8");
     register_default_string_val("dhcp_tmout","8");
 	register_default_string_val("target", CONFIG_TARGET);
-
-	cJSON * cspot_config=config_alloc_get_cjson("cspot_config");
-	if(!cspot_config){
-		char * name = alloc_get_string_with_mac(DEFAULT_HOST_NAME);
-		if(name){
-			cjson_update_string(&cspot_config,"deviceName",name);
-			cjson_update_number(&cspot_config,"bitrate",160);
-			// the call below saves the config and frees the json pointer
-			config_set_cjson_str_and_free("cspot_config",cspot_config);
-			FREE_AND_NULL(name);
-		}
-		else {
-			register_default_string_val("cspot_config", "");
-		}
-		
-	}
-
 	wait_for_commit();
 	ESP_LOGD(TAG,"Done setting default values in nvs.");
 }

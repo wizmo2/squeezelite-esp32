@@ -592,6 +592,8 @@ static int is_valid_gpio_number(int gpio, const char * name, FILE *f, bool manda
 	}
 	return 0;
 }
+
+#ifdef CONFIG_CSPOT_SINK
 static int do_cspot_config(int argc, char **argv){
     int nerrors = arg_parse_msg(argc, argv,(struct arg_hdr **)&cspot_args);
     if (nerrors != 0) {
@@ -639,6 +641,7 @@ static int do_cspot_config(int argc, char **argv){
 	FREE_AND_NULL(buf);
 	return nerrors;
 }
+#endif
 static int do_i2s_cmd(int argc, char **argv)
 {
 	i2s_platform_config_t i2s_dac_pin = {
@@ -746,6 +749,7 @@ cJSON * known_model_cb(){
 	}
 	return values;
 }
+#ifdef CONFIG_CSPOT_SINK
 cJSON * cspot_cb(){
 	cJSON * values = cJSON_CreateObject();
 	if(!values){
@@ -769,6 +773,7 @@ cJSON * cspot_cb(){
 	cJSON_Delete(cspot_config);
 	return values;
 }
+#endif
 cJSON * i2s_cb(){
 	cJSON * values = cJSON_CreateObject();
 
@@ -1172,7 +1177,7 @@ static void register_known_templates_config(){
     cmd_to_json_with_cb(&cmd,&known_model_cb);
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
-
+#ifdef CONFIG_CSPOT_SINK
 static void register_cspot_config(){
 	cspot_args.deviceName = arg_str1(NULL,"deviceName","","Device Name");
 	cspot_args.bitrate = arg_int1(NULL,"bitrate","96|160|320","Streaming Bitrate (kbps)");
@@ -1188,6 +1193,7 @@ static void register_cspot_config(){
 	cmd_to_json_with_cb(&cmd,&cspot_cb);
 	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
+#endif
 static void register_i2s_config(void){
 	i2s_args.model_name = arg_str1(NULL,"model_name",STR_OR_BLANK(get_dac_list()),"DAC Model Name");
 	i2s_args.clear = arg_lit0(NULL, "clear", "Clear configuration");
@@ -1329,8 +1335,11 @@ static void register_squeezelite_config(void){
 void register_config_cmd(void){
 	if(!is_dac_config_locked()){
 	 	 register_known_templates_config();
+	
 	}
+#ifdef CONFIG_CSPOT_SINK	
 	register_cspot_config();
+#endif	
 	register_audio_config();
 //	register_squeezelite_config();
 	register_bt_source_config();
