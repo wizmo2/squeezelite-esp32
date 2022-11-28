@@ -15,9 +15,11 @@ from requests import Response
  
 class Logger:
     NEWLINE_CHAR = '\n'
+    with_crlf = False
     @classmethod
     def print_message(cls,message,prefix=''):
-        trimmed=re.sub(r'\n', r'%0A', message,flags=re.MULTILINE)
+        if not Logger.with_crlf:
+            trimmed=re.sub(r'\n', r'%0A', message,flags=re.MULTILINE)
         print(f'{prefix}{trimmed}')
     @classmethod
     def debug(cls,message):
@@ -131,9 +133,15 @@ parser = argparse.ArgumentParser(
     description='Handles some parts of the squeezelite-esp32 build process')
 parser.add_argument('--cwd', type=str,
                     help='Working directory', default=os.getcwd())
+parser.add_argument('--with_crlf', action='store_true',help='To prevent replacing cr/lf with hex representation')
 parser.add_argument('--loglevel', type=str, choices={
                     'CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'NOTSET'}, help='Logging level', default='INFO')
 subparsers = parser.add_subparsers(dest='command', required=True)
+
+parser_commits = subparsers.add_parser("list_commits",add_help=False,
+                                    description="Commits list",
+                                    help="Lists the last commits"
+                                    )
 
 parser_dir = subparsers.add_parser("list_files",
                                    add_help=False,
@@ -208,14 +216,13 @@ parser_build_flags.add_argument(
 parser_build_flags.add_argument(
     '--ui_build', action='store_true', help='Include building the web UI')
 
-
 def format_commit(commit):
     # 463a9d8b7 Merge branch 'bugfix/ci_deploy_tags_v4.0' into 'release/v4.0' (2020-01-11T14:08:55+08:00)
     dt = datetime.fromtimestamp(float(commit.author.time), timezone(
         timedelta(minutes=commit.author.offset)))
-    timestr = dt.strftime('%c%z')
-    cmesg:str = commit.message.replace('\n', ' ')
-    cmesg = cmesg.replace('*','-')
+    #timestr = dt.strftime('%c%z')
+    timestr = dt.strftime('%F %R %Z')
+    cmesg:str = commit.message.replace('\n', ' ').replace('\r','').replace('*','-')
     return f'{commit.short_id} {cmesg} ({timestr}) <{commit.author.name}>'.replace('  ', ' ', )
 
 
@@ -886,7 +893,7 @@ def push_if_change(repo: Repository, token: str, source_path: str, manif_json):
         remote: Remote = repo.remotes['origin']
         auth_methods = ['x-access-token','x-oauth-basic']
         for method in auth_methods:
-            if push_with_method(auth_methods, token, remote, [reference]):
+            if push_with_method(method, token, remote, [reference]):
                 print(f'::notice Web installer updated for {format_artifact_from_manifest(manif_json)}')
                 return
         raise Exception('Unable to push web installer.')    
@@ -946,6 +953,10 @@ def handle_list_files(args):
     print(f'Content of {args.cwd}:')
     print(Logger.NEWLINE_CHAR.join(get_file_list(args.cwd)))
 
+def handle_commits(args):
+    set_workdir(args)
+    print(Releases.get_commit_list_descriptions())
+
 
 parser_environment.set_defaults(func=handle_environment, cmd='environment')
 parser_manifest.set_defaults(func=handle_manifest, cmd='manifest')
@@ -953,11 +964,13 @@ parser_pushinstaller.set_defaults(func=handle_pushinstaller, cmd='installer')
 parser_show.set_defaults(func=handle_show, cmd='show')
 parser_build_flags.set_defaults(func=handle_build_flags, cmd='build_flags')
 parser_dir.set_defaults(func=handle_list_files, cmd='list_files')
+parser_commits.set_defaults(func=handle_commits,cmd='list_commits')
 
 
 def main():
     exit_result_code = 0
     args = parser.parse_args()
+    Logger.with_crlf = args.with_crlf
     print(f'::group::{args.command}')
     print(f'build_tools version : {tool_version}')
     print(f'Processing command {args.command}')
