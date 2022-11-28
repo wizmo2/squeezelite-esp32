@@ -1,5 +1,8 @@
-name: Manually executable test for ESP-IDF v4.3.1
+name: Platform Build
 on: 
+  push:
+    branches: 
+      - '**4.3'
   workflow_dispatch:
     inputs:
       ui_build:
@@ -10,9 +13,6 @@ on:
         description: 'Force a Release build. When not forced, the system will check for release word in the last commit message to trigger a release'
         required: true
         type: boolean
-  # push:
-  #   branches: 
-  #     - '**4.3'
 
 jobs:
   bootstrap:
