@@ -889,7 +889,7 @@ def push_if_change(repo: Repository, token: str, source_path: str, manif_json):
             if push_with_method(auth_methods, token, remote, [reference]):
                 print(f'::notice Web installer updated for {format_artifact_from_manifest(manif_json)}')
                 return
-            
+        raise Exception('Unable to push web installer.')    
 
     else:
         print(f'WARNING: No change found. Skipping update')
