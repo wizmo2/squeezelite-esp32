@@ -162,6 +162,8 @@ ESP_LOGI(TAG, "Getting Spotify event %d ", (int) event.eventType);
             }
 			});
 
+			// need to make sure mercuryManager is running otherwise we'll loop and destroy instances
+			while (!mercuryManager->isRunning) vTaskDelay(pdMS_TO_TICKS(25));
             mercuryManager->reconnectedCallback = []() {
                 return spircController->subscribe();
             };
