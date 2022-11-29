@@ -415,7 +415,7 @@ bool create_rotary(void *id, int A, int B, int SW, int long_press, rotary_handle
 	// create companion button if rotary has a switch
 	if (SW != -1) button_create(id, SW, BUTTON_LOW, true, 0, rotary_button_handler, long_press, -1);
 	
-	ESP_LOGI(TAG, "Creating rotary encoder A:%d B:%d, SW:%d", A, B, SW);
+	ESP_LOGI(TAG, "Created rotary encoder A:%d B:%d, SW:%d", A, B, SW);
 	
 	return true;
 }	
@@ -431,6 +431,8 @@ bool create_infrared(int gpio, infrared_handler handler) {
 	// join the queue set
 	common_task_init();
 	xRingbufferAddToQueueSetRead(infrared.rb, common_queue_set);
+	
+	ESP_LOGI(TAG, "Created infrared receiver using GPIO %u", gpio);	
 	
 	return (infrared.rb != NULL);
 }	
