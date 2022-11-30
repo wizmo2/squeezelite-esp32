@@ -10,5 +10,4 @@
 # --plugin= on the command line.
 
 MYPATH=$(dirname "$0")
-echo "Executing $MYPATH/nanopb_generator.py "
 exec "$MYPATH/nanopb_generator.py" --protoc-plugin
