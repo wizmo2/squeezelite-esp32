@@ -36,7 +36,7 @@ if(UNIX AND NOT APPLE)
 endif()
 
 # Build protobuf code
-if(0)
+if(1)
 set(NANOPB_OPTIONS "-I${CMAKE_CURRENT_SOURCE_DIR}")
 file(GLOB PROTOS protobuf/*.proto)
 nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS RELPATH ${CMAKE_CURRENT_SOURCE_DIR} ${PROTOS})
