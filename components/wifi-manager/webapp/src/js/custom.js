@@ -465,7 +465,7 @@ window.handleReboot = function (link) {
   }
 }
 function isConnected(){
-  return ConnectedTo.ip && ConnectedTo.ip!='0.0.0.0';
+  return ConnectedTo.hasOwnProperty('ip') && ConnectedTo.ip!='0.0.0.0'&& ConnectedTo.ip!='';
 }
 function getIcon(icons){
   return isConnected()?icons.icon:icons.label;
@@ -1651,7 +1651,7 @@ function setIcons(offline){
   });
 }
 function handleNetworkStatus(data) {
-  setIcons(data.ssid==='');
+  setIcons(!isConnected());
   if (hasConnectionChanged(data) || !data.urc) {
     ConnectedTo = data;
     $(".if_eth").hide();
@@ -2137,4 +2137,3 @@ function inRange(x, min, max) {
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
-
