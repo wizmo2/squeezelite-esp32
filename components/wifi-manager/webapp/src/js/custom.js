@@ -77,22 +77,22 @@ const nvsTypes = {
   NVS_TYPE_ANY: 0xff /*! < Must be last */,
 };
 const btIcons = {
-  bt_playing: 'media_bluetooth_on',
-  bt_disconnected: 'media_bluetooth_off',
-  bt_neutral: 'bluetooth',
-  bt_connecting: 'bluetooth_searching',
-  bt_connected: 'bluetooth_connected',
-  bt_disabled: 'bluetooth_disabled',
-  play_arrow: 'play_circle_filled',
-  pause: 'pause_circle',
-  stop: 'stop_circle',
-  '': '',
+  bt_playing: {'label':'','icon': 'media_bluetooth_on'},
+  bt_disconnected: {'label':'','icon': 'media_bluetooth_off'},
+  bt_neutral: {'label':'','icon': 'bluetooth'},
+  bt_connecting: {'label':'','icon': 'bluetooth_searching'},
+  bt_connected: {'label':'','icon': 'bluetooth_connected'},
+  bt_disabled: {'label':'','icon': 'bluetooth_disabled'},
+  play_arrow: {'label':'','icon': 'play_circle_filled'},
+  pause: {'label':'','icon': 'pause_circle'},
+  stop: {'label':'','icon': 'stop_circle'},
+  '':  {'label':'','icon':''}
 };
 const batIcons = [
-  { icon: "battery_0_bar", ranges: [{ f: 5.8, t: 6.8 }, { f: 8.8, t: 10.2 }] },
-  { icon: "battery_2_bar", ranges: [{ f: 6.8, t: 7.4 }, { f: 10.2, t: 11.1 }] },
-  { icon: "battery_3_bar", ranges: [{ f: 7.4, t: 7.5 }, { f: 11.1, t: 11.25 }] },
-  { icon: "battery_4_bar", ranges: [{ f: 7.5, t: 7.8 }, { f: 11.25, t: 11.7 }] }
+  { icon: "battery_0_bar", label:'▪', ranges: [{ f: 5.8, t: 6.8 }, { f: 8.8, t: 10.2 }] },
+  { icon: "battery_2_bar", label:'▪▪', ranges: [{ f: 6.8, t: 7.4 }, { f: 10.2, t: 11.1 }] },
+  { icon: "battery_3_bar", label:'▪▪▪', ranges: [{ f: 7.4, t: 7.5 }, { f: 11.1, t: 11.25 }] },
+  { icon: "battery_4_bar", label:'▪▪▪▪', ranges: [{ f: 7.5, t: 7.8 }, { f: 11.25, t: 11.7 }] }
 ];
 const btStateIcons = [
   { desc: 'Idle', sub: ['bt_neutral'] },
@@ -464,13 +464,19 @@ window.handleReboot = function (link) {
     $('#reboot_nav').removeClass('active'); delayReboot(500, '', link);
   }
 }
+function isConnected(){
+  return ConnectedTo.ip && ConnectedTo.ip!='0.0.0.0';
+}
+function getIcon(icons){
+  return isConnected()?icons.icon:icons.label;
+}
 function handlebtstate(data) {
   let icon = '';
   let tt = '';
   if (data.bt_status !== undefined && data.bt_sub_status !== undefined) {
     const iconindex = btStateIcons[data.bt_status].sub[data.bt_sub_status];
     if (iconindex) {
-      icon = btIcons[iconindex];
+      icon =  btIcons[iconindex];
       tt = btStateIcons[data.bt_status].desc;
     } else {
       icon = btIcons.bt_connected;
@@ -479,7 +485,7 @@ function handlebtstate(data) {
   }
 
   $('#o_type').attr('title', tt);
-  $('#o_bt').html(icon);
+  $('#o_bt').html(isConnected()?icon.label:icon.text);
 }
 function handleTemplateTypeRadio(outtype) {
   $('#o_type').children('span').css({ display: 'none' });
@@ -857,7 +863,6 @@ window.handleConnect = function () {
   $("*[class*='connecting']").hide();
   $('#ssid-wait').text(ConnectingToSSID.ssid);
   $('.connecting').show();
-
   $.ajax({
     url: '/connect.json',
     dataType: 'text',
@@ -876,6 +881,10 @@ window.handleConnect = function () {
 
 }
 $(document).ready(function () {
+  $('.material-icons').each(function (_index, entry) {
+    entry.attributes['icon']=entry.textContent;
+  });
+  setIcons(true);
   handleNVSVisible();
   flashState.init();
   $('#fw-url-input').on('input', function () {
@@ -1294,20 +1303,23 @@ window.setURL = function (button) {
 
 function rssiToIcon(rssi) {
   if (rssi >= -55) {
-    return `signal_wifi_statusbar_4_bar`;
+    return {'label':'****','icon':`signal_wifi_statusbar_4_bar`};
   } else if (rssi >= -60) {
-    return `network_wifi_3_bar`;
+    return {'label':'***','icon':`network_wifi_3_bar`};
   } else if (rssi >= -65) {
-    return `network_wifi_2_bar`;
+    return {'label':'**','icon':`network_wifi_2_bar`};
   } else if (rssi >= -70) {
-    return `network_wifi_1_bar`;
+    return {'label':'*','icon':`network_wifi_1_bar`};
   } else {
-    return `signal_wifi_statusbar_null`;
+    return {'label':'.','icon':`signal_wifi_statusbar_null`};
   }
 }
 
 function refreshAP() {
   if (ConnectedTo?.urc === connectReturnCode.ETH) return;
+  $.ajaxSetup({
+    timeout: 3000 //Time in milliseconds
+  });
   $.getJSON('/scan.json', async function () {
     await sleep(2000);
     $.getJSON('/ap.json', function (data) {
@@ -1327,10 +1339,13 @@ function refreshAP() {
   });
 }
 function formatAP(ssid, rssi, auth) {
+  const rssi_icon=rssiToIcon(rssi);
+  const auth_icon={label:auth == 0 ? '🔓' : '🔒',icon:auth == 0 ? 'no_encryption' : 'lock'};
+  
   return `<tr data-bs-toggle="modal" data-bs-target="#WifiConnectDialog"><td></td><td>${ssid}</td><td>
-  <span class="material-icons" style="fill:white; display: inline" >${rssiToIcon(rssi)}</span>
+  <span class="material-icons" style="fill:white; display: inline" aria-label="${rssi_icon.label}" icon="${rssi_icon.icon}" >${getIcon(rssi_icon)}</span>
   	</td><td>
-    <span class="material-icons">${(auth == 0 ? 'no_encryption' : 'lock')}</span>
+    <span class="material-icons" aria-label="${auth_icon.label}" icon="${auth_icon.icon}">${getIcon(auth_icon)}</span>
   </td></tr>`;
 }
 function refreshAPHTML2(data) {
@@ -1411,6 +1426,9 @@ function getBTSinkOpt(name) {
   return $(`${btSinkNamesOptSel} option:contains('${name}')`);
 }
 function getMessages() {
+  $.ajaxSetup({
+    timeout: messageInterval //Time in milliseconds
+  });
   $.getJSON('/messages.json', async function (data) {
     for (const msg of data) {
       const msgAge = msg.current_time - msg.sent_time;
@@ -1627,7 +1645,13 @@ function handleWifiDialog(data) {
 
   }
 }
+function setIcons(offline){
+  $('.material-icons').each(function (_index, entry) {
+    entry.textContent = entry.attributes[offline?'aria-label':'icon'].value;
+  });
+}
 function handleNetworkStatus(data) {
+  setIcons(data.ssid==='');
   if (hasConnectionChanged(data) || !data.urc) {
     ConnectedTo = data;
     $(".if_eth").hide();
@@ -1658,16 +1682,18 @@ function batteryToIcon(voltage) {
   for (const iconEntry of batIcons) {
     for (const entryRanges of iconEntry.ranges) {
       if (inRange(voltage, entryRanges.f, entryRanges.t)) {
-        return iconEntry.icon;
+        return { label: iconEntry.label, icon:iconEntry.icon};
       }
     }
   }
 
 
-  return "battery_full";
+  return {label:'▪▪▪▪',icon:"battery_full"};
 }
 function checkStatus() {
-
+  $.ajaxSetup({
+    timeout: statusInterval //Time in milliseconds
+  });
   $.getJSON('/status.json', function (data) {
     handleRecoveryMode(data);
     handleNVSVisible();
@@ -1691,7 +1717,10 @@ function checkStatus() {
       $('span#flash-status').html('');
     }
     if (data.Voltage) {
-      $('#battery').html(`${batteryToIcon(data.Voltage)}`);
+      const bat_icon=batteryToIcon(data.Voltage);
+      $('#battery').html(`${getIcon(bat_icon)}`);
+      $('#battery').attr("aria-label",bat_icon.label);
+      $('#battery').attr("icon",bat_icon.icon);
       $('#battery').show();
     } else {
       $('#battery').hide();
@@ -1835,6 +1864,9 @@ function getLongOps(data, name, longopts) {
   return data.values[name] !== undefined ? data.values[name][longopts] : "";
 }
 function getCommands() {
+  $.ajaxSetup({
+    timeout: 7000 //Time in milliseconds
+  });
   $.getJSON('/commands.json', function (data) {
     console.log(data);
     $('.orec').show();
@@ -1956,6 +1988,9 @@ function getCommands() {
 }
 
 function getConfig() {
+  $.ajaxSetup({
+    timeout: 7000 //Time in milliseconds
+  });
   $.getJSON('/config.json', function (entries) {
     $('#nvsTable tr').remove();
     const data = (entries.config ? entries.config : entries);

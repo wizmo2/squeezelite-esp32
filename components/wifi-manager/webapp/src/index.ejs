@@ -44,19 +44,19 @@
 
 		</div>
 		<div class="info navbar-right" style="display: inline-flex;">
-			<span class="recovery_element material-icons " style="color:orange; display: none">system_update_alt</span>
-			<span id="battery" class="material-icons" style="fill:white; display: none">battery_full</span>
-			<span id="o_jack" class="material-icons" style="fill:white; display: none">headphones</span>
-			<span id="s_airplay" class="material-icons" style="fill:white; display: none">airplay</span>
+			<span class="recovery_element material-icons " style="color:orange; display: none" aria-label="🛑" >system_update_alt</span>
+			<span id="battery" class="material-icons" style="fill:white; display: none" aria-label="🔋" >battery_full</span>
+			<span id="o_jack" class="material-icons" style="fill:white; display: none" aria-label="🎧">headphones</span>
+			<span id="s_airplay" class="material-icons" style="fill:white; display: none" aria-label="🍎">airplay</span>
 			<em id="s_cspot" class="fab fa-spotify" style="fill:white; display: inline"></em>
 			<span data-bs-toggle="tooltip" id="o_type" data-bs-placement="top" title="">
-				<span id="o_bt" class="material-icons" style="fill:white; display: none">bluetooth</span>
-				<span id="o_spdif" class="material-icons" style="fill:white; display: none">graphic_eq</span>
-				<span id="o_i2s" class="material-icons" style="fill:white; display: none">speaker</span>
+				<span id="o_bt" class="material-icons" style="fill:white; display: none" aria-label="">bluetooth</span>
+				<span id="o_spdif" class="material-icons" style="fill:white; display: none" aria-label="">graphic_eq</span>
+				<span id="o_i2s" class="material-icons" style="fill:white; display: none" aria-label="🔈">speaker</span>
 			</span>
-			<span id="ethernet" class="material-icons if_eth" style="fill:white; display: none">cable</span>
+			<span id="ethernet" class="material-icons if_eth" style="fill:white; display: none" aria-label="ETH">cable</span>
 			<span id="wifiStsIcon" class="material-icons if_wifi"
-				style="fill:white; display: none">signal_wifi_statusbar_4_bar</span>
+				style="fill:white; display: none" aria-label=""></span>
 
 		</div>
 	</header>
@@ -374,22 +374,6 @@
 							</div>
 						</div>
 					</div>
-					<div class="card-body if_wifi" style="display: none">
-						<table class="table table-hover">
-							<thead>
-								<tr>
-									<th scope="col">Joined</th>
-									<th scope="col">Name</th>
-									<th scope="col">Signal</th>
-									<th scope="col">Security</th>
-								</tr>
-							</thead>
-							<tbody id="wifiTable"></tbody>
-						</table>
-						<button type="button" id="updateAP" class="btn btn-info btn-sm">Scan</button>
-
-					</div>
-
 
 
 				</div>
