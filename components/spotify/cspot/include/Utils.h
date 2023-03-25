@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include "sys/socket.h"
 #include <netdb.h>
+#include <netinet/in.h>
 #endif
 #include <cstdint>
 #include <cstring>
@@ -18,6 +19,9 @@
 #include <sstream>
 #include <iostream>
 #include <iomanip>
+#include <memory>
+#include <string>
+#include <stdexcept>
 
 #define HMAC_SHA1_BLOCKSIZE 64
 
@@ -35,6 +39,8 @@ unsigned long long getCurrentTimestamp();
  * @return uint64_t swapped result
  */
 uint64_t hton64(uint64_t value);
+
+std::vector<uint8_t> bigNumDivide(std::vector<uint8_t> num, int n);
 
 /**
  * @brief Performs big number multiplication on two numbers
@@ -59,6 +65,13 @@ unsigned char h2int(char c);
 
 std::string urlDecode(std::string str);
 
+/**
+ * @brief Converts provided hex string into binary data
+ * 
+ * @param s string containing hex data
+ * @return std::vector<uint8_t> vector containing binary data
+ */
+std::vector<uint8_t> stringHexToBytes(const std::string &s);
 
 /**
  * @brief Converts provided bytes into a human readable hex string
@@ -66,7 +79,7 @@ std::string urlDecode(std::string str);
  * @param bytes vector containing binary data
  * @return std::string string containing hex representation of inputted data
  */
-std::string bytesToHexString(std::vector<uint8_t> &bytes);
+std::string bytesToHexString(const std::vector<uint8_t> &bytes);
 
 /**
  * @brief Extracts given type from binary data
@@ -99,5 +112,15 @@ std::vector<uint8_t> pack(T data)
      return rawData;
 }
 
+template<typename ... Args>
+std::string string_format( const std::string& format, Args ... args )
+{
+    int size_s = std::snprintf( nullptr, 0, format.c_str(), args ... ) + 1; // Extra space for '\0'
+    if( size_s <= 0 ){ throw std::runtime_error( "Error during formatting." ); }
+    auto size = static_cast<size_t>( size_s );
+    std::unique_ptr<char[]> buf( new char[ size ] );
+    std::snprintf( buf.get(), size, format.c_str(), args ... );
+    return std::string( buf.get(), buf.get() + size - 1 ); // We don't want the '\0' inside
+}
 
 #endif

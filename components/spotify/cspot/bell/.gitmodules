@@ -1,10 +1,9 @@
-[submodule "tremor"]
-	path = tremor
-	url = https://gitlab.xiph.org/xiph/tremor.git
-	branch = lowmem
-[submodule "cJSON"]
-	path = cJSON
-	url = https://github.com/DaveGamble/cJSON
-[submodule "nanopb"]
-	path = nanopb
-	url = https://github.com/nanopb/nanopb
+[submodule "external/lws"]
+	path = external/lws
+	url = https://github.com/warmcat/libwebsockets
+[submodule "external/nlohmann_json"]
+	path = external/nlohmann_json
+	url = https://github.com/nlohmann/json
+[submodule "external/mdnssvc"]
+	path = external/mdnssvc
+	url = https://github.com/philippe44/mdnssvc

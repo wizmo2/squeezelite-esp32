@@ -13,6 +13,7 @@
 #include "display.h"
 #include "accessors.h"
 #include "network_services.h"
+#include "http_server_handlers.h"
 #include "tools.h"
 #include "cspot_private.h"
 #include "cspot_sink.h"
@@ -106,8 +107,7 @@ void got_artwork(uint8_t* data, size_t len, void *context) {
  */
 static bool cmd_handler(cspot_event_t event, ...) {
 	va_list args;	
-	static bool loaded = false;
-	
+
 	va_start(args, event);
 	
 	// handle audio event and stop if forbidden
@@ -118,7 +118,7 @@ static bool cmd_handler(cspot_event_t event, ...) {
 
 	// now handle events for display
 	switch(event) {
-	case CSPOT_SETUP:
+	case CSPOT_START:
 		actrls_set(controls, false, NULL, actrls_ir_action);
 		displayer_control(DISPLAYER_ACTIVATE, "SPOTIFY", true);
 		break;
@@ -132,16 +132,12 @@ static bool cmd_handler(cspot_event_t event, ...) {
 		actrls_unset();
 		displayer_control(DISPLAYER_SUSPEND);
 		break;
-	case CSPOT_LOAD:
-		// this message only appears if we load in the middle of a track
-		loaded = true;
-		__attribute__ ((fallthrough));
 	case CSPOT_SEEK:
 		displayer_timer(DISPLAYER_ELAPSED, va_arg(args, int), -1);
 		break;
 	case CSPOT_TRACK: {
-		uint32_t sample_rate = va_arg(args, uint32_t);
-		int duration = va_arg(args, int);
+		uint32_t duration = va_arg(args, int);
+        uint32_t offset = va_arg(args, int);
 		char *artist = va_arg(args, char*), *album = va_arg(args, char*), *title = va_arg(args, char*);
 		char *artwork = va_arg(args, char*);
 		if (artwork && displayer_can_artwork()) {
@@ -149,8 +145,7 @@ static bool cmd_handler(cspot_event_t event, ...) {
 			http_download(artwork, 128*1024, got_artwork, NULL);
 		}	
 		displayer_metadata(artist, album, title);
-		displayer_timer(DISPLAYER_ELAPSED, loaded ? -1 : 0, duration);
-		loaded = false;
+		displayer_timer(DISPLAYER_ELAPSED, offset, duration);
 		break;
 	}	
 	// nothing to do on CSPOT_FLUSH
@@ -177,7 +172,11 @@ static void cspot_sink_start(nm_state_t state_id, int sub_state) {
 	for (int i = 0; i < 6; i++) sprintf(deviceId + 2*i, "%02x", mac[i]);
 
 	ESP_LOGI(TAG, "Starting Spotify (CSpot) servicename %s with id %s", hostname, deviceId);
-	cspot = cspot_create(hostname, cmd_handler, cspot_cbs.data);
+    
+    int port;
+    httpd_handle_t server = http_get_server(&port);
+    
+	cspot = cspot_create(hostname, server, port, cmd_handler, cspot_cbs.data);
 }
 
 /****************************************************************************************

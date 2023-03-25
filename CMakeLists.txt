@@ -13,7 +13,7 @@ add_definitions(-DHIERARCHICAL_STATES=1)
 #add_definitions(-DNETWORK_ETHERNET_LOG_LEVEL=ESP_LOG_DEBUG)
 #uncomment line below to get network status debug logs
 #add_definitions(-DNETWORK_STATUS_LOG_LEVEL=ESP_LOG_DEBUG)
-#add_definitions(-DNETWORK_HANDLERS_LOG_LEVEL=ESP_LOG_DEBUG) 
+#add_definitions(-DNETWORK_HANDLERS_LOG_LEVEL=ESP_LOG_DEBUG)
 #add_definitions(-DNETWORK_WIFI_LOG_LEVEL=ESP_LOG_DEBUG)
 #add_definitions(-DNETWORK_MANAGER_LOG_LEVEL=ESP_LOG_DEBUG)
 #add_definitions(-DNETWORK_HTTP_SERVER_LOG_LEVEL=ESP_LOG_DEBUG)

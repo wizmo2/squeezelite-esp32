@@ -25,10 +25,7 @@ static bool enable_bt_sink;
 
 #if CONFIG_CSPOT_SINK
 #include "cspot_sink.h"
-
 static bool enable_cspot;
-#define CSPOT_OUTPUT_SIZE ((48000 * BYTES_PER_FRAME * 2) & ~BYTES_PER_FRAME)
-
 #endif
 
 #if CONFIG_AIRPLAY_SINK
@@ -104,7 +101,7 @@ static void sink_data_handler(const uint8_t *data, uint32_t len)
 				
 		// allow i2s to empty the buffer if needed
 		if (len && !space) {
-			wait--;
+			if (output.state == OUTPUT_RUNNING) wait--;
 			UNLOCK_O; usleep(50000); LOCK_O;
 		}
 	}	
@@ -348,15 +345,15 @@ static bool cspot_cmd_handler(cspot_event_t cmd, va_list args)
 	if (cmd != CSPOT_VOLUME) LOCK_O;
 
 	switch(cmd) {
-	case CSPOT_SETUP:
+	case CSPOT_START:
 		output.current_sample_rate = output.next_sample_rate = va_arg(args, u32_t);
 		output.external = DECODE_CSPOT;
 		output.frames_played = 0;
 		output.state = OUTPUT_STOPPED;
+        sink_state = SINK_ABORT;
 		_buf_flush(outputbuf);
-		_buf_limit(outputbuf, CSPOT_OUTPUT_SIZE);
 		if (decode.state != DECODE_STOPPED) decode.state = DECODE_ERROR;
-		LOG_INFO("CSpot connected");
+		LOG_INFO("CSpot start track");
 		break;
 	case CSPOT_DISC:
 		_buf_flush(outputbuf);
@@ -366,25 +363,15 @@ static bool cspot_cmd_handler(cspot_event_t cmd, va_list args)
 		output.stop_time = gettime_ms();
 		LOG_INFO("CSpot disconnected");
 		break;
-	case CSPOT_TRACK:
-		LOG_INFO("CSpot sink new track rate %d", output.next_sample_rate);
-		break;
-	case CSPOT_PLAY: {
-		int flush = va_arg(args, int);
-		if (flush) {
-			_buf_flush(outputbuf);		
-			sink_state = SINK_ABORT;
-		} else {
-			sink_state = SINK_RUNNING;			
-		}		
+	case CSPOT_PLAY:
+		sink_state = SINK_RUNNING;			
 		output.state = OUTPUT_RUNNING;
 		LOG_INFO("CSpot play");
 		break;
-	}	
 	case CSPOT_SEEK:
 		_buf_flush(outputbuf);		
 		sink_state = SINK_ABORT;
-		LOG_INFO("CSpot seek by %d", va_arg(args, int));
+		LOG_INFO("CSpot seek by %d", va_arg(args, uint32_t));
 		break;
 	case CSPOT_FLUSH:
 		_buf_flush(outputbuf);
@@ -397,6 +384,11 @@ static bool cspot_cmd_handler(cspot_event_t cmd, va_list args)
 		output.stop_time = gettime_ms();
 		LOG_INFO("CSpot pause");
 		break;
+    case CSPOT_REMAINING: {
+        uint32_t *remaining = va_arg(args, uint32_t*);
+        *remaining = (_buf_used(outputbuf) * 1000) / (output.current_sample_rate * BYTES_PER_FRAME);
+        break;      
+    }
 	case CSPOT_VOLUME: {
 		u32_t volume = va_arg(args, u32_t);
 		LOG_INFO("CSpot volume %u", volume);

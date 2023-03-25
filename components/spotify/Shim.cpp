@@ -1,9 +1,37 @@
-/* 
+/*
  *  This software is released under the MIT License.
  *  https://opensource.org/licenses/MIT
  *
  */
 
+#include <string>
+#include <streambuf>
+#include <Session.h>
+#include <PlainConnection.h>
+#include <memory>
+#include <vector>
+#include <iostream>
+#include <inttypes.h>
+#include <fstream>
+#include <stdarg.h>
+#include <ApResolve.h>
+
+#include "MDNSService.h"
+#include "SpircHandler.h"
+#include "LoginBlob.h"
+#include "CentralAudioBuffer.h"
+#include "Logger.h"
+#include "Utils.h"
+
+#include "esp_http_server.h"
+#include "cspot_private.h"
+#include "cspot_sink.h"
+#include "platform_config.h"
+#include "tools.h"
+
+//#include "time.h"
+
+/*
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
@@ -30,184 +58,396 @@
 #include "tools.h"
 #include "cspot_private.h"
 #include "cspot_sink.h"
-#include "Shim.h"
-
-extern "C" {
-	httpd_handle_t get_http_server(int *port);
-	static esp_err_t handlerWrapper(httpd_req_t *req);
-};
-
-#define CSPOT_STACK_SIZE (8*1024)
+*/
 
 static const char *TAG = "cspot";
 
-// using a global is pretty ugly, but it's easier with all Lambda below
-static EXT_RAM_ATTR struct cspot_s {
-	char name[32];
-	cspot_cmd_cb_t cHandler;
-	cspot_data_cb_t dHandler;
-	TaskHandle_t TaskHandle;
-    std::shared_ptr<LoginBlob> blob;
-} cspot;
-
-std::shared_ptr<ConfigJSON> configMan;
-std::shared_ptr<NVSFile> file;
-std::shared_ptr<MercuryManager> mercuryManager;
-std::shared_ptr<SpircController> spircController;
+class cspotPlayer *player;
 
 /****************************************************************************************
- * Main task (could it be deleted after spirc has started?)
+ * Chunk manager class (task)
  */
-static void cspotTask(void *pvParameters) {
-	char configName[] = "cspot_config";
-	std::string jsonConfig;	
-	
-    // Config file
-    file = std::make_shared<NVSFile>();
-	configMan = std::make_shared<ConfigJSON>(configName, file);
+
+class chunkManager : public bell::Task {
+public:
+    std::atomic<bool> isRunning = true;
+    std::atomic<bool> isPaused = true;
+    chunkManager(std::shared_ptr<bell::CentralAudioBuffer> centralAudioBuffer, std::function<void()> trackHandler, std::function<void(const uint8_t*, size_t)> audioHandler);
+    void teardown();
+
+private:
+    std::shared_ptr<bell::CentralAudioBuffer> centralAudioBuffer;
+    std::function<void()> trackHandler;
+    std::function<void(const uint8_t*, size_t)> audioHandler;
+    std::mutex runningMutex;
+
+    void runTask() override;
+};
+
+chunkManager::chunkManager(std::shared_ptr<bell::CentralAudioBuffer> centralAudioBuffer,
+                            std::function<void()> trackHandler, std::function<void(const uint8_t*, size_t)> audioHandler)
+    : bell::Task("player", 4 * 1024, 0, 0) {
+    this->centralAudioBuffer = centralAudioBuffer;
+    this->trackHandler = trackHandler;
+    this->audioHandler = audioHandler;
+    startTask();
+}
+
+void chunkManager::runTask() {
+    std::scoped_lock lock(runningMutex);
+    size_t lastHash = 0;
+
+    while (isRunning) {
+
+        if (isPaused) {
+            BELL_SLEEP_MS(100);
+            continue;
+        }
+
+        auto chunk = centralAudioBuffer->readChunk();
+
+        if (!chunk || chunk->pcmSize == 0) {
+            BELL_SLEEP_MS(50);
+            continue;
+        }
+
+        // receiving first chunk of new track from Spotify server
+        if (lastHash != chunk->trackHash) {
+            CSPOT_LOG(info, "hash update %x => %x", lastHash, chunk->trackHash);
+            lastHash = chunk->trackHash;
+            trackHandler();
+        }
+
+        audioHandler(chunk->pcmData, chunk->pcmSize);
+    }
+}
+
+void chunkManager::teardown() {
+    isRunning = false;
+    std::scoped_lock lock(runningMutex);
+}
+
+/****************************************************************************************
+ * Player's main class  & task
+ */
+
+class cspotPlayer : public bell::Task {
+private:
+    std::string name;
+    bool playback = false;
+    bell::WrappedSemaphore clientConnected;
+    std::shared_ptr<bell::CentralAudioBuffer> centralAudioBuffer;
+
+    TimerHandle_t trackTimer;
+
+    int startOffset, volume = 0, bitrate = 160;
+    httpd_handle_t serverHandle;
+    int serverPort;
+    cspot_cmd_cb_t cmdHandler;
+	cspot_data_cb_t dataHandler;
+
+    std::shared_ptr<cspot::LoginBlob> blob;
+    std::unique_ptr<cspot::SpircHandler> spirc;
+    std::unique_ptr<chunkManager> chunker;
+
+    void eventHandler(std::unique_ptr<cspot::SpircHandler::Event> event);
+    void trackHandler(void);
+
+    void runTask();
+
+public:
+    std::atomic<bool> trackNotify = false;
+
+    cspotPlayer(const char*, httpd_handle_t, int, cspot_cmd_cb_t, cspot_data_cb_t);
+    ~cspotPlayer();
+    esp_err_t handleGET(httpd_req_t *request);
+    esp_err_t handlePOST(httpd_req_t *request);
+};
+
+cspotPlayer::cspotPlayer(const char* name, httpd_handle_t server, int port, cspot_cmd_cb_t cmdHandler, cspot_data_cb_t dataHandler) :
+                        bell::Task("playerInstance", 32 * 1024, 0, 0),
+                        serverHandle(server), serverPort(port),
+                        cmdHandler(cmdHandler), dataHandler(dataHandler) {
+                            
+    cJSON *item, *config = config_alloc_get_cjson("cspot_config");
+    if ((item = cJSON_GetObjectItem(config, "volume")) != NULL) volume = item->valueint;
+    if ((item = cJSON_GetObjectItem(config, "bitrate")) != NULL) bitrate = item->valueint;
+    if ((item = cJSON_GetObjectItem(config, "deviceName") ) != NULL) this->name = item->valuestring;
+    else this->name = name;
+    cJSON_Delete(config);
+    
+    if (bitrate != 96 && bitrate != 160 && bitrate != 320) bitrate = 160;
+}
+
+cspotPlayer::~cspotPlayer() {
+}
+
+extern "C" {
+    static esp_err_t handleGET(httpd_req_t *request) {
+        return player->handleGET(request);
+    }
+
+    static esp_err_t handlePOST(httpd_req_t *request) {
+        return player->handlePOST(request);
+    }
+
+    static void trackTimerHandler(TimerHandle_t xTimer) {
+        player->trackNotify = true;
+    }
+}
+
+esp_err_t cspotPlayer::handleGET(httpd_req_t *request) {
+    std::string body = this->blob->buildZeroconfInfo();
+
+    if (body.size() == 0) {
+        CSPOT_LOG(info, "cspot empty blob's body on GET");
+        return ESP_ERR_HTTPD_INVALID_REQ;
+    }
+
+    httpd_resp_set_hdr(request, "Content-type", "application/json");
+    httpd_resp_set_hdr(request, "Content-length", std::to_string(body.size()).c_str());
+    httpd_resp_send(request, body.c_str(), body.size());
+
+    return ESP_OK;
+}
+
+esp_err_t cspotPlayer::handlePOST(httpd_req_t *request) {
+   cJSON* response= cJSON_CreateObject();
+
+   cJSON_AddNumberToObject(response, "status", 101);
+   cJSON_AddStringToObject(response, "statusString", "ERROR-OK");
+   cJSON_AddNumberToObject(response, "spotifyError", 0);
    
-	// We might have no config at all
-	if (!file->readFile(configName, jsonConfig) || !jsonConfig.length()) {
-		ESP_LOGW(TAG, "Cannot load config, using default");
-		
-		configMan->deviceName = cspot.name;
-		configMan->format = AudioFormat_OGG_VORBIS_160;
-		configMan->volume = 32767;
+    // get body if any (add '\0' at the end if used as string)
+	if (request->content_len) {
+		char* body = (char*) calloc(1, request->content_len + 1);
+		int size = httpd_req_recv(request, body, request->content_len);
 
-		configMan->save();	
-	}
-	
-	// safely load config now
-	configMan->load();
-	if (!configMan->deviceName.length()) configMan->deviceName = cspot.name;
-	ESP_LOGI(TAG, "Started CSpot with %s (bitrate %d)", configMan->deviceName.c_str(), configMan->format == AudioFormat_OGG_VORBIS_320 ? 320 : (configMan->format == AudioFormat_OGG_VORBIS_160 ? 160 : 96));
+        // I know this is very crude and unsafe...
+        url_decode(body);
+        char *key = strtok(body, "&");
 
-	// All we do here is notify the task to start the mercury loop
-    auto createPlayerCallback = [](std::shared_ptr<LoginBlob> blob) {
-		// TODO: handle/refuse that another user takes ownership
-		cspot.blob = blob;
-		xTaskNotifyGive(cspot.TaskHandle);
-    };
+        std::map<std::string, std::string> queryMap;
 
-	int port;
-	httpd_handle_t server = get_http_server(&port);
-	auto httpServer = std::make_shared<ShimHTTPServer>(server, port);
+        while (key) {
+            char *value = strchr(key, '=');
+            *value++ = '\0';
+            queryMap[key] = value;
+            key = strtok(NULL, "&");
+        };
 
-    auto authenticator = std::make_shared<ZeroconfAuthenticator>(createPlayerCallback, httpServer);
-	authenticator->registerHandlers();
+        free(body);
 
-	// wait to be notified and have a mercury loop
-	while (1) {
-		ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
+        // Pass user's credentials to the blob and give the token
+        blob->loadZeroconfQuery(queryMap);
+        clientConnected.give();
+    }
 
-        auto session = std::make_unique<Session>();
-        session->connectWithRandomAp();
-        auto token = session->authenticate(cspot.blob);
+    char *responseStr = cJSON_PrintUnformatted(response);
+    cJSON_Delete(response);
 
-        ESP_LOGI(TAG, "Creating Spotify (using CSpot) player");
-		
-        // Auth successful
-        if (token.size() > 0 && cspot.cHandler(CSPOT_SETUP, 44100)) {
-			auto audioSink = std::make_shared<ShimAudioSink>();
+    esp_err_t rc = httpd_resp_send(request, responseStr, strlen(responseStr));
+    free(responseStr);
+    
+    return rc;
+}
 
-            mercuryManager = std::make_shared<MercuryManager>(std::move(session));
-            mercuryManager->startTask();
+void cspotPlayer::eventHandler(std::unique_ptr<cspot::SpircHandler::Event> event) {
+    switch (event->eventType) {
+    case cspot::SpircHandler::EventType::PLAYBACK_START: {
+        centralAudioBuffer->clearBuffer();
 
-            spircController = std::make_shared<SpircController>(mercuryManager, cspot.blob->username, audioSink);
+        // we are not playing anymore
+        xTimerStop(trackTimer, portMAX_DELAY);
+        trackNotify = false;
+        playback = false;
 
-			spircController->setEventHandler([](CSpotEvent &event) {
-ESP_LOGI(TAG, "Getting Spotify event %d ", (int) event.eventType);				
-            switch (event.eventType) {
-            case CSpotEventType::TRACK_INFO: {
-                TrackInfo track = std::get<TrackInfo>(event.data);
-				cspot.cHandler(CSPOT_TRACK, 44100, track.duration, track.artist.c_str(), 
-							   track.album.c_str(), track.name.c_str(), track.imageUrl.c_str());
-                break;
-            }
-            case CSpotEventType::PLAY_PAUSE: {
-                bool isPaused = std::get<bool>(event.data);
-				if (isPaused) cspot.cHandler(CSPOT_PAUSE);
-				else cspot.cHandler(CSPOT_PLAY, false);
-                break;
-            }
-			case CSpotEventType::PLAYBACK_START:
-				cspot.cHandler(CSPOT_PLAY, (int) std::get<bool>(event.data));
-				break;
-			case CSpotEventType::LOAD:
-				cspot.cHandler(CSPOT_LOAD, std::get<int>(event.data), -1);
-				break;
-			case CSpotEventType::SEEK:
-				cspot.cHandler(CSPOT_SEEK, std::get<int>(event.data));
-				break;
-			case CSpotEventType::DISC:
-				cspot.cHandler(CSPOT_DISC);				
-				spircController->stopPlayer();
-				mercuryManager->stop();
-				break;
-			case CSpotEventType::PREV:
-			case CSpotEventType::NEXT:
-				cspot.cHandler(CSPOT_FLUSH);
-                break;
-			/*
-			// we use volume from sink which is a 16 bits value
-			case CSpotEventType::VOLUME: {
-                int volume = std::get<int>(event.data);
-				cspot.cHandler(CSPOT_VOLUME, volume);
-				ESP_LOGW(TAG, "cspot volume : %d", volume);
-                break;
-            }
-			*/
-            default:
-                break;
-            }
-			});
+        // memorize position for when track's beginning will be detected
+        startOffset = std::get<int>(event->data);
 
-			// need to make sure mercuryManager is running otherwise we'll loop and destroy instances
-			while (!mercuryManager->isRunning) vTaskDelay(pdMS_TO_TICKS(25));
-            mercuryManager->reconnectedCallback = []() {
-                return spircController->subscribe();
-            };
+        cmdHandler(CSPOT_START, 44100);
+        CSPOT_LOG(info, "start track <%s>", spirc->getTrackPlayer()->getCurrentTrackInfo().name.c_str());
 
-            mercuryManager->handleQueue();
+        // Spotify servers do not send volume at connection
+        spirc->setRemoteVolume(volume);
+        break;
+    }
+    case cspot::SpircHandler::EventType::PLAY_PAUSE: {
+        bool pause = std::get<bool>(event->data);
+        cmdHandler(pause ? CSPOT_PAUSE : CSPOT_PLAY);
+        chunker->isPaused = pause;
+        break;
+    }
+    case cspot::SpircHandler::EventType::TRACK_INFO: {
+        auto trackInfo = std::get<cspot::CDNTrackStream::TrackInfo>(event->data);
+        cmdHandler(CSPOT_TRACK, trackInfo.duration, startOffset, trackInfo.artist.c_str(),
+                       trackInfo.album.c_str(), trackInfo.name.c_str(), trackInfo.imageUrl.c_str());
+        spirc->updatePositionMs(startOffset);
+        startOffset = 0;
+        break;
+    }
+    case cspot::SpircHandler::EventType::NEXT:
+    case cspot::SpircHandler::EventType::PREV:
+    case cspot::SpircHandler::EventType::FLUSH: {
+        // FLUSH is sent when there is no next, just clean everything
+        centralAudioBuffer->clearBuffer();
+        cmdHandler(CSPOT_FLUSH);
+        break;
+    }
+    case cspot::SpircHandler::EventType::DISC:
+        centralAudioBuffer->clearBuffer();
+        xTimerStop(trackTimer, portMAX_DELAY);
+        cmdHandler(CSPOT_DISC);
+        chunker->teardown();
+        break;
+    case cspot::SpircHandler::EventType::SEEK: {
+        centralAudioBuffer->clearBuffer();
+        cmdHandler(CSPOT_SEEK, std::get<int>(event->data));
+        break;
+    }
+    case cspot::SpircHandler::EventType::DEPLETED:
+        CSPOT_LOG(info, "playlist ended, no track left to play");
+        break;
+    case cspot::SpircHandler::EventType::VOLUME:
+        volume = std::get<int>(event->data);
+        cmdHandler(CSPOT_VOLUME, volume);
+        break;
+    default:
+        break;
+    }
+}
+
+void cspotPlayer::trackHandler(void) {
+    if (playback) {
+        uint32_t remains;
+        auto trackInfo = spirc->getTrackPlayer()->getCurrentTrackInfo();
+        // if this is not first track, estimate when the current one will finish
+        cmdHandler(CSPOT_REMAINING, &remains);
+        if (remains > 100) xTimerChangePeriod(trackTimer, pdMS_TO_TICKS(remains), portMAX_DELAY);
+        else trackNotify = true;
+        CSPOT_LOG(info, "next track <%s> in cspot buffers, remaining %d ms", trackInfo.name.c_str(), remains);
+    } else {
+        trackNotify = true;
+        playback = true;
+    }  
+}
+
+void cspotPlayer::runTask() {
+    httpd_uri_t request = {
+		.uri = "/spotify_info",
+		.method = HTTP_GET,
+		.handler = ::handleGET,
+		.user_ctx = NULL,
+	};
+
+    // register GET and POST handler for built-in server
+    httpd_register_uri_handler(serverHandle, &request);
+    request.method = HTTP_POST;
+    request.handler = ::handlePOST;
+    httpd_register_uri_handler(serverHandle, &request);
+
+    // construct blob for that player
+    blob = std::make_unique<cspot::LoginBlob>(name);
+
+    // Register mdns service, for spotify to find us
+    bell::MDNSService::registerService( blob->getDeviceName(), "_spotify-connect", "_tcp", "", serverPort,
+            { {"VERSION", "1.0"}, {"CPath", "/spotify_info"}, {"Stack", "SP"} });
+                            
+                                static int count = 0;
+    // gone with the wind...
+    while (1) {
+        clientConnected.wait();
+
+        CSPOT_LOG(info, "Spotify client connected for %s", name.c_str());
         
-			// release controllers
-			mercuryManager.reset();
-			spircController.reset();
-		}
+        centralAudioBuffer = std::make_shared<bell::CentralAudioBuffer>(32);        
+        auto ctx = cspot::Context::createFromBlob(blob);
+             
+        if (bitrate == 320) ctx->config.audioFormat = AudioFormat_OGG_VORBIS_320;
+        else if (bitrate == 96) ctx->config.audioFormat = AudioFormat_OGG_VORBIS_96;
+        else ctx->config.audioFormat = AudioFormat_OGG_VORBIS_160;            
 
-		// release auth blob and flush files
-		cspot.blob.reset();
-		file->flush();
+        ctx->session->connectWithRandomAp();
+        auto token = ctx->session->authenticate(blob);      
 
-		ESP_LOGI(TAG, "Shutting down CSpot player");
-	}
+        // Auth successful
+        if (token.size() > 0) {
+            trackTimer = xTimerCreate("trackTimer", pdMS_TO_TICKS(1000), pdFALSE, NULL, trackTimerHandler);
+            spirc = std::make_unique<cspot::SpircHandler>(ctx);
 
-	// we should not be here
-	vTaskDelete(NULL);
+            // set call back to calculate a hash on trackId
+            spirc->getTrackPlayer()->setDataCallback(
+                [this](uint8_t* data, size_t bytes, std::string_view trackId, size_t sequence) {
+                    return centralAudioBuffer->writePCM(data, bytes, sequence);
+            });
+
+            // set event (PLAY, VOLUME...) handler
+            spirc->setEventHandler(
+                [this](std::unique_ptr<cspot::SpircHandler::Event> event) {
+                    eventHandler(std::move(event));
+            });
+
+            // Start handling mercury messages
+            ctx->session->startTask();
+
+            // Create a player, pass the tack handler
+            chunker = std::make_unique<chunkManager>(centralAudioBuffer,
+                [this](void) {
+                    return trackHandler();
+                },
+                [this](const uint8_t* data, size_t bytes) {
+                    return dataHandler(data, bytes);
+             });
+
+            // exit when player has stopped (received a DISC)
+            while (chunker->isRunning) {
+                ctx->session->handlePacket();
+
+                // inform Spotify that next track has started (don't need to be super accurate)
+                if (trackNotify) {
+                    CSPOT_LOG(info, "next track's audio has reached DAC");
+                    spirc->notifyAudioReachedPlayback();
+                    trackNotify = false;
+                }
+            }
+
+            xTimerDelete(trackTimer, portMAX_DELAY);
+            spirc->disconnect();
+                       
+            CSPOT_LOG(info, "disconnecting player %s", name.c_str());
+        }
+        
+        // we want to release memory ASAP and fore sure
+        centralAudioBuffer.reset();
+        ctx.reset();
+        token.clear();
+
+        // update volume when we disconnect
+        cJSON *item, *config = config_alloc_get_cjson("cspot_config");
+        cJSON_DeleteItemFromObject(config, "volume");
+        cJSON_AddNumberToObject(config, "volume", volume);
+        config_set_cjson_str_and_free("cspot_config", config);
+    }
 }
 
 /****************************************************************************************
  * API to create and start a cspot instance
  */
-struct cspot_s* cspot_create(const char *name, cspot_cmd_cb_t cmd_cb, cspot_data_cb_t data_cb) {
-	static DRAM_ATTR StaticTask_t xTaskBuffer __attribute__ ((aligned (4)));
-	static EXT_RAM_ATTR StackType_t xStack[CSPOT_STACK_SIZE] __attribute__ ((aligned (4)));
-
+ 
+struct cspot_s* cspot_create(const char *name, httpd_handle_t server, int port, cspot_cmd_cb_t cmd_cb, cspot_data_cb_t data_cb) {
 	bell::setDefaultLogger();
-	
-	cspot.cHandler = cmd_cb;
-	cspot.dHandler = data_cb;
-	strncpy(cspot.name, name, sizeof(cspot.name) - 1);
-    cspot.TaskHandle = xTaskCreateStatic(&cspotTask, "cspot", CSPOT_STACK_SIZE, NULL, CONFIG_ESP32_PTHREAD_TASK_PRIO_DEFAULT - 2, xStack, &xTaskBuffer);
-	
-	return &cspot;
+    player = new cspotPlayer(name, server, port, cmd_cb, data_cb);
+    player->startTask();
+	return (cspot_s*) player;
 }
 
 /****************************************************************************************
  * Commands sent by local buttons/actions
  */
+ 
 bool cspot_cmd(struct cspot_s* ctx, cspot_event_t event, void *param) {
-	// we might have not controller left
+	// we might have no controller left
+/*
 	if (!spircController.use_count()) return false;
 
 	switch(event) {
@@ -241,150 +481,7 @@ bool cspot_cmd(struct cspot_s* ctx, cspot_event_t event, void *param) {
 		default:
 			break;
 	}
+*/
 
 	return true;
-}
-
-/****************************************************************************************
- * AudioSink class to push data to squeezelite backend (decode_external)
- */
-void ShimAudioSink::volumeChanged(uint16_t volume) {
-	cspot.cHandler(CSPOT_VOLUME, volume);
-}
-
-void ShimAudioSink::feedPCMFrames(const uint8_t *data, size_t bytes) {	
-	cspot.dHandler(data, bytes);
-}
-
-/****************************************************************************************
- * NVSFile class to store config
- */
-bool NVSFile::readFile(std::string filename, std::string &fileContent) {
-	auto search = files.find(filename);
-    
-	// cache 
-	if (search == files.end()) {
-		char *content = (char*) config_alloc_get(NVS_TYPE_STR, filename.c_str());
-		if (!content) return false;
-		fileContent = content;
-		free(content);
-	} else {
-		fileContent = search->second;
-	}
-
-	return true;
-}
-
-bool NVSFile::writeFile(std::string filename, std::string fileContent) {
-    auto search = files.find(filename);
-
-	files[filename] = fileContent;    
-	if (search == files.end()) return (ESP_OK == config_set_value(NVS_TYPE_STR, filename.c_str(), fileContent.c_str()));
-	return true;
-}
-
-bool NVSFile::flush() {
-	esp_err_t err = ESP_OK;
-
-	for (auto it = files.begin(); it != files.end(); ++it) {
-		err |= config_set_value(NVS_TYPE_STR, it->first.c_str(), it->second.c_str());
-	}
-	return (err == ESP_OK);
-}
-
-/****************************************************************************************
- * Shim HTTP server for spirc
- */
-static esp_err_t handlerWrapper(httpd_req_t *req) {
-	std::unique_ptr<bell::HTTPRequest> request = std::make_unique<bell::HTTPRequest>();
-	char *query = NULL, *body = NULL;
-	bell::httpHandler *handler = (bell::httpHandler*) req->user_ctx;
-	size_t query_len = httpd_req_get_url_query_len(req);
-
-	request->connection = httpd_req_to_sockfd(req);
-
-	// get body if any (add '\0' at the end if used as string)
-	if (req->content_len) {
-		body = (char*) calloc(1, req->content_len + 1);
-		int size = httpd_req_recv(req, body, req->content_len);
-		request->body = body;
-		ESP_LOGD(TAG,"wrapper received body %d/%d", size, req->content_len);
-	}
-
-	// parse query if any (can be in body as well for url-encoded)
-	if (query_len) {
-		query = (char*) malloc(query_len + 1);
-		httpd_req_get_url_query_str(req, query, query_len + 1);
-	} else if (body && strchr(body, '&')) {
-		query = body;
-		body = NULL;
-	}	
-		
-	// I know this is very crude and unsafe...
-	url_decode(query);
-	char *key = strtok(query, "&");
-
-	while (key) {
-		char *value = strchr(key, '=');
-		*value++ = '\0';
-		request->queryParams[key] = value;
-		ESP_LOGD(TAG,"wrapper received key:%s value:%s", key, value);
-		key = strtok(NULL, "&");
-	};
-
-	if (query) free(query);
-	if (body) free(body);
-	
-	/*
-	 This is a strange construct as the C++ handler will call the ShimHTTPSer::respond 
-	 and then we'll return. So we can't obtain the response to be sent, as esp_http_server
-	 normally expects, instead respond() will use raw socket and close connection
-	*/
-	(*handler)(std::move(request));
-
-	return ESP_OK;
-}
-
-void ShimHTTPServer::registerHandler(bell::RequestType requestType, const std::string &routeUrl, bell::httpHandler handler, bool readDataToStr) {
-	httpd_uri_t request = { 
-		.uri = routeUrl.c_str(), 
-		.method = (requestType == bell::RequestType::GET ? HTTP_GET : HTTP_POST),
-		.handler = handlerWrapper,
-		.user_ctx = NULL,
-	};
-
-	// find the first free spot and register handler
-	for (int i = 0; i < sizeof(uriHandlers)/sizeof(bell::httpHandler); i++) {
-		if (!uriHandlers[i]) {
-			uriHandlers[i] = handler;
-			request.user_ctx = uriHandlers + i;
-			httpd_register_uri_handler(serverHandle, &request);
-			break;	
-		}
-	}
-		
-	if (!request.user_ctx) ESP_LOGW(TAG, "Cannot add handler for %s", routeUrl.c_str());
-}
-
-void ShimHTTPServer::respond(const bell::HTTPResponse &response) {
-	char *buf;
-	size_t len = asprintf(&buf, "HTTP/1.1 %d OK\r\n"
-			"Server: SQUEEZEESP32\r\n"
-			"Connection: close\r\n"		
-			"Content-type: %s\r\n"		
-			"Content-length: %d\r\n"	
-			"Access-Control-Allow-Origin: *\r\n"
-			"Access-Control-Allow-Methods: GET, POST, PATCH, PUT, DELETE, OPTIONS\r\n"
-			"Access-Control-Allow-Headers: Origin, Content-Type, X-Auth-Token\r\n"
-			"\r\n%s", 
-			response.status, response.contentType.c_str(), 
-			response.body.size(), response.body.c_str()
-	);
-
-	// use raw socket send and close connection
-	httpd_socket_send(serverHandle, response.connectionFd, buf, len, 0);
-	free(buf);
-	
-	// we want to close the socket due to the strange construct
-	httpd_sess_trigger_close(serverHandle, response.connectionFd);
 }
