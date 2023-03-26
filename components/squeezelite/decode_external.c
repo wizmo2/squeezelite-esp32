@@ -68,7 +68,7 @@ extern log_level loglevel;
 static void sink_data_handler(const uint8_t *data, uint32_t len)
 {
     size_t bytes, space;
-	int wait = 5;
+	int wait = 10;
 		
 	// would be better to lock output, but really, it does not matter
 	if (!output.external) {
@@ -106,11 +106,13 @@ static void sink_data_handler(const uint8_t *data, uint32_t len)
 		}
 	}	
 
-	UNLOCK_O;
-	
 	if (!wait) {
-		LOG_WARN("Waited too long, dropping frames");
+        // re-align the buffer according to what we throw away
+        _buf_inc_writep(outputbuf, outputbuf->size - (BYTES_PER_FRAME - (len % BYTES_PER_FRAME)));
+		LOG_WARN("Waited too long, dropping frames %d", len);
 	}
+    
+    UNLOCK_O;
 }
 
 /****************************************************************************************
