@@ -47,9 +47,11 @@
 #include "cmd_system.h"
 #include "tools.h"
 
+/*
 static const char certs_namespace[] = "certificates";
 static const char certs_key[] = "blob";
 static const char certs_version[] = "version";
+*/
 const char unknown_string_placeholder[] = "unknown";
 const char null_string_placeholder[] = "null";
 EventGroupHandle_t network_event_group;
@@ -67,8 +69,10 @@ RTC_NOINIT_ATTR uint16_t ColdBootIndicatorFlag;
 bool cold_boot=true;
 
 static bool bNetworkConnected=false;
+/*
 extern const uint8_t server_cert_pem_start[] asm("_binary_github_pem_start");
 extern const uint8_t server_cert_pem_end[] asm("_binary_github_pem_end");
+*/
 
 // as an exception _init function don't need include
 extern void services_init(void);
@@ -159,8 +163,8 @@ void set_log_level(char * tag, char * level){
 }
 
 
+/*
 esp_err_t update_certificates(bool force){
-
 	nvs_handle handle;
 	esp_err_t esp_err;
     esp_app_desc_t running_app_info;
@@ -231,6 +235,9 @@ esp_err_t update_certificates(bool force){
 	nvs_close(handle);
 	return ESP_OK;
 }
+*/
+
+/*
 const char * get_certificate(){
 	nvs_handle handle;
 	esp_err_t esp_err;
@@ -266,6 +273,7 @@ const char * get_certificate(){
 	}
 	return blob;
 }
+*/
 
 #define DEFAULT_NAME_WITH_MAC(var,defval) char var[strlen(defval)+sizeof(macStr)]; strcpy(var,defval); strcat(var,macStr)
 void register_default_string_val(const char * key, char * value){
@@ -495,9 +503,11 @@ void app_main()
 	}
 
 
+/*
 	ESP_LOGI(TAG,"Checking if certificates need to be updated");
 	update_certificates(false);
 	MEMTRACE_PRINT_DELTA();
+*/    
 
 	ESP_LOGD(TAG,"Getting firmware OTA URL (if any)");
 	fwurl = process_ota_url();
