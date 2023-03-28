@@ -135,7 +135,7 @@ static bool cmd_handler(cspot_event_t event, ...) {
 	case CSPOT_SEEK:
 		displayer_timer(DISPLAYER_ELAPSED, va_arg(args, int), -1);
 		break;
-	case CSPOT_TRACK: {
+	case CSPOT_TRACK_INFO: {
 		uint32_t duration = va_arg(args, int);
         uint32_t offset = va_arg(args, int);
 		char *artist = va_arg(args, char*), *album = va_arg(args, char*), *title = va_arg(args, char*);

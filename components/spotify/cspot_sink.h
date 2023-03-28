@@ -16,8 +16,11 @@ extern "C"
 #endif
 
 // STOP means remove playlist, FLUSH means flush audio buffer, DISC means bye-bye
-typedef enum { 	CSPOT_START, CSPOT_DISC, CSPOT_FLUSH, CSPOT_STOP, CSPOT_PLAY, CSPOT_PAUSE, CSPOT_SEEK, CSPOT_TRACK, 
-				CSPOT_VOLUME, CSPOT_VOLUME_UP, CSPOT_VOLUME_DOWN, CSPOT_NEXT, CSPOT_PREV, CSPOT_TOGGLE, CSPOT_REMAINING,
+typedef enum { 	CSPOT_START, CSPOT_DISC, CSPOT_FLUSH, CSPOT_STOP, CSPOT_PLAY, CSPOT_PAUSE, CSPOT_SEEK, 
+                CSPOT_NEXT, CSPOT_PREV, CSPOT_TOGGLE, 
+                CSPOT_TRACK_INFO, CSPOT_TRACK_MARK,
+				CSPOT_VOLUME, CSPOT_VOLUME_UP, CSPOT_VOLUME_DOWN, 
+                CSPOT_QUERY_STARTED, CSPOT_QUERY_REMAINING, 
 } cspot_event_t;
 				
 typedef bool (*cspot_cmd_cb_t)(cspot_event_t event, ...);				

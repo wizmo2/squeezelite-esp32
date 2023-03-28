@@ -1,5 +1,5 @@
 # this must be set *before* idf_component_register
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 idf_component_register(
 		SRC_DIRS . 
@@ -14,8 +14,12 @@ add_definitions(-Wno-unused-variable -Wno-unused-const-variable -Wchar-subscript
 
 set(BELL_DISABLE_CODECS ON)
 set(BELL_DISABLE_SINKS ON)
+set(BELL_DISABLE_FMT ON)
+set(BELL_DISABLE_REGEX ON)
+set(BELL_ONLY_CJSON ON)
 set(CSPOT_TARGET_ESP32 ON)
-# becase CMake is so broken, the cache set below overrides a normal "set" for the first build
+
+# because CMake is so broken, the cache set below overrides a normal "set" for the first build
 set(BELL_EXTERNAL_VORBIS "idf::codecs" CACHE STRING "provide own codecs")
 set(BELL_EXTERNAL_CJSON "idf::json" CACHE STRING "provide own CJSON")
 

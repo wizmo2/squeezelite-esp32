@@ -351,6 +351,8 @@ static bool cspot_cmd_handler(cspot_event_t cmd, va_list args)
 		output.current_sample_rate = output.next_sample_rate = va_arg(args, u32_t);
 		output.external = DECODE_CSPOT;
 		output.frames_played = 0;
+        // in 1/10 of seconds
+        output.threshold = 25;
 		output.state = OUTPUT_STOPPED;
         sink_state = SINK_ABORT;
 		_buf_flush(outputbuf);
@@ -386,9 +388,19 @@ static bool cspot_cmd_handler(cspot_event_t cmd, va_list args)
 		output.stop_time = gettime_ms();
 		LOG_INFO("CSpot pause");
 		break;
-    case CSPOT_REMAINING: {
+    case CSPOT_TRACK_MARK:
+        output.track_start = outputbuf->writep;
+        break;
+    case CSPOT_QUERY_REMAINING: {
         uint32_t *remaining = va_arg(args, uint32_t*);
         *remaining = (_buf_used(outputbuf) * 1000) / (output.current_sample_rate * BYTES_PER_FRAME);
+        break;      
+    }
+    case CSPOT_QUERY_STARTED: {
+        uint32_t *started = va_arg(args, uint32_t*);
+        *started = output.track_started;
+        // this is a read_and_clear event
+        output.track_started = false;
         break;      
     }
 	case CSPOT_VOLUME: {

@@ -38,8 +38,14 @@ void CDNTrackStream::fetchFile(const std::vector<uint8_t>& trackId,
 
     std::string_view result = req->body();
 
+#ifdef BELL_ONLY_CJSON
+    cJSON* jsonResult = cJSON_Parse(result.data());
+    std::string cdnUrl = cJSON_GetArrayItem(cJSON_GetObjectItem(jsonResult, "cdnurl"), 0)->valuestring;
+    cJSON_Delete(jsonResult);
+#else
     auto jsonResult = nlohmann::json::parse(result);
     std::string cdnUrl = jsonResult["cdnurl"][0];
+#endif
     if (this->status != Status::FAILED) {
 
       this->cdnUrl = cdnUrl;
@@ -61,7 +67,7 @@ void CDNTrackStream::seek(size_t newPos) {
   this->position = newPos;
 }
 
-void CDNTrackStream::openStream() {
+void CDNTrackStream::openStream() {  
   CSPOT_LOG(info, "Opening HTTP stream to %s", this->cdnUrl.c_str());
 
   // Open connection, read first 128 bytes
@@ -96,7 +102,7 @@ void CDNTrackStream::openStream() {
   this->isConnected = true;
 }
 
-size_t CDNTrackStream::readBytes(uint8_t* dst, size_t bytes) {
+size_t CDNTrackStream::readBytes(uint8_t* dst, size_t bytes) {  
   size_t offsetPosition = position + SPOTIFY_OPUS_HEADER;
   size_t actualFileSize = this->totalFileSize + SPOTIFY_OPUS_HEADER;
 
