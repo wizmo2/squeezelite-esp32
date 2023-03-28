@@ -34,7 +34,7 @@ class HTTPClient {
 #ifndef BELL_DISABLE_FMT        
       return ValueHeader{"Range", fmt::format("bytes={}-{}", from, to)};
 #else      
-      return ValueHeader{"Range", "bytes=" + std::to_string(from) + "-" + std::to_string(to)  };
+      return ValueHeader{"Range", "bytes=" + std::to_string(from) + "-" + std::to_string(to)};
 #endif  
     }
 

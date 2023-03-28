@@ -130,12 +130,9 @@ void LoginBlob::loadUserPass(const std::string& username,
 void LoginBlob::loadJson(const std::string& json) {
 #ifdef BELL_ONLY_CJSON
   cJSON* root = cJSON_Parse(json.c_str());
-  cJSON* item = cJSON_GetObjectItem(root, "authType");
-  this->authType = item->valueint;
-  item = cJSON_GetObjectItem(root, "username");
-  this->username = item->valuestring;
-  item = cJSON_GetObjectItem(root, "authData");
-  std::string authDataObject = item->valuestring;
+  this->authType = cJSON_GetObjectItem(root, "authType")->valueint;
+  this->username = cJSON_GetObjectItem(root, "username")->valuestring;
+  std::string authDataObject = cJSON_GetObjectItem(root, "authData")->valuestring;
   cJSON_Delete(root);
 #else
   auto root = nlohmann::json::parse(json);

@@ -67,7 +67,7 @@ void CDNTrackStream::seek(size_t newPos) {
   this->position = newPos;
 }
 
-void CDNTrackStream::openStream() {  
+void CDNTrackStream::openStream() {
   CSPOT_LOG(info, "Opening HTTP stream to %s", this->cdnUrl.c_str());
 
   // Open connection, read first 128 bytes
@@ -102,7 +102,7 @@ void CDNTrackStream::openStream() {
   this->isConnected = true;
 }
 
-size_t CDNTrackStream::readBytes(uint8_t* dst, size_t bytes) {  
+size_t CDNTrackStream::readBytes(uint8_t* dst, size_t bytes) {
   size_t offsetPosition = position + SPOTIFY_OPUS_HEADER;
   size_t actualFileSize = this->totalFileSize + SPOTIFY_OPUS_HEADER;
 
