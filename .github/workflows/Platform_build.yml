@@ -138,11 +138,11 @@ jobs:
       if: ${{ needs.bootstrap.outputs.mock == 0 }} 
       run: |
         . ${IDF_PYTHON_ENV_PATH}/bin/activate
-        chmod +x ./components/spotify/cspot/bell/nanopb/generator/protoc
-        chmod +x ./components/spotify/cspot/bell/nanopb/generator/protoc-gen-nanopb
-        chmod +x ./components/spotify/cspot/bell/nanopb/generator/*.py
-        chmod +x ./components/spotify/cspot/bell/nanopb/generator/*.py2
-        chmod +x ./components/spotify/cspot/bell/nanopb/generator/proto/*.py      
+        chmod +x ./components/spotify/cspot/bell/external/nanopb/generator/protoc
+        chmod +x ./components/spotify/cspot/bell/external/nanopb/generator/protoc-gen-nanopb
+        chmod +x ./components/spotify/cspot/bell/external/nanopb/generator/*.py
+        chmod +x ./components/spotify/cspot/bell/external/nanopb/generator/*.py2
+        chmod +x ./components/spotify/cspot/bell/external/nanopb/generator/proto/*.py      
         echo "Copying target sdkconfig"
         cp build-scripts/${TARGET_BUILD_NAME}-sdkconfig.defaults sdkconfig
         echo "Building project"
