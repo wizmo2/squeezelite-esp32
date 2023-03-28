@@ -1,5 +1,5 @@
 idf_component_register(
-	   INCLUDE_DIRS . ./inc inc/alac inc/FLAC inc/helix-aac inc/mad inc/ogg inc/opus inc/opusfile inc/resample16 inc/soxr inc/vorbis
+	   INCLUDE_DIRS . ./inc inc/alac inc/helix-aac inc/mad inc/resample16 inc/soxr inc/vorbis inc/opus inc/opusfile
 )
 
 if (DEFINED AAC_DISABLE_SBR)
