@@ -123,7 +123,7 @@ static bool bt_sink_cmd_handler(bt_sink_cmd_t cmd, va_list args)
 {
 	// don't LOCK_O as there is always a chance that LMS takes control later anyway
 	if (output.external != DECODE_BT && output.state > OUTPUT_STOPPED) {
-		LOG_WARN("Cannot use BT sink while LMS/AirPlay/CSpot are controlling player");
+		LOG_WARN("Cannot use BT sink while LMS/AirPlay/CSpot are controlling player %d", output.external);
 		return false;
 	} 	
 
@@ -205,7 +205,7 @@ static bool raop_sink_cmd_handler(raop_event_t event, va_list args)
 {
 	// don't LOCK_O as there is always a chance that LMS takes control later anyway
 	if (output.external != DECODE_RAOP && output.state > OUTPUT_STOPPED) {
-		LOG_WARN("Cannot use Airplay sink while LMS/BT/CSpot are controlling player");
+		LOG_WARN("Cannot use Airplay sink while LMS/BT/CSpot are controlling player %d", output.external);
 		return false;
 	} 	
 
@@ -338,7 +338,7 @@ static bool cspot_cmd_handler(cspot_event_t cmd, va_list args)
 {
 	// don't LOCK_O as there is always a chance that LMS takes control later anyway
 	if (output.external != DECODE_CSPOT && output.state > OUTPUT_STOPPED) {
-		LOG_WARN("Cannot use CSpot sink while LMS/BT/Airplay are controlling player");
+		LOG_WARN("Cannot use CSpot sink while LMS/BT/Airplay are controlling player %d", output.external);
 		return false;
 	} 	
 
