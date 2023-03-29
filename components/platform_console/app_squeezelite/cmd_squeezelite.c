@@ -12,6 +12,7 @@
 #include "platform_config.h"
 #include "esp_app_format.h"
 #include "tools.h"
+#include "messaging.h"
 
 extern esp_err_t process_recovery_ota(const char * bin_url, char * bin_buffer, uint32_t length);
 static const char * TAG = "squeezelite_cmd";
@@ -61,7 +62,7 @@ static void squeezelite_thread(void *arg){
     }
 
 	ESP_LOGI(TAG ,"Calling squeezelite");
-	main(thread_parms.argc,thread_parms.argv);
+	int ret = main(thread_parms.argc,thread_parms.argv);
 	ESP_LOGV(TAG ,"Exited from squeezelite's main(). Freeing argv structure.");
 
 	for(int i=0;i<thread_parms.argc;i++){
@@ -71,13 +72,21 @@ static void squeezelite_thread(void *arg){
 	ESP_LOGV(TAG ,"Freeing argv pointer");
 	free(thread_parms.argv);
 	
-	ESP_LOGE(TAG, "Exited from squeezelite thread, something's wrong ... rebooting (wait 30s for user to take action)");
 	if(!wait_for_commit()){
 		ESP_LOGW(TAG,"Unable to commit configuration. ");
 	}
+    
+    messaging_post_message(MESSAGING_ERROR, MESSAGING_CLASS_SYSTEM, "squeezelite exited with error code %d", ret);   
 
-	vTaskDelay( pdMS_TO_TICKS( 30*1000 ) );
-    esp_restart();
+    if (ret == 1) {
+        int wait = 60;
+        messaging_post_message(MESSAGING_ERROR, MESSAGING_CLASS_SYSTEM, "Rebooting in %d sec", wait); 
+        vTaskDelay( pdMS_TO_TICKS(wait * 1000));
+        esp_restart();
+    } else {
+        messaging_post_message(MESSAGING_ERROR, MESSAGING_CLASS_SYSTEM, "Correct command line and reboot"); 
+        vTaskSuspend(NULL);
+    }
 }
 
 static int launchsqueezelite(int argc, char **argv) {

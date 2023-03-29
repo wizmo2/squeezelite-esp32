@@ -8,6 +8,7 @@
  *  https://opensource.org/licenses/MIT
  *
  */
+#include <setjmp.h>
 #include "squeezelite.h"
 #include "pthread.h"
 #include "esp_pthread.h"
@@ -18,6 +19,7 @@
 #include "platform_config.h"
 
 mutex_type slimp_mutex;
+static jmp_buf jumpbuf;
 
 void get_mac(u8_t mac[]) {
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
@@ -49,11 +51,16 @@ extern bool sb_displayer_init(void);
 
 u8_t custom_player_id = 12;
 
-void embedded_init(void) {
+int embedded_init(void) {
 	mutex_create(slimp_mutex);
 	sb_controls_init();
 	custom_player_id = sb_displayer_init() ? 100 : 101;
+    return setjmp(jumpbuf);
 }
+
+void embedded_exit(int code) {
+    longjmp(jumpbuf, code + 1);
+}    
 
 u16_t get_RSSI(void) {
     wifi_ap_record_t wifidata;

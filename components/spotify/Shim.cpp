@@ -164,47 +164,57 @@ esp_err_t cspotPlayer::handleGET(httpd_req_t *request) {
     }
 
     httpd_resp_set_hdr(request, "Content-type", "application/json");
-    httpd_resp_set_hdr(request, "Content-length", std::to_string(body.size()).c_str());
     httpd_resp_send(request, body.c_str(), body.size());
 
     return ESP_OK;
 }
 
 esp_err_t cspotPlayer::handlePOST(httpd_req_t *request) {
-   cJSON* response= cJSON_CreateObject();
+    cJSON* response= cJSON_CreateObject();
+   
+    // try a command that will tell us if the sink is available */
+    if (cmdHandler(CSPOT_BUSY)) {
+        cJSON_AddNumberToObject(response, "status", 101);
+        cJSON_AddStringToObject(response, "statusString", "OK");
+        cJSON_AddNumberToObject(response, "spotifyError", 0);
 
-   cJSON_AddNumberToObject(response, "status", 101);
-   cJSON_AddStringToObject(response, "statusString", "ERROR-OK");
-   cJSON_AddNumberToObject(response, "spotifyError", 0);
+        // get body if any (add '\0' at the end if used as string)
+        if (request->content_len) {
+            char* body = (char*) calloc(1, request->content_len + 1);
+            int size = httpd_req_recv(request, body, request->content_len);
 
-    // get body if any (add '\0' at the end if used as string)
-	if (request->content_len) {
-		char* body = (char*) calloc(1, request->content_len + 1);
-		int size = httpd_req_recv(request, body, request->content_len);
+            // I know this is very crude and unsafe...
+            url_decode(body);
+            char *key = strtok(body, "&");
 
-        // I know this is very crude and unsafe...
-        url_decode(body);
-        char *key = strtok(body, "&");
+            std::map<std::string, std::string> queryMap;
 
-        std::map<std::string, std::string> queryMap;
+            while (key) {
+                char *value = strchr(key, '=');
+                *value++ = '\0';
+                queryMap[key] = value;
+                key = strtok(NULL, "&");
+            };
 
-        while (key) {
-            char *value = strchr(key, '=');
-            *value++ = '\0';
-            queryMap[key] = value;
-            key = strtok(NULL, "&");
-        };
+            free(body);
 
-        free(body);
-
-        // Pass user's credentials to the blob and give the token
-        blob->loadZeroconfQuery(queryMap);
-        clientConnected.give();
+            // Pass user's credentials to the blob and give the token
+            blob->loadZeroconfQuery(queryMap);
+            clientConnected.give();
+        }
+    } else {
+        cJSON_AddNumberToObject(response, "status", 104);
+        cJSON_AddStringToObject(response, "statusString", "ERROR-NOT-IMPLEMENTED");
+        cJSON_AddNumberToObject(response, "spotifyError", 501);
+        
+        httpd_resp_set_status(request, "501 Not Implemented");      
+        CSPOT_LOG(info, "sink is busy, can't accept request");
     }
 
     char *responseStr = cJSON_PrintUnformatted(response);
     cJSON_Delete(response);
-
+    
+    httpd_resp_set_hdr(request, "Content-type", "application/json");
     esp_err_t rc = httpd_resp_send(request, responseStr, strlen(responseStr));
     free(responseStr);
 
@@ -224,7 +234,7 @@ void cspotPlayer::eventHandler(std::unique_ptr<cspot::SpircHandler::Event> event
         spirc->setRemoteVolume(volume);
 
         cmdHandler(CSPOT_START, 44100);
-        CSPOT_LOG(info, "restart");
+        CSPOT_LOG(info, "(re)start playing");
         break;
     }
     case cspot::SpircHandler::EventType::PLAY_PAUSE: {
@@ -288,22 +298,47 @@ void cspotPlayer::command(cspot_event_t event) {
     if (!spirc) return;
 
     // switch...case consume a ton of extra .rodata
-    if (event == CSPOT_PREV) spirc->previousSong();
-    else if (event == CSPOT_NEXT) spirc->nextSong();
-    else if (event == CSPOT_TOGGLE)	spirc->setPause(!chunker->isPaused);
-    else if (event == CSPOT_STOP || event == CSPOT_PAUSE) spirc->setPause(true);
-    else if (event == CSPOT_PLAY) spirc->setPause(false);
-    else if (event == CSPOT_DISC) spirc->disconnect();
-    else if (event == CSPOT_VOLUME_UP) {
+    switch (event) {
+    // nextSong/previousSong come back through cspot::event as a FLUSH
+    case CSPOT_PREV:
+        spirc->previousSong();
+        break;
+    case CSPOT_NEXT:
+        spirc->nextSong();
+        break;
+    // setPause comes back through cspot::event with PLAY/PAUSE
+    case CSPOT_TOGGLE:
+        spirc->setPause(!chunker->isPaused);
+        break;
+    case CSPOT_STOP:
+    case CSPOT_PAUSE:
+        spirc->setPause(true);
+        break;
+    case CSPOT_PLAY:
+        spirc->setPause(false);
+        break;
+    // calling spirc->disconnect() might have been logical but it does not
+    // generate any cspot::event, so we need to manually force exiting player
+    // loop through chunker which will eventually do the disconnect
+    case CSPOT_DISC:
+        cmdHandler(CSPOT_DISC);
+        chunker->teardown();
+        break;
+    // spirc->setRemoteVolume does not generate a cspot::event so call cmdHandler
+    case CSPOT_VOLUME_UP:
         volume += (UINT16_MAX / 50);
         volume = std::min(volume, UINT16_MAX);
         cmdHandler(CSPOT_VOLUME, volume);
         spirc->setRemoteVolume(volume);
-    } else if (event == CSPOT_VOLUME_DOWN) {
+        break;
+    case CSPOT_VOLUME_DOWN:
         volume -= (UINT16_MAX / 50);
         volume = std::max(volume, 0);
         cmdHandler(CSPOT_VOLUME, volume);
         spirc->setRemoteVolume(volume);
+        break;
+    default:
+        break;
 	}
 }
 
@@ -371,10 +406,10 @@ void cspotPlayer::runTask() {
                 },
                 [this](const uint8_t* data, size_t bytes) {
                     return dataHandler(data, bytes);
-             });
-             
-             // set volume at connection
-             cmdHandler(CSPOT_VOLUME, volume);
+            });
+
+            // set volume at connection
+            cmdHandler(CSPOT_VOLUME, volume);
 
             // exit when player has stopped (received a DISC)
             while (chunker->isRunning) {
@@ -425,7 +460,6 @@ void cspotPlayer::runTask() {
 /****************************************************************************************
  * API to create and start a cspot instance
  */
-
 struct cspot_s* cspot_create(const char *name, httpd_handle_t server, int port, cspot_cmd_cb_t cmd_cb, cspot_data_cb_t data_cb) {
 	bell::setDefaultLogger();
     player = new cspotPlayer(name, server, port, cmd_cb, data_cb);
@@ -436,7 +470,6 @@ struct cspot_s* cspot_create(const char *name, httpd_handle_t server, int port, 
 /****************************************************************************************
  * Commands sent by local buttons/actions
  */
-
 bool cspot_cmd(struct cspot_s* ctx, cspot_event_t event, void *param) {
     player->command(event);
 	return true;

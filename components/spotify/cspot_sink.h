@@ -20,7 +20,7 @@ typedef enum { 	CSPOT_START, CSPOT_DISC, CSPOT_FLUSH, CSPOT_STOP, CSPOT_PLAY, CS
                 CSPOT_NEXT, CSPOT_PREV, CSPOT_TOGGLE, 
                 CSPOT_TRACK_INFO, CSPOT_TRACK_MARK,
 				CSPOT_VOLUME, CSPOT_VOLUME_UP, CSPOT_VOLUME_DOWN, 
-                CSPOT_QUERY_STARTED, CSPOT_QUERY_REMAINING, 
+                CSPOT_BUSY, CSPOT_QUERY_STARTED, CSPOT_QUERY_REMAINING, 
 } cspot_event_t;
 				
 typedef bool (*cspot_cmd_cb_t)(cspot_event_t event, ...);				

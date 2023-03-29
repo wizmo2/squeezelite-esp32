@@ -316,6 +316,11 @@ int main(int argc, char **argv) {
 #if IR
 	char *lircrc = NULL;
 #endif
+
+#if EMBEDDED
+    int err = embedded_init();
+    if (err) return err;
+#endif    
 	
 	log_level log_output = lWARN;
 	log_level log_stream = lWARN;
@@ -674,6 +679,7 @@ int main(int argc, char **argv) {
 		case 't':
 			license();
 			exit(0);
+            break;
 		case '?':
 			usage(argv[0]);
 			exit(0);
@@ -756,7 +762,6 @@ int main(int argc, char **argv) {
 	stream_init(log_stream, stream_buf_size);
 
 #if EMBEDDED
-	embedded_init();
 	output_init_embedded(log_output, output_device, output_buf_size, output_params, rates, rate_delay, idle);
 #else
 	if (!strcmp(output_device, "-")) {
