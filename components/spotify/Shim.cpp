@@ -170,9 +170,9 @@ esp_err_t cspotPlayer::handleGET(httpd_req_t *request) {
 }
 
 esp_err_t cspotPlayer::handlePOST(httpd_req_t *request) {
-    cJSON* response= cJSON_CreateObject();
-   
-    // try a command that will tell us if the sink is available */
+    cJSON* response= cJSON_CreateObject(); 
+    //see https://developer.spotify.com/documentation/commercial-hardware/implementation/guides/zeroconf
+
     if (cmdHandler(CSPOT_BUSY)) {
         cJSON_AddNumberToObject(response, "status", 101);
         cJSON_AddStringToObject(response, "statusString", "OK");
@@ -203,11 +203,10 @@ esp_err_t cspotPlayer::handlePOST(httpd_req_t *request) {
             clientConnected.give();
         }
     } else {
-        cJSON_AddNumberToObject(response, "status", 104);
-        cJSON_AddStringToObject(response, "statusString", "ERROR-NOT-IMPLEMENTED");
-        cJSON_AddNumberToObject(response, "spotifyError", 501);
+        cJSON_AddNumberToObject(response, "status", 202);
+        cJSON_AddStringToObject(response, "statusString", "ERROR-LOGIN-FAILED");
+        cJSON_AddNumberToObject(response, "spotifyError", 0);
         
-        httpd_resp_set_status(request, "501 Not Implemented");      
         CSPOT_LOG(info, "sink is busy, can't accept request");
     }
 
