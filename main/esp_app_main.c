@@ -381,13 +381,6 @@ void app_main()
 		GDS_TextPos(display, GDS_FONT_DEFAULT, GDS_TEXT_CENTERED, GDS_TEXT_CLEAR | GDS_TEXT_UPDATE, "RECOVERY");
 	}
 
-
-/*
-	ESP_LOGI(TAG,"Checking if certificates need to be updated");
-	update_certificates(false);
-	MEMTRACE_PRINT_DELTA();
-*/    
-
 	ESP_LOGD(TAG,"Getting firmware OTA URL (if any)");
 	fwurl = process_ota_url();
 

@@ -219,18 +219,23 @@ esp_err_t messaging_post_to_queue(messaging_handle_t subscriber_handle, single_m
 		}
 		return ESP_LOG_DEBUG;
 	}
+    
 void messaging_post_message(messaging_types type,messaging_classes msg_class, const char *fmt, ...){
+    va_list va;
+	va_start(va, fmt);
+    vmessaging_post_message(type, msg_class, fmt, va);
+    va_end(va);
+}
+    
+void vmessaging_post_message(messaging_types type,messaging_classes msg_class, const char *fmt, va_list va){    
 	single_message_t * message=NULL;
 	size_t msg_size=0;
 	size_t ln =0;
 	messaging_list_t * cur=&top;
-	va_list va;
-	va_start(va, fmt);
 	ln = vsnprintf(NULL, 0, fmt, va)+1;
 	msg_size = sizeof(single_message_t)+ln;
 	message = (single_message_t *)malloc_init_external(msg_size);
 	vsprintf(message->message, fmt, va);
-	va_end(va);
 	message->msg_size = msg_size;
 	message->type = type;
 	message->msg_class = msg_class;

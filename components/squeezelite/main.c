@@ -275,7 +275,11 @@ static void sighandler(int signum) {
 	signal(signum, SIG_DFL);
 }
 
+#ifndef EMBEDDED
 int main(int argc, char **argv) {
+#else
+int squeezelite_main(int argc, char **argv) {
+#endif
 	char *server = NULL;
 	char *output_device = "default";
 	char *include_codecs = NULL;
@@ -845,5 +849,5 @@ int main(int argc, char **argv) {
 	free_ssl_symbols();
 #endif	
 
-	exit(0);
+	return(0);
 }

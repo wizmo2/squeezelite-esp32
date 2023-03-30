@@ -51,6 +51,10 @@ extern u8_t custom_player_id;
 // to force some special buffer attribute
 #define EXT_BSS __attribute__((section(".ext_ram.bss"))) 
 
+// otherwise just leave it empty
+void em_logprint(const char *fmt, ...);
+#define LOG_ERROR(fmt, ...) em_logprint("%s %s:%d " fmt "\n", logtime(), __FUNCTION__, __LINE__, ##__VA_ARGS__); 
+
 // all exit() calls are made from main thread (or a function called in main thread)
 void embedded_exit(int code);
 #define exit(code) do { embedded_exit(code); } while (0)

@@ -40,7 +40,8 @@ const __attribute__((section(".rodata_desc"))) esp_app_desc_t esp_app_desc = {
 #endif
 };
 
-extern int main(int argc, char **argv);
+extern int squeezelite_main(int argc, char **argv);
+
 static int launchsqueezelite(int argc, char **argv);
 
 /** Arguments used by 'squeezelite' function */
@@ -54,39 +55,33 @@ static struct {
 } thread_parms ;
 
 #define ADDITIONAL_SQUEEZELITE_ARGS 5
-static void squeezelite_thread(void *arg){
+static void squeezelite_thread(void *arg){  
 	ESP_LOGV(TAG ,"Number of args received: %u",thread_parms.argc );
 	ESP_LOGV(TAG ,"Values:");
     for(int i = 0;i<thread_parms.argc; i++){
     	ESP_LOGV(TAG ,"     %s",thread_parms.argv[i]);
     }
-
-	ESP_LOGI(TAG ,"Calling squeezelite");
-	int ret = main(thread_parms.argc,thread_parms.argv);
-	ESP_LOGV(TAG ,"Exited from squeezelite's main(). Freeing argv structure.");
-
-	for(int i=0;i<thread_parms.argc;i++){
-		ESP_LOGV(TAG ,"Freeing char buffer for parameter %u", i+1);
-		free(thread_parms.argv[i]);
-	}
-	ESP_LOGV(TAG ,"Freeing argv pointer");
-	free(thread_parms.argv);
-	
-	if(!wait_for_commit()){
-		ESP_LOGW(TAG,"Unable to commit configuration. ");
-	}
     
-    messaging_post_message(MESSAGING_ERROR, MESSAGING_CLASS_SYSTEM, "squeezelite exited with error code %d", ret);   
+    ESP_LOGI(TAG ,"Calling squeezelite");
+    int ret = squeezelite_main(thread_parms.argc, thread_parms.argv);
+        
+    messaging_post_message(MESSAGING_WARNING, MESSAGING_CLASS_SYSTEM, "squeezelite exited with error code %d", ret);   
 
     if (ret == 1) {
-        int wait = 60;
-        messaging_post_message(MESSAGING_ERROR, MESSAGING_CLASS_SYSTEM, "Rebooting in %d sec", wait); 
+        int wait = 60;      
+        wait_for_commit();
+        messaging_post_message(MESSAGING_WARNING, MESSAGING_CLASS_SYSTEM, "Rebooting in %d sec", wait); 
         vTaskDelay( pdMS_TO_TICKS(wait * 1000));
         esp_restart();
     } else {
         messaging_post_message(MESSAGING_ERROR, MESSAGING_CLASS_SYSTEM, "Correct command line and reboot"); 
         vTaskSuspend(NULL);
     }
+
+	ESP_LOGV(TAG, "Exited from squeezelite's main(). Freeing argv structure.");
+
+	for(int i=0;i<thread_parms.argc;i++) free(thread_parms.argv[i]);
+	free(thread_parms.argv);
 }
 
 static int launchsqueezelite(int argc, char **argv) {
