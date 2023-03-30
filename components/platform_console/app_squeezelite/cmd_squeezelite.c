@@ -65,7 +65,8 @@ static void squeezelite_thread(void *arg){
     ESP_LOGI(TAG ,"Calling squeezelite");
     int ret = squeezelite_main(thread_parms.argc, thread_parms.argv);
         
-    messaging_post_message(MESSAGING_WARNING, MESSAGING_CLASS_SYSTEM, "squeezelite exited with error code %d", ret);   
+    messaging_post_message(ret > 1 ?  MESSAGING_ERROR : MESSAGING_WARNING,
+                           MESSAGING_CLASS_SYSTEM, "squeezelite exited with error code %d", ret);   
 
     if (ret == 1) {
         int wait = 60;      

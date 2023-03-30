@@ -386,7 +386,7 @@ int squeezelite_main(int argc, char **argv) {
 			optarg = NULL;
 			optind += 1;
 		} else {
-			fprintf(stderr, "\nOption error: -%s\n\n", opt);
+			LOG_ERROR("=> Option error: -%s", opt);
 			usage(argv[0]);
 			exit(1);
 		}
@@ -437,7 +437,7 @@ int squeezelite_main(int argc, char **argv) {
 					if (!strcmp(l, "all") || !strcmp(l, "ir"))        log_ir     = new;
 #endif
 				} else {
-					fprintf(stderr, "\nDebug settings error: -d %s\n\n", optarg);
+					LOG_ERROR("=> Debug settings error: -d %s", optarg);
 					usage(argv[0]);
 					exit(1);
 				}
@@ -451,7 +451,7 @@ int squeezelite_main(int argc, char **argv) {
 				int byte = 0;
 				char *tmp;
 				if (!strncmp(optarg, "00:04:20", 8)) {
-					LOG_ERROR("ignoring mac address from hardware player range 00:04:20:**:**:**");
+					LOG_ERROR("=> ignoring mac address from hardware player range 00:04:20:**:**:**");
 				} else {
 					char *t = strtok(optarg, ":");
 					while (t && byte < 6) {
@@ -689,14 +689,14 @@ int squeezelite_main(int argc, char **argv) {
 			exit(0);
 			break;
 		default:
-			fprintf(stderr, "Arg error: %s\n", argv[optind]);
+			LOG_ERROR("=> arg error: %s", argv[optind]);
 			break;
 		}
 	}
 
 	// warn if command line includes something which isn't parsed
 	if (optind < argc) {
-		fprintf(stderr, "\nError: command line argument error\n\n");
+		LOG_ERROR("=> command line argument error");
 		usage(argv[0]);
 		exit(1);
 	}
@@ -806,7 +806,7 @@ int squeezelite_main(int argc, char **argv) {
 #endif
 
 	if (name && namefile) {
-		fprintf(stderr, "-n and -N option should not be used at same time\n");
+		LOG_ERROR("=> -n and -N option should not be used at same time");
 		exit(1);
 	}
 
