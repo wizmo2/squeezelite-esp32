@@ -50,6 +50,7 @@ static const dmap_field dmap_fields[] = {
 	{ "abar",    DMAP_DICT, DMAP_STR,  "daap.browseartistlisting" },
 	{ "abcp",    DMAP_DICT, DMAP_STR,  "daap.browsecomposerlisting" },
 	{ "abgn",    DMAP_DICT, DMAP_STR,  "daap.browsegenrelisting" },
+#ifdef DMAP_FULL        
 	{ "abpl",    DMAP_UINT, 0,         "daap.baseplaylist" },
 	{ "abro",    DMAP_DICT, 0,         "daap.databasebrowse" },
 	{ "adbs",    DMAP_DICT, 0,         "daap.databasesongs" },
@@ -256,10 +257,12 @@ static const dmap_field dmap_fields[] = {
 	{ "meia",    DMAP_UINT, 0,         "dmap.itemdateadded" },
 	{ "meip",    DMAP_UINT, 0,         "dmap.itemdateplayed" },
 	{ "mext",    DMAP_UINT, 0,         "dmap.objectextradata" },
+#endif    
 	{ "miid",    DMAP_UINT, 0,         "dmap.itemid" },
 	{ "mikd",    DMAP_UINT, 0,         "dmap.itemkind" },
 	{ "mimc",    DMAP_UINT, 0,         "dmap.itemcount" },
 	{ "minm",    DMAP_STR,  0,         "dmap.itemname" },
+#ifdef DMAP_FULL    
 	{ "mlcl",    DMAP_DICT, DMAP_DICT, "dmap.listing" },
 	{ "mlid",    DMAP_UINT, 0,         "dmap.sessionid" },
 	{ "mlit",    DMAP_ITEM, 0,         "dmap.listingitem" },
@@ -314,6 +317,7 @@ static const dmap_field dmap_fields[] = {
 	{ "prat",    DMAP_UINT, 0,         "dpap.imagerating" },
 	{ "pret",    DMAP_DICT, 0,         "dpap.retryids" },
 	{ "pwth",    DMAP_UINT, 0,         "dpap.imagepixelwidth" }
+#endif    
 };
 static const size_t dmap_field_count = sizeof(dmap_fields) / sizeof(dmap_field);
 
