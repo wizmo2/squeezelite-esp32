@@ -51,7 +51,6 @@ struct opus {
 	ogg_page page;
 	OpusDecoder* decoder;
 	int rate, gain, pre_skip;
-	bool fetch;
 	size_t overframes;
 	u8_t *overbuf;
 	int channels;
@@ -163,14 +162,16 @@ static int get_opus_packet(void) {
 
 static int read_opus_header(void) {
 	int status = 0;
+    bool fetch = true;
 
 	LOCK_S;
 	size_t bytes = min(_buf_used(streambuf), _buf_cont_read(streambuf));
 
 	while (bytes && !status) {
+        bool fetched = false;
 
 		// first fetch a page if we need one
-		if (u->fetch) {
+		if (fetch) {
 			size_t consumed = min(bytes, 4096);
 			char* buffer = OG(&gu, sync_buffer, &u->sync, consumed);
 			memcpy(buffer, streambuf->readp, consumed);
@@ -180,14 +181,14 @@ static int read_opus_header(void) {
 			bytes -= consumed;
 
 			if (!OG(&gu, sync_pageseek, &u->sync, &u->page)) continue;
-			u->fetch = false;
+			fetched = true;
 		}
 
-		//bytes = min(bytes, size);
 		switch (u->status) {
 		case OGG_SYNC:
 			u->status = OGG_ID_HEADER;
 			OG(&gu, stream_reset_serialno, &u->state, OG(&gu, page_serialno, &u->page));
+            fetch = false;
 			break;
 		case OGG_ID_HEADER:
 			status = OG(&gu, stream_pagein, &u->state, &u->page);
@@ -207,14 +208,15 @@ static int read_opus_header(void) {
 					LOG_ERROR("can't create decoder %d (channels:%u)", status, u->channels);
 				}
 			}
-			u->fetch = true;
+			fetch = true;
 			break;
 		case OGG_COMMENT_HEADER:
 			// loop until we have consumed VorbisComment and get ready for a new packet
-			u->fetch = true;
 			status = OG(&gu, page_packets, &u->page);
 			break;
 		default:
+            // just to avoid warning;
+            fetched = fetched;
 			break;
 		}
 	}
@@ -357,7 +359,6 @@ static void opus_open(u8_t size, u8_t rate, u8_t chan, u8_t endianness) {
 	if (!u->overbuf) u->overbuf = malloc(MAX_OPUS_FRAMES * BYTES_PER_FRAME);
     
     u->status = OGG_SYNC;
-	u->fetch = true;
 	u->overframes = 0;
 	
 	OG(&gu, sync_init, &u->sync);
