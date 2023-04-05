@@ -187,7 +187,6 @@ static int read_opus_header(void) {
 		switch (u->status) {
 		case OGG_SYNC:
 			u->status = OGG_HEADER;
-			//OG(&gu, sync_pageout, &u->sync, &u->page);
 			OG(&gu, stream_reset_serialno, &u->state, OG(&gu, page_serialno, &u->page));
 			break;
 		case OGG_HEADER:
@@ -352,9 +351,9 @@ static decode_state opus_decompress(void) {
 }
 
 static void opus_open(u8_t size, u8_t rate, u8_t chan, u8_t endianness) {   
-    if (u->decoder) OP(&gu, decoder_destroy, u->decoder);
-          
+    if (u->decoder) OP(&gu, decoder_destroy, u->decoder);         
 	if (!u->overbuf) u->overbuf = malloc(MAX_OPUS_FRAMES * BYTES_PER_FRAME);
+    
     u->status = OGG_SYNC;
 	u->fetch = true;
 	u->overframes = 0;
@@ -365,7 +364,10 @@ static void opus_open(u8_t size, u8_t rate, u8_t chan, u8_t endianness) {
 
 static void opus_close(void) {  
 	if (u->decoder) OP(&gu, decoder_destroy, u->decoder);
+    
 	free(u->overbuf);
+    u->overbuf = NULL;
+    
 	OG(&gu, stream_clear, &u->state);
 	OG(&gu, sync_clear, &u->sync);
 }
