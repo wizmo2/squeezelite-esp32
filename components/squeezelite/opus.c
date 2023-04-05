@@ -352,6 +352,8 @@ static decode_state opus_decompress(void) {
 
 static void opus_open(u8_t size, u8_t rate, u8_t chan, u8_t endianness) {   
     if (u->decoder) OP(&gu, decoder_destroy, u->decoder);         
+    u->decoder = NULL;
+    
 	if (!u->overbuf) u->overbuf = malloc(MAX_OPUS_FRAMES * BYTES_PER_FRAME);
     
     u->status = OGG_SYNC;
@@ -364,6 +366,7 @@ static void opus_open(u8_t size, u8_t rate, u8_t chan, u8_t endianness) {
 
 static void opus_close(void) {  
 	if (u->decoder) OP(&gu, decoder_destroy, u->decoder);
+    u->decoder = NULL;
     
 	free(u->overbuf);
     u->overbuf = NULL;
