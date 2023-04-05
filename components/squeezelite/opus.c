@@ -44,7 +44,7 @@
 #define MAX_OPUS_FRAMES 5760
 
 struct opus {
-	enum {OGG_SYNC, OGG_HEADER, OGG_PCM, OGG_DECODE} status;
+	enum {OGG_SYNC, OGG_ID_HEADER, OGG_COMMENT_HEADER} status;
 	ogg_stream_state state;
 	ogg_packet packet;
 	ogg_sync_state sync;
@@ -186,18 +186,18 @@ static int read_opus_header(void) {
 		//bytes = min(bytes, size);
 		switch (u->status) {
 		case OGG_SYNC:
-			u->status = OGG_HEADER;
+			u->status = OGG_ID_HEADER;
 			OG(&gu, stream_reset_serialno, &u->state, OG(&gu, page_serialno, &u->page));
 			break;
-		case OGG_HEADER:
+		case OGG_ID_HEADER:
 			status = OG(&gu, stream_pagein, &u->state, &u->page);
 			if (OG(&gu, stream_packetout, &u->state, &u->packet)) {
-				u->status = OGG_PCM;
 				if (u->packet.bytes < 19 || memcmp(u->packet.packet, "OpusHead", 8)) {
 					LOG_ERROR("wrong opus header packet (size:%u)", u->packet.bytes);
 					status = -100;
 					break;
 				}
+				u->status = OGG_COMMENT_HEADER;                
 				u->channels = u->packet.packet[9];
 				u->pre_skip = parse_uint16(u->packet.packet + 10);
 				u->rate = parse_uint32(u->packet.packet + 12);
@@ -209,7 +209,7 @@ static int read_opus_header(void) {
 			}
 			u->fetch = true;
 			break;
-		case OGG_PCM:
+		case OGG_COMMENT_HEADER:
 			// loop until we have consumed VorbisComment and get ready for a new packet
 			u->fetch = true;
 			status = OG(&gu, page_packets, &u->page);

@@ -85,7 +85,7 @@ const static actrls_t controls = {
 	NULL, NULL,							// rew, fwd
 	cspot_prev, cspot_next,				// prev, next
 	NULL, NULL, NULL, NULL, // left, right, up, down
-	NULL, NULL, NULL, NULL, NULL, NULL, // pre1-6
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, // pre1-10
 	cspot_volume_down, cspot_volume_up, cspot_toggle// knob left, knob_right, knob push
 };
 
