@@ -247,13 +247,17 @@ void decode_close(void) {
 #endif	
 }
 
-void decode_flush(void) {
+void decode_flush(bool close) {
 	LOG_INFO("decode flush");
 	LOCK_D;
 	decode.state = DECODE_STOPPED;
 	IF_PROCESS(
 		process_flush();
 	);
+    if (close && codec) {
+		codec->close();
+		codec = NULL;
+	}
 	UNLOCK_D;
 }
 

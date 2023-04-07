@@ -306,7 +306,7 @@ static void process_strm(u8_t *pkt, int len) {
 		break;
 	case 'f':	
 	case 'q':
-		decode_flush();
+		decode_flush(strm->command == 'q');
 		if (!output.external) output_flush();
 		status.frames_played = 0;
 		if (stream_disconnect() && strm->command == 'f') sendSTAT("STMf", 0);

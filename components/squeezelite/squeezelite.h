@@ -622,7 +622,7 @@ struct codec {
 
 void decode_init(log_level level, const char *include_codecs, const char *exclude_codecs);
 void decode_close(void);
-void decode_flush(void);
+void decode_flush(bool close);
 unsigned decode_newstream(unsigned sample_rate, unsigned supported_rates[]);
 void codec_open(u8_t format, u8_t sample_size, u8_t sample_rate, u8_t channels, u8_t endianness);
 
