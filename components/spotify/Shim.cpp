@@ -443,11 +443,11 @@ void cspotPlayer::runTask() {
             CSPOT_LOG(info, "disconnecting player %s", name.c_str());
         }
 
-        // we want to release memory ASAP and fore sure
+        // we want to release memory ASAP and for sure
         centralAudioBuffer.reset();
         ctx.reset();
         token.clear();
-
+        
         // update volume when we disconnect
         cJSON *config = config_alloc_get_cjson("cspot_config");
         cJSON_DeleteItemFromObject(config, "volume");
