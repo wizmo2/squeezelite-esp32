@@ -61,21 +61,19 @@ static void squeezelite_thread(void *arg){
     for(int i = 0;i<thread_parms.argc; i++){
     	ESP_LOGV(TAG ,"     %s",thread_parms.argv[i]);
     }
-    
     ESP_LOGI(TAG ,"Calling squeezelite");
     int ret = squeezelite_main(thread_parms.argc, thread_parms.argv);
         
-    messaging_post_message(ret > 1 ?  MESSAGING_ERROR : MESSAGING_WARNING,
-                           MESSAGING_CLASS_SYSTEM, "squeezelite exited with error code %d", ret);   
+    cmd_send_messaging("cfg-audio-tmpl",ret > 1 ?  MESSAGING_ERROR : MESSAGING_WARNING,"squeezelite exited with error code %d\n", ret);
 
     if (ret == 1) {
-        int wait = 60;      
+        int wait = 60;
         wait_for_commit();
-        messaging_post_message(MESSAGING_WARNING, MESSAGING_CLASS_SYSTEM, "Rebooting in %d sec", wait); 
+        cmd_send_messaging("cfg-audio-tmpl",MESSAGING_ERROR,"Rebooting in %d sec\n", wait);
         vTaskDelay( pdMS_TO_TICKS(wait * 1000));
         esp_restart();
     } else {
-        messaging_post_message(MESSAGING_ERROR, MESSAGING_CLASS_SYSTEM, "Correct command line and reboot"); 
+		cmd_send_messaging("cfg-audio-tmpl",MESSAGING_ERROR,"Correct command line and reboot\n");
         vTaskSuspend(NULL);
     }
 

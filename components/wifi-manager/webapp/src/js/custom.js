@@ -28,71 +28,95 @@ Object.assign(Date.prototype, {
     return this.toLocaleString(undefined, opt);
   },
 });
-function handleNVSVisible(){
+function get_control_option_value(obj) {
+  let ctrl,id,val,opt;
+  let radio = false;
+  let checked = false;
+  if (typeof (obj) === 'string') {
+    id = obj;
+    ctrl = $(`#${id}`);
+  } else {
+    id = $(obj).attr('id');
+    ctrl = $(obj);
+  }
+  if(ctrl.attr('type') === 'checkbox'){
+    opt = $(obj).checked?id.replace('cmd_opt_', ''):'';
+    val = true;
+  }
+  else {
+    opt = id.replace('cmd_opt_', '');
+    val = $(obj).val();
+    val = `${val.includes(" ") ? '"' : ''}${val}${val.includes(" ") ? '"' : ''}`;
+  }
+
+  return { opt, val };
+}
+function handleNVSVisible() {
   let nvs_previous_checked = isEnabled(Cookies.get("show-nvs"));
-  $('input#show-nvs')[0].checked = nvs_previous_checked ;
+  $('input#show-nvs')[0].checked = nvs_previous_checked;
   if ($('input#show-nvs')[0].checked || recovery) {
-      $('*[href*="-nvs"]').show();
-    } else {
-      $('*[href*="-nvs"]').hide();
+    $('*[href*="-nvs"]').show();
+  } else {
+    $('*[href*="-nvs"]').hide();
+  }
+}
+function concatenateOptions(options) {
+  let commandLine = ' ';
+  for (const [option, value] of Object.entries(options)) {
+    if (option !== 'n' && option !== 'o') {
+      commandLine += `-${option} `;
+      if (value !== true) {
+        commandLine += `${value} `;
+      }
     }
+  }
+  return commandLine;
 }
 
-
 function isEnabled(val) {
-  return val!=undefined && typeof val === 'string' && val.match("[Yy1]");
+  return val != undefined && typeof val === 'string' && val.match("[Yy1]");
 }
 
 const nvsTypes = {
   NVS_TYPE_U8: 0x01,
-
   /*! < Type uint8_t */
   NVS_TYPE_I8: 0x11,
-
   /*! < Type int8_t */
   NVS_TYPE_U16: 0x02,
-
   /*! < Type uint16_t */
   NVS_TYPE_I16: 0x12,
-
   /*! < Type int16_t */
   NVS_TYPE_U32: 0x04,
-
   /*! < Type uint32_t */
   NVS_TYPE_I32: 0x14,
-
   /*! < Type int32_t */
   NVS_TYPE_U64: 0x08,
-
   /*! < Type uint64_t */
   NVS_TYPE_I64: 0x18,
-
   /*! < Type int64_t */
   NVS_TYPE_STR: 0x21,
-
   /*! < Type string */
   NVS_TYPE_BLOB: 0x42,
-
   /*! < Type blob */
   NVS_TYPE_ANY: 0xff /*! < Must be last */,
 };
 const btIcons = {
-  bt_playing: {'label':'','icon': 'media_bluetooth_on'},
-  bt_disconnected: {'label':'','icon': 'media_bluetooth_off'},
-  bt_neutral: {'label':'','icon': 'bluetooth'},
-  bt_connecting: {'label':'','icon': 'bluetooth_searching'},
-  bt_connected: {'label':'','icon': 'bluetooth_connected'},
-  bt_disabled: {'label':'','icon': 'bluetooth_disabled'},
-  play_arrow: {'label':'','icon': 'play_circle_filled'},
-  pause: {'label':'','icon': 'pause_circle'},
-  stop: {'label':'','icon': 'stop_circle'},
-  '':  {'label':'','icon':''}
+  bt_playing: { 'label': '', 'icon': 'media_bluetooth_on' },
+  bt_disconnected: { 'label': '', 'icon': 'media_bluetooth_off' },
+  bt_neutral: { 'label': '', 'icon': 'bluetooth' },
+  bt_connecting: { 'label': '', 'icon': 'bluetooth_searching' },
+  bt_connected: { 'label': '', 'icon': 'bluetooth_connected' },
+  bt_disabled: { 'label': '', 'icon': 'bluetooth_disabled' },
+  play_arrow: { 'label': '', 'icon': 'play_circle_filled' },
+  pause: { 'label': '', 'icon': 'pause_circle' },
+  stop: { 'label': '', 'icon': 'stop_circle' },
+  '': { 'label': '', 'icon': '' }
 };
 const batIcons = [
-  { icon: "battery_0_bar", label:'▪', ranges: [{ f: 5.8, t: 6.8 }, { f: 8.8, t: 10.2 }] },
-  { icon: "battery_2_bar", label:'▪▪', ranges: [{ f: 6.8, t: 7.4 }, { f: 10.2, t: 11.1 }] },
-  { icon: "battery_3_bar", label:'▪▪▪', ranges: [{ f: 7.4, t: 7.5 }, { f: 11.1, t: 11.25 }] },
-  { icon: "battery_4_bar", label:'▪▪▪▪', ranges: [{ f: 7.5, t: 7.8 }, { f: 11.25, t: 11.7 }] }
+  { icon: "battery_0_bar", label: '▪', ranges: [{ f: 5.8, t: 6.8 }, { f: 8.8, t: 10.2 }] },
+  { icon: "battery_2_bar", label: '▪▪', ranges: [{ f: 6.8, t: 7.4 }, { f: 10.2, t: 11.1 }] },
+  { icon: "battery_3_bar", label: '▪▪▪', ranges: [{ f: 7.4, t: 7.5 }, { f: 11.1, t: 11.25 }] },
+  { icon: "battery_4_bar", label: '▪▪▪▪', ranges: [{ f: 7.5, t: 7.8 }, { f: 11.25, t: 11.7 }] }
 ];
 const btStateIcons = [
   { desc: 'Idle', sub: ['bt_neutral'] },
@@ -162,7 +186,7 @@ let flashState = {
     $('.flact').prop('disabled', false);
     $('#flashfilename').value = null;
     $('#fw-url-input').value = null;
-    if(!this.isStateError()){
+    if (!this.isStateError()) {
       $('span#flash-status').html('');
       $('#fwProgressLabel').parent().removeClass('bg-danger');
     }
@@ -357,8 +381,8 @@ let flashState = {
     const xhttp = new XMLHttpRequest();
     xhttp.context = this;
     var boundHandleUploadProgressEvent = this.HandleUploadProgressEvent.bind(this);
-    var boundsetOTAError=this.setOTAError.bind(this);
-    xhttp.upload.addEventListener("progress",boundHandleUploadProgressEvent, false);
+    var boundsetOTAError = this.setOTAError.bind(this);
+    xhttp.upload.addEventListener("progress", boundHandleUploadProgressEvent, false);
     xhttp.onreadystatechange = function () {
       if (xhttp.readyState === 4) {
         if (xhttp.status === 0 || xhttp.status === 404) {
@@ -464,11 +488,89 @@ window.handleReboot = function (link) {
     $('#reboot_nav').removeClass('active'); delayReboot(500, '', link);
   }
 }
-function isConnected(){
-  return ConnectedTo.hasOwnProperty('ip') && ConnectedTo.ip!='0.0.0.0'&& ConnectedTo.ip!='';
+
+function parseSqueezeliteCommandLine(commandLine) {
+  const options = {};
+  let output, name;
+  let otherValues = '';
+
+  const argRegex = /("[^"]+"|'[^']+'|\S+)/g;
+  const args = commandLine.match(argRegex);
+
+  let i = 0;
+
+  while (i < args.length) {
+    const arg = args[i];
+
+    if (arg.startsWith('-')) {
+      const option = arg.slice(1);
+
+      if (option === '') {
+        otherValues += args.slice(i).join(' ');
+        break;
+      }
+
+      let value = true;
+
+      if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
+        value = args[i + 1].replace(/"/g, '').replace(/'/g, '');
+        i++;
+      }
+
+      options[option] = value;
+    } else {
+      otherValues += arg + ' ';
+    }
+
+    i++;
+  }
+
+  otherValues = otherValues.trim();
+  output = getOutput(options);
+  name = getName(options);
+  let otherOptions={btname:null,n:null};
+  // assign o and n options to otheroptions if present
+  if (options.o && output.toUpperCase() === 'BT') {
+    let temp = parseSqueezeliteCommandLine(options.o);
+    if(temp.name) {
+      otherOptions.btname = temp.name;
+    }
+    delete options.o;
+  }
+  if (options.n) {
+    otherOptions['n'] = options.n;
+    delete options.n;
+  }
+  return { name, output, options, otherValues,otherOptions };  
 }
-function getIcon(icons){
-  return isConnected()?icons.icon:icons.label;
+
+function getOutput(options) {
+  let output;
+  if (options.o){
+    output = options.o.replace(/"/g, '').replace(/'/g, '');
+    /* set output as the first alphanumerical word in the command line */
+    if (output.indexOf(' ') > 0) {
+      output = output.substring(0, output.indexOf(' '));
+    }
+  }
+  return output;
+}
+
+function getName(options) {
+  let name;
+  /* if n option present, assign to name variable */
+  if (options.n){
+    name = options.n.replace(/"/g, '').replace(/'/g, '');
+  }
+  return name;
+}
+
+
+function isConnected() {
+  return ConnectedTo.hasOwnProperty('ip') && ConnectedTo.ip != '0.0.0.0' && ConnectedTo.ip != '';
+}
+function getIcon(icons) {
+  return isConnected() ? icons.icon : icons.label;
 }
 function handlebtstate(data) {
   let icon = '';
@@ -476,7 +578,7 @@ function handlebtstate(data) {
   if (data.bt_status !== undefined && data.bt_sub_status !== undefined) {
     const iconindex = btStateIcons[data.bt_status].sub[data.bt_sub_status];
     if (iconindex) {
-      icon =  btIcons[iconindex];
+      icon = btIcons[iconindex];
       tt = btStateIcons[data.bt_status].desc;
     } else {
       icon = btIcons.bt_connected;
@@ -485,19 +587,28 @@ function handlebtstate(data) {
   }
 
   $('#o_type').attr('title', tt);
-  $('#o_bt').html(isConnected()?icon.label:icon.text);
+  $('#o_bt').html(isConnected() ? icon.label : icon.text);
 }
 function handleTemplateTypeRadio(outtype) {
   $('#o_type').children('span').css({ display: 'none' });
+  let changed = false;
   if (outtype === 'bt') {
+    changed = output !== 'bt' && output !== '';
     output = 'bt';
   } else if (outtype === 'spdif') {
+    changed = output !== 'spdif' && output !== '';
     output = 'spdif';
   } else {
+    changed = output !== 'i2s' && output !== '';
     output = 'i2s';
   }
   $('#' + output).prop('checked', true);
   $('#o_' + output).css({ display: 'inline' });
+  if (changed) {
+    Object.keys(commandDefaults[output]).forEach(function (key) {
+      $(`#cmd_opt_${key}`).val(commandDefaults[output][key]);
+    });
+  }
 }
 
 function handleExceptionResponse(xhr, _ajaxOptions, thrownError) {
@@ -545,7 +656,17 @@ let releaseURL =
 
 let recovery = false;
 let messagesHeld = false;
-const commandHeader = 'squeezelite -b 500:2000 -d all=info -C 30 -W';
+let commandBTSinkName = '';
+const commandHeader = 'squeezelite ';
+const commandDefaults = {
+  i2s: { b: "500:2000", C: "30", W: "", Z: "96000", o: "I2S" },
+  spdif: { b: "500:2000", C: "30", W: "", Z: "48000", o: "SPDIF" },
+  bt: { b: "500:2000", C: "30", W: "", Z: "44100", o: "BT" },
+};
+let validOptions = {
+  codecs: ['flac', 'pcm', 'mp3', 'ogg', 'aac', 'wma', 'alac', 'dsd', 'mad', 'mpg']
+};
+
 //let blockFlashButton = false;
 let apList = null;
 //let selectedSSID = '';
@@ -559,6 +680,7 @@ let hostName = '';
 let versionName = 'Squeezelite-ESP32';
 let prevmessage = '';
 let project_name = versionName;
+let depth = 16;
 let board_model = '';
 let platform_name = versionName;
 let preset_name = '';
@@ -690,11 +812,6 @@ function handleHWPreset(allfields, reboot) {
       }
     },
   });
-
-
-
-
-
 }
 
 
@@ -773,23 +890,34 @@ function delayReboot(duration, cmdname, ota = 'reboot') {
 // eslint-disable-next-line no-unused-vars
 window.saveAutoexec1 = function (apply) {
   showCmdMessage('cfg-audio-tmpl', 'MESSAGING_INFO', 'Saving.\n', false);
-  let commandLine = commandHeader + ' -n "' + $('#player').val() + '"';
+  let commandLine = `${commandHeader} -o ${output} `;
+  $('.sqcmd').each(function () {
+    let { opt, val } = get_control_option_value($(this));
+    if ((opt && opt.length>0 ) && typeof(val) == 'boolean' || val.length > 0) {
+      const optStr=opt===':'?opt:(` -${opt} `);
+      val = typeof(val) == 'boolean'?'':val;
+      commandLine += `${optStr} ${val}`;
+    }
+  });
+  const resample=$('#cmd_opt_R input[name=resample]:checked');
+  if (resample.length>0 && resample.attr('suffix')!=='') {
+    commandLine += resample.attr('suffix');
+    // now check resample_i option and if checked, add suffix to command line
+    if ($('#resample_i').is(":checked") && resample.attr('aint') =='true')  {
+          commandLine += $('#resample_i').attr('suffix');
+    }
+}
+
+    
   if (output === 'bt') {
-    commandLine += ' -o "BT" -R -Z 192000';
     showCmdMessage(
       'cfg-audio-tmpl',
       'MESSAGING_INFO',
       'Remember to configure the Bluetooth audio device name.\n',
       true
     );
-  } else if (output === 'spdif') {
-    commandLine += ' -o SPDIF -Z 192000';
-  } else {
-    commandLine += ' -o I2S';
   }
-  if ($('#optional').val() !== '') {
-    commandLine += ' ' + $('#optional').val();
-  }
+  commandLine += concatenateOptions(options);
   const data = {
     timestamp: Date.now(),
   };
@@ -880,9 +1008,33 @@ window.handleConnect = function () {
   // now we can re-set the intervals regardless of result
 
 }
+function renderError(opt,error){
+  const fieldname = `cmd_opt_${opt}`;
+  let errorFieldName=`${fieldname}-error`;
+  let errorField=$(`#${errorFieldName}`);
+  let field=$(`#${fieldname}`);
+  
+  if (!errorField || errorField.length ==0) {
+    field.after(`<div id="${errorFieldName}" class="invalid-feedback"></div>`);
+    errorField=$(`#${errorFieldName}`);
+  }
+  if(error.length ==0){
+      errorField.hide();
+      field.removeClass('is-invalid');
+      field.addClass('is-valid');
+      errorField.text('');
+  }
+  else {     
+      errorField.show();
+      errorField.text(error);
+      field.removeClass('is-valid');
+      field.addClass('is-invalid');
+  }
+  return errorField;
+}
 $(document).ready(function () {
   $('.material-icons').each(function (_index, entry) {
-    entry.attributes['icon']=entry.textContent;
+    entry.attributes['icon'] = entry.textContent;
   });
   setIcons(true);
   handleNVSVisible();
@@ -908,6 +1060,43 @@ $(document).ready(function () {
 
   });
   setTimeout(refreshAP, 1500);
+  /* add validation for cmd_opt_c, which accepts a comma separated list. 
+    getting known codecs from validOptions.codecs array
+    use bootstrap classes to highlight the error with an overlay message */
+  $('#options input').on('input', function () {
+    const { opt, val } = get_control_option_value(this);
+    if (opt === 'c' || opt === 'e') {
+      const fieldname = `cmd_opt_${opt}_codec-error`;
+      
+      const values = val.split(',').map(function (item) {
+        return item.trim();
+      });
+      /* get a list of invalid codecs */
+      const invalid = values.filter(function (item) {
+        return !validOptions.codecs.includes(item);
+      });
+      renderError(opt,invalid.length > 0 ? `Invalid codec(s) ${invalid.join(', ')}` : '');
+    }
+    /* add validation for cmd_opt_m, which accepts a mac_address */
+    if (opt === 'm') {
+      const mac_regex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
+      renderError(opt,mac_regex.test(val) ? '' : 'Invalid MAC address');
+    }
+    if (opt === 'r') {
+        const rateRegex =  /^(\d+\.?\d*|\.\d+)-(\d+\.?\d*|\.\d+)$|^(\d+\.?\d*)$|^(\d+\.?\d*,)+\d+\.?\d*$/;
+        renderError(opt,rateRegex.test(val)?'':`Invalid rate(s) ${val}. Acceptable format: <maxrate>|<minrate>-<maxrate>|<rate1>,<rate2>,<rate3>`);
+    }
+
+
+
+  }
+
+
+  );
+
+
+
+
 
   $('#WifiConnectDialog')[0].addEventListener('shown.bs.modal', function (event) {
     $("*[class*='connecting']").hide();
@@ -1029,7 +1218,7 @@ $(document).ready(function () {
 
   $('input#show-nvs').on('click', function () {
     this.checked = this.checked ? 1 : 0;
-    Cookies.set("show-nvs", this.checked?'Y':'N');
+    Cookies.set("show-nvs", this.checked ? 'Y' : 'N');
     handleNVSVisible();
   });
   $('#btn_reboot_recovery').on('click', function () {
@@ -1048,7 +1237,7 @@ $(document).ready(function () {
     saveAutoexec1(true);
   });
   $('#btn_disconnect').on('click', function () {
-    ConnectedTo={};
+    ConnectedTo = {};
     refreshAPHTML2();
     $.ajax({
       url: '/connect.json',
@@ -1303,15 +1492,15 @@ window.setURL = function (button) {
 
 function rssiToIcon(rssi) {
   if (rssi >= -55) {
-    return {'label':'****','icon':`signal_wifi_statusbar_4_bar`};
+    return { 'label': '****', 'icon': `signal_wifi_statusbar_4_bar` };
   } else if (rssi >= -60) {
-    return {'label':'***','icon':`network_wifi_3_bar`};
+    return { 'label': '***', 'icon': `network_wifi_3_bar` };
   } else if (rssi >= -65) {
-    return {'label':'**','icon':`network_wifi_2_bar`};
+    return { 'label': '**', 'icon': `network_wifi_2_bar` };
   } else if (rssi >= -70) {
-    return {'label':'*','icon':`network_wifi_1_bar`};
+    return { 'label': '*', 'icon': `network_wifi_1_bar` };
   } else {
-    return {'label':'.','icon':`signal_wifi_statusbar_null`};
+    return { 'label': '.', 'icon': `signal_wifi_statusbar_null` };
   }
 }
 
@@ -1339,9 +1528,9 @@ function refreshAP() {
   });
 }
 function formatAP(ssid, rssi, auth) {
-  const rssi_icon=rssiToIcon(rssi);
-  const auth_icon={label:auth == 0 ? '🔓' : '🔒',icon:auth == 0 ? 'no_encryption' : 'lock'};
-  
+  const rssi_icon = rssiToIcon(rssi);
+  const auth_icon = { label: auth == 0 ? '🔓' : '🔒', icon: auth == 0 ? 'no_encryption' : 'lock' };
+
   return `<tr data-bs-toggle="modal" data-bs-target="#WifiConnectDialog"><td></td><td>${ssid}</td><td>
   <span class="material-icons" style="fill:white; display: inline" aria-label="${rssi_icon.label}" icon="${rssi_icon.icon}" >${getIcon(rssi_icon)}</span>
   	</td><td>
@@ -1512,9 +1701,9 @@ function getMessages() {
           break;
       }
     }
-    setTimeout(getMessages,messageInterval);
+    setTimeout(getMessages, messageInterval);
   }).fail(function (xhr, ajaxOptions, thrownError) {
-    
+
     if (xhr.status == 404) {
       $('.orec').hide(); // system commands won't be available either
       messagesHeld = true;
@@ -1522,15 +1711,15 @@ function getMessages() {
     else {
       handleExceptionResponse(xhr, ajaxOptions, thrownError);
     }
-    if(xhr.status == 0 && xhr.readyState ==0){
+    if (xhr.status == 0 && xhr.readyState == 0) {
       // probably a timeout. Target is rebooting? 
-      setTimeout(getMessages,messageInterval*2); // increase duration if a failure happens
+      setTimeout(getMessages, messageInterval * 2); // increase duration if a failure happens
     }
-    else if(!messagesHeld){
+    else if (!messagesHeld) {
       // 404 here means we rebooted to an old recovery
-      setTimeout(getMessages,messageInterval); // increase duration if a failure happens
+      setTimeout(getMessages, messageInterval); // increase duration if a failure happens
     }
-    
+
   }
   );
 
@@ -1552,18 +1741,18 @@ function handleRecoveryMode(data) {
     $('#boot-button').html('Reboot');
     $('#boot-form').attr('action', '/reboot_ota.json');
   } else {
-    if(!recovery && messagesHeld){
-      messagesHeld=false;
-      setTimeout(getMessages,messageInterval); // increase duration if a failure happens
+    if (!recovery && messagesHeld) {
+      messagesHeld = false;
+      setTimeout(getMessages, messageInterval); // increase duration if a failure happens
     }
     recovery = false;
-    
+
     $('.recovery_element').hide();
     $('.ota_element').show();
     $('#boot-button').html('Recovery');
     $('#boot-form').attr('action', '/recovery.json');
   }
-  
+
 }
 
 function hasConnectionChanged(data) {
@@ -1645,9 +1834,9 @@ function handleWifiDialog(data) {
 
   }
 }
-function setIcons(offline){
+function setIcons(offline) {
   $('.material-icons').each(function (_index, entry) {
-    entry.textContent = entry.attributes[offline?'aria-label':'icon'].value;
+    entry.textContent = entry.attributes[offline ? 'aria-label' : 'icon'].value;
   });
 }
 function handleNetworkStatus(data) {
@@ -1682,13 +1871,13 @@ function batteryToIcon(voltage) {
   for (const iconEntry of batIcons) {
     for (const entryRanges of iconEntry.ranges) {
       if (inRange(voltage, entryRanges.f, entryRanges.t)) {
-        return { label: iconEntry.label, icon:iconEntry.icon};
+        return { label: iconEntry.label, icon: iconEntry.icon };
       }
     }
   }
 
 
-  return {label:'▪▪▪▪',icon:"battery_full"};
+  return { label: '▪▪▪▪', icon: "battery_full" };
 }
 function checkStatus() {
   $.ajaxSetup({
@@ -1700,6 +1889,16 @@ function checkStatus() {
     handleNetworkStatus(data);
     handlebtstate(data);
     flashState.EventTargetStatus(data);
+    if(data.depth) {
+      depth = data.depth;
+      if(depth==16){
+        $('#cmd_opt_R').show();
+      }
+      else{
+        $('#cmd_opt_R').hide();
+      }
+    }
+
 
     if (data.project_name && data.project_name !== '') {
       project_name = data.project_name;
@@ -1717,10 +1916,10 @@ function checkStatus() {
       $('span#flash-status').html('');
     }
     if (data.Voltage) {
-      const bat_icon=batteryToIcon(data.Voltage);
+      const bat_icon = batteryToIcon(data.Voltage);
       $('#battery').html(`${getIcon(bat_icon)}`);
-      $('#battery').attr("aria-label",bat_icon.label);
-      $('#battery').attr("icon",bat_icon.icon);
+      $('#battery').attr("aria-label", bat_icon.label);
+      $('#battery').attr("icon", bat_icon.icon);
       $('#battery').show();
     } else {
       $('#battery').hide();
@@ -1757,15 +1956,15 @@ function checkStatus() {
       });
     }
     $('#o_jack').css({ display: Number(data.Jack) ? 'inline' : 'none' });
-    setTimeout(checkStatus,statusInterval);
+    setTimeout(checkStatus, statusInterval);
   }).fail(function (xhr, ajaxOptions, thrownError) {
     handleExceptionResponse(xhr, ajaxOptions, thrownError);
-    if(xhr.status == 0 && xhr.readyState ==0){
+    if (xhr.status == 0 && xhr.readyState == 0) {
       // probably a timeout. Target is rebooting? 
-      setTimeout(checkStatus,messageInterval*2); // increase duration if a failure happens
+      setTimeout(checkStatus, messageInterval * 2); // increase duration if a failure happens
     }
     else {
-      setTimeout(checkStatus,messageInterval); // increase duration if a failure happens
+      setTimeout(checkStatus, messageInterval); // increase duration if a failure happens
     }
   });
 }
@@ -1995,6 +2194,7 @@ function getConfig() {
     $('#nvsTable tr').remove();
     const data = (entries.config ? entries.config : entries);
     SystemConfig = data;
+    commandBTSinkName = '';
     Object.keys(data)
       .sort()
       .forEach(function (key) {
@@ -2006,20 +2206,15 @@ function getConfig() {
             $('#disable-squeezelite')[0].checked = false;
           }
         } else if (key === 'autoexec1') {
-          const re = /-o\s?(["][^"]*["]|[^-]+)/g;
-          const m = re.exec(val);
-          if (m[1].toUpperCase().startsWith('I2S')) {
-            handleTemplateTypeRadio('i2s');
-          } else if (m[1].toUpperCase().startsWith('SPDIF')) {
-            handleTemplateTypeRadio('spdif');
-          } else if (m[1].toUpperCase().startsWith('"BT')) {
-            handleTemplateTypeRadio('bt');
-          }
+          /* call new function to parse the squeezelite options */
+          processSqueezeliteCommandLine(val);
         } else if (key === 'host_name') {
           val = val.replaceAll('"', '');
           $('input#dhcp-name1').val(val);
           $('input#dhcp-name2').val(val);
-          $('#player').val(val);
+          if ($('#cmd_opt_n').length == 0) {
+            $('#cmd_opt_n').val(val);
+          }
           document.title = val;
           hostName = val;
         } else if (key === 'rel_api') {
@@ -2054,6 +2249,10 @@ function getConfig() {
         );
         $('input#' + key).val(data[key].value);
       });
+    if(commandBTSinkName.length > 0) {
+      // persist the sink name found in the autoexec1 command line
+      $('#cfg-audio-bt_source-sink_name').val(commandBTSinkName);
+    }
     $('tbody#nvsTable').append(
       "<tr><td><input type='text' class='form-control' id='nvs-new-key' placeholder='new key'></td><td><input type='text' class='form-control' id='nvs-new-value' placeholder='new value' nvs_type=33 ></td></tr>"
     );
@@ -2083,6 +2282,40 @@ function getConfig() {
     handleExceptionResponse(xhr, ajaxOptions, thrownError);
   });
 }
+
+function processSqueezeliteCommandLine(val) {
+  const parsed = parseSqueezeliteCommandLine(val);
+  if (parsed.output.toUpperCase().startsWith('I2S')) {
+    handleTemplateTypeRadio('i2s');
+  } else if (parsed.output.toUpperCase().startsWith('SPDIF')) {
+    handleTemplateTypeRadio('spdif');
+  } else if (parsed.output.toUpperCase().startsWith('BT')) {
+    if(parsed.otherOptions.btname){ 
+      commandBTSinkName= parsed.otherOptions.btname;
+    }
+    handleTemplateTypeRadio('bt');
+  }
+  Object.keys(parsed.options).forEach(function (key) {
+    const option = parsed.options[key];
+    if (!$(`#cmd_opt_${key}`).hasOwnProperty('checked')) {
+      $(`#cmd_opt_${key}`).val(option);
+    } else {
+      $(`#cmd_opt_${key}`)[0].checked = option;
+    }
+  });
+  if (parsed.options.hasOwnProperty('u')) {
+    // parse -u v[:i] and check the appropriate radio button with id #resample_v
+    const [resampleValue, resampleInterpolation] = parsed.options.u.split(':');
+    $(`#resample_${resampleValue}`).prop('checked', true);
+    // if resampleinterpolation is set, check  resample_i checkbox
+    if (resampleInterpolation) {
+      $('#resample_i').prop('checked', true);
+    }
+  }
+
+
+}
+
 function showLocalMessage(message, severity) {
   const msg = {
     message: message,

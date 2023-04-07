@@ -10,6 +10,7 @@ const ImageMinimizerPlugin = require("image-minimizer-webpack-plugin");
 const webpack = require("webpack");
 const path = require("path");
 const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+
 const globSync = require("glob").sync;
 const glob = require('glob');
 const { merge } = require('webpack-merge');
@@ -39,7 +40,15 @@ class BuildEventsHook {
 module.exports = (env, options) => (
   merge(
     env.WEBPACK_SERVE ?  devserver : {},
-    env.ANALYZE_SIZE?{ plugins: [ new BundleAnalyzerPlugin() ]}:{},
+    env.ANALYZE_SIZE?{ plugins: [ new BundleAnalyzerPlugin(
+      {
+        analyzerMode: 'static',
+        generateStatsFile: true,
+        statsFilename: 'stats.json',
+      }
+    )      ]}:{},
+
+    
     {
       entry: 
       {
@@ -170,7 +179,6 @@ module.exports = (env, options) => (
         ],
       },
       plugins: [
-      
         new HtmlWebpackPlugin({
           title: 'SqueezeESP32',
           template: './src/index.ejs',
@@ -328,6 +336,7 @@ extern const uint8_t * resource_map_end[];`;
       optimization: {
         minimize: true,
         providedExports: true,
+        usedExports: true,
         minimizer: [
          
           new TerserPlugin({
@@ -340,7 +349,14 @@ extern const uint8_t * resource_map_end[];`;
           // enable parallel running
             parallel: true,
           }),
-          new HtmlMinimizerPlugin(),
+          new HtmlMinimizerPlugin({
+            minimizerOptions: {
+              removeComments: true,
+              removeOptionalTags: true,
+
+            }
+          }
+          ),
           new CssMinimizerPlugin(),
           new ImageMinimizerPlugin({
             minimizer: {
