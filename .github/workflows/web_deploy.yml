@@ -1,6 +1,9 @@
 name: Update Web Installer
 on:
   workflow_call:
+    secrets:
+      WEB_INSTALLER:
+        required: true       
   workflow_dispatch:
 jobs:
   update_web_installer:
