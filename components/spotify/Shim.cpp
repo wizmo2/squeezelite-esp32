@@ -39,6 +39,7 @@ class chunkManager : public bell::Task {
 public:
     std::atomic<bool> isRunning = true;
     std::atomic<bool> isPaused = true;
+    std::atomic<bool> discard = true;
     chunkManager(std::shared_ptr<bell::CentralAudioBuffer> centralAudioBuffer, std::function<void()> trackHandler,
                  std::function<void(const uint8_t*, size_t)> dataHandler);
     void teardown();
@@ -88,10 +89,11 @@ void chunkManager::runTask() {
         if (lastHash != chunk->trackHash) {
             CSPOT_LOG(info, "hash update %x => %x", lastHash, chunk->trackHash);
             lastHash = chunk->trackHash;
+            discard = false;
             trackHandler();
         }
 
-        dataHandler(chunk->pcmData, chunk->pcmSize);
+        if (!discard) dataHandler(chunk->pcmData, chunk->pcmSize);
     }
 }
 
@@ -223,6 +225,7 @@ esp_err_t cspotPlayer::handlePOST(httpd_req_t *request) {
 void cspotPlayer::eventHandler(std::unique_ptr<cspot::SpircHandler::Event> event) {
     switch (event->eventType) {
     case cspot::SpircHandler::EventType::PLAYBACK_START: {
+        chunker->discard = true;
         centralAudioBuffer->clearBuffer();
 
         // we are not playing anymore
