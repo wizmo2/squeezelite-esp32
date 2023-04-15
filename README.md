@@ -1,4 +1,4 @@
-![ESP-IDF v4.3.1](https://github.com/sle118/squeezelite-esp32/actions/workflows/esp-idf-v4.3-build.yml/badge.svg?branch=master-v4.3)
+[![Platform Build](https://github.com/sle118/squeezelite-esp32/actions/workflows/Platform_build.yml/badge.svg)](https://github.com/sle118/squeezelite-esp32/actions/workflows/Platform_build.yml)
 # Squeezelite-esp32
 
 ## What is this?
