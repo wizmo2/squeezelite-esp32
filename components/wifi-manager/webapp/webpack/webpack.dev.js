@@ -6,6 +6,7 @@ const HtmlWebPackPlugin = require('html-webpack-plugin');
 const { Command } = require('commander');
 let  cmdLines= { };
 var { parseArgsStringToArgv } = require('string-argv');
+const PORT = 9100;
 
 const data = {
     messages: require("../mock/messages.json"),
@@ -133,11 +134,10 @@ const connectReturnCode = {
   }
 module.exports ={
     entry: {
-        test: './src/test.ts',
+        test: './src/test.ts'
+        
     },
     devServer: {
-
-        
         static: {
             directory: path.resolve(__dirname, './dist'),
             staticOptions: {},
@@ -158,11 +158,10 @@ module.exports ={
           },
         open: true,
         compress: true,
-        port: 9100, 
+        port: PORT, 
         host: '127.0.0.1',//your ip address
         allowedHosts: "all",
-        headers: {'Access-Control-Allow-Origin': '*',
-    'Accept-Encoding': 'identity'},
+        headers: {'Access-Control-Allow-Origin': '*',    'Accept-Encoding': 'identity'},
     client: {
         logging: "verbose",
         // Can be used only for `errors`/`warnings`
@@ -179,8 +178,18 @@ module.exports ={
           throw new Error('webpack-dev-server is not defined');
         }
   
-        const port = devServer.server.address().port;
-        console.log('Listening on port:', port);
+        const PORT = devServer.server.address().port;
+
+        // get the path to the test page
+        const compiler = devServer.compiler;
+        const entry = compiler.options.entry;
+        const testEntry = entry['test'].import[0];
+        const testPath = testEntry.replace('./src/', '').replace('.ts', '.html');
+  
+        // open the test page
+        import('open').then((open) => open.default(`http://localhost:${PORT}/${testPath}`));
+  
+
       },
 
         onBeforeSetupMiddleware: function (devServer) {

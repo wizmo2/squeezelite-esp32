@@ -275,7 +275,11 @@ static void sighandler(int signum) {
 	signal(signum, SIG_DFL);
 }
 
+#ifndef EMBEDDED
 int main(int argc, char **argv) {
+#else
+int squeezelite_main(int argc, char **argv) {
+#endif
 	char *server = NULL;
 	char *output_device = "default";
 	char *include_codecs = NULL;
@@ -316,6 +320,11 @@ int main(int argc, char **argv) {
 #if IR
 	char *lircrc = NULL;
 #endif
+
+#if EMBEDDED
+    int err = embedded_init();
+    if (err) return err;
+#endif    
 	
 	log_level log_output = lWARN;
 	log_level log_stream = lWARN;
@@ -377,7 +386,7 @@ int main(int argc, char **argv) {
 			optarg = NULL;
 			optind += 1;
 		} else {
-			fprintf(stderr, "\nOption error: -%s\n\n", opt);
+			LOG_ERROR("=> Option error: -%s", opt);
 			usage(argv[0]);
 			exit(1);
 		}
@@ -428,7 +437,7 @@ int main(int argc, char **argv) {
 					if (!strcmp(l, "all") || !strcmp(l, "ir"))        log_ir     = new;
 #endif
 				} else {
-					fprintf(stderr, "\nDebug settings error: -d %s\n\n", optarg);
+					LOG_ERROR("=> Debug settings error: -d %s", optarg);
 					usage(argv[0]);
 					exit(1);
 				}
@@ -442,7 +451,7 @@ int main(int argc, char **argv) {
 				int byte = 0;
 				char *tmp;
 				if (!strncmp(optarg, "00:04:20", 8)) {
-					LOG_ERROR("ignoring mac address from hardware player range 00:04:20:**:**:**");
+					LOG_ERROR("=> ignoring mac address from hardware player range 00:04:20:**:**:**");
 				} else {
 					char *t = strtok(optarg, ":");
 					while (t && byte < 6) {
@@ -674,19 +683,20 @@ int main(int argc, char **argv) {
 		case 't':
 			license();
 			exit(0);
+            break;
 		case '?':
 			usage(argv[0]);
 			exit(0);
 			break;
 		default:
-			fprintf(stderr, "Arg error: %s\n", argv[optind]);
+			LOG_ERROR("=> arg error: %s", argv[optind]);
 			break;
 		}
 	}
 
 	// warn if command line includes something which isn't parsed
 	if (optind < argc) {
-		fprintf(stderr, "\nError: command line argument error\n\n");
+		LOG_ERROR("=> command line argument error");
 		usage(argv[0]);
 		exit(1);
 	}
@@ -756,7 +766,6 @@ int main(int argc, char **argv) {
 	stream_init(log_stream, stream_buf_size);
 
 #if EMBEDDED
-	embedded_init();
 	output_init_embedded(log_output, output_device, output_buf_size, output_params, rates, rate_delay, idle);
 #else
 	if (!strcmp(output_device, "-")) {
@@ -797,7 +806,7 @@ int main(int argc, char **argv) {
 #endif
 
 	if (name && namefile) {
-		fprintf(stderr, "-n and -N option should not be used at same time\n");
+		LOG_ERROR("=> -n and -N option should not be used at same time");
 		exit(1);
 	}
 
@@ -840,5 +849,5 @@ int main(int argc, char **argv) {
 	free_ssl_symbols();
 #endif	
 
-	exit(0);
+	return(0);
 }

@@ -390,7 +390,7 @@ void stream_init(log_level level, unsigned stream_buf_size) {
 	buf_init(streambuf, stream_buf_size);
 	if (streambuf->buf == NULL) {
 		LOG_ERROR("unable to malloc buffer");
-		exit(0);
+		exit(2);
 	}
 	
 #if USE_SSL
@@ -401,7 +401,7 @@ void stream_init(log_level level, unsigned stream_buf_size) {
 	SSLctx = SSL_CTX_new(SSLv23_client_method());
 	if (SSLctx == NULL) {
 		LOG_ERROR("unable to allocate SSL context");
-		exit(0);
+		exit(3);
 	}	
 	SSL_CTX_set_options(SSLctx, SSL_OP_NO_SSLv2);
 #if !LINKALL && !NO_SSLSYM

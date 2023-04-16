@@ -71,7 +71,8 @@ static log_level 	*loglevel = &raop_loglevel;
 //#define __RTP_STORE
 
 // default buffer size
-#define BUFFER_FRAMES 	( (150 * RAOP_SAMPLE_RATE * 2) / (352 * 100) )
+#define BUFFER_FRAMES_MAX 	((RAOP_SAMPLE_RATE * 10) / 352 )
+#define BUFFER_FRAMES_MIN 	( (150 * RAOP_SAMPLE_RATE * 2) / (352 * 100) )
 #define MAX_PACKET       1408
 #define MIN_LATENCY		11025
 #define MAX_LATENCY   	( (120 * RAOP_SAMPLE_RATE * 2) / 100 )
@@ -86,14 +87,15 @@ static log_level 	*loglevel = &raop_loglevel;
 enum { DATA = 0, CONTROL, TIMING };
 
 static const u8_t silence_frame[MAX_PACKET] = { 0 };
+uint32_t buffer_frames = ((150 * RAOP_SAMPLE_RATE * 2) / (352 * 100));
 
 typedef u16_t seq_t;
-typedef struct audio_buffer_entry {   // decoded audio packets
-	int ready;
+typedef struct __attribute__((__packed__)) audio_buffer_entry {   // decoded audio packets
 	u32_t rtptime, last_resend;
 	s16_t *data;
-	int len;
-	bool allocated;
+    u16_t len;    
+    u8_t ready;
+    u8_t allocated;
 } abuf_t;
 
 typedef struct rtp_s {
@@ -133,7 +135,7 @@ typedef struct rtp_s {
 	u32_t resent_req, resent_rec;	// total resent + recovered frames
 	u32_t silent_frames;	// total silence frames
 	u32_t discarded;
-	abuf_t audio_buffer[BUFFER_FRAMES];
+	abuf_t audio_buffer[BUFFER_FRAMES_MAX];
 	seq_t ab_read, ab_write;
 	pthread_mutex_t ab_mutex;
 #ifdef WIN32
@@ -152,7 +154,7 @@ typedef struct rtp_s {
 } rtp_t;
 
 
-#define BUFIDX(seqno) ((seq_t)(seqno) % BUFFER_FRAMES)
+#define BUFIDX(seqno) ((seq_t)(seqno) % buffer_frames)
 static void 	buffer_alloc(abuf_t *audio_buffer, int size, uint8_t *buf, size_t buf_size);
 static void 	buffer_release(abuf_t *audio_buffer);
 static void 	buffer_reset(abuf_t *audio_buffer);
@@ -373,25 +375,27 @@ void rtp_record(rtp_t *ctx, unsigned short seqno, unsigned rtptime) {
 
 /*---------------------------------------------------------------------------*/
 static void buffer_alloc(abuf_t *audio_buffer, int size, uint8_t *buf, size_t buf_size) {
-	int i;
-	for (i = 0; i < BUFFER_FRAMES; i++) {
-		if (buf && buf_size >= size) {
-			audio_buffer[i].data = (s16_t*) buf;
-			audio_buffer[i].allocated = false;
-			buf += size;
-			buf_size -= size;
-		} else {
-			audio_buffer[i].allocated = true;
-			audio_buffer[i].data = malloc(size);
-		}
-		audio_buffer[i].ready = 0;
+    for (buffer_frames = 0; buf && buf_size >= size && buffer_frames < BUFFER_FRAMES_MAX; buffer_frames++) {
+    	audio_buffer[buffer_frames].data = (s16_t*) buf;
+		audio_buffer[buffer_frames].allocated = 0;
+        audio_buffer[buffer_frames].ready = 0;
+        buf += size;
+        buf_size -= size;
+    }    
+    
+    LOG_INFO("allocated %d buffers (min=%d) from buffer of %zu bytes", buffer_frames, BUFFER_FRAMES_MIN, buf_size + buffer_frames * size);
+    
+    for(; buffer_frames < BUFFER_FRAMES_MIN; buffer_frames++) {
+		audio_buffer[buffer_frames].data = malloc(size);        
+		audio_buffer[buffer_frames].allocated = 1;
+		audio_buffer[buffer_frames].ready = 0;
 	}
 }
 
 /*---------------------------------------------------------------------------*/
 static void buffer_release(abuf_t *audio_buffer) {
 	int i;
-	for (i = 0; i < BUFFER_FRAMES; i++) {
+	for (i = 0; i < buffer_frames; i++) {
 		if (audio_buffer[i].allocated) free(audio_buffer[i].data);
 	}
 }
@@ -399,7 +403,7 @@ static void buffer_release(abuf_t *audio_buffer) {
 /*---------------------------------------------------------------------------*/
 static void buffer_reset(abuf_t *audio_buffer) {
 	int i;
-	for (i = 0; i < BUFFER_FRAMES; i++) audio_buffer[i].ready = 0;
+	for (i = 0; i < buffer_frames; i++) audio_buffer[i].ready = 0;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -411,7 +415,7 @@ static int seq_order(seq_t a, seq_t b) {
 }
 
 /*---------------------------------------------------------------------------*/
-static void alac_decode(rtp_t *ctx, s16_t *dest, char *buf, int len, int *outsize) {
+static void alac_decode(rtp_t *ctx, s16_t *dest, char *buf, int len, u16_t *outsize) {
 	unsigned char iv[16];
 	int aeslen;
 	assert(len<=MAX_PACKET);
@@ -803,7 +807,7 @@ static bool rtp_request_resend(rtp_t *ctx, seq_t first, seq_t last) {
 	unsigned char req[8];    // *not* a standard RTCP NACK
 
 	// do not request silly ranges (happens in case of network large blackouts)
-	if (seq_order(last, first) || last - first > BUFFER_FRAMES / 2) return false;
+	if (seq_order(last, first) || last - first > buffer_frames / 2) return false;
 	
 	ctx->resent_req += (seq_t) (last - first) + 1;
 

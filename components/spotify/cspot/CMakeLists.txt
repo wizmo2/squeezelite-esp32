@@ -16,11 +16,6 @@ endif()
 # Main library sources
 file(GLOB SOURCES "src/*.cpp" "src/*.c")
 
-if(WIN32)
-    list(APPEND SOURCES "mdnssvc/mdns.c" "mdnssvc/mdnsd.c")
-    list(APPEND EXTRA_INCLUDES "mdnssvc")
-endif()	
-
 # Use externally specified bell library or the submodule
 if(CSPOT_EXTERNAL_BELL)
     list(APPEND EXTRA_LIBS ${CSPOT_EXTERNAL_BELL})
@@ -29,24 +24,12 @@ else()
     list(APPEND EXTRA_LIBS bell)
 endif()
 
-# Add Apple Bonjour compatibility library for Linux
-if(UNIX AND NOT APPLE)
-    list(APPEND EXTRA_LIBS dns_sd)
-    # TODO: migrate from this to native linux mDNS
-endif()
-
 # Build protobuf code
-if(0)
 set(NANOPB_OPTIONS "-I${CMAKE_CURRENT_SOURCE_DIR}")
 file(GLOB PROTOS protobuf/*.proto)
 nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS RELPATH ${CMAKE_CURRENT_SOURCE_DIR} ${PROTOS})
 add_custom_target(generate_proto_sources DEPENDS ${PROTO_SRCS} ${PROTO_HDRS})
 set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES GENERATED TRUE)
-else()
-list(APPEND SOURCES "protobuf/authentication.pb.c" "protobuf/keyexchange.pb.c" "protobuf/mercury.pb.c" "protobuf/metadata.pb.c" "protobuf/spirc.pb.c")
-list(APPEND EXTRA_INCLUDES ".")
-message(WARNING "NOT GENERATING PROTOBUF")
-endif()
 
 add_library(cspot STATIC ${SOURCES} ${PROTO_SRCS})
 # PUBLIC to propagate includes from bell to cspot dependents

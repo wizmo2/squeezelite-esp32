@@ -15,7 +15,7 @@ ENV GCC_TOOLS_BASE=/opt/esp/tools/xtensa-esp32-elf/esp-2021r2-8.4.0/xtensa-esp32
 # To run the image interactive (windows): 
 # docker run --rm -v %cd%:/project -w /project -it sle118/squeezelite-esp32-idfv43
 # To run the image interactive (linux):
-# docker run --rm -v `pwd`:/project -w /project -it sle118/squeezelite-esp32-idfv4-master
+# docker run --rm -v `pwd`:/project -w /project -it sle118/squeezelite-esp32-idfv43
 # to build the web app inside of the interactive session
 # pushd components/wifi-manager/webapp/ && npm install && npm run-script build && popd
 #
@@ -90,6 +90,7 @@ RUN : \
   && pip show pygit2 \ 
   && python --version \  
   && pip --version \
+  && pip install protobuf  grpcio-tools \
   && rm -rf $IDF_TOOLS_PATH/dist \
   && :
 

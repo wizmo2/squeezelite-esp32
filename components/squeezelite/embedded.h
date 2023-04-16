@@ -51,8 +51,13 @@ extern u8_t custom_player_id;
 // to force some special buffer attribute
 #define EXT_BSS __attribute__((section(".ext_ram.bss"))) 
 
+// otherwise just leave it empty
+void em_logprint(const char *fmt, ...);
+#define LOG_ERROR(fmt, ...) em_logprint("%s %s:%d " fmt "\n", logtime(), __FUNCTION__, __LINE__, ##__VA_ARGS__); 
+
 // all exit() calls are made from main thread (or a function called in main thread)
-#define exit(code) { int ret = code; pthread_exit(&ret); }
+void embedded_exit(int code);
+#define exit(code) do { embedded_exit(code); } while (0)
 #define gettime_ms _gettime_ms_
 #define mutex_create_p(m) mutex_create(m)
 
@@ -62,7 +67,7 @@ int			pthread_create_name(pthread_t *thread, _CONST pthread_attr_t  *attr,
 				   void *(*start_routine)( void * ), void *arg, char *name);
 
 // must provide	of #define as empty macros		
-void		embedded_init(void);
+int 		embedded_init(void);
 void 		register_external(void);
 void 		deregister_external(void);
 void 		decode_restore(int external);

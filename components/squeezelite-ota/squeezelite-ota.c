@@ -41,7 +41,6 @@
 #include "globdefs.h"
 #include "tools.h"
 
-extern const char * get_certificate();
 #define IF_DISPLAY(x) if(display) { x; }
 
 #ifdef CONFIG_ESP32_WIFI_TASK_PINNED_TO_CORE_1
@@ -352,7 +351,6 @@ esp_err_t init_config(ota_thread_parms_t * p_ota_thread_parms){
 		}
 	switch (ota_status->ota_type) {
 	case OTA_TYPE_HTTP:
-		http_client_config.cert_pem =get_certificate();
 		http_client_config.event_handler = _http_event_handler;
 		http_client_config.disable_auto_redirect=false;
 		http_client_config.skip_cert_common_name_check = false;

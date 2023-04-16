@@ -1,3 +1,4 @@
+declare const PORT: 9100;
 import HtmlWebPackPlugin = require("html-webpack-plugin");
 export namespace entry {
     const test: string;
@@ -17,7 +18,7 @@ export namespace devServer {
     }
     export const open: boolean;
     export const compress: boolean;
-    export const port: number;
+    export { PORT as port };
     export const host: string;
     export const allowedHosts: string;
     export const headers: {
@@ -33,3 +34,4 @@ export namespace devServer {
     export function onBeforeSetupMiddleware(devServer: any): void;
 }
 export const plugins: HtmlWebPackPlugin[];
+export {};

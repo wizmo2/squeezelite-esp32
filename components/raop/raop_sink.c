@@ -90,7 +90,7 @@ const static actrls_t controls = {
 	NULL, NULL,							// rew, fwd
 	raop_prev, raop_next,				// prev, next
 	NULL, NULL, NULL, NULL, // left, right, up, down
-	NULL, NULL, NULL, NULL, NULL, NULL, // pre1-6
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, // pre1-10
 	raop_volume_down, raop_volume_up, raop_toggle// knob left, knob_right, knob push
 };
 

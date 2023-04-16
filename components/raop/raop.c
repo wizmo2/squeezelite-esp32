@@ -959,7 +959,7 @@ static int base64_decode(const char *str, void *data)
 /*----------------------------------------------------------------------------*/
 static void on_dmap_string(void *ctx, const char *code, const char *name, const char *buf, size_t len) {
 	struct metadata_s *metadata = (struct metadata_s *) ctx;
-
+    // to gain space, most of the code have been removed from dmap_parser.c (define DMAP_FULL)
 	if (!strcasecmp(code, "asar")) metadata->artist = strndup(buf, len);
 	else if (!strcasecmp(code, "asal")) metadata->album = strndup(buf, len);
 	else if (!strcasecmp(code, "minm")) metadata->title = strndup(buf, len);

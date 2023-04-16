@@ -134,7 +134,7 @@ buildMap(sdkconfig).then((sdkConfigResult ) => {
 					}
 				}
 			}
-			console.log(`\n\nproperties that are different between the 2 files \n**************************`);
+			console.log(`\n\nproperties that are different ${sdkconfig}<->${comparedFile} \n**************************`);
 			for (const prop in sdkconfigMap) {
 				entry = sdkconfigMap[prop];
 				if(entry.type==map_types.COMMENT) continue;
@@ -159,7 +159,7 @@ buildMap(sdkconfig).then((sdkConfigResult ) => {
 				}
 			});
 			
-			console.log(`\n\${comparedFile} with missing properties\n**************************`);
+			console.log(`\n\n${comparedFile} with missing properties\n**************************`);
 			newlines.forEach(line => {
 				console.log(line);
 			});

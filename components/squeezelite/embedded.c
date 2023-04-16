@@ -8,6 +8,7 @@
  *  https://opensource.org/licenses/MIT
  *
  */
+#include <setjmp.h>
 #include "squeezelite.h"
 #include "pthread.h"
 #include "esp_pthread.h"
@@ -16,8 +17,10 @@
 #include "esp_wifi.h"
 #include "monitor.h"
 #include "platform_config.h"
+#include "messaging.h"
 
 mutex_type slimp_mutex;
+static jmp_buf jumpbuf;
 
 void get_mac(u8_t mac[]) {
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
@@ -25,6 +28,15 @@ void get_mac(u8_t mac[]) {
 
 _sig_func_ptr signal(int sig, _sig_func_ptr func) {
 	return NULL;
+}
+
+void em_logprint(const char *fmt, ...) {
+    va_list args;
+	va_start(args, fmt);
+	vfprintf(stderr, fmt, args);    
+    vmessaging_post_message(MESSAGING_ERROR, MESSAGING_CLASS_SYSTEM, fmt, args); 
+	va_end(args);
+	fflush(stderr);
 }
 
 void *audio_calloc(size_t nmemb, size_t size) {
@@ -49,11 +61,17 @@ extern bool sb_displayer_init(void);
 
 u8_t custom_player_id = 12;
 
-void embedded_init(void) {
+int embedded_init(void) {
 	mutex_create(slimp_mutex);
 	sb_controls_init();
 	custom_player_id = sb_displayer_init() ? 100 : 101;
+    
+    return setjmp(jumpbuf);
 }
+
+void embedded_exit(int code) {
+    longjmp(jumpbuf, code + 1);
+}    
 
 u16_t get_RSSI(void) {
     wifi_ap_record_t wifidata;

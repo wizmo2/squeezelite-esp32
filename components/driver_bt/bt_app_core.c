@@ -83,25 +83,26 @@ static void bt_app_task_handler(void *arg)
 	
 	esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
-	
-    if ((err = esp_bt_controller_init(&bt_cfg)) != ESP_OK) {
-        ESP_LOGE(TAG, "%s initialize controller failed: %s\n", __func__, esp_err_to_name(err));
-        goto exit;
-    }
+	if (esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_IDLE ) {
+        if ((err = esp_bt_controller_init(&bt_cfg)) != ESP_OK) {
+            ESP_LOGE(TAG, "%s initialize controller failed: %s\n", __func__, esp_err_to_name(err));
+            goto exit;
+        }
 
-    if ((err = esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT)) != ESP_OK) {
-        ESP_LOGE(TAG, "%s enable controller failed: %s\n", __func__, esp_err_to_name(err));
-		goto exit;
-    }
+        if ((err = esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT)) != ESP_OK) {
+            ESP_LOGE(TAG, "%s enable controller failed: %s\n", __func__, esp_err_to_name(err));
+            goto exit;
+        }
 
-    if ((err = esp_bluedroid_init()) != ESP_OK) {
-        ESP_LOGE(TAG, "%s initialize bluedroid failed: %s\n", __func__, esp_err_to_name(err));
-		goto exit;
-    }
+        if ((err = esp_bluedroid_init()) != ESP_OK) {
+            ESP_LOGE(TAG, "%s initialize bluedroid failed: %s\n", __func__, esp_err_to_name(err));
+            goto exit;
+        }
 
-    if ((err = esp_bluedroid_enable()) != ESP_OK) {
-        ESP_LOGE(TAG, "%s enable bluedroid failed: %s\n", __func__, esp_err_to_name(err));
-		goto exit;
+        if ((err = esp_bluedroid_enable()) != ESP_OK) {
+            ESP_LOGE(TAG, "%s enable bluedroid failed: %s\n", __func__, esp_err_to_name(err));
+            goto exit;
+        }
     }
 	
 	/* Bluetooth device name, connection mode and profile set up */
@@ -113,6 +114,14 @@ static void bt_app_task_handler(void *arg)
     esp_bt_io_cap_t iocap = ESP_BT_IO_CAP_IO;
     esp_bt_gap_set_security_param(param_type, &iocap, sizeof(uint8_t));
 #endif
+	
+    /*
+     * Set default parameters for Legacy Pairing
+     * Use variable pin, input pin code when pairing
+     */
+    esp_bt_pin_type_t pin_type = ESP_BT_PIN_TYPE_VARIABLE;
+    esp_bt_pin_code_t pin_code;
+    esp_bt_gap_set_pin(pin_type, 0, pin_code);
 	
 	running = true;
 	

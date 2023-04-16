@@ -128,8 +128,8 @@ void init_telnet(){
 	if (bMirrorToUART) uart_fd = open("/dev/uart/0", O_RDWR);
 
 	ESP_ERROR_CHECK(esp_vfs_register("/dev/pkspstdout", &vfs, NULL));
-	freopen("/dev/pkspstdout", "wb", stdout);
-	freopen("/dev/pkspstdout", "wb", stderr);
+	freopen("/dev/pkspstdout", "w", stdout);
+	freopen("/dev/pkspstdout", "w", stderr);
 
 	bIsEnabled=true;
 }

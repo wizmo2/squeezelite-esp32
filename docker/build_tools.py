@@ -12,18 +12,29 @@ import io
 from os import walk
 
 from requests import Response
-NEWLINE_CHAR = '\n'
-def print_message(message,prefix=''):
-    trimmed=re.sub(r'\n', r'%0A', message,flags=re.MULTILINE)
-    print(f'{prefix}{trimmed}')
+ 
+class Logger:
+    NEWLINE_CHAR = '\n'
+    with_crlf = False
+    @classmethod
+    def print_message(cls,message,prefix=''):
+        if not Logger.with_crlf:
+            trimmed=re.sub(r'\n', r'%0A', message,flags=re.MULTILINE)
+        print(f'{prefix}{trimmed}')
+    @classmethod
+    def debug(cls,message):
+        cls.print_message(message,'::debug::')
 
-def print_debug(message):
-    print_message(message,'::debug::')
 
-
-def print_error(message):
-    print_message(message,'::error::')
-
+    @classmethod
+    def error(cls,message):
+        cls.print_message(message,'::error::')
+    @classmethod
+    def notice(cls,message):
+        cls.print_message(message,'::notice::')    
+    @classmethod
+    def warning(cls,message):
+        cls.print_message(message,'::notice::')   
 
 try:
 
@@ -34,7 +45,6 @@ try:
     import glob
 
     import json
-    import logging
     import re
     import shutil
     import stat
@@ -60,12 +70,12 @@ try:
     from genericpath import isdir
 
 except ImportError as ex:
-    print_error(
-        f'Failed importing module {ex.name}, using interpreter {sys.executable}. {NEWLINE_CHAR} Installed packages:')
+    Logger.error(
+        f'Failed importing module {ex.name}, using interpreter {sys.executable}. {Logger.NEWLINE_CHAR} Installed packages:')
     installed_packages = pkg_resources.working_set
     installed_packages_list = sorted(
         ["%s==%s" % (i.key, i.version) for i in installed_packages])
-    print(NEWLINE_CHAR.join(installed_packages_list))
+    print(Logger.NEWLINE_CHAR.join(installed_packages_list))
     print(f'Environment: ')
     envlist = "\n".join([f"{k}={v}" for k, v in sorted(os.environ.items())])
     print(f'{envlist}')
@@ -74,13 +84,15 @@ except ImportError as ex:
 tool_version = "1.0.7"
 WEB_INSTALLER_DEFAULT_PATH = './web_installer/'
 FORMAT = '%(asctime)s %(message)s'
-logging.basicConfig(format=FORMAT)
+
 github_env = type('', (), {})()
 manifest = {
     "name": "",
     "version": "",
     "home_assistant_domain": "slim_player",
     "funding_url": "https://esphome.io/guides/supporters.html",
+    "new_install_prompt_erase": True,
+    "new_install_improv_wait_time" : 20,
     "builds": [
         {
             "chipFamily": "ESP32",
@@ -121,9 +133,15 @@ parser = argparse.ArgumentParser(
     description='Handles some parts of the squeezelite-esp32 build process')
 parser.add_argument('--cwd', type=str,
                     help='Working directory', default=os.getcwd())
+parser.add_argument('--with_crlf', action='store_true',help='To prevent replacing cr/lf with hex representation')
 parser.add_argument('--loglevel', type=str, choices={
                     'CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'NOTSET'}, help='Logging level', default='INFO')
 subparsers = parser.add_subparsers(dest='command', required=True)
+
+parser_commits = subparsers.add_parser("list_commits",add_help=False,
+                                    description="Commits list",
+                                    help="Lists the last commits"
+                                    )
 
 parser_dir = subparsers.add_parser("list_files",
                                    add_help=False,
@@ -198,13 +216,13 @@ parser_build_flags.add_argument(
 parser_build_flags.add_argument(
     '--ui_build', action='store_true', help='Include building the web UI')
 
-
 def format_commit(commit):
     # 463a9d8b7 Merge branch 'bugfix/ci_deploy_tags_v4.0' into 'release/v4.0' (2020-01-11T14:08:55+08:00)
     dt = datetime.fromtimestamp(float(commit.author.time), timezone(
         timedelta(minutes=commit.author.offset)))
-    timestr = dt.strftime('%c%z')
-    cmesg = commit.message.replace('\n', ' ')
+    #timestr = dt.strftime('%c%z')
+    timestr = dt.strftime('%F %R %Z')
+    cmesg:str = commit.message.replace('\n', ' ').replace('\r','').replace('*','-')
     return f'{commit.short_id} {cmesg} ({timestr}) <{commit.author.name}>'.replace('  ', ' ', )
 
 
@@ -277,21 +295,21 @@ class BinFile():
         self.source_full_path = os.path.join(
             source_path, file_build_path).rstrip()
         self.offset = offset
-        self.target_name = f'{release_details.format_prefix()}-{self.name}'.rstrip()
+        self.target_name = f'{release_details.format_prefix()}-{release_details.bitrate}-{self.name}'.rstrip()
 
     def get_manifest(self):
         return {"path": self.target_name, "offset": self.offset}
 
     def copy(self, target_folder) -> str:
         self.target_fullpath = os.path.join(target_folder, self.target_name)
-        print_debug(
+        Logger.debug(
             f'File {self.source_full_path} will be copied to {self.target_fullpath}')
         try:
             os.makedirs(target_folder, exist_ok=True)
             shutil.copyfile(self.source_full_path,
                             self.target_fullpath, follow_symlinks=True)
         except Exception as ex:
-            print_error(f"Error while copying {self.source_full_path} to {self.target_fullpath}{NEWLINE_CHAR}Content of {os.path.dirname(self.source_full_path.rstrip())}:{NEWLINE_CHAR}{NEWLINE_CHAR.join(get_file_list(os.path.dirname(self.source_full_path.rstrip())))}")
+            Logger.error(f"Error while copying {self.source_full_path} to {self.target_fullpath}{Logger.NEWLINE_CHAR}Content of {os.path.dirname(self.source_full_path.rstrip())}:{Logger.NEWLINE_CHAR}{Logger.NEWLINE_CHAR.join(get_file_list(os.path.dirname(self.source_full_path.rstrip())))}")
             
                 
             
@@ -323,7 +341,7 @@ class PlatformRelease():
     flash_file_path: str
 
     def get_manifest_name(self) -> str:
-        return f'{self.name_prefix}-{self.release_details.format_prefix()}.json'
+        return f'{self.name_prefix}-{self.release_details.format_prefix()}-{self.release_details.bitrate}.json'
 
     def __init__(self, flash_file_path, git_release, build_dir, branch, name_prefix) -> None:
         self.name = git_release.tag_name
@@ -389,8 +407,7 @@ class PlatformRelease():
             self.has_artifacts = False
 
     def cleanup(self):
-        print(
-            f'removing temp directory for platform release {self.name}')
+        Logger.debug(f'removing temp directory for platform release {self.name}')
         shutil.rmtree(self.tempfolder)
 
     def get_attributes(self):
@@ -438,7 +455,6 @@ class Releases():
         return result
 
     def append(self, value: PlatformRelease):
-        # optional processing here
         if self.count(value) == 0:
             self._dict[value.platform()] = []
         if self.should_add(value):
@@ -465,8 +481,7 @@ class Releases():
 
     def add_package(self, package: PlatformRelease, with_artifacts: bool = True):
         if self.branch != package.branch:
-            print(
-                f'Skipping release {package.name} from branch {package.branch}')
+            Logger.debug(f'Skipping release {package.name} from branch {package.branch}')
         elif package.has_artifacts or not with_artifacts:
             self.append(package)
 
@@ -476,7 +491,7 @@ class Releases():
         if last is None:
             return ''
         else:
-            return last.message.replace(NEWLINE_CHAR, ' ')
+            return last.message.replace(Logger.NEWLINE_CHAR, ' ')
 
     @classmethod
     def get_last_author(cls, repo_obj: Repository = None) -> Signature:
@@ -505,7 +520,7 @@ class Releases():
                 print(
                     f'Last commit for {head.shorthand} is {format_commit(cls.last_commit)}')
             except Exception as e:
-                print_error(
+                Logger.error(
                     f'Unable to retrieve last commit for {head.shorthand}/{target}: {e}')
                 cls.last_commit = None
         return cls.last_commit
@@ -517,7 +532,7 @@ class Releases():
                 print(f'Opening repository from {path}')
                 cls.repo = Repository(path=path)
             except GitError as ex:
-                print_error(f"Unable to access the repository.\nContent of {path}:\n{NEWLINE_CHAR.join(get_file_list(path, 1))}")
+                Logger.error(f"Unable to access the repository({ex}).\nContent of {path}:\n{Logger.NEWLINE_CHAR.join(get_file_list(path, 1))}")
                 raise
         return cls.repo
 
@@ -558,11 +573,11 @@ class Releases():
         packages: Releases = cls(branch=repo.head.shorthand, maxcount=maxcount)
         build_dir = os.path.dirname(flash_file_path)
         for page in range(1, 999):
-            print_debug(f'Getting releases page {page}')
+            Logger.debug(f'Getting releases page {page}')
             releases = get_github_data(
                 repo, f'releases?per_page=50&page={page}')
             if len(releases) == 0:
-                print_debug(f'No more release found for page {page}')
+                Logger.debug(f'No more release found for page {page}')
                 break
             for release_entry in [AttributeDict(platform) for platform in releases]:
                 packages.add_package(PlatformRelease(flash_file_path, release_entry, build_dir,
@@ -588,14 +603,14 @@ class Releases():
                         break
 
         except Exception as e:
-            print_error(
+            Logger.error(
                 f'Unable to get commit list starting at {last.id}: {e}')
 
         return commit_list
 
     @classmethod
     def get_commit_list_descriptions(cls) -> str:
-        return '<<~EOD\n### Revision Log\n'+NEWLINE_CHAR.join(cls.get_commit_list())+'\n~EOD'
+        return '<<~EOD\n### Revision Log\n'+Logger.NEWLINE_CHAR.join(cls.get_commit_list())+'\n~EOD'
 
     def update(self, *args, **kwargs):
         if args:
@@ -626,33 +641,26 @@ def parse_json(filename: str):
     try:
         with open(fname) as f:
             content = f.read()
-            print_debug(f'Loading json\n{content}')
+            Logger.debug(f'Loading json\n{content}')
             return json.loads(content)
     except JSONDecodeError as ex:
-        print_error(f'Error parsing {content}')
+        Logger.error(f'Error parsing {content}')
     except Exception as ex:
-        print_error(
-            f"Unable to parse flasher args json file. Content of {folder}:{NEWLINE_CHAR.join(get_file_list(folder))}")
+        Logger.error(
+            f"Unable to parse flasher args json file. Content of {folder}:{Logger.NEWLINE_CHAR.join(get_file_list(folder))}")
         raise
 
 
-def write_github_env(args):
-    print(f'Writing environment details to {args.env_file}...')
-    with open(args.env_file,  "w") as env_file:
-        for attr in [attr for attr in dir(github_env) if not attr.startswith('_')]:
-            line = f'{attr}{"=" if attr != "description" else ""}{getattr(github_env,attr)}'
+def write_github_env_file(values,env_file):
+    print(f'Writing content to {env_file}...')
+    with open(env_file,  "w") as env_file:
+        for attr in [attr for attr in dir(values) if not attr.startswith('_')]:
+            line = f'{attr}{"=" if attr != "description" else ""}{getattr(values,attr)}'
             print(line)
             env_file.write(f'{line}\n')
-            os.environ[attr] = str(getattr(github_env, attr))
-    print(f'Done writing environment details to {args.env_file}!')
+            os.environ[attr] = str(getattr(values, attr))
+    print(f'Done writing to {env_file}!')
 
-
-def set_workflow_output(args):
-    print(f'Outputting job variables ...')
-    for attr in [attr for attr in dir(github_env) if not attr.startswith('_')]:
-        print(f'::set-output name={attr}::{getattr(github_env,attr)}')
-        os.environ[attr] = str(getattr(github_env, attr))
-    print(f'Done outputting job variables!')
 
 
 def format_artifact_from_manifest(manif_json: AttributeDict):
@@ -674,7 +682,19 @@ def handle_build_flags(args):
     github_env.release_flag = 1 if args.mock or args.force or 'release' in commit_message.lower() else 0
     github_env.ui_build = 1 if args.mock or args.ui_build or '[ui-build]' in commit_message.lower(
     ) or github_env.release_flag == 1 else 0
-    set_workflow_output(github_env)
+    write_github_env_file(github_env,os.environ.get('GITHUB_OUTPUT'))
+
+def write_version_number(file_path:str,env_details):
+    #     app_name="${TARGET_BUILD_NAME}.${DEPTH}.dev-$(git log --pretty=format:'%h' --max-count=1).${branch_name}" 
+    #     echo "${app_name}">version.txt
+    try:
+        version:str = f'{env_details.TARGET_BUILD_NAME}.{env_details.DEPTH}.{env_details.major}.{env_details.BUILD_NUMBER}.{env_details.branch_name}'
+        with open(file_path,  "w") as version_file:
+            version_file.write(version)
+    except Exception as ex:
+        Logger.error(f'Unable to set version string {version} in file {file_path}')
+        raise Exception('Version error')
+    Logger.notice(f'Firmware version set to {version}')
 
 
 def handle_environment(args):
@@ -706,7 +726,8 @@ def handle_environment(args):
     github_env.artifact_bin_file_name = f"{github_env.artifact_prefix}.bin"
     github_env.PROJECT_VER = f'{args.node}-{ args.build }'
     github_env.description = Releases.get_commit_list_descriptions()
-    write_github_env(args)
+    write_github_env_file(github_env,args.env_file)
+    write_version_number("version.txt",github_env)
 
 
 def handle_artifacts(args):
@@ -722,7 +743,7 @@ def handle_artifacts(args):
             os.makedirs(target_dir, exist_ok=True)
             shutil.copyfile(source, target, follow_symlinks=True)
         except Exception as ex:
-            print_error(f"Error while copying {source} to {target}\nContent of {target_dir}:\n{NEWLINE_CHAR.join(get_file_list(os.path.dirname(attr[0].rstrip())))}")
+            Logger.error(f"Error while copying {source} to {target}\nContent of {target_dir}:\n{Logger.NEWLINE_CHAR.join(get_file_list(os.path.dirname(attr[0].rstrip())))}")
             raise
 
 
@@ -731,16 +752,16 @@ def delete_folder(path):
     for root, dirs, files in os.walk(path, topdown=True):
         for dir in dirs:
             fulldirpath = os.path.join(root, dir)
-            print_debug(f'Drilling down in {fulldirpath}')
+            Logger.debug(f'Drilling down in {fulldirpath}')
             delete_folder(fulldirpath)
         for fname in files:
             full_path = os.path.join(root, fname)
-            print_debug(f'Setting file read/write {full_path}')
+            Logger.debug(f'Setting file read/write {full_path}')
             os.chmod(full_path, stat.S_IWRITE)
-            print_debug(f'Deleting file {full_path}')
+            Logger.debug(f'Deleting file {full_path}')
             os.remove(full_path)
     if os.path.exists(path):
-        print_debug(f'Changing folder read/write {path}')
+        Logger.debug(f'Changing folder read/write {path}')
         os.chmod(path, stat.S_IWRITE)
         print(f'WARNING: Deleting Folder {path}')
         os.rmdir(path)
@@ -797,7 +818,7 @@ def handle_manifest(args):
         man['builds'][0]['parts'] = release.process_files(args.outdir)
         man['name'] = release.platform()
         man['version'] = release.release_details.version
-        print_debug(f'Generated manifest: \n{json.dumps(man)}')
+        Logger.debug(f'Generated manifest: \n{json.dumps(man)}')
         fullpath = os.path.join(args.outdir, release.get_manifest_name())
         print(f'Writing manifest to {fullpath}')
         with open(fullpath, "w") as f:
@@ -827,7 +848,7 @@ def copy_no_overwrite(source: str, target: str):
             print(f'Copying {f} to target')
             shutil.copy(source_file, target_file)
         else:
-            print_debug(f'Skipping existing file {f}')
+            Logger.debug(f'Skipping existing file {f}')
 
 
 def get_changed_items(repo: Repository) -> Dict:
@@ -844,6 +865,14 @@ def get_changed_items(repo: Repository) -> Dict:
 def is_dirty(repo: Repository) -> bool:
     return len(get_changed_items(repo)) > 0
 
+def push_with_method(auth_method:str,token:str,remote: Remote,reference):
+    success:bool = False
+    try:
+        remote.push(reference, callbacks=RemoteCallbacks(pygit2.UserPass(auth_method, token)))
+        success=True
+    except Exception as ex:
+        Logger.error(f'Error pushing with auth method {auth_method}: {ex}.')
+    return success
 
 def push_if_change(repo: Repository, token: str, source_path: str, manif_json):
     if is_dirty(repo):
@@ -861,14 +890,13 @@ def push_if_change(repo: Repository, token: str, source_path: str, manif_json):
         origin: Remote = repo.remotes['origin']
         print(
             f'Pushing commit {format_commit(repo[commit])} to url {origin.url}')
-        credentials = UserPass(token, 'x-oauth-basic')  # passing credentials
         remote: Remote = repo.remotes['origin']
-        # remote.credentials = credentials
-        auth_method = 'x-access-token'
-        remote.push([reference], callbacks=RemoteCallbacks(
-            pygit2.UserPass(auth_method, token)))
-        print(
-            f'::notice Web installer updated for {format_artifact_from_manifest(manif_json)}')
+        auth_methods = ['x-access-token','x-oauth-basic']
+        for method in auth_methods:
+            if push_with_method(method, token, remote, [reference]):
+                print(f'::notice Web installer updated for {format_artifact_from_manifest(manif_json)}')
+                return
+        raise Exception('Unable to push web installer.')    
 
     else:
         print(f'WARNING: No change found. Skipping update')
@@ -914,8 +942,8 @@ def handle_show(args):
 def extract_files_from_archive(url):
     tempfolder = tempfile.mkdtemp()
     platform:Response = requests.get(url)
-    print_debug(f'Downloading {url} to {tempfolder}')
-    print_debug(f'Transfer status code: {platform.status_code}. Expanding content')
+    Logger.debug(f'Downloading {url} to {tempfolder}')
+    Logger.debug(f'Transfer status code: {platform.status_code}. Expanding content')
     z = zipfile.ZipFile(io.BytesIO(platform.content))
     z.extractall(tempfolder)
     return tempfolder
@@ -923,7 +951,11 @@ def extract_files_from_archive(url):
 
 def handle_list_files(args):
     print(f'Content of {args.cwd}:')
-    print(NEWLINE_CHAR.join(get_file_list(args.cwd)))
+    print(Logger.NEWLINE_CHAR.join(get_file_list(args.cwd)))
+
+def handle_commits(args):
+    set_workdir(args)
+    print(Releases.get_commit_list_descriptions())
 
 
 parser_environment.set_defaults(func=handle_environment, cmd='environment')
@@ -932,11 +964,13 @@ parser_pushinstaller.set_defaults(func=handle_pushinstaller, cmd='installer')
 parser_show.set_defaults(func=handle_show, cmd='show')
 parser_build_flags.set_defaults(func=handle_build_flags, cmd='build_flags')
 parser_dir.set_defaults(func=handle_list_files, cmd='list_files')
+parser_commits.set_defaults(func=handle_commits,cmd='list_commits')
 
 
 def main():
     exit_result_code = 0
     args = parser.parse_args()
+    Logger.with_crlf = args.with_crlf
     print(f'::group::{args.command}')
     print(f'build_tools version : {tool_version}')
     print(f'Processing command {args.command}')
@@ -948,7 +982,7 @@ def main():
         try:
             func(args)
         except Exception as e:
-            print_error(f'Critical error while running {args.command}\n{" ".join(traceback.format_exception(etype=type(e), value=e, tb=e.__traceback__))}')
+            Logger.error(f'Critical error while running {args.command}\n{" ".join(traceback.format_exception(etype=type(e), value=e, tb=e.__traceback__))}')
             exit_result_code = 1
     else:
         # No subcommand was provided, so call help
