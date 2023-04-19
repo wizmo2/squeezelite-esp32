@@ -16,7 +16,10 @@
 #include <stdarg.h>
 #include <ApResolve.h>
 
+#include "BellTask.h"
 #include "MDNSService.h"
+#include "TrackPlayer.h"
+#include "CSpotContext.h"
 #include "SpircHandler.h"
 #include "LoginBlob.h"
 #include "CentralAudioBuffer.h"
