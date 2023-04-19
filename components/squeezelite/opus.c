@@ -54,7 +54,6 @@ struct opus {
 	size_t overframes;
 	u8_t *overbuf;
 	int channels;
-    bool eos;
 };
 
 #if !LINKALL
@@ -133,7 +132,7 @@ static opus_uint32 parse_uint32(const unsigned char* _data) {
 }
 
 static int get_opus_packet(void) {
-	int status = 0;
+	int status, packet = -1;
 
 	LOCK_S;
 	size_t bytes = min(_buf_used(streambuf), _buf_cont_read(streambuf));
@@ -152,9 +151,13 @@ static int get_opus_packet(void) {
 		// if we have a new page, put it in
 		if (status)	OG(&go, stream_pagein, &u->state, &u->page);
 	} 
+    
+    // only return a negative value when end of streaming is reached
+    if (status > 0) packet = status;
+    else if (stream.state > DISCONNECT) packet = 0;
 
 	UNLOCK_S;
-	return status;
+	return packet;
 }
 
 static int read_opus_header(void) {
@@ -219,7 +222,6 @@ static int read_opus_header(void) {
 
 static decode_state opus_decompress(void) {
 	frames_t frames;
-	int n;
 	u8_t *write_buf;
 
 	if (decode.new_stream) {      
@@ -257,6 +259,8 @@ static decode_state opus_decompress(void) {
 		frames = process.max_in_frames;
 		write_buf = process.inbuf;
 	);
+    
+    int packet, n = 0;
 	
     // get some packets and decode them, or use the leftover from previous pass
     if (u->overframes) {
@@ -265,7 +269,7 @@ static decode_state opus_decompress(void) {
 		memcpy(write_buf, u->overbuf, u->overframes * BYTES_PER_FRAME);
 		n = u->overframes;
 		u->overframes = 0;
-	} else if (get_opus_packet() > 0) {
+	} else if ((packet = get_opus_packet()) > 0) {
 		if (frames < MAX_OPUS_FRAMES) {
 			// don't have enough contiguous space, use the overflow buffer
 			n = OP(&gu, decode, u->decoder, u->packet.packet, u->packet.bytes, (opus_int16*) u->overbuf, MAX_OPUS_FRAMES, 0);
@@ -280,10 +284,10 @@ static decode_state opus_decompress(void) {
 			 * outputbuf and streambuf for maybe a long time while we process it all, so don't do that */
 			n = OP(&gu, decode, u->decoder, u->packet.packet, u->packet.bytes, (opus_int16*) write_buf, frames, 0);
 		}
-	} else if (!OG(&go, page_eos, &u->page)) {
+	} else if (!packet && !OG(&go, page_eos, &u->page)) {
 		UNLOCK_O_direct;
 		return DECODE_RUNNING;
-	} else u->eos = true;
+	}
 			
 	if (n > 0) {
 		frames_t count;
@@ -326,7 +330,7 @@ static decode_state opus_decompress(void) {
 
 	} else if (n == 0) {
 
-		if (stream.state <= DISCONNECT && u->eos) {
+		if (packet < 0) {
 			LOG_INFO("end of decode");
 			UNLOCK_O_direct;
 			return DECODE_COMPLETE;
@@ -351,7 +355,6 @@ static void opus_open(u8_t size, u8_t rate, u8_t chan, u8_t endianness) {
     
 	if (!u->overbuf) u->overbuf = malloc(MAX_OPUS_FRAMES * BYTES_PER_FRAME);
     
-    u->eos = false;
     u->status = OGG_SYNC;
 	u->overframes = 0;
 	
