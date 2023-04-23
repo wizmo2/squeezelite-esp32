@@ -284,22 +284,6 @@ void register_default_nvs(){
 	register_default_string_val("target", CONFIG_TARGET);
 	register_default_string_val("led_vu_config", "");
 
-	cJSON * cspot_config=config_alloc_get_cjson("cspot_config");
-	if(!cspot_config){
-		char * name = alloc_get_string_with_mac(DEFAULT_HOST_NAME);
-		if(name){
-			cjson_update_string(&cspot_config,"deviceName",name);
-			cjson_update_number(&cspot_config,"bitrate",160);
-			// the call below saves the config and frees the json pointer
-			config_set_cjson_str_and_free("cspot_config",cspot_config);
-			FREE_AND_NULL(name);
-		}
-		else {
-			register_default_string_val("cspot_config", "");
-		}
-		
-	}
-
 	wait_for_commit();
 	ESP_LOGD(TAG,"Done setting default values in nvs.");
 }
