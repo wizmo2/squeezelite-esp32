@@ -393,7 +393,6 @@ typedef enum { lERROR = 0, lWARN, lINFO, lDEBUG, lSDEBUG } log_level;
 const char *logtime(void);
 void logprint(const char *fmt, ...);
 
-#define LOG_ERROR(fmt, ...) logprint("%s %s:%d " fmt "\n", logtime(), __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #define LOG_WARN(fmt, ...)  if (loglevel >= lWARN)  logprint("%s %s:%d " fmt "\n", logtime(), __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #define LOG_INFO(fmt, ...)  if (loglevel >= lINFO)  logprint("%s %s:%d " fmt "\n", logtime(), __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #define LOG_DEBUG(fmt, ...) if (loglevel >= lDEBUG) logprint("%s %s:%d " fmt "\n", logtime(), __FUNCTION__, __LINE__, ##__VA_ARGS__)
@@ -404,6 +403,10 @@ typedef int sockfd;
 	
 #if EMBEDDED
 #include "embedded.h"
+#endif
+
+#ifndef LOG_ERROR
+#define LOG_ERROR(fmt, ...) logprint("%s %s:%d " fmt "\n", logtime(), __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #endif
 
 #if !defined(MSG_NOSIGNAL)
@@ -619,7 +622,7 @@ struct codec {
 
 void decode_init(log_level level, const char *include_codecs, const char *exclude_codecs);
 void decode_close(void);
-void decode_flush(void);
+void decode_flush(bool close);
 unsigned decode_newstream(unsigned sample_rate, unsigned supported_rates[]);
 void codec_open(u8_t format, u8_t sample_size, u8_t sample_rate, u8_t channels, u8_t endianness);
 

@@ -42,7 +42,7 @@ EXT_RAM_ATTR static int _port;
 EXT_RAM_ATTR rest_server_context_t *rest_context;
 EXT_RAM_ATTR RingbufHandle_t messaging;
 
-httpd_handle_t get_http_server(int *port) {
+httpd_handle_t http_get_server(int *port) {
 	if (port) *port = _port;
 	return _server;
 }

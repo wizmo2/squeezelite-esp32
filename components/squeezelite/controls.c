@@ -21,7 +21,8 @@ static log_level loglevel = lINFO;
 enum { 	BUTN_POWER_FRONT = 0X0A, BUTN_ARROW_UP, BUTN_ARROW_DOWN, BUTN_ARROW_LEFT, BUTN_KNOB_PUSH, BUTN_SEARCH,
 		BUTN_REW, BUTN_FWD, BUTN_PLAY, BUTN_ADD, BUTN_BRIGHTNESS, BUTN_NOW_PLAYING,
 		BUTN_PAUSE = 0X17, BUTN_BROWSE, BUTN_VOLUP_FRONT, BUTN_VOLDOWN_FRONT, BUTN_SIZE, BUTN_VISUAL, BUTN_VOLUMEMODE,
-		BUTN_PRESET_1 = 0X23, BUTN_PRESET_2, BUTN_PRESET_3, BUTN_PRESET_4, BUTN_PRESET_5, BUTN_PRESET_6, BUTN_SNOOZE,
+		BUTN_PRESET_0 = 0x22, BUTN_PRESET_1, BUTN_PRESET_2, BUTN_PRESET_3, BUTN_PRESET_4, BUTN_PRESET_5, BUTN_PRESET_6, BUTN_PRESET_7, BUTN_PRESET_8, BUTN_PRESET_9, 
+        BUTN_SNOOZE,
 		BUTN_KNOB_LEFT = 0X5A, BUTN_KNOB_RIGHT };
 
 #define BUTN_ARROW_RIGHT BUTN_KNOB_PUSH
@@ -142,12 +143,16 @@ LMS_CALLBACK(down, ARROW_DOWN, arrow_down)
 LMS_CALLBACK(left, ARROW_LEFT, arrow_left)
 LMS_CALLBACK(right, ARROW_RIGHT, arrow_right)
 
+LMS_CALLBACK(pre0, PRESET_0, preset_0.single)
 LMS_CALLBACK(pre1, PRESET_1, preset_1.single)
 LMS_CALLBACK(pre2, PRESET_2, preset_2.single)
 LMS_CALLBACK(pre3, PRESET_3, preset_3.single)
 LMS_CALLBACK(pre4, PRESET_4, preset_4.single)
 LMS_CALLBACK(pre5, PRESET_5, preset_5.single)
 LMS_CALLBACK(pre6, PRESET_6, preset_6.single)
+LMS_CALLBACK(pre7, PRESET_7, preset_7.single)
+LMS_CALLBACK(pre8, PRESET_8, preset_8.single)
+LMS_CALLBACK(pre9, PRESET_9, preset_9.single)
 
 LMS_CALLBACK(knob_left, KNOB_LEFT, knob_left)
 LMS_CALLBACK(knob_right, KNOB_RIGHT, knob_right)
@@ -162,7 +167,7 @@ const actrls_t LMS_controls = {
 	lms_prev, lms_next,		// prev, next
 	lms_up, lms_down,
 	lms_left, lms_right, 
-	lms_pre1, lms_pre2, lms_pre3, lms_pre4, lms_pre5, lms_pre6,
+	lms_pre0, lms_pre1, lms_pre2, lms_pre3, lms_pre4, lms_pre5, lms_pre6, lms_pre7, lms_pre8, lms_pre9, 
 	lms_knob_left, lms_knob_right, lms_knob_push,
 };
 

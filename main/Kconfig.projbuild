@@ -124,7 +124,7 @@ menu "Squeezelite-ESP32"
 			string
 			default "dc=27,data=19,clk=18" if TWATCH2020	
 			default "mosi=15,miso=2,clk=14"	if MUSE
-			default	""
+			default	""          
 		config DISPLAY_CONFIG
 			string
 			default "SPI,driver=ST7789,width=240,height=240,cs=5,back=12,speed=16000000,HFlip,VFlip" if TWATCH2020
@@ -132,7 +132,7 @@ menu "Squeezelite-ESP32"
 		config ETH_CONFIG
 			string
 			default ""
-		# AGGREGATES - end							
+		# AGGREGATES - end		
 		config DAC_CONTROLSET
 			string
 			default "{ \"init\": [ {\"reg\":41, \"val\":128}, {\"reg\":18, \"val\":255} ], \"poweron\": [ {\"reg\":18, \"val\":64, \"mode\":\"or\"} ], \"poweroff\": [ {\"reg\":18, \"val\":191, \"mode\":\"and\"} ] }" if TWATCH2020
@@ -175,6 +175,9 @@ menu "Squeezelite-ESP32"
 			int
 			default 13 if SQUEEZEAMP
 			default -1
+		config SET_GPIO
+			string
+			default "0=ir" if SQUEEZEAMP
 	endmenu
 
 	menu "Audio settings"
@@ -349,14 +352,15 @@ menu "Squeezelite-ESP32"
 				data=<gpio>,clk=<gpio>[,d/c=<num>][,host=<0|1|2>]
 		config SET_GPIO
 			string "Special GPIO configuration"
-			default ""
 			help
 				Set parameters of shared GPIO with special values.
-				<gpio_1>=Vcc|GND|amp[:0|1]|jack[:0|1][,<gpio_n>=Vcc|GND|amp[:0|1]|jack[:0|1]]
+				<gpio_1>=Vcc|GND|amp[:0|1]|jack[:0|1][ir][spkfault[:0|1][,<gpio_n>=Vcc|GND|amp[:0|1]|jack[:0|1]]
 				'amp'  => GPIO that is set when playback starts
 				'jack' => GPIO used for audio jack detection
 				'green', 'red' => GPIO for status LED
-				'[:0|1] means set the active value for that GPIO can be low or high
+				'spkfault' => GPIO used for speaker fault detection
+				'ir' => GPIO used for Infrared Receiver
+				[:0|1] means set the active value for that GPIO can be low or high
 		config ROTARY_ENCODER
 			string "Rotary Encoder configuration"
 			default ""

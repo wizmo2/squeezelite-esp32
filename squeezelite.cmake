@@ -1,3 +1,13 @@
+
+# Check if the required dependencies are installed
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_Interpreter_FOUND)
+    execute_process(COMMAND pip3 install protobuf grpcio-tools)
+else()
+    message(FATAL_ERROR "Python3 interpreter not found. Please install Python3 before building the project.")
+endif()
+
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 function(___register_flash partition_name sub_type)

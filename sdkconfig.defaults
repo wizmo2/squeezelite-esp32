@@ -286,7 +286,7 @@ CONFIG_CSPOT_SINK=y
 # Various I/O
 #
 CONFIG_I2C_CONFIG=""
-CONFIG_SET_GPIO=""
+# CONFIG_SET_GPIO= is not set
 CONFIG_ROTARY_ENCODER=""
 # end of Various I/O
 

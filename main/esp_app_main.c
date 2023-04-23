@@ -48,9 +48,6 @@
 #include "cmd_system.h"
 #include "tools.h"
 
-static const char certs_namespace[] = "certificates";
-static const char certs_key[] = "blob";
-static const char certs_version[] = "version";
 const char unknown_string_placeholder[] = "unknown";
 const char null_string_placeholder[] = "null";
 EventGroupHandle_t network_event_group;
@@ -68,8 +65,6 @@ RTC_NOINIT_ATTR uint16_t ColdBootIndicatorFlag;
 bool cold_boot=true;
 
 static bool bNetworkConnected=false;
-extern const uint8_t server_cert_pem_start[] asm("_binary_github_pem_start");
-extern const uint8_t server_cert_pem_end[] asm("_binary_github_pem_end");
 
 // as an exception _init function don't need include
 extern void services_init(void);
@@ -156,117 +151,9 @@ esp_log_level_t  get_log_level_from_char(char * level){
 	if(!strcasecmp(level, "VERBOSE" )) { return ESP_LOG_VERBOSE;}
 	return ESP_LOG_WARN;
 }
+
 void set_log_level(char * tag, char * level){
 	esp_log_level_set(tag, get_log_level_from_char(level));
-}
-
-
-esp_err_t update_certificates(bool force){
-
-	nvs_handle handle;
-	esp_err_t esp_err;
-    esp_app_desc_t running_app_info;
-
-	ESP_LOGI(TAG,   "About to check if certificates need to be updated in flash");
-	esp_err = nvs_open_from_partition(settings_partition, certs_namespace, NVS_READWRITE, &handle);
-	if (esp_err != ESP_OK) {
-		LOG_SEND(MESSAGING_INFO,"Unable to update HTTPS certificates. Could not open NVS namespace %s. Error %s", certs_namespace, esp_err_to_name(esp_err));
-		return esp_err;
-	}
-
-	const esp_partition_t *running = esp_ota_get_running_partition();
-	ESP_LOGI(TAG, "Running partition [%s] type %d subtype %d (offset 0x%08x)", running->label, running->type, running->subtype, running->address);
-
-	if (esp_ota_get_partition_description(running, &running_app_info) == ESP_OK) {
-		ESP_LOGI(TAG, "Running version: %s", running_app_info.version);
-	}
-
-	size_t len=0;
-	char *str=NULL;
-	bool changed=false;
-	if ( (esp_err= nvs_get_str(handle, certs_version, NULL, &len)) == ESP_OK) {
-		str=(char *)malloc_init_external(len+1);
-		if(str){
-			if ( (esp_err = nvs_get_str(handle,  certs_version, str, &len)) == ESP_OK) {
-				ESP_LOGI(TAG,"Certificate version: %s", str);
-			}
-		}
-	}
-	if(str!=NULL && running->subtype !=ESP_PARTITION_SUBTYPE_APP_FACTORY){
-		// If certificates were found in nvs, only update if we're not
-		// running recovery. This will prevent rolling back to an older version
-		if(strcmp((char *)running_app_info.version,(char *)str )){
-			// Versions are different
-			ESP_LOGW(TAG,"Found a different software version. Updating certificates");
-			changed=true;
-		}
-		free(str);
-	}
-	else if(str==NULL){
-		ESP_LOGW(TAG,"No certificate found. Adding certificates");
-		changed=true;
-	}
-
-	if(changed || force){
-
-		esp_err = nvs_set_blob(handle, certs_key, server_cert_pem_start, (server_cert_pem_end-server_cert_pem_start));
-		if(esp_err!=ESP_OK){
-			log_send_messaging(MESSAGING_ERROR,"Failed to store certificate data: %s", esp_err_to_name(esp_err));
-		}
-		else {
-			esp_err = nvs_set_str(handle,  certs_version, running_app_info.version);
-			if(esp_err!=ESP_OK){
-				log_send_messaging(MESSAGING_ERROR,"Unable to update HTTPS Certificates version: %s",esp_err_to_name(esp_err));
-			}
-			else {
-				esp_err = nvs_commit(handle);
-				if(esp_err!=ESP_OK){
-					log_send_messaging(MESSAGING_ERROR,"Failed to commit certificates changes : %s",esp_err_to_name(esp_err));
-				}
-				else {
-					log_send_messaging(MESSAGING_INFO,"HTTPS Certificates were updated with version: %s",running_app_info.version);
-				}
-			}
-		}
-	}
-
-	nvs_close(handle);
-	return ESP_OK;
-}
-const char * get_certificate(){
-	nvs_handle handle;
-	esp_err_t esp_err;
-	char *blob =NULL;
-//
-	ESP_LOGD(TAG,  "Fetching certificate.");
-	esp_err = nvs_open_from_partition(settings_partition, certs_namespace, NVS_READONLY, &handle);
-	if(esp_err == ESP_OK){
-        size_t len;
-        esp_err = nvs_get_blob(handle, certs_key, NULL, &len);
-        if( esp_err == ESP_OK) {
-			blob = (char *) malloc_init_external(len+1);
-            if(!blob){
-            	log_send_messaging(MESSAGING_ERROR,"Unable to retrieve HTTPS certificates. %s","Memory allocation failed");
-        		return "";
-            }
-            memset(blob,0x00,len+1);
-            esp_err = nvs_get_blob(handle, certs_key, blob, &len);
-            if ( esp_err  == ESP_OK) {
-            	ESP_LOGD(TAG,"Certificates content is %d bytes long: ", len);
-            }
-            else {
-            	log_send_messaging(MESSAGING_ERROR,"Unable to retrieve HTTPS certificates. Get blob failed: %s", esp_err_to_name(esp_err));
-            }
-        }
-        else{
-        	log_send_messaging(MESSAGING_ERROR,"Unable to retrieve HTTPS certificates. Get blob failed: %s",esp_err_to_name(esp_err));
-        }
-        nvs_close(handle);
-	}
-	else{
-    	log_send_messaging(MESSAGING_ERROR,"Unable to retrieve HTTPS certificates. NVS name space %s open failed: %s",certs_namespace, esp_err_to_name(esp_err));
-	}
-	return blob;
 }
 
 #define DEFAULT_NAME_WITH_MAC(var,defval) char var[strlen(defval)+sizeof(macStr)]; strcpy(var,defval); strcat(var,macStr)
@@ -314,8 +201,22 @@ void register_default_with_mac(const char* key,  char* defval) {
 void register_default_nvs(){
 #ifdef CONFIG_CSPOT_SINK
 	register_default_string_val("enable_cspot", STR(CONFIG_CSPOT_SINK));
-#else
-	register_default_string_val("enable_cspot", "0");
+	cJSON * cspot_config=config_alloc_get_cjson("cspot_config");
+	if(!cspot_config){
+		char * name = alloc_get_string_with_mac(DEFAULT_HOST_NAME);
+		if(name){
+			cjson_update_string(&cspot_config,"deviceName",name);
+			cjson_update_number(&cspot_config,"bitrate",160);
+			// the call below saves the config and frees the json pointer
+			config_set_cjson_str_and_free("cspot_config",cspot_config);
+			FREE_AND_NULL(name);
+		}
+		else {
+			register_default_string_val("cspot_config", "");
+		}
+		
+	}	
+
 #endif
 	
 #ifdef CONFIG_AIRPLAY_SINK
@@ -507,11 +408,6 @@ void app_main()
 			led_vu_color_yellow(LED_VU_BRIGHT);
 		}
 	}
-
-
-	ESP_LOGI(TAG,"Checking if certificates need to be updated");
-	update_certificates(false);
-	MEMTRACE_PRINT_DELTA();
 
 	ESP_LOGD(TAG,"Getting firmware OTA URL (if any)");
 	fwurl = process_ota_url();

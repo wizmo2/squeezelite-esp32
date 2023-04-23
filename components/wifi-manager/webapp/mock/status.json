@@ -23,5 +23,6 @@
 	"mock_plugin_has_proxy": "x",
 	"mock_fail_fw_update":"",
 	"mock_fail_recovery":"",
-	"mock_old_recovery":""
+	"mock_old_recovery":"",
+	"depth": 16
 }

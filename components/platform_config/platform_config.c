@@ -121,7 +121,7 @@ void config_start_timer(){
 nvs_type_t  config_get_item_type(cJSON * entry){
 	if(entry==NULL){
 		ESP_LOGE(TAG,"null pointer received!");
-		return true;
+		return 0;
 	}
 	cJSON * item_type = cJSON_GetObjectItemCaseSensitive(entry, "type");
 	if(item_type ==NULL ) {
@@ -142,7 +142,7 @@ cJSON * config_set_value_safe(nvs_type_t nvs_type, const char *key,  const void 
 		return NULL;
 	}
 
-	cJSON * existing = cJSON_GetObjectItemCaseSensitive(nvs_json, key);
+cJSON * existing = cJSON_GetObjectItemCaseSensitive(nvs_json, key);
 	if(existing !=NULL && nvs_type == NVS_TYPE_STR && config_get_item_type(existing) != NVS_TYPE_STR  ) {
 		ESP_LOGW(TAG, "Storing numeric value from string");
 		numvalue = atof((char *)value);
