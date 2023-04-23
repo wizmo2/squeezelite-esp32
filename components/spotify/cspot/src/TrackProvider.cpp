@@ -1,12 +1,26 @@
 #include "TrackProvider.h"
-#include <memory>
-#include "AccessKeyFetcher.h"
-#include "CDNTrackStream.h"
-#include "Logger.h"
-#include "MercurySession.h"
-#include "TrackReference.h"
-#include "Utils.h"
-#include "protobuf/metadata.pb.h"
+
+#include <assert.h>                // for assert
+#include <string.h>                // for strlen
+#include <cstdint>                 // for uint8_t
+#include <functional>              // for __base
+#include <memory>                  // for shared_ptr, weak_ptr, make_shared
+#include <string>                  // for string, operator+
+#include <type_traits>             // for remove_extent_t
+
+#include "AccessKeyFetcher.h"      // for AccessKeyFetcher
+#include "BellLogger.h"            // for AbstractLogger
+#include "CDNTrackStream.h"        // for CDNTrackStream, CDNTrackStream::Tr...
+#include "CSpotContext.h"          // for Context::ConfigState, Context (ptr...
+#include "Logger.h"                // for CSPOT_LOG
+#include "MercurySession.h"        // for MercurySession, MercurySession::Da...
+#include "NanoPBHelper.h"          // for pbArrayToVector, pbDecode
+#include "Packet.h"                // for cspot
+#include "TrackReference.h"        // for TrackReference, TrackReference::Type
+#include "Utils.h"                 // for bytesToHexString, string_format
+#include "WrappedSemaphore.h"      // for WrappedSemaphore
+#include "pb_decode.h"             // for pb_release
+#include "protobuf/metadata.pb.h"  // for Track, _Track, AudioFile, Episode
 
 using namespace cspot;
 
@@ -21,9 +35,11 @@ TrackProvider::TrackProvider(std::shared_ptr<cspot::Context> ctx) {
 
 TrackProvider::~TrackProvider() {
   pb_release(Track_fields, &trackInfo);
+  pb_release(Episode_fields, &trackInfo);
 }
 
-std::shared_ptr<cspot::CDNTrackStream> TrackProvider::loadFromTrackRef(TrackReference& trackRef) {
+std::shared_ptr<cspot::CDNTrackStream> TrackProvider::loadFromTrackRef(
+    TrackReference& trackRef) {
   auto track = std::make_shared<cspot::CDNTrackStream>(this->accessKeyFetcher);
   this->currentTrackReference = track;
   this->trackIdInfo = trackRef;
@@ -34,7 +50,8 @@ std::shared_ptr<cspot::CDNTrackStream> TrackProvider::loadFromTrackRef(TrackRefe
 
 void TrackProvider::queryMetadata() {
   std::string requestUrl = string_format(
-      "hm://metadata/3/%s/%s", trackIdInfo.type == TrackReference::Type::TRACK ? "track" : "episode",
+      "hm://metadata/3/%s/%s",
+      trackIdInfo.type == TrackReference::Type::TRACK ? "track" : "episode",
       bytesToHexString(trackIdInfo.gid).c_str());
   CSPOT_LOG(debug, "Requesting track metadata from %s", requestUrl.c_str());
 
@@ -50,54 +67,40 @@ void TrackProvider::queryMetadata() {
 void TrackProvider::onMetadataResponse(MercurySession::Response& res) {
   CSPOT_LOG(debug, "Got track metadata response");
 
-  pb_release(Track_fields, &trackInfo);
-  pbDecode(trackInfo, Track_fields, res.parts[0]);
+  int alternativeCount, filesCount = 0;
+  bool canPlay = false;
+  AudioFile* selectedFiles;
+  std::vector<uint8_t> trackId, fileId;
 
-  CSPOT_LOG(info, "Track name: %s", trackInfo.name);
-  CSPOT_LOG(info, "Track duration: %d", trackInfo.duration);
+  if (trackIdInfo.type == TrackReference::Type::TRACK) {
+    pb_release(Track_fields, &trackInfo);
+    assert(res.parts.size() > 0);
+    pbDecode(trackInfo, Track_fields, res.parts[0]);
+    CSPOT_LOG(info, "Track name: %s", trackInfo.name);
+    CSPOT_LOG(info, "Track duration: %d", trackInfo.duration);
 
-  CSPOT_LOG(debug, "trackInfo.restriction.size() = %d",
-            trackInfo.restriction_count);
+    CSPOT_LOG(debug, "trackInfo.restriction.size() = %d",
+              trackInfo.restriction_count);
 
-  int altIndex = -1;
-  while (!canPlayTrack(altIndex)) {
-    altIndex++;
-    CSPOT_LOG(info, "Trying alternative %d", altIndex);
-
-    if (altIndex >= trackInfo.alternative_count) {
-      // no alternatives for song
-      if (!this->currentTrackReference.expired()) {
-        auto trackRef = this->currentTrackReference.lock();
-        trackRef->status = CDNTrackStream::Status::FAILED;
-        trackRef->trackReady->give();
+    if (doRestrictionsApply(trackInfo.restriction,
+                            trackInfo.restriction_count)) {
+      // Go through alternatives
+      for (int x = 0; x < trackInfo.alternative_count; x++) {
+        if (!doRestrictionsApply(trackInfo.alternative[x].restriction,
+                                 trackInfo.alternative[x].restriction_count)) {
+          selectedFiles = trackInfo.alternative[x].file;
+          filesCount = trackInfo.alternative[x].file_count;
+          trackId = pbArrayToVector(trackInfo.alternative[x].gid);
+          break;
+        }
       }
-      return;
+    } else {
+      selectedFiles = trackInfo.file;
+      filesCount = trackInfo.file_count;
+      trackId = pbArrayToVector(trackInfo.gid);
     }
-  }
 
-  std::vector<uint8_t> trackId;
-  std::vector<uint8_t> fileId;
-  
-  if (altIndex < 0) {
-    trackId = pbArrayToVector(trackInfo.gid);
-    for (int x = 0; x < trackInfo.file_count; x++) {
-      if (trackInfo.file[x].format == ctx->config.audioFormat) {
-        fileId = pbArrayToVector(trackInfo.file[x].file_id);
-        break;  // If file found stop searching
-      }
-    }
-  } else {
-    trackId = pbArrayToVector(trackInfo.alternative[altIndex].gid);
-    for (int x = 0; x < trackInfo.alternative[altIndex].file_count; x++) {
-      if (trackInfo.alternative[altIndex].file[x].format == ctx->config.audioFormat) {
-        fileId =
-            pbArrayToVector(trackInfo.alternative[altIndex].file[x].file_id);
-        break;  // If file found stop searching
-      }
-    }
-  }
-
-  if (!this->currentTrackReference.expired()) {
+    // Set track's metadata
     auto trackRef = this->currentTrackReference.lock();
 
     auto imageId =
@@ -110,6 +113,60 @@ void TrackProvider::onMetadataResponse(MercurySession::Response& res) {
     trackRef->trackInfo.imageUrl =
         "https://i.scdn.co/image/" + bytesToHexString(imageId);
     trackRef->trackInfo.duration = trackInfo.duration;
+  } else {
+    pb_release(Episode_fields, &episodeInfo);
+    assert(res.parts.size() > 0);
+    pbDecode(episodeInfo, Episode_fields, res.parts[0]);
+
+    CSPOT_LOG(info, "Episode name: %s", episodeInfo.name);
+    CSPOT_LOG(info, "Episode duration: %d", episodeInfo.duration);
+
+    CSPOT_LOG(debug, "episodeInfo.restriction.size() = %d",
+              episodeInfo.restriction_count);
+    if (!doRestrictionsApply(episodeInfo.restriction,
+                             episodeInfo.restriction_count)) {
+      selectedFiles = episodeInfo.file;
+      filesCount = episodeInfo.file_count;
+      trackId = pbArrayToVector(episodeInfo.gid);
+    }
+
+    auto trackRef = this->currentTrackReference.lock();
+
+    auto imageId = pbArrayToVector(episodeInfo.covers->image[0].file_id);
+
+    trackRef->trackInfo.trackId = bytesToHexString(trackIdInfo.gid);
+    trackRef->trackInfo.name = std::string(episodeInfo.name);
+    trackRef->trackInfo.album = "";
+    trackRef->trackInfo.artist = "",
+    trackRef->trackInfo.imageUrl =
+        "https://i.scdn.co/image/" + bytesToHexString(imageId);
+    trackRef->trackInfo.duration = episodeInfo.duration;
+  }
+
+  for (int x = 0; x < filesCount; x++) {
+    CSPOT_LOG(debug, "File format: %d", selectedFiles[x].format);
+    if (selectedFiles[x].format == ctx->config.audioFormat) {
+      fileId = pbArrayToVector(selectedFiles[x].file_id);
+      break;  // If file found stop searching
+    }
+
+    // Fallback to OGG Vorbis 96kbps
+    if (fileId.size() == 0 &&
+        selectedFiles[x].format == AudioFormat_OGG_VORBIS_96) {
+      fileId = pbArrayToVector(selectedFiles[x].file_id);
+    }
+  }
+
+  // No viable files found for playback
+  if (fileId.size() == 0) {
+    CSPOT_LOG(info, "File not available for playback");
+    // no alternatives for song
+    if (!this->currentTrackReference.expired()) {
+      auto trackRef = this->currentTrackReference.lock();
+      trackRef->status = CDNTrackStream::Status::FAILED;
+      trackRef->trackReady->give();
+    }
+    return;
   }
 
   this->fetchFile(fileId, trackId);
@@ -147,20 +204,25 @@ bool countryListContains(char* countryList, char* country) {
   return false;
 }
 
+bool TrackProvider::doRestrictionsApply(Restriction* restrictions, int count) {
+  for (int x = 0; x < count; x++) {
+    if (restrictions[x].countries_allowed != nullptr) {
+      return !countryListContains(restrictions[x].countries_allowed,
+                                  (char*)ctx->config.countryCode.c_str());
+    }
+
+    if (restrictions[x].countries_forbidden != nullptr) {
+      return countryListContains(restrictions[x].countries_forbidden,
+                                 (char*)ctx->config.countryCode.c_str());
+    }
+  }
+
+  return false;
+}
+
 bool TrackProvider::canPlayTrack(int altIndex) {
   if (altIndex < 0) {
-    for (int x = 0; x < trackInfo.restriction_count; x++) {
-      if (trackInfo.restriction[x].countries_allowed != nullptr) {
-        return countryListContains(trackInfo.restriction[x].countries_allowed,
-                                   (char*)ctx->config.countryCode.c_str());
-      }
 
-      if (trackInfo.restriction[x].countries_forbidden != nullptr) {
-        return !countryListContains(
-            trackInfo.restriction[x].countries_forbidden,
-            (char*)ctx->config.countryCode.c_str());
-      }
-    }
   } else {
     for (int x = 0; x < trackInfo.alternative[altIndex].restriction_count;
          x++) {

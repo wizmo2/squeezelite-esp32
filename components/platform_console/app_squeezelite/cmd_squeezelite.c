@@ -66,7 +66,7 @@ static void squeezelite_thread(void *arg){
         
     cmd_send_messaging("cfg-audio-tmpl",ret > 1 ?  MESSAGING_ERROR : MESSAGING_WARNING,"squeezelite exited with error code %d\n", ret);
 
-    if (ret == 1) {
+    if (ret <= 1) {
         int wait = 60;
         wait_for_commit();
         cmd_send_messaging("cfg-audio-tmpl",MESSAGING_ERROR,"Rebooting in %d sec\n", wait);

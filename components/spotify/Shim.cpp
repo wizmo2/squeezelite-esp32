@@ -16,7 +16,10 @@
 #include <stdarg.h>
 #include <ApResolve.h>
 
+#include "BellTask.h"
 #include "MDNSService.h"
+#include "TrackPlayer.h"
+#include "CSpotContext.h"
 #include "SpircHandler.h"
 #include "LoginBlob.h"
 #include "CentralAudioBuffer.h"
@@ -39,13 +42,13 @@ class chunkManager : public bell::Task {
 public:
     std::atomic<bool> isRunning = true;
     std::atomic<bool> isPaused = true;
-    std::atomic<bool> discard = true;
-    chunkManager(std::shared_ptr<bell::CentralAudioBuffer> centralAudioBuffer, std::function<void()> trackHandler,
-                 std::function<void(const uint8_t*, size_t)> dataHandler);
+    chunkManager(std::function<void()> trackHandler, std::function<void(const uint8_t*, size_t)> dataHandler);
+    size_t writePCM(uint8_t* data, size_t bytes, std::string_view trackId, size_t sequence);
+	void flush();
     void teardown();
 
 private:
-    std::shared_ptr<bell::CentralAudioBuffer> centralAudioBuffer;
+    std::unique_ptr<bell::CentralAudioBuffer> centralAudioBuffer;
     std::function<void()> trackHandler;
     std::function<void(const uint8_t*, size_t)> dataHandler;
     std::mutex runningMutex;
@@ -53,18 +56,25 @@ private:
     void runTask() override;
 };
 
-chunkManager::chunkManager(std::shared_ptr<bell::CentralAudioBuffer> centralAudioBuffer,
-                            std::function<void()> trackHandler, std::function<void(const uint8_t*, size_t)> dataHandler)
+chunkManager::chunkManager(std::function<void()> trackHandler, std::function<void(const uint8_t*, size_t)> dataHandler)
     : bell::Task("chunker", 4 * 1024, 0, 0) {
-    this->centralAudioBuffer = centralAudioBuffer;
+    this->centralAudioBuffer = std::make_unique<bell::CentralAudioBuffer>(32);
     this->trackHandler = trackHandler;
     this->dataHandler = dataHandler;
     startTask();
 }
 
+size_t chunkManager::writePCM(uint8_t* data, size_t bytes, std::string_view trackId, size_t sequence) {
+	return centralAudioBuffer->writePCM(data, bytes, sequence);
+}	
+
 void chunkManager::teardown() {
     isRunning = false;
     std::scoped_lock lock(runningMutex);
+}
+
+void chunkManager::flush() {
+    centralAudioBuffer->clearBuffer();
 }
 
 void chunkManager::runTask() {
@@ -89,11 +99,10 @@ void chunkManager::runTask() {
         if (lastHash != chunk->trackHash) {
             CSPOT_LOG(info, "hash update %x => %x", lastHash, chunk->trackHash);
             lastHash = chunk->trackHash;
-            discard = false;
             trackHandler();
         }
 
-        if (!discard) dataHandler(chunk->pcmData, chunk->pcmSize);
+        dataHandler(chunk->pcmData, chunk->pcmSize);
     }
 }
 
@@ -105,7 +114,6 @@ class cspotPlayer : public bell::Task {
 private:
     std::string name;
     bell::WrappedSemaphore clientConnected;
-    std::shared_ptr<bell::CentralAudioBuffer> centralAudioBuffer;
 
     int startOffset, volume = 0, bitrate = 160;
     httpd_handle_t serverHandle;
@@ -225,8 +233,7 @@ esp_err_t cspotPlayer::handlePOST(httpd_req_t *request) {
 void cspotPlayer::eventHandler(std::unique_ptr<cspot::SpircHandler::Event> event) {
     switch (event->eventType) {
     case cspot::SpircHandler::EventType::PLAYBACK_START: {
-        chunker->discard = true;
-        centralAudioBuffer->clearBuffer();
+        chunker->flush();
 
         // we are not playing anymore
         trackStatus = TRACK_INIT;
@@ -257,17 +264,17 @@ void cspotPlayer::eventHandler(std::unique_ptr<cspot::SpircHandler::Event> event
     case cspot::SpircHandler::EventType::PREV:
     case cspot::SpircHandler::EventType::FLUSH: {
         // FLUSH is sent when there is no next, just clean everything
-        centralAudioBuffer->clearBuffer();
+        chunker->flush();
         cmdHandler(CSPOT_FLUSH);
         break;
     }
     case cspot::SpircHandler::EventType::DISC:
-        centralAudioBuffer->clearBuffer();
+        chunker->flush();
         cmdHandler(CSPOT_DISC);
         chunker->teardown();
         break;
     case cspot::SpircHandler::EventType::SEEK: {
-        centralAudioBuffer->clearBuffer();
+        chunker->flush();
         cmdHandler(CSPOT_SEEK, std::get<int>(event->data));
         break;
     }
@@ -372,7 +379,6 @@ void cspotPlayer::runTask() {
 
         CSPOT_LOG(info, "Spotify client connected for %s", name.c_str());
 
-        centralAudioBuffer = std::make_shared<bell::CentralAudioBuffer>(32);
         auto ctx = cspot::Context::createFromBlob(blob);
 
         if (bitrate == 320) ctx->config.audioFormat = AudioFormat_OGG_VORBIS_320;
@@ -385,11 +391,20 @@ void cspotPlayer::runTask() {
         // Auth successful
         if (token.size() > 0) {
             spirc = std::make_unique<cspot::SpircHandler>(ctx);
+			
+            // Create a player, pass the track handler
+            chunker = std::make_unique<chunkManager>(
+				[this](void) {
+                    return trackHandler();
+                },
+                [this](const uint8_t* data, size_t bytes) {
+                    return dataHandler(data, bytes);
+            });
 
             // set call back to calculate a hash on trackId
             spirc->getTrackPlayer()->setDataCallback(
                 [this](uint8_t* data, size_t bytes, std::string_view trackId, size_t sequence) {
-                    return centralAudioBuffer->writePCM(data, bytes, sequence);
+                    return chunker->writePCM(data, bytes, trackId, sequence);
             });
 
             // set event (PLAY, VOLUME...) handler
@@ -400,15 +415,6 @@ void cspotPlayer::runTask() {
 
             // Start handling mercury messages
             ctx->session->startTask();
-
-            // Create a player, pass the tack handler
-            chunker = std::make_unique<chunkManager>(centralAudioBuffer,
-                [this](void) {
-                    return trackHandler();
-                },
-                [this](const uint8_t* data, size_t bytes) {
-                    return dataHandler(data, bytes);
-            });
 
             // set volume at connection
             cmdHandler(CSPOT_VOLUME, volume);
@@ -447,7 +453,6 @@ void cspotPlayer::runTask() {
         }
 
         // we want to release memory ASAP and for sure
-        centralAudioBuffer.reset();
         ctx.reset();
         token.clear();
         

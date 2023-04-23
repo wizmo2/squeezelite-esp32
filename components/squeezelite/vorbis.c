@@ -65,7 +65,6 @@ struct vorbis {
 	};
 	int rate, channels;
     uint32_t overflow;
-    bool eos;
 };
 
 #if !LINKALL
@@ -133,7 +132,7 @@ extern struct processstate process;
 #endif
 
 static int get_ogg_packet(void) {
-	int status = 0;
+	int status, packet = -1;
 
 	LOCK_S;
 	size_t bytes = min(_buf_used(streambuf), _buf_cont_read(streambuf));
@@ -152,9 +151,13 @@ static int get_ogg_packet(void) {
 		// if we have a new page, put it in
 		if (status)	OG(&go, stream_pagein, &v->state, &v->page);
 	}
+    
+    // only return a negative value when end of streaming is reached
+    if (status > 0) packet = status;
+    else if (stream.state > DISCONNECT) packet = 0;
 
 	UNLOCK_S;
-	return status;
+	return packet;
 }
 
 static int read_vorbis_header(void) {
@@ -261,10 +264,8 @@ inline int pcm_out(vorbis_dsp_state* decoder, void*** pcm) {
 
 static decode_state vorbis_decode(void) {
 	frames_t frames;
-	int n = 0;
 	u8_t *write_buf;
-    void** pcm = NULL;
-
+    
 	if (decode.new_stream) {
         int status = read_vorbis_header();
 
@@ -300,19 +301,22 @@ static decode_state vorbis_decode(void) {
 		frames = process.max_in_frames;
 		write_buf = process.inbuf;
 	);
+    
+    void** pcm = NULL;
+    int packet, n = 0;
 	
     if (v->overflow) {
         n = pcm_out(&v->decoder, &pcm);
         v->overflow = n - min(n, frames);                
-    } else if (get_ogg_packet() > 0) {
+    } else if ((packet = get_ogg_packet()) > 0) {
 		n = OV(&gv, synthesis, &v->block, &v->packet);
 		if (n == 0) n = OV(&gv, synthesis_blockin, &v->decoder, &v->block);
         if (n == 0) n = pcm_out(&v->decoder, &pcm);
         v->overflow = n - min(n, frames);
-	} else if (!OG(&go, page_eos, &v->page)) {
+	} else if (!packet && !OG(&go, page_eos, &v->page)) {
 		UNLOCK_O_direct;
 		return DECODE_RUNNING;
-	} else v->eos = true;
+	}
 
 	if (n > 0) {
         ISAMPLE_T *optr = (ISAMPLE_T*) write_buf;     
@@ -370,7 +374,7 @@ static decode_state vorbis_decode(void) {
 
 	} else if (n == 0) {
 
-		if (stream.state <= DISCONNECT && v->eos) {
+		if (packet < 0) {
 			LOG_INFO("end of decode");
 			UNLOCK_O_direct;
 			return DECODE_COMPLETE;
@@ -397,7 +401,6 @@ static void vorbis_open(u8_t size, u8_t rate, u8_t chan, u8_t endianness) {
 		OV(&go, dsp_clear, &v->decoder);
 	}
     
-    v->eos = false;
     v->opened = false;
 	v->status = OGG_SYNC;
     v->overflow = 0;
