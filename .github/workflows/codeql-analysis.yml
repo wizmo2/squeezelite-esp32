@@ -47,7 +47,6 @@ jobs:
         # By default, queries listed here will override any specified in a config file.
         # Prefix the list here with "+" to use these queries and those in the config file.
         # queries: ./path/to/local/query, your-org/your-repo/queries@main
-        paths-ignore: components/wifi-manager/webapp/dist/js/index*, components/wifi-manager/webapp/dist/js/index*
 
     # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
     # If this step fails, then you should remove it and run the build manually (see below)
@@ -64,6 +63,13 @@ jobs:
     #- run: |
     #   make bootstrap
     #   make release
-
+    # Exclude specific artifacts from analysis
+    - name: Exclude Artifacts
+      run: |
+        # Exclude components/wifi-manager/webapp/dist/js/index* from analysis
+        echo 'components/wifi-manager/webapp/dist/js/index*' >> .codeql-exclude-paths
+        echo 'components/wifi-manager/webapp/dist/js/index*' >> .codeql-exclude-paths.txt
+        echo 'components/wifi-manager/webapp/dist/index*' >> .codeql-exclude-paths
+        echo 'components/wifi-manager/webapp/dist/index*' >> .codeql-exclude-paths.txt        
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
