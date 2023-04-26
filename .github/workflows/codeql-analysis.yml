@@ -19,6 +19,7 @@ on:
     branches: [ master-cmake ]
   schedule:
     - cron: '19 12 * * 4'
+  workflow_dispatch:
 
 jobs:
   analyze:
