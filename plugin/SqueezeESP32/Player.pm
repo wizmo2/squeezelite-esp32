@@ -150,6 +150,9 @@ sub power {
 		$client->update_artwork(1);
 	} else {
 		$client->clear_artwork(1);
+		if ($client->hasLED) {
+			Plugins::SqueezeESP32::RgbLed::updateLED($client, 0);
+		}
 	}
 
 	return $res;

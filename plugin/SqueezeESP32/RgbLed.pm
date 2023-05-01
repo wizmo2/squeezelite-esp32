@@ -70,12 +70,13 @@ sub ledVisualizerNModes {
 
 sub updateLED {
 	my $client = shift;
+	my $on = shift || 1;
 	my $cprefs = $prefs->client($client);
 	
 	my $visu = $cprefs->get('led_visualizer') || 0;
 	my $bright = $cprefs->get('led_brightness') || 20;
 	
-	$visu = 0 if ($visu < 0 || $visu > ledVisualizerNModes || !(Slim::Player::Source::playmode($client) eq 'play'));
+	$visu = 0 if ($visu < 0 || $visu > ledVisualizerNModes || !(Slim::Player::Source::playmode($client) eq 'play') || !$on);
 	my $modes  = ledVisualizerModes;
 	my $params = $modes->[$visu]{'params'};
 	my $data = pack('CCC', $params->[0], $params->[1], $bright);
