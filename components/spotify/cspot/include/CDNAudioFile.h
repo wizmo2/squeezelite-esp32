@@ -1,10 +1,10 @@
 #pragma once
 
-#include <cstddef>       // for size_t
-#include <cstdint>       // for uint8_t
-#include <memory>        // for shared_ptr, unique_ptr
-#include <string>        // for string
-#include <vector>        // for vector
+#include <cstddef>  // for size_t
+#include <cstdint>  // for uint8_t
+#include <memory>   // for shared_ptr, unique_ptr
+#include <string>   // for string
+#include <vector>   // for vector
 
 #include "Crypto.h"      // for Crypto
 #include "HTTPClient.h"  // for HTTPClient
@@ -16,46 +16,45 @@ class WrappedSemaphore;
 namespace cspot {
 class AccessKeyFetcher;
 
-class CDNTrackStream {
+class CDNAudioFile {
 
  public:
-  CDNTrackStream(std::shared_ptr<cspot::AccessKeyFetcher>);
-  ~CDNTrackStream();
+  CDNAudioFile(const std::string& cdnUrl, const std::vector<uint8_t>& audioKey);
 
-  enum class Status { INITIALIZING, HAS_DATA, HAS_URL, FAILED };
-
-  struct TrackInfo {
-    std::string trackId;
-    std::string name;
-    std::string album;
-    std::string artist;
-    std::string imageUrl;
-    int duration;
-  };
-
-  TrackInfo trackInfo;
-
-  Status status;
-  std::unique_ptr<bell::WrappedSemaphore> trackReady;
-
-  void fetchFile(const std::vector<uint8_t>& trackId,
-                 const std::vector<uint8_t>& audioKey);
-
-  void fail();
-
+  /**
+  * @brief Opens connection to the provided cdn url, and fetches track metadata.
+  */
   void openStream();
 
+  /**
+  * @brief Read and decrypt part of the cdn stream
+  *
+  * @param dst buffer where to read received data to
+  * @param amount of bytes to read
+  *
+  * @returns amount of bytes read
+  */
   size_t readBytes(uint8_t* dst, size_t bytes);
 
+  /**
+  * @brief Returns current position in CDN stream
+  */
   size_t getPosition();
 
+  /**
+  * @brief returns total size of the audio file in bytes
+  */
   size_t getSize();
 
+  /**
+  * @brief Seeks the track to provided position
+  * @param position position where to seek the track
+  */
   void seek(size_t position);
 
  private:
   const int OPUS_HEADER_SIZE = 8 * 1024;
-  const int OPUS_FOOTER_PREFFERED = 1024 * 12; // 12K should be safe
+  const int OPUS_FOOTER_PREFFERED = 1024 * 12;  // 12K should be safe
   const int SEEK_MARGIN_SIZE = 1024 * 4;
 
   const int HTTP_BUFFER_SIZE = 1024 * 14;
@@ -74,12 +73,9 @@ class CDNTrackStream {
                                            0x3f, 0x63, 0x0d, 0x93};
   std::unique_ptr<Crypto> crypto;
 
-  std::shared_ptr<cspot::AccessKeyFetcher> accessKeyFetcher;
-
   std::unique_ptr<bell::HTTPClient::Response> httpConnection;
-  bool isConnected = false;
 
-  size_t position = 0; // Spotify header size
+  size_t position = 0;
   size_t totalFileSize = 0;
   size_t lastRequestPosition = 0;
   size_t lastRequestCapacity = 0;
@@ -87,7 +83,6 @@ class CDNTrackStream {
   bool enableRequestMargin = false;
 
   std::string cdnUrl;
-  std::vector<uint8_t> trackId;
   std::vector<uint8_t> audioKey;
 
   void decrypt(uint8_t* dst, size_t nbytes, size_t pos);

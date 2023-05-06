@@ -1,4 +1,4 @@
-#include "CDNTrackStream.h"
+#include "CDNAudioFile.h"
 
 #include <string.h>          // for memcpy
 #include <functional>        // for __base
@@ -7,15 +7,16 @@
 #include <string_view>       // for string_view
 #include <type_traits>       // for remove_extent_t
 
-#include "AccessKeyFetcher.h"     // for AccessKeyFetcher
-#include "BellLogger.h"           // for AbstractLogger
+#include "AccessKeyFetcher.h"  // for AccessKeyFetcher
+#include "BellLogger.h"        // for AbstractLogger
+#include "Crypto.h"
 #include "Logger.h"               // for CSPOT_LOG
 #include "Packet.h"               // for cspot
 #include "SocketStream.h"         // for SocketStream
 #include "Utils.h"                // for bigNumAdd, bytesToHexString, string...
 #include "WrappedSemaphore.h"     // for WrappedSemaphore
 #ifdef BELL_ONLY_CJSON
-#include "cJSON.h"
+#include "cJSON.h "
 #else
 #include "nlohmann/json.hpp"      // for basic_json<>::object_t, basic_json
 #include "nlohmann/json_fwd.hpp"  // for json
@@ -23,73 +24,22 @@
 
 using namespace cspot;
 
-CDNTrackStream::CDNTrackStream(
-    std::shared_ptr<cspot::AccessKeyFetcher> accessKeyFetcher) {
-  this->accessKeyFetcher = accessKeyFetcher;
-  this->status = Status::INITIALIZING;
-  this->trackReady = std::make_unique<bell::WrappedSemaphore>(5);
+CDNAudioFile::CDNAudioFile(const std::string& cdnUrl,
+                           const std::vector<uint8_t>& audioKey)
+    : cdnUrl(cdnUrl), audioKey(audioKey) {
   this->crypto = std::make_unique<Crypto>();
 }
 
-CDNTrackStream::~CDNTrackStream() {}
-
-void CDNTrackStream::fail() {
-  this->status = Status::FAILED;
-  this->trackReady->give();
-}
-
-void CDNTrackStream::fetchFile(const std::vector<uint8_t>& trackId,
-                               const std::vector<uint8_t>& audioKey) {
-  this->status = Status::HAS_DATA;
-  this->trackId = trackId;
-  this->audioKey = std::vector<uint8_t>(audioKey.begin() + 4, audioKey.end());
-
-  accessKeyFetcher->getAccessKey([this, trackId, audioKey](std::string key) {
-    CSPOT_LOG(info, "Received access key, fetching CDN URL...");
-
-    std::string requestUrl = string_format(
-        "https://api.spotify.com/v1/storage-resolve/files/audio/interactive/"
-        "%s?alt=json&product=9",
-        bytesToHexString(trackId).c_str());
-
-    auto req = bell::HTTPClient::get(
-        requestUrl,
-        {bell::HTTPClient::ValueHeader({"Authorization", "Bearer " + key})});
-
-    std::string_view result = req->body();
-
-#ifdef BELL_ONLY_CJSON
-    cJSON* jsonResult = cJSON_Parse(result.data());
-    std::string cdnUrl =
-        cJSON_GetArrayItem(cJSON_GetObjectItem(jsonResult, "cdnurl"), 0)
-            ->valuestring;
-    cJSON_Delete(jsonResult);
-#else
-    auto jsonResult = nlohmann::json::parse(result);
-    std::string cdnUrl = jsonResult["cdnurl"][0];
-#endif
-    if (this->status != Status::FAILED) {
-
-      this->cdnUrl = cdnUrl;
-      this->status = Status::HAS_URL;
-      CSPOT_LOG(info, "Received CDN URL, %s", cdnUrl.c_str());
-
-      this->openStream();
-      this->trackReady->give();
-    }
-  });
-}
-
-size_t CDNTrackStream::getPosition() {
+size_t CDNAudioFile::getPosition() {
   return this->position;
 }
 
-void CDNTrackStream::seek(size_t newPos) {
+void CDNAudioFile::seek(size_t newPos) {
   this->enableRequestMargin = true;
   this->position = newPos;
 }
 
-void CDNTrackStream::openStream() {
+void CDNAudioFile::openStream() {
   CSPOT_LOG(info, "Opening HTTP stream to %s", this->cdnUrl.c_str());
 
   // Open connection, read first 128 bytes
@@ -121,10 +71,9 @@ void CDNTrackStream::openStream() {
   this->position = 0;
   this->lastRequestPosition = 0;
   this->lastRequestCapacity = 0;
-  this->isConnected = true;
 }
 
-size_t CDNTrackStream::readBytes(uint8_t* dst, size_t bytes) {
+size_t CDNAudioFile::readBytes(uint8_t* dst, size_t bytes) {
   size_t offsetPosition = position + SPOTIFY_OPUS_HEADER;
   size_t actualFileSize = this->totalFileSize + SPOTIFY_OPUS_HEADER;
 
@@ -199,11 +148,11 @@ size_t CDNTrackStream::readBytes(uint8_t* dst, size_t bytes) {
   return bytes;
 }
 
-size_t CDNTrackStream::getSize() {
+size_t CDNAudioFile::getSize() {
   return this->totalFileSize;
 }
 
-void CDNTrackStream::decrypt(uint8_t* dst, size_t nbytes, size_t pos) {
+void CDNAudioFile::decrypt(uint8_t* dst, size_t nbytes, size_t pos) {
   auto calculatedIV = bigNumAdd(audioAESIV, pos / 16);
 
   this->crypto->aesCTRXcrypt(this->audioKey, calculatedIV, dst, nbytes);
