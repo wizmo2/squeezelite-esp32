@@ -1,18 +1,19 @@
 #include "SpircHandler.h"
 
-#include <cstdint>              // for uint8_t
-#include <memory>               // for shared_ptr, make_unique, unique_ptr
-#include <type_traits>          // for remove_extent_t
-#include <utility>              // for move
+#include <cstdint>      // for uint8_t
+#include <memory>       // for shared_ptr, make_unique, unique_ptr
+#include <type_traits>  // for remove_extent_t
+#include <utility>      // for move
 
-#include "BellLogger.h"         // for AbstractLogger
-#include "CSpotContext.h"       // for Context::ConfigState, Context (ptr only)
-#include "Logger.h"             // for CSPOT_LOG
-#include "MercurySession.h"     // for MercurySession, MercurySession::Response
-#include "NanoPBHelper.h"       // for pbDecode
-#include "Packet.h"             // for cspot
-#include "PlaybackState.h"      // for PlaybackState, PlaybackState::State
-#include "TrackPlayer.h"        // for TrackPlayer
+#include "BellLogger.h"      // for AbstractLogger
+#include "CSpotContext.h"    // for Context::ConfigState, Context (ptr only)
+#include "Logger.h"          // for CSPOT_LOG
+#include "MercurySession.h"  // for MercurySession, MercurySession::Response
+#include "NanoPBHelper.h"    // for pbDecode
+#include "Packet.h"          // for cspot
+#include "PlaybackState.h"   // for PlaybackState, PlaybackState::State
+#include "TrackPlayer.h"     // for TrackPlayer
+#include "TrackQueue.h"
 #include "TrackReference.h"     // for TrackReference
 #include "Utils.h"              // for stringHexToBytes
 #include "pb_decode.h"          // for pb_release
@@ -20,38 +21,30 @@
 
 using namespace cspot;
 
-SpircHandler::SpircHandler(std::shared_ptr<cspot::Context> ctx)
-    : playbackState(ctx) {
-
-  auto isAiringCallback = [this]() {
-    return !(isNextTrackPreloaded || isRequestedFromLoad);
-  };
+SpircHandler::SpircHandler(std::shared_ptr<cspot::Context> ctx) {
+  this->playbackState = std::make_shared<PlaybackState>(ctx);
+  this->trackQueue = std::make_shared<cspot::TrackQueue>(ctx, playbackState);
 
   auto EOFCallback = [this]() {
-      auto ref = this->playbackState.getNextTrackRef();
-
-      if (!isNextTrackPreloaded && !isRequestedFromLoad && ref != nullptr) {
-          isNextTrackPreloaded = true;
-          auto trackRef = TrackReference::fromTrackRef(ref);
-          this->trackPlayer->loadTrackFromRef(trackRef, 0, true);
-      }
-      
-      if (ref == nullptr) {
-          sendEvent(EventType::DEPLETED);
-      }
-  };
-
-  auto trackLoadedCallback = [this]() {
-    this->currentTrackInfo = this->trackPlayer->getCurrentTrackInfo();
-
-    if (isRequestedFromLoad) {
-      sendEvent(EventType::PLAYBACK_START, (int)nextTrackPosition);
-      setPause(false);
+    if (trackQueue->isFinished()) {
+      sendEvent(EventType::DEPLETED);
     }
   };
 
+  auto trackLoadedCallback = [this](std::shared_ptr<QueuedTrack> track) {
+    playbackState->setPlaybackState(PlaybackState::State::Playing);
+    playbackState->updatePositionMs(track->requestedPosition);
+
+    this->notify();
+
+    // Send playback start event, unpause
+    sendEvent(EventType::PLAYBACK_START, (int) track->requestedPosition);
+    sendEvent(EventType::PLAY_PAUSE, false);
+  };
+
   this->ctx = ctx;
-  this->trackPlayer = std::make_shared<TrackPlayer>(ctx, isAiringCallback, EOFCallback, trackLoadedCallback);
+  this->trackPlayer = std::make_shared<TrackPlayer>(
+      ctx, trackQueue, EOFCallback, trackLoadedCallback);
 
   // Subscribe to mercury on session ready
   ctx->session->setConnectedHandler([this]() { this->subscribeToMercury(); });
@@ -82,105 +75,80 @@ void SpircHandler::subscribeToMercury() {
       subscriptionLambda);
 }
 
-void SpircHandler::loadTrackFromURI(const std::string& uri) {
-  // {track/episode}:{gid}
-  bool isEpisode = uri.find("episode:") != std::string::npos;
-  auto gid = stringHexToBytes(uri.substr(uri.find(":") + 1));
-  auto trackRef = TrackReference::fromGID(gid, isEpisode);
+void SpircHandler::loadTrackFromURI(const std::string& uri) {}
 
-  isRequestedFromLoad = true;
-  isNextTrackPreloaded = false;
+void SpircHandler::notifyAudioReachedPlayback() {
+  int offset = 0;
 
-  playbackState.setActive(true);
+  // get HEAD track
+  auto currentTrack = trackQueue->consumeTrack(nullptr, offset);
 
-  auto playbackRef = playbackState.getCurrentTrackRef();
+  // Do not execute when meta is already updated
+  if (trackQueue->notifyPending) {
+    trackQueue->notifyPending = false;
 
-  if (playbackRef != nullptr) {
-    playbackState.updatePositionMs(playbackState.remoteFrame.state.position_ms);
+    playbackState->updatePositionMs(currentTrack->requestedPosition);
 
-    auto ref = TrackReference::fromTrackRef(playbackRef);
-    this->trackPlayer->loadTrackFromRef(
-        ref, playbackState.remoteFrame.state.position_ms, true);
-    playbackState.setPlaybackState(PlaybackState::State::Loading);
-    this->nextTrackPosition = playbackState.remoteFrame.state.position_ms;
-  }
-
-  this->notify();
-}
-
-void SpircHandler::notifyAudioReachedPlayback() { 
-  if (isRequestedFromLoad || isNextTrackPreloaded) {
-    playbackState.updatePositionMs(nextTrackPosition);
-    playbackState.setPlaybackState(PlaybackState::State::Playing);
+    // Reset position in queued track
+    currentTrack->requestedPosition = 0;
   } else {
-    setPause(true);
-  }
+    trackQueue->skipTrack(TrackQueue::SkipDirection::NEXT, false);
+    playbackState->updatePositionMs(0);
 
-  isRequestedFromLoad = false;
-
-  if (isNextTrackPreloaded) {
-    isNextTrackPreloaded = false;
-
-    playbackState.nextTrack();
-    nextTrackPosition = 0;
+    // we moved to next track, re-acquire currentTrack again
+    currentTrack = trackQueue->consumeTrack(nullptr, offset);
   }
 
   this->notify();
 
-  sendEvent(EventType::TRACK_INFO, this->trackPlayer->getCurrentTrackInfo());
+  sendEvent(EventType::TRACK_INFO, currentTrack->trackInfo);
 }
 
 void SpircHandler::updatePositionMs(uint32_t position) {
-    playbackState.updatePositionMs(position);
-    notify();
+  playbackState->updatePositionMs(position);
+  notify();
 }
 
 void SpircHandler::disconnect() {
-  this->trackPlayer->stopTrack();
+  this->trackQueue->stopTask();
+  this->trackPlayer->resetState();
   this->ctx->session->disconnect();
 }
 
 void SpircHandler::handleFrame(std::vector<uint8_t>& data) {
-  pb_release(Frame_fields, &playbackState.remoteFrame);
-  pbDecode(playbackState.remoteFrame, Frame_fields, data);
+  // Decode received spirc frame
+  playbackState->decodeRemoteFrame(data);
 
-  switch (playbackState.remoteFrame.typ) {
+  switch (playbackState->remoteFrame.typ) {
     case MessageType_kMessageTypeNotify: {
       CSPOT_LOG(debug, "Notify frame");
 
       // Pause the playback if another player took control
-      if (playbackState.isActive() &&
-          playbackState.remoteFrame.device_state.is_active) {
+      if (playbackState->isActive() &&
+          playbackState->remoteFrame.device_state.is_active) {
         CSPOT_LOG(debug, "Another player took control, pausing playback");
-        playbackState.setActive(false);
-        this->trackPlayer->stopTrack();
+        playbackState->setActive(false);
+
+        this->trackPlayer->stop();
         sendEvent(EventType::DISC);
       }
       break;
     }
     case MessageType_kMessageTypeSeek: {
-      /* If next track is already downloading, we can't seek in the current one anymore. Also,
-       * when last track has been reached, we has to restart as we can't tell the difference */
-      if ((!isNextTrackPreloaded && this->playbackState.getNextTrackRef()) || isRequestedFromLoad) {
-          CSPOT_LOG(debug, "Seek command while streaming current");
-          playbackState.updatePositionMs(playbackState.remoteFrame.position);
-          trackPlayer->seekMs(playbackState.remoteFrame.position);
-          sendEvent(EventType::SEEK, (int)playbackState.remoteFrame.position);		  
-      } else {
-          CSPOT_LOG(debug, "Seek command while streaming next or before started");
-          isRequestedFromLoad = true;
-          isNextTrackPreloaded = false;
-          auto ref = TrackReference::fromTrackRef(playbackState.getCurrentTrackRef());
-          this->trackPlayer->loadTrackFromRef(ref, playbackState.remoteFrame.position, true);
-          this->nextTrackPosition = playbackState.remoteFrame.position;
-      }
+      this->trackPlayer->seekMs(playbackState->remoteFrame.position);
+
+      playbackState->updatePositionMs(playbackState->remoteFrame.position);
+
       notify();
+
+      sendEvent(EventType::SEEK, (int)playbackState->remoteFrame.position);
+      //sendEvent(EventType::FLUSH);
       break;
     }
     case MessageType_kMessageTypeVolume:
-      playbackState.setVolume(playbackState.remoteFrame.volume);
+      playbackState->setVolume(playbackState->remoteFrame.volume);
       this->notify();
-      sendEvent(EventType::VOLUME, (int)playbackState.remoteFrame.volume);
+      sendEvent(EventType::VOLUME, (int)playbackState->remoteFrame.volume);
       break;
     case MessageType_kMessageTypePause:
       setPause(true);
@@ -197,44 +165,51 @@ void SpircHandler::handleFrame(std::vector<uint8_t>& data) {
       sendEvent(EventType::PREV);
       break;
     case MessageType_kMessageTypeLoad: {
-      CSPOT_LOG(debug, "Load frame!");
-      isRequestedFromLoad = true;
-      isNextTrackPreloaded = false;
+      this->trackPlayer->start();
 
-      playbackState.setActive(true);
-      playbackState.updateTracks();
+      CSPOT_LOG(debug, "Load frame %d!", playbackState->remoteTracks.size());
 
-      auto playbackRef = playbackState.getCurrentTrackRef();
-
-      if (playbackRef != nullptr) {
-        playbackState.updatePositionMs(
-            playbackState.remoteFrame.state.position_ms);
-
-        auto ref = TrackReference::fromTrackRef(playbackRef);
-        this->trackPlayer->loadTrackFromRef(
-            ref, playbackState.remoteFrame.state.position_ms, true);
-        playbackState.setPlaybackState(PlaybackState::State::Loading);
-        this->nextTrackPosition = playbackState.remoteFrame.state.position_ms;
+      if (playbackState->remoteTracks.size() == 0) {
+        CSPOT_LOG(info, "No tracks in frame, stopping playback");
+        break;
       }
 
+      playbackState->setActive(true);
+
+      playbackState->updatePositionMs(playbackState->remoteFrame.position);
+      playbackState->setPlaybackState(PlaybackState::State::Playing);
+
+      playbackState->syncWithRemote();
+
+      // Update track list in case we have a new one
+      trackQueue->updateTracks(playbackState->remoteFrame.state.position_ms,
+                               true);
+
       this->notify();
+
+      // Stop the current track, if any
+      trackPlayer->resetState();
       break;
     }
     case MessageType_kMessageTypeReplace: {
       CSPOT_LOG(debug, "Got replace frame");
-      playbackState.updateTracks();
+      playbackState->syncWithRemote();
+
+      trackQueue->updateTracks(playbackState->remoteFrame.state.position_ms,
+                               false);
       this->notify();
+
+      trackPlayer->resetState();
+      sendEvent(EventType::FLUSH);
       break;
     }
     case MessageType_kMessageTypeShuffle: {
       CSPOT_LOG(debug, "Got shuffle frame");
-      playbackState.setShuffle(playbackState.remoteFrame.state.shuffle);
       this->notify();
       break;
     }
     case MessageType_kMessageTypeRepeat: {
       CSPOT_LOG(debug, "Got repeat frame");
-      playbackState.setRepeat(playbackState.remoteFrame.state.repeat);
       this->notify();
       break;
     }
@@ -244,7 +219,7 @@ void SpircHandler::handleFrame(std::vector<uint8_t>& data) {
 }
 
 void SpircHandler::setRemoteVolume(int volume) {
-  playbackState.setVolume(volume);
+  playbackState->setVolume(volume);
   notify();
 }
 
@@ -252,32 +227,34 @@ void SpircHandler::notify() {
   this->sendCmd(MessageType_kMessageTypeNotify);
 }
 
-void SpircHandler::nextSong() {
-  if (playbackState.nextTrack()) {
-    isRequestedFromLoad = true;
-    isNextTrackPreloaded = false;
-    auto ref = TrackReference::fromTrackRef(playbackState.getCurrentTrackRef());
-    this->trackPlayer->loadTrackFromRef(ref, 0, true);
+void SpircHandler::skipSong(TrackQueue::SkipDirection dir) {
+  if (trackQueue->skipTrack(dir)) {
+    playbackState->setPlaybackState(PlaybackState::State::Playing);
+    notify();
+
+    // Reset track state
+    trackPlayer->resetState();
+
+    sendEvent(EventType::PLAY_PAUSE, false);
   } else {
-    sendEvent(EventType::FLUSH);
-    playbackState.updatePositionMs(0);
-    trackPlayer->stopTrack();
+    playbackState->setPlaybackState(PlaybackState::State::Paused);
+    playbackState->updatePositionMs(0);
+    notify();
+
+    sendEvent(EventType::PLAY_PAUSE, true);
   }
-  this->nextTrackPosition = 0;
+
   notify();
+
+  sendEvent(EventType::FLUSH);
+}
+
+void SpircHandler::nextSong() {
+  skipSong(TrackQueue::SkipDirection::NEXT);
 }
 
 void SpircHandler::previousSong() {
-  playbackState.prevTrack();
-  isRequestedFromLoad = true;
-  isNextTrackPreloaded = false;
-
-  sendEvent(EventType::PREV);
-  auto ref = TrackReference::fromTrackRef(playbackState.getCurrentTrackRef());
-  this->trackPlayer->loadTrackFromRef(ref, 0, true);
-  this->nextTrackPosition = 0;
-
-  notify();
+  skipSong(TrackQueue::SkipDirection::PREV);
 }
 
 std::shared_ptr<TrackPlayer> SpircHandler::getTrackPlayer() {
@@ -286,7 +263,7 @@ std::shared_ptr<TrackPlayer> SpircHandler::getTrackPlayer() {
 
 void SpircHandler::sendCmd(MessageType typ) {
   // Serialize current player state
-  auto encodedFrame = playbackState.encodeCurrentFrame(typ);
+  auto encodedFrame = playbackState->encodeCurrentFrame(typ);
 
   auto responseLambda = [=](MercurySession::Response& res) {
   };
@@ -302,11 +279,11 @@ void SpircHandler::setEventHandler(EventHandler handler) {
 void SpircHandler::setPause(bool isPaused) {
   if (isPaused) {
     CSPOT_LOG(debug, "External pause command");
-    playbackState.setPlaybackState(PlaybackState::State::Paused);
+    playbackState->setPlaybackState(PlaybackState::State::Paused);
   } else {
     CSPOT_LOG(debug, "External play command");
 
-    playbackState.setPlaybackState(PlaybackState::State::Playing);
+    playbackState->setPlaybackState(PlaybackState::State::Playing);
   }
   notify();
   sendEvent(EventType::PLAY_PAUSE, isPaused);

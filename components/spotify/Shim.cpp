@@ -35,78 +35,6 @@
 static class cspotPlayer *player;
 
 /****************************************************************************************
- * Chunk manager class (task)
- */
-
-class chunkManager : public bell::Task {
-public:
-    std::atomic<bool> isRunning = true;
-    std::atomic<bool> isPaused = true;
-    chunkManager(std::function<void()> trackHandler, std::function<void(const uint8_t*, size_t)> dataHandler);
-    size_t writePCM(uint8_t* data, size_t bytes, std::string_view trackId, size_t sequence);
-	void flush();
-    void teardown();
-
-private:
-    std::unique_ptr<bell::CentralAudioBuffer> centralAudioBuffer;
-    std::function<void()> trackHandler;
-    std::function<void(const uint8_t*, size_t)> dataHandler;
-    std::mutex runningMutex;
-
-    void runTask() override;
-};
-
-chunkManager::chunkManager(std::function<void()> trackHandler, std::function<void(const uint8_t*, size_t)> dataHandler)
-    : bell::Task("chunker", 4 * 1024, 0, 0) {
-    this->centralAudioBuffer = std::make_unique<bell::CentralAudioBuffer>(32);
-    this->trackHandler = trackHandler;
-    this->dataHandler = dataHandler;
-    startTask();
-}
-
-size_t chunkManager::writePCM(uint8_t* data, size_t bytes, std::string_view trackId, size_t sequence) {
-	return centralAudioBuffer->writePCM(data, bytes, sequence);
-}	
-
-void chunkManager::teardown() {
-    isRunning = false;
-    std::scoped_lock lock(runningMutex);
-}
-
-void chunkManager::flush() {
-    centralAudioBuffer->clearBuffer();
-}
-
-void chunkManager::runTask() {
-    std::scoped_lock lock(runningMutex);
-    size_t lastHash = 0;
-
-    while (isRunning) {
-
-        if (isPaused) {
-            BELL_SLEEP_MS(100);
-            continue;
-        }
-
-        auto chunk = centralAudioBuffer->readChunk();
-
-        if (!chunk || chunk->pcmSize == 0) {
-            BELL_SLEEP_MS(50);
-            continue;
-        }
-
-        // receiving first chunk of new track from Spotify server
-        if (lastHash != chunk->trackHash) {
-            CSPOT_LOG(info, "hash update %x => %x", lastHash, chunk->trackHash);
-            lastHash = chunk->trackHash;
-            trackHandler();
-        }
-
-        dataHandler(chunk->pcmData, chunk->pcmSize);
-    }
-}
-
-/****************************************************************************************
  * Player's main class  & task
  */
 
@@ -114,19 +42,21 @@ class cspotPlayer : public bell::Task {
 private:
     std::string name;
     bell::WrappedSemaphore clientConnected;
-
+    std::atomic<bool> isPaused, isConnected;
+        
     int startOffset, volume = 0, bitrate = 160;
     httpd_handle_t serverHandle;
     int serverPort;
     cspot_cmd_cb_t cmdHandler;
     cspot_data_cb_t dataHandler;
+    std::string lastTrackId;
 
     std::shared_ptr<cspot::LoginBlob> blob;
     std::unique_ptr<cspot::SpircHandler> spirc;
-    std::unique_ptr<chunkManager> chunker;
 
     void eventHandler(std::unique_ptr<cspot::SpircHandler::Event> event);
     void trackHandler(void);
+    size_t pcmWrite(uint8_t *pcm, size_t bytes, std::string_view trackId);
 
     void runTask();
 
@@ -154,6 +84,17 @@ cspotPlayer::cspotPlayer(const char* name, httpd_handle_t server, int port, cspo
 
     if (bitrate != 96 && bitrate != 160 && bitrate != 320) bitrate = 160;
 }
+
+size_t cspotPlayer::pcmWrite(uint8_t *pcm, size_t bytes, std::string_view trackId) {
+    if (lastTrackId != trackId) {
+        CSPOT_LOG(info, "new track started <%s> => <%s>", lastTrackId.c_str(), trackId.data());
+        lastTrackId = trackId;
+        trackHandler();
+    }
+
+    dataHandler(pcm, bytes);
+    return bytes;
+}    
 
 extern "C" {
     static esp_err_t handleGET(httpd_req_t *request) {
@@ -233,8 +174,7 @@ esp_err_t cspotPlayer::handlePOST(httpd_req_t *request) {
 void cspotPlayer::eventHandler(std::unique_ptr<cspot::SpircHandler::Event> event) {
     switch (event->eventType) {
     case cspot::SpircHandler::EventType::PLAYBACK_START: {
-        chunker->flush();
-
+        lastTrackId.clear();
         // we are not playing anymore
         trackStatus = TRACK_INIT;
         // memorize position for when track's beginning will be detected
@@ -247,13 +187,12 @@ void cspotPlayer::eventHandler(std::unique_ptr<cspot::SpircHandler::Event> event
         break;
     }
     case cspot::SpircHandler::EventType::PLAY_PAUSE: {
-        bool pause = std::get<bool>(event->data);
-        cmdHandler(pause ? CSPOT_PAUSE : CSPOT_PLAY);
-        chunker->isPaused = pause;
+        isPaused = std::get<bool>(event->data);
+        cmdHandler(isPaused ? CSPOT_PAUSE : CSPOT_PLAY);
         break;
     }
     case cspot::SpircHandler::EventType::TRACK_INFO: {
-        auto trackInfo = std::get<cspot::CDNTrackStream::TrackInfo>(event->data);
+        auto trackInfo = std::get<cspot::TrackInfo>(event->data);
         cmdHandler(CSPOT_TRACK_INFO, trackInfo.duration, startOffset, trackInfo.artist.c_str(),
                        trackInfo.album.c_str(), trackInfo.name.c_str(), trackInfo.imageUrl.c_str());
         spirc->updatePositionMs(startOffset);
@@ -264,17 +203,14 @@ void cspotPlayer::eventHandler(std::unique_ptr<cspot::SpircHandler::Event> event
     case cspot::SpircHandler::EventType::PREV:
     case cspot::SpircHandler::EventType::FLUSH: {
         // FLUSH is sent when there is no next, just clean everything
-        chunker->flush();
         cmdHandler(CSPOT_FLUSH);
         break;
     }
     case cspot::SpircHandler::EventType::DISC:
-        chunker->flush();
         cmdHandler(CSPOT_DISC);
-        chunker->teardown();
+        isConnected = false;
         break;
     case cspot::SpircHandler::EventType::SEEK: {
-        chunker->flush();
         cmdHandler(CSPOT_SEEK, std::get<int>(event->data));
         break;
     }
@@ -293,10 +229,9 @@ void cspotPlayer::eventHandler(std::unique_ptr<cspot::SpircHandler::Event> event
 
 void cspotPlayer::trackHandler(void) {
     // this is just informative
-    auto trackInfo = spirc->getTrackPlayer()->getCurrentTrackInfo();
     uint32_t remains;
     cmdHandler(CSPOT_QUERY_REMAINING, &remains);
-    CSPOT_LOG(info, "next track <%s> will play in %d ms", trackInfo.name.c_str(), remains);
+    CSPOT_LOG(info, "next track will play in %d ms", remains);
 
     // inform sink of track beginning
     trackStatus = TRACK_NOTIFY;
@@ -317,7 +252,8 @@ void cspotPlayer::command(cspot_event_t event) {
         break;
     // setPause comes back through cspot::event with PLAY/PAUSE
     case CSPOT_TOGGLE:
-        spirc->setPause(!chunker->isPaused);
+        isPaused = !isPaused;
+        spirc->setPause(isPaused);
         break;
     case CSPOT_STOP:
     case CSPOT_PAUSE:
@@ -326,12 +262,11 @@ void cspotPlayer::command(cspot_event_t event) {
     case CSPOT_PLAY:
         spirc->setPause(false);
         break;
-    // calling spirc->disconnect() might have been logical but it does not
-    // generate any cspot::event, so we need to manually force exiting player
-    // loop through chunker which will eventually do the disconnect
+    /* Calling spirc->disconnect() might have been logical but it does not
+     * generate any cspot::event */
     case CSPOT_DISC:
         cmdHandler(CSPOT_DISC);
-        chunker->teardown();
+        isConnected = false;
         break;
     // spirc->setRemoteVolume does not generate a cspot::event so call cmdHandler
     case CSPOT_VOLUME_UP:
@@ -391,20 +326,12 @@ void cspotPlayer::runTask() {
         // Auth successful
         if (token.size() > 0) {
             spirc = std::make_unique<cspot::SpircHandler>(ctx);
+            isConnected = true;            
 			
-            // Create a player, pass the track handler
-            chunker = std::make_unique<chunkManager>(
-				[this](void) {
-                    return trackHandler();
-                },
-                [this](const uint8_t* data, size_t bytes) {
-                    return dataHandler(data, bytes);
-            });
-
             // set call back to calculate a hash on trackId
             spirc->getTrackPlayer()->setDataCallback(
-                [this](uint8_t* data, size_t bytes, std::string_view trackId, size_t sequence) {
-                    return chunker->writePCM(data, bytes, trackId, sequence);
+                [this](uint8_t* data, size_t bytes, std::string_view trackId) {
+                    return pcmWrite(data, bytes, trackId);
             });
 
             // set event (PLAY, VOLUME...) handler
@@ -420,7 +347,7 @@ void cspotPlayer::runTask() {
             cmdHandler(CSPOT_VOLUME, volume);
 
             // exit when player has stopped (received a DISC)
-            while (chunker->isRunning) {
+            while (isConnected) {
                 ctx->session->handlePacket();
 
                 // low-accuracy polling events
