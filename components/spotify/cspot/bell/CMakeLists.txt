@@ -8,6 +8,7 @@ option(BELL_DISABLE_CODECS "Disable the entire audio codec wrapper" OFF)
 option(BELL_CODEC_AAC "Support libhelix-aac codec" ON)
 option(BELL_CODEC_MP3 "Support libhelix-mp3 codec" ON)
 option(BELL_DISABLE_MQTT "Disable the built-in MQTT wrapper" OFF)
+option(BELL_DISABLE_WEBSERVER "Disable the built-in Web server" OFF)
 option(BELL_CODEC_VORBIS "Support tremor Vorbis codec" ON)
 option(BELL_CODEC_ALAC "Support Apple ALAC codec" ON)
 option(BELL_CODEC_OPUS "Support Opus codec" ON)
@@ -66,6 +67,7 @@ message(STATUS "    Use cJSON only: ${BELL_ONLY_CJSON}")
 message(STATUS "    Disable Fmt: ${BELL_DISABLE_FMT}")
 message(STATUS "    Disable Mqtt: ${BELL_DISABLE_MQTT}")
 message(STATUS "    Disable Regex: ${BELL_DISABLE_REGEX}")
+message(STATUS "    Disable Web server: ${BELL_DISABLE_WEBSERVER}")
 
 # Include nanoPB library
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/external/nanopb/extra")
@@ -94,8 +96,6 @@ file(GLOB SOURCES
     "main/utilities/*.cpp" "main/utilities/*.c"
     "main/io/*.cpp" "main/io/*.c"
 )
-
-list(REMOVE_ITEM SOURCES "${IO_DIR}/BellTar.cpp" "${IO_DIR}/BellHTTPServer.cpp")
 
 list(APPEND EXTRA_INCLUDES "main/audio-codec/include")
 list(APPEND EXTRA_INCLUDES "main/audio-dsp/include")
@@ -276,6 +276,7 @@ if(NOT BELL_DISABLE_SINKS)
 endif()
 
 if(NOT BELL_ONLY_CJSON)
+    set(JSON_SystemInclude ON CACHE INTERNAL "")
     add_subdirectory(external/nlohmann_json)
     list(APPEND EXTRA_LIBS nlohmann_json::nlohmann_json)
 endif()	
@@ -296,10 +297,13 @@ if(WIN32 OR UNIX)
     list(APPEND EXTERNAL_INCLUDES "external/mdnssvc")
 endif() 
 
-# file(GLOB CIVET_SRC "external/civetweb/*.c" "external/civetweb/*.inl" "external/civetweb/*.cpp")
-
-# list(APPEND SOURCES ${CIVET_SRC})
-# list(APPEND EXTRA_INCLUDES "external/civetweb/include") 
+if(NOT BELL_DISABLE_WEBSERVER)
+    file(GLOB CIVET_SRC "external/civetweb/*.c" "external/civetweb/*.inl" "external/civetweb/*.cpp")
+    list(APPEND SOURCES ${CIVET_SRC})
+    list(APPEND EXTRA_INCLUDES "external/civetweb/include") 
+else()
+    list(REMOVE_ITEM SOURCES "${IO_DIR}/BellHTTPServer.cpp")    
+endif()    
 
 add_library(bell STATIC ${SOURCES})
 
