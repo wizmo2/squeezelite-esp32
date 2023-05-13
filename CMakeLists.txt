@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.5)
-set(EXTRA_COMPONENT_DIRS components/platform_console/app_recovery components/platform_console/app_squeezelite  )
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+
+set(PROJECT_VER $ENV{PROJECT_VER})
 add_definitions(-DMODEL_NAME=SqueezeESP32)
+
+if(NOT DEFINED DEPTH)
+	set(DEPTH "16")
+endif()	
 
 # State machine hierarchy enabled and logging enabled
 add_definitions(-DSTATE_MACHINE_LOGGER=1)
@@ -18,14 +23,91 @@ add_definitions(-DHIERARCHICAL_STATES=1)
 #add_definitions(-DNETWORK_MANAGER_LOG_LEVEL=ESP_LOG_DEBUG)
 #add_definitions(-DNETWORK_HTTP_SERVER_LOG_LEVEL=ESP_LOG_DEBUG)
 
-if(NOT DEFINED DEPTH)
-	set(DEPTH "16")
-endif()	
-message(STATUS  "Building RECOVERY")
+# utility to build sizes
+function(build_size target_name) 
+    set(target_elf ${target_name}.elf)
+    set(target_map ${target_name}.map)
+    set(idf_size ${python} ${IDF_PATH}/tools/idf_size.py)
+    
+    if(DEFINED OUTPUT_JSON AND OUTPUT_JSON)
+        list(APPEND idf_size "--json")
+    endif()
+ 
+    add_custom_target(size-${target_name} ALL
+        DEPENDS ${target_elf}
+        COMMAND ${idf_size} ${target_map} -o "size-${target_name}"
+    )
+
+    add_custom_target(size-files-${target_name} ALL
+        DEPENDS ${target_elf}
+        COMMAND ${idf_size} --files ${target_map}
+    )
+
+    add_custom_target(size-components-${target_name} ALL
+        DEPENDS ${target_elf}
+        COMMAND ${idf_size} --archives ${target_map}
+    )
+endfunction()  
+
+# manually add the 2 versions for application: recovery and squeezelite
+set(EXTRA_COMPONENT_DIRS components/platform_console/app_recovery components/platform_console/app_squeezelite  )
+
 project(recovery)
-set_property(TARGET recovery.elf PROPERTY RECOVERY_PREFIX app_recovery )
-include(squeezelite.cmake)
-set(PROJECT_VER $ENV{PROJECT_VER})
+
+# we need own "esp_app_desc" to take precedence
+add_custom_command(
+			TARGET recovery.elf
+			PRE_LINK
+			COMMAND xtensa-esp32-elf-objcopy --weaken-symbol esp_app_desc  ${BUILD_DIR}/esp-idf/app_update/libapp_update.a
+	        VERBATIM
+)
+
+# when building recovery, add app_recovery to the link
+get_target_property(BCA recovery.elf LINK_LIBRARIES)
+list(REMOVE_ITEM BCA "idf::app_squeezelite" "idf::app_recovery" "-Wl,--Map=${BUILD_DIR}/recovery.map")
+set_target_properties(recovery.elf PROPERTIES LINK_LIBRARIES "${BCA};idf::app_recovery;-Wl,--Map=${BUILD_DIR}/recovery.map")
+
+# create files with size for recovery 
+# build_size(recovery)
+
+# build squeezelite, add app_squeezelite to the link
+add_executable(squeezelite.elf "CMakeLists.txt")
+add_dependencies(squeezelite.elf recovery.elf)
+set_target_properties(squeezelite.elf PROPERTIES LINK_LIBRARIES "${BCA};idf::app_squeezelite;-Wl,--Map=${BUILD_DIR}/squeezelite.map")
+add_custom_command(
+			TARGET squeezelite.elf
+			POST_BUILD 
+			COMMAND ${CMAKE_COMMAND} -E echo "Generating ${BUILD_DIR}/squeezelite.bin"
+			COMMAND ${ESPTOOLPY} elf2image ${ESPTOOLPY_FLASH_OPTIONS} ${ESPTOOLPY_ELF2IMAGE_OPTIONS} -o "squeezelite.bin" "squeezelite.elf"
+	        VERBATIM
+)
+
+# create files with size for squeezelite
+# build_size(squeezelite)
+    
+# make it part of cleanup    
+set_property(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" 
+             APPEND PROPERTY 
+             ADDITIONAL_MAKE_CLEAN_FILES "${BUILD_DIR}/squeezelite.elf" "${BUILD_DIR}/squeezelite.map"
+)
+
+# adding OTA_0 partition
+partition_table_get_partition_info(otaapp_offset "--partition-type app --partition-subtype ota_0" "offset")
+idf_component_get_property(main_args esptool_py FLASH_ARGS)
+idf_component_get_property(sub_args esptool_py FLASH_SUB_ARGS)
+esptool_py_flash_target(squeezelite-flash "${main_args}" "${sub_args}")
+esptool_py_flash_target_image(squeezelite-flash squeezelite "${otaapp_offset}" "${BUILD_DIR}/squeezelite.bin")
+esptool_py_flash_target_image(flash squeezelite "${otaapp_offset}" "${BUILD_DIR}/squeezelite.bin")
+
+# and JTAG scripts
+add_custom_target(_jtag_scripts  ALL
+					BYPRODUCTS "flash_dbg_project_args"  
+					POST_BUILD
+					COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_SOURCE_DIR}/generate_debug_scripts.cmake"
+)
+ 
+
+# ======================= DEBUG FLAGS ============================
 
 #target_compile_definitions(__idf_esp_eth PRIVATE -DLOG_LOCAL_LEVEL=ESP_LOG_INFO)
 
