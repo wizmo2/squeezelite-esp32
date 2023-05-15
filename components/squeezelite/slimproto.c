@@ -99,7 +99,7 @@ static char *new_server_cap;
 static char player_name[PLAYER_NAME_LEN + 1] = "";
 static const char *name_file = NULL;
 
-void send_packet(u8_t *packet, size_t len) {
+void slimproto_send_packet(u8_t *packet, size_t len) {
 	u8_t *ptr = packet;
 	unsigned try = 0;
 	ssize_t n;

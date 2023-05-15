@@ -20,7 +20,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "soc/rtc_cntl_reg.h"
-#include "esp32/rom/uart.h"
+#include "esp_rom_uart.h"
 #include "cmd_system.h"
 #include "sdkconfig.h"
 #include "esp_partition.h"
@@ -28,7 +28,6 @@
 #include "platform_esp32.h"
 #include "platform_config.h"
 #include "esp_sleep.h"
-#include "driver/uart.h"            // for the uart driver access
 #include "messaging.h"				  
 #include "platform_console.h"
 #include "tools.h"
@@ -791,7 +790,7 @@ static int light_sleep(int argc, char **argv)
         ESP_ERROR_CHECK( esp_sleep_enable_uart_wakeup(CONFIG_ESP_CONSOLE_UART_NUM) );
     }
     fflush(stdout);
-    uart_tx_wait_idle(CONFIG_ESP_CONSOLE_UART_NUM);
+    esp_rom_uart_tx_wait_idle(CONFIG_ESP_CONSOLE_UART_NUM);
     esp_light_sleep_start();
     esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
     const char *cause_str;

@@ -4,7 +4,9 @@
 
 #include "network_status.h"
 #include <string.h>
+#ifdef BT_ENABLED
 #include "bt_app_core.h"
+#endif
 #include "esp_log.h"
 #include "lwip/inet.h"
 #include "monitor.h"
@@ -264,8 +266,10 @@ cJSON* network_status_get_basic_info(cJSON** old) {
         *old = network_status_update_float(old, "Voltage", battery_value_svc());
         *old = network_update_cjson_number(old, "disconnect_count", nm->num_disconnect);
         *old = network_status_update_float(old, "avg_conn_time", nm->num_disconnect > 0 ? (nm->total_connected_time / nm->num_disconnect) : 0);
+#ifdef BT_ENABLED        
         *old = network_update_cjson_number(old, "bt_status", bt_app_source_get_a2d_state());
         *old = network_update_cjson_number(old, "bt_sub_status", bt_app_source_get_media_state());
+#endif        
 #if DEPTH == 16
         *old = network_update_cjson_number(old, "depth", 16);
 #elif DEPTH == 32
