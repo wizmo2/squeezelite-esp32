@@ -935,7 +935,7 @@ esp_err_t SPI_MASTER_ISR_ATTR spi_device_polling_start(spi_device_handle_t handl
     ret = check_trans_valid(handle, trans_desc);
     if (ret!=ESP_OK) return ret;
     SPI_CHECK(!spi_bus_device_is_polling(handle), "Cannot send polling transaction while the previous polling transaction is not terminated.", ESP_ERR_INVALID_STATE );
-
+ESP_LOGI("gragra", "LOCAL SPI_MASTER");
     /* If device_acquiring_lock is set to handle, it means that the user has already
      * acquired the bus thanks to the function `spi_device_acquire_bus()`.
      * In that case, we don't need to take the lock again. */

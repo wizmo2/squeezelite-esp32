@@ -1,6 +1,11 @@
 set(lib_dir ${build_dir}/esp-idf)
 
-set(driver i2s.c i2s_hal.c spi_bus_lock.c)
+if(IDF_TARGET STREQUAL esp32)
+    set(driver esp32/i2s.c esp32/i2s_hal.c esp32/spi_bus_lock.c)
+else()
+    return()
+endif()    
+
 string(REPLACE ".c" ".c.obj" driver_obj "${driver}")
 
 idf_component_register( SRCS ${driver}
@@ -8,10 +13,10 @@ idf_component_register( SRCS ${driver}
 					INCLUDE_DIRS ${IDF_PATH}/components/driver
 					PRIV_INCLUDE_DIRS ${IDF_PATH}/components/driver/include/driver
 )
- 
+
 # CMake is just a pile of crap
-message("!! overriding ${driver} !!")
-message("CAREFUL, LIBRARIES STRIPPING FROM DUPLICATED COMPONENTS DEPENDS ON THIS BEING REBUILD")
+message(STATUS "!! overriding ${driver} !!")
+message(STATUS "CAREFUL, LIBRARIES STRIPPING FROM DUPLICATED COMPONENTS DEPENDS ON THIS BEING REBUILD")
 
 add_custom_command(
 			TARGET ${COMPONENT_LIB}

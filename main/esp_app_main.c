@@ -63,6 +63,11 @@ RTC_NOINIT_ATTR uint32_t RecoveryRebootCounter ;
 RTC_NOINIT_ATTR uint16_t ColdBootIndicatorFlag;
 bool cold_boot=true;
 
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+extern const char _ctype_[];
+const char* __ctype_ptr__ = _ctype_;
+#endif
+
 static bool bNetworkConnected=false;
 
 // as an exception _init function don't need include
