@@ -1,6 +1,6 @@
 if(IDF_TARGET STREQUAL esp32)
     set(lib_dir ${build_dir}/esp-idf)
-    set(driver esp32/i2s.c esp32/i2s_hal.c esp32/spi_bus_lock.c)
+    set(driver esp32/i2s.c esp32/i2s_hal.c)
     string(REPLACE ".c" ".c.obj" driver_obj "${driver}")
 
     idf_component_register( SRCS ${driver}
