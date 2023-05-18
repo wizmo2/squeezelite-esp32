@@ -18,7 +18,7 @@ jobs:
     name: Global setup
     runs-on: ubuntu-latest
     container:
-      image: sle118/squeezelite-esp32-idfv43
+      image: sle118/squeezelite-esp32-idfv435
     outputs:
       build_number: ${{ steps.buildnumber.outputs.build_number }}
       ui_build: ${{ steps.build_flags.outputs.ui_build }}
@@ -99,7 +99,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: sle118/squeezelite-esp32-idfv43
+      image: sle118/squeezelite-esp32-idfv435
     needs: [bootstrap]
     strategy:
       matrix:
