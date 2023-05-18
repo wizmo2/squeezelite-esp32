@@ -99,8 +99,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: sle118/squeezelite-esp32-idfv.
-      5
+      image: sle118/squeezelite-esp32-idfv435
     needs: [bootstrap]
     strategy:
       matrix:
