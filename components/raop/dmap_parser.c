@@ -7,6 +7,8 @@
 #define DMAP_STRINGIFY_(x) #x
 #define DMAP_STRINGIFY(x) DMAP_STRINGIFY_(x)
 
+#define DMAP_FULL 1
+
 typedef enum {
 	DMAP_UNKNOWN,
 	DMAP_UINT,
