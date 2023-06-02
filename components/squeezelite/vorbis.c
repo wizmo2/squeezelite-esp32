@@ -152,9 +152,9 @@ static int get_ogg_packet(void) {
 		if (status)	OG(&go, stream_pagein, &v->state, &v->page);
 	}
     
-    // only return a negative value when end of streaming is reached
+    // only return a negative value when true end of streaming is reached
     if (status > 0) packet = status;
-    else if (stream.state > DISCONNECT) packet = 0;
+    else if (stream.state > DISCONNECT || _buf_used(streambuf)) packet = 0;
 
 	UNLOCK_S;
 	return packet;
