@@ -283,8 +283,8 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 		i2s_config.dma_buf_count = DMA_BUF_COUNT * 2;
 		/* 
 		   In DMA, we have room for (LEN * COUNT) frames of 32 bits samples that 
-		   we push at sample_rate * 2. Each of these peuso-frames is a single true
-		   audio frame. So the real depth is true frames is (LEN * COUNT / 2)
+		   we push at sample_rate * 2. Each of these pseudo-frames is a single true
+		   audio frame. So the real depth in true frames is (LEN * COUNT / 2)
 		*/   
 		dma_buf_frames = DMA_BUF_COUNT * DMA_BUF_LEN / 2;	
 		
