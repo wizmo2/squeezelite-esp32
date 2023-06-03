@@ -305,7 +305,7 @@ See [set_GPIO](#set-gpio) for how to set the green and red LEDs. In addition, th
 ```
 [green=0..100][,red=0..100]
 ```
-NB: For well-known configuration, this is ignored
+NB: For well-known configuration, GPIO affected to green and red LED cannot be changed but brightness option applies
 
 ### Rotary Encoder
 One rotary encoder is supported, quadrature shift with press. Such encoders usually have 2 pins for encoders (A and B), and common C that must be set to ground and an optional SW pin for press. A, B and SW must be pulled up, so automatic pull-up is provided by ESP32, but you can add your own resistors. A bit of filtering on A and B (~470nF) helps for debouncing which is not made by software. 
