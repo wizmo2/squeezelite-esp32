@@ -89,7 +89,7 @@ NB: You can use the pre-build binaries Muse4MBFlash which has all the hardware I
 - define a "buttons" variable with: `[{"gpio":32, "pull":true, "debounce":10, "normal":{"pressed":"ACTRLS_VOLDOWN"}}, {"gpio":19, "pull":true, "debounce":40, "normal":{"pressed":"ACTRLS_VOLUP"}}, {"gpio":12, "pull":true, "debounce":40, "long_press":1000, "normal":{"pressed":"ACTRLS_TOGGLE"},"longpress":{"pressed":"ACTRLS_POWER"}}]`
 
 ### ESP32-A1S
-Works with [ESP32-A1S](https://docs.ai-thinker.com/esp32-a1s) module that includes audio codec and headset output. You still need to use a demo board like [this](https://www.aliexpress.com/item/4001060963585.html) or an external amplifier if you want direct speaker connection. Note that there is a version with AC101 codec and another one with ES8388 with probably two variants - these boards are a mess (see below)
+Works with [ESP32-A1S](https://docs.ai-thinker.com/esp32-a1s) module that includes audio codec and headset output. You still need to use a demo board like [this](https://aliexpress.com/item/4000130915903.html) or an external amplifier if you want direct speaker connection. Note that there is a version with AC101 codec and another one with ES8388 with probably two variants - these boards are a mess (see below)
 
 The board shown above has the following IO set
 - amplifier: GPIO21
