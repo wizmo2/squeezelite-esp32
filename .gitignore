@@ -18,3 +18,5 @@ components/wifi-manager/UML-State-Machine-in-C
 envfile.txt
 artifacts
 web-installer
+sdkconfig
+.gitignore
