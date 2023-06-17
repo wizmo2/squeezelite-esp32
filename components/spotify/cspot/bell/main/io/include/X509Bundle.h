@@ -1,8 +1,11 @@
 #pragma once
 
-#include <stdexcept>
-#include "BellLogger.h"
-#include "mbedtls/ssl.h"
+#include <mbedtls/x509_crt.h>  // for mbedtls_x509_crt
+#include <stddef.h>            // for size_t
+#include <cstdint>             // for uint8_t, uint16_t, uint32_t
+#include <vector>              // for vector
+
+#include "mbedtls/ssl.h"  // for mbedtls_ssl_config
 
 namespace bell::X509Bundle {
 
@@ -13,6 +16,7 @@ typedef struct crt_bundle_t {
 } crt_bundle_t;
 
 static crt_bundle_t s_crt_bundle;
+static std::vector<uint8_t> bundleBytes;
 
 static constexpr auto TAG = "X509Bundle";
 static constexpr auto CRT_HEADER_OFFSET = 4;

@@ -83,13 +83,13 @@ NB: You can use the pre-build binaries Muse4MBFlash which has all the hardware I
 - target: `muse`
 - bat_config: `channel=5,scale=7.48,atten=3,cells=1`
 - spi_config: `"mosi=15,miso=2,clk=14` *(this one is probably optional)*
-- dac_config: `model=I2S,bck=5,ws=25,do=26,di=35,i2c=16,sda=18,scl=23,mck`
+- dac_config: `model=I2S,bck=5,ws=25,do=26,di=35,i2c=16,sda=18,scl=23,mck=0`
 - dac_controlset: `{"init":[ {"reg":0,"val":128}, {"reg":0,"val":0}, {"reg":25,"val":4}, {"reg":1,"val":80}, {"reg":2,"val":0},	{"reg":8,"val":0}, {"reg":4,"val":192},	{"reg":0,"val":18}, {"reg":1,"val":0}, {"reg":23,"val":24}, {"reg":24,"val":2}, {"reg":38,"val":9}, {"reg":39,"val":144}, {"reg":42,"val":144}, {"reg":43,"val":128}, {"reg":45,"val":128}, {"reg":27,"val":0}, {"reg":26,"val":0}, {"reg":2,"val":240}, {"reg":2,"val":0},	{"reg":29,"val":28}, {"reg":4,"val":48}, {"reg":25,"val":0}, {"reg":46,"val":33}, {"reg":47,"val":33} ]}`
 - actrls_config: buttons
 - define a "buttons" variable with: `[{"gpio":32, "pull":true, "debounce":10, "normal":{"pressed":"ACTRLS_VOLDOWN"}}, {"gpio":19, "pull":true, "debounce":40, "normal":{"pressed":"ACTRLS_VOLUP"}}, {"gpio":12, "pull":true, "debounce":40, "long_press":1000, "normal":{"pressed":"ACTRLS_TOGGLE"},"longpress":{"pressed":"ACTRLS_POWER"}}]`
 
 ### ESP32-A1S
-Works with [ESP32-A1S](https://docs.ai-thinker.com/esp32-a1s) module that includes audio codec and headset output. You still need to use a demo board like [this](https://www.aliexpress.com/item/4001060963585.html) or an external amplifier if you want direct speaker connection. Note that there is a version with AC101 codec and another one with ES8388 with probably two variants - these boards are a mess (see below)
+Works with [ESP32-A1S](https://docs.ai-thinker.com/esp32-a1s) module that includes audio codec and headset output. You still need to use a demo board like [this](https://aliexpress.com/item/4000130915903.html) or an external amplifier if you want direct speaker connection. Note that there is a version with AC101 codec and another one with ES8388 with probably two variants - these boards are a mess (see below)
 
 The board shown above has the following IO set
 - amplifier: GPIO21
@@ -174,9 +174,9 @@ Default and only "host" is 1 as others are used already by flash and spiram. The
 ### DAC/I2S
 The NVS parameter "dac_config" set the gpio used for i2s communication with your DAC. You can define the defaults at compile time but nvs parameter takes precedence except for SqueezeAMP and A1S where these are forced at runtime. Syntax is
 ```
-bck=<gpio>,ws=<gpio>,do=<gpio>[,mck][,mute=<gpio>[:0|1][,model=TAS57xx|TAS5713|AC101|I2S][,sda=<gpio>,scl=gpio[,i2c=<addr>]]
+bck=<gpio>,ws=<gpio>,do=<gpio>[,mck=0|1|2][,mute=<gpio>[:0|1][,model=TAS57xx|TAS5713|AC101|I2S][,sda=<gpio>,scl=<gpio>[,i2c=<addr>]]
 ```
-if "model" is not set or is not recognized, then default "I2S" is used. The option "mck" is used for some codecs that require a master clock (although they should not). Only GPIO0 can be used as MCLK and be aware that this cannot coexit with RMII Ethernet (see ethernet section below). I2C parameters are optional and only needed if your DAC requires an I2C control (See 'dac_controlset' below). Note that "i2c" parameters are decimal, hex notation is not allowed.
+if "model" is not set or is not recognized, then default "I2S" is used. The option "mck" is used for some codecs that require a master clock (although they should not). By default GPIO0 is used as MCLK and only recent builds (none as or 2023/05/15) can use 1 or 2. Also be aware that this cannot coexit with RMII Ethernet (see ethernet section below). I2C parameters are optional and only needed if your DAC requires an I2C control (See 'dac_controlset' below). Note that "i2c" parameters are decimal, hex notation is not allowed.
 
 So far, TAS57xx, TAS5713, AC101, WM8978 and ES8388 are recognized models where the proper init sequence/volume/power controls are sent. For other codecs that might require an I2C commands, please use the parameter "dac_controlset" that allows definition of simple commands to be sent over i2c for init, power, speakder and headset on and off using a JSON syntax:
 ```json
@@ -305,7 +305,7 @@ See [set_GPIO](#set-gpio) for how to set the green and red LEDs. In addition, th
 ```
 [green=0..100][,red=0..100]
 ```
-NB: For well-known configuration, this is ignored
+NB: For well-known configuration, GPIO affected to green and red LED cannot be changed but brightness option applies
 
 ### LED Strip
 One LED strip with up to 255 addressable LEDs can be configured to offer enhanced visualizations.  The LED strip can also be controlled remotely though the LMS server (using the CLI interface).  Currently only WS2812B LEDs are supported.  Set the LED Strip configuration (or NVS led_vu_config) to `WS2812,length=<n>,gpio=<gpio>, where <n> is the number of leds in the strip (1..255), and <gpio> is the data pin.`  

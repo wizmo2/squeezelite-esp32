@@ -29,16 +29,8 @@ static int i2c_port = -1;
  * init
  */
 int adac_init(char *config, int i2c_port_num) {	 
-	char *p;
 	int i2c_addr = 0;
-	
-	// some crappy codecs require MCLK to work
-	if ((p = strcasestr(config, "mck")) != NULL) {
-		ESP_LOGI(TAG, "Configuring MCLK on GPIO0");
-		PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0_CLK_OUT1);
-		REG_WRITE(PIN_CTRL, 0xFFFFFFF0);
-	}	
-	
+
 	i2c_port = i2c_port_num;
 
 	// configure i2c

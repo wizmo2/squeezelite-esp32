@@ -424,7 +424,7 @@ static int dmap_parse_internal(const dmap_settings *settings, const char *buf, s
 			/* Make a best guess of the type */
 			field_type = DMAP_UNKNOWN;
 			field_name = code;
-
+#ifdef DMAP_FULL    
 			if (field_len >= 8) {
 				/* Look for a four char code followed by a length within the current field */
 				if (isalpha(p[0] & 0xff) &&
@@ -448,6 +448,7 @@ static int dmap_parse_internal(const dmap_settings *settings, const char *buf, s
 
 				field_type = is_string ? DMAP_STR : DMAP_UINT;
 			}
+#endif            
 		}
 
 		switch (field_type) {

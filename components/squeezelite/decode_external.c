@@ -406,7 +406,7 @@ static bool cspot_cmd_handler(cspot_event_t cmd, va_list args)
 	case CSPOT_VOLUME: {
 		u32_t volume = va_arg(args, u32_t);
 		LOG_INFO("CSpot volume %u", volume);
-		volume = 65536 * powf(volume / 65536.0f, 2);
+		volume = 65536 * powf(volume / 65536.0f, 4);
 		set_volume(volume, volume);
 		break;
 	default:

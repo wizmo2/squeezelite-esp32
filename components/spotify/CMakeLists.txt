@@ -17,6 +17,8 @@ set(BELL_DISABLE_SINKS ON)
 set(BELL_DISABLE_FMT ON)
 set(BELL_DISABLE_REGEX ON)
 set(BELL_ONLY_CJSON ON)
+set(BELL_DISABLE_MQTT ON)
+set(BELL_DISABLE_WEBSERVER ON)
 set(CSPOT_TARGET_ESP32 ON)
 
 # because CMake is so broken, the cache set below overrides a normal "set" for the first build

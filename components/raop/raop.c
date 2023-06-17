@@ -124,7 +124,7 @@ struct raop_ctx_s *raop_create(uint32_t host, char *name,
 					"ss=16", "sr=44100", "vn=3", "txtvers=1",
 					NULL };
 #else
-	mdns_txt_item_t txt[] = {
+	const mdns_txt_item_t txt[] = {
 		{"am", "airesp32"},
 		{"tp", "UDP"},
 		{"sm","false"},
@@ -765,7 +765,7 @@ static void search_remote(void *args) {
 /*----------------------------------------------------------------------------*/
 static char *rsa_apply(unsigned char *input, int inlen, int *outlen, int mode)
 {
-	static char super_secret_key[] =
+	const static char super_secret_key[] =
 	"-----BEGIN RSA PRIVATE KEY-----\n"
 	"MIIEpQIBAAKCAQEA59dE8qLieItsH1WgjrcFRKj6eUWqi+bGLOX1HL3U3GhC/j0Qg90u3sG/1CUt\n"
 	"wC5vOYvfDmFI6oSFXi5ELabWJmT2dKHzBJKa3k9ok+8t9ucRqMd6DZHJ2YCCLlDRKSKv6kDqnw4U\n"
@@ -853,7 +853,7 @@ static char *rsa_apply(unsigned char *input, int inlen, int *outlen, int mode)
 
 #define DECODE_ERROR 0xffffffff
 
-static char base64_chars[] =
+const static char base64_chars[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 /*----------------------------------------------------------------------------*/

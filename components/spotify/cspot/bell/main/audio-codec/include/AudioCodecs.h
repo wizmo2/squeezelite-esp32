@@ -1,11 +1,12 @@
 #pragma once
 
-#include <memory>
-#include "BaseCodec.h"
-#include "AudioContainer.h"
+#include <memory>  // for shared_ptr
+
+#include "AudioContainer.h"  // for AudioContainer
+#include "BaseCodec.h"       // for BaseCodec
+#include "CodecType.h"       // for AudioCodec
 
 namespace bell {
-
 class AudioCodecs {
  public:
   static std::shared_ptr<BaseCodec> getCodec(AudioCodec type);

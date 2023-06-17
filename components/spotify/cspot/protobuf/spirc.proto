@@ -1,3 +1,5 @@
+syntax = "proto2";
+
 enum MessageType {
     kMessageTypeHello = 0x1;
     kMessageTypeGoodbye = 0x2;
@@ -58,6 +60,10 @@ enum CapabilityType {
     kVolumeSteps = 0x8;
     kSupportedTypes = 0x9;
     kCommandAcks = 0xa;
+    kSupportsRename = 0xb;
+    kHidden = 0xc;
+    kSupportsPlaylistV2 = 0xd;
+    kSupportsExternalEpisodes = 0xe;
 }
 
 message Capability {

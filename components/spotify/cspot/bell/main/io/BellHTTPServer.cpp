@@ -1,8 +1,14 @@
 #include "BellHTTPServer.h"
-#include <mutex>
-#include <regex>
-#include "CivetServer.h"
-#include "civetweb.h"
+
+#include <string.h>   // for memcpy
+#include <cassert>    // for assert
+#include <exception>  // for exception
+#include <mutex>      // for scoped_lock
+#include <regex>      // for sregex_token_iterator, regex
+
+#include "BellLogger.h"   // for AbstractLogger, BELL_LOG, bell
+#include "CivetServer.h"  // for CivetServer, CivetWebSocketHandler
+#include "civetweb.h"     // for mg_get_request_info, mg_printf, mg_set_user...
 
 using namespace bell;
 
@@ -195,7 +201,8 @@ std::unique_ptr<BellHTTPServer::HTTPResponse> BellHTTPServer::makeJsonResponse(
   return response;
 }
 
-std::unique_ptr<BellHTTPServer::HTTPResponse> BellHTTPServer::makeEmptyResponse() {
+std::unique_ptr<BellHTTPServer::HTTPResponse>
+BellHTTPServer::makeEmptyResponse() {
   auto response = std::make_unique<BellHTTPServer::HTTPResponse>();
   return response;
 }
@@ -225,8 +232,10 @@ void BellHTTPServer::registerNotFound(HTTPHandler handler) {
 
 std::unordered_map<std::string, std::string> BellHTTPServer::extractParams(
     struct mg_connection* conn) {
+  void* data = mg_get_user_connection_data(conn);
+  assert(data != nullptr);
   std::unordered_map<std::string, std::string>& params =
-      *(std::unordered_map<std::string, std::string>*)
-          mg_get_user_connection_data(conn);
+      *(std::unordered_map<std::string, std::string>*)data;
+
   return params;
 }

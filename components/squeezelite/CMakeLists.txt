@@ -1,3 +1,8 @@
+# for the forgetful, REQUIRES cannot use CONFIG_XXX due to parsing order
+if(IDF_TARGET STREQUAL "esp32")
+    set(target_requires "driver_bt")
+endif()
+
 idf_component_register( SRC_DIRS . external ac101 tas57xx wm8978
 						INCLUDE_DIRS .  ac101 
 						PRIV_REQUIRES 	
@@ -6,7 +11,6 @@ idf_component_register( SRC_DIRS . external ac101 tas57xx wm8978
 									esp_common 
 									esp-dsp
 						  			platform_config 
-						 			driver_bt 
 						 			services 
 									spotify
 						 			raop   
@@ -15,6 +19,7 @@ idf_component_register( SRC_DIRS . external ac101 tas57xx wm8978
 						 			audio
 									led_strip
 									_override
+						 			${target_requires}                                    
 						EMBED_FILES vu_s.data arrow.data
 )
 

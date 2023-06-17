@@ -190,10 +190,14 @@ static void set_amp_gpio(int gpio, char *value) {
  * Set pin from config string
  */
 static void set_i2s_pin(char *config, i2s_pin_config_t *pin_config) {
-	pin_config->bck_io_num = pin_config->ws_io_num = pin_config->data_out_num = pin_config->data_in_num = -1; 				
+	pin_config->bck_io_num = pin_config->ws_io_num = pin_config->data_out_num = pin_config->data_in_num = -1;
 	PARSE_PARAM(config, "bck", '=', pin_config->bck_io_num);
 	PARSE_PARAM(config, "ws", '=', pin_config->ws_io_num);
 	PARSE_PARAM(config, "do", '=', pin_config->data_out_num);
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
+    pin_config->mck_io_num = strcasestr(config, "mck") ? 0 : -1;
+    PARSE_PARAM(config, "mck", '=', pin_config->mck_io_num);   
+#endif    
 }
 
 /****************************************************************************************
@@ -234,14 +238,19 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 											  ",ws=" STR(CONFIG_SPDIF_WS_IO) ",do=" STR(CONFIG_SPDIF_DO_IO));
 											  
 	char *dac_config = config_alloc_get_str("dac_config", CONFIG_DAC_CONFIG, "model=i2s,bck=" STR(CONFIG_I2S_BCK_IO) 
-											",ws=" STR(CONFIG_I2S_WS_IO) ",do=" STR(CONFIG_I2S_DO_IO) 
+											",ws=" STR(CONFIG_I2S_WS_IO) ",do=" STR(CONFIG_I2S_DO_IO) ",mck=" STR(CONFIG_I2S_MCK_IO)
 											",sda=" STR(CONFIG_I2C_SDA) ",scl=" STR(CONFIG_I2C_SCL)
 											",mute=" STR(CONFIG_MUTE_GPIO));	
 
-	i2s_pin_config_t i2s_dac_pin, i2s_spdif_pin;											
+    i2s_pin_config_t i2s_dac_pin, i2s_spdif_pin;											
 	set_i2s_pin(spdif_config, &i2s_spdif_pin);										
 	set_i2s_pin(dac_config, &i2s_dac_pin);										
-
+    
+    if (i2s_dac_pin.data_out_num == -1 && i2s_spdif_pin.data_out_num == -1) {
+        LOG_WARN("DAC and SPDIF not configured, NOT launching i2s thread");
+        return;
+    }
+    
 	/* BEWARE: i2s.c must be patched otherwise L/R are swapped in 32 bits mode */
 	 
 	// common I2S initialization
@@ -250,7 +259,9 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 	i2s_config.communication_format = I2S_COMM_FORMAT_STAND_I2S;
 	// in case of overflow, do not replay old buffer
 	i2s_config.tx_desc_auto_clear = true;		
-	i2s_config.use_apll = true;
+#ifndef CONFIG_IDF_TARGET_ESP32S3
+    i2s_config.use_apll = true;
+#endif 
 	i2s_config.intr_alloc_flags = ESP_INTR_FLAG_LEVEL1; //Interrupt level 1
 	
 	if (strcasestr(device, "spdif")) {
@@ -272,8 +283,8 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 		i2s_config.dma_buf_count = DMA_BUF_COUNT * 2;
 		/* 
 		   In DMA, we have room for (LEN * COUNT) frames of 32 bits samples that 
-		   we push at sample_rate * 2. Each of these peuso-frames is a single true
-		   audio frame. So the real depth is true frames is (LEN * COUNT / 2)
+		   we push at sample_rate * 2. Each of these pseudo-frames is a single true
+		   audio frame. So the real depth in true frames is (LEN * COUNT / 2)
 		*/   
 		dma_buf_frames = DMA_BUF_COUNT * DMA_BUF_LEN / 2;	
 		
@@ -303,12 +314,36 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 			if ((p = strchr(mute, ':')) != NULL) mute_control.active = atoi(p + 1);
 		}	
 
+        bool mck_required = false;
 		for (int i = 0; adac == &dac_external && dac_set[i]; i++) if (strcasestr(dac_set[i]->model, model)) adac = dac_set[i];
-		res = adac->init(dac_config, I2C_PORT, &i2s_config) ? ESP_OK : ESP_FAIL;
+		res = adac->init(dac_config, I2C_PORT, &i2s_config, &mck_required) ? ESP_OK : ESP_FAIL;
+        
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4, 4, 0)        
+        int mck_io_num = strcasestr(dac_config, "mck") || mck_required ? 0 : -1;
+        PARSE_PARAM(dac_config, "mck", '=', mck_io_num);
 
+        LOG_INFO("configuring MCLK on GPIO %d", mck_io_num);
+
+        if (mck_io_num == GPIO_NUM_0) {
+            PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0_CLK_OUT1);
+            WRITE_PERI_REG(PIN_CTRL, CONFIG_I2S_NUM == I2S_NUM_0 ? 0xFFF0 : 0xFFFF);
+        } else if (mck_io_num == GPIO_NUM_1) {
+            PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0TXD_U, FUNC_U0TXD_CLK_OUT3);
+            WRITE_PERI_REG(PIN_CTRL, CONFIG_I2S_NUM == I2S_NUM_0 ? 0xF0F0 : 0xF0FF);
+        } else if (mck_io_num == GPIO_NUM_2) {
+            PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0RXD_U, FUNC_U0RXD_CLK_OUT2);
+            WRITE_PERI_REG(PIN_CTRL, CONFIG_I2S_NUM == I2S_NUM_0 ? 0xFF00 : 0xFF0F);
+        } else {
+            LOG_WARN("invalid MCK gpio %d", mck_io_num);
+        }
+#else
+        if (mck_required && i2s_dac_pin.mck_io_num == -1) i2s_dac_pin.mck_io_num = 0;
+        LOG_INFO("configuring MCLK on GPIO %d", i2s_dac_pin.mck_io_num);
+#endif    
+       
 		res |= i2s_driver_install(CONFIG_I2S_NUM, &i2s_config, 0, NULL);
 		res |= i2s_set_pin(CONFIG_I2S_NUM, &i2s_dac_pin);
-		
+        	
 		if (res == ESP_OK && mute_control.gpio >= 0) {
 			gpio_pad_select_gpio(mute_control.gpio);
 			gpio_set_direction(mute_control.gpio, GPIO_MODE_OUTPUT);
@@ -366,7 +401,7 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 	// create task as a FreeRTOS task but uses stack in internal RAM
 	{
 		static DRAM_ATTR StaticTask_t xTaskBuffer __attribute__ ((aligned (4)));
-		static DRAM_ATTR StackType_t xStack[OUTPUT_THREAD_STACK_SIZE] __attribute__ ((aligned (4)));
+		static EXT_RAM_ATTR StackType_t xStack[OUTPUT_THREAD_STACK_SIZE] __attribute__ ((aligned (4)));
 		output_i2s_task = xTaskCreateStaticPinnedToCore( (TaskFunction_t) output_thread_i2s, "output_i2s", OUTPUT_THREAD_STACK_SIZE, 
 											  NULL, CONFIG_ESP32_PTHREAD_TASK_PRIO_DEFAULT + 1, xStack, &xTaskBuffer, 0 );
 	}

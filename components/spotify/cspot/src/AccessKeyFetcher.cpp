@@ -6,13 +6,14 @@
 #include <type_traits>       // for remove_extent_t
 #include <vector>            // for vector
 
-#include "BellLogger.h"           // for AbstractLogger
-#include "CSpotContext.h"         // for Context
-#include "Logger.h"               // for CSPOT_LOG
-#include "MercurySession.h"       // for MercurySession, MercurySession::Res...
-#include "Packet.h"               // for cspot
-#include "TimeProvider.h"         // for TimeProvider
-#include "Utils.h"                // for string_format
+#include "BellLogger.h"      // for AbstractLogger
+#include "CSpotContext.h"    // for Context
+#include "Logger.h"          // for CSPOT_LOG
+#include "MercurySession.h"  // for MercurySession, MercurySession::Res...
+#include "Packet.h"          // for cspot
+#include "TimeProvider.h"    // for TimeProvider
+#include "Utils.h"           // for string_format
+#include "WrappedSemaphore.h"
 #ifdef BELL_ONLY_CJSON
 #include "cJSON.h"
 #else
@@ -22,11 +23,17 @@
 
 using namespace cspot;
 
-AccessKeyFetcher::AccessKeyFetcher(std::shared_ptr<cspot::Context> ctx) {
-  this->ctx = ctx;
-}
+static std::string CLIENT_ID =
+    "65b708073fc0480ea92a077233ca87bd";  // Spotify web client's client id
 
-AccessKeyFetcher::~AccessKeyFetcher() {}
+static std::string SCOPES =
+    "streaming,user-library-read,user-library-modify,user-top-read,user-read-"
+    "recently-played";  // Required access scopes
+
+AccessKeyFetcher::AccessKeyFetcher(std::shared_ptr<cspot::Context> ctx)
+    : ctx(ctx) {
+  this->updateSemaphore = std::make_shared<bell::WrappedSemaphore>();
+}
 
 bool AccessKeyFetcher::isExpired() {
   if (accessKey.empty()) {
@@ -40,10 +47,23 @@ bool AccessKeyFetcher::isExpired() {
   return false;
 }
 
-void AccessKeyFetcher::getAccessKey(AccessKeyFetcher::Callback callback) {
+std::string AccessKeyFetcher::getAccessKey() {
   if (!isExpired()) {
-    return callback(accessKey);
+    return accessKey;
   }
+
+  updateAccessKey();
+
+  return accessKey;
+}
+
+void AccessKeyFetcher::updateAccessKey() {
+  if (keyPending) {
+    // Already pending refresh request
+    return;
+  }
+
+  keyPending = true;
 
   CSPOT_LOG(info, "Access token expired, fetching new one...");
 
@@ -54,17 +74,17 @@ void AccessKeyFetcher::getAccessKey(AccessKeyFetcher::Callback callback) {
 
   ctx->session->execute(
       MercurySession::RequestType::GET, url,
-      [this, timeProvider, callback](MercurySession::Response& res) {
+      [this, timeProvider](MercurySession::Response& res) {
         if (res.fail)
           return;
-        char* accessKeyJson = (char*)res.parts[0].data();
-        auto accessJSON = std::string(
-            accessKeyJson, strrchr(accessKeyJson, '}') - accessKeyJson + 1);
+        auto accessJSON =
+            std::string((char*)res.parts[0].data(), res.parts[0].size());
 #ifdef BELL_ONLY_CJSON
         cJSON* jsonBody = cJSON_Parse(accessJSON.c_str());
         this->accessKey =
             cJSON_GetObjectItem(jsonBody, "accessToken")->valuestring;
         int expiresIn = cJSON_GetObjectItem(jsonBody, "expiresIn")->valueint;
+        cJSON_Delete(jsonBody);
 #else
         auto jsonBody = nlohmann::json::parse(accessJSON);
         this->accessKey = jsonBody["accessToken"];
@@ -74,11 +94,11 @@ void AccessKeyFetcher::getAccessKey(AccessKeyFetcher::Callback callback) {
 
         this->expiresAt =
             timeProvider->getSyncedTimestamp() + (expiresIn * 1000);
-#ifdef BELL_ONLY_CJSON
-        callback(cJSON_GetObjectItem(jsonBody, "accessToken")->valuestring);
-        cJSON_Delete(jsonBody);
-#else
-        callback(jsonBody["accessToken"]);
-#endif
+        updateSemaphore->give();
       });
+
+  updateSemaphore->twait(5000);
+
+  // Mark as not pending for refresh
+  keyPending = false;
 }

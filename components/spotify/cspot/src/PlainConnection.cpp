@@ -1,19 +1,17 @@
 #include "PlainConnection.h"
 
 #ifndef _WIN32
-#include <netdb.h>        // for addrinfo, freeaddrinfo, getaddrinfo
-#include <netinet/in.h>   // for IPPROTO_IP, IPPROTO_TCP
-#include <sys/errno.h>    // for EAGAIN, EINTR, ETIMEDOUT, errno
-#include <sys/socket.h>   // for setsockopt, connect, recv, send, shutdown
-#include <sys/time.h>     // for timeval
-#endif
-#include <cstring>        // for memset
-#include <stdexcept>      // for runtime_error
-#ifdef _WIN32
-#include <ws2tcpip.h>
-#else
+#include <netdb.h>       // for addrinfo, freeaddrinfo, getaddrinfo
+#include <netinet/in.h>  // for IPPROTO_IP, IPPROTO_TCP
+#include <sys/errno.h>   // for EAGAIN, EINTR, ETIMEDOUT, errno
+#include <sys/socket.h>  // for setsockopt, connect, recv, send, shutdown
+#include <sys/time.h>    // for timeval
+#include <cstring>       // for memset
+#include <stdexcept>     // for runtime_error
 #include <netinet/tcp.h>  // for TCP_NODELAY
-#include <arpa/inet.h>
+#include <netdb.h>
+#else
+#include <ws2tcpip.h>
 #endif
 #include "BellLogger.h"   // for AbstractLogger
 #include "Logger.h"       // for CSPOT_LOG
@@ -67,8 +65,8 @@ void PlainConnection::connect(const std::string& apAddress) {
     if (this->apSock < 0)
       continue;
 
-    if (::connect(this->apSock, (struct sockaddr*)ai->ai_addr, ai->ai_addrlen) !=
-        -1) {
+    if (::connect(this->apSock, (struct sockaddr*)ai->ai_addr,
+                  ai->ai_addrlen) != -1) {
 #ifdef _WIN32
       uint32_t tv = 3000;
 #else
@@ -144,10 +142,10 @@ void PlainConnection::readBlock(const uint8_t* dst, size_t size) {
       switch (getErrno()) {
         case EAGAIN:
         case ETIMEDOUT:
-          // if (timeoutHandler()) {
-          //   CSPOT_LOG(error, "Connection lost, will need to reconnect...");
-          //   throw std::runtime_error("Reconnection required");
-          // }
+          if (timeoutHandler()) {
+            CSPOT_LOG(error, "Connection lost, will need to reconnect...");
+            throw std::runtime_error("Reconnection required");
+          }
           goto READ;
         case EINTR:
           break;
@@ -174,9 +172,9 @@ size_t PlainConnection::writeBlock(const std::vector<uint8_t>& data) {
       switch (getErrno()) {
         case EAGAIN:
         case ETIMEDOUT:
-          // if (timeoutHandler()) {
-          //   throw std::runtime_error("Reconnection required");
-          // }
+          if (timeoutHandler()) {
+            throw std::runtime_error("Reconnection required");
+          }
           goto WRITE;
         case EINTR:
           break;

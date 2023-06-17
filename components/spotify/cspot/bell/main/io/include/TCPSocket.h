@@ -39,6 +39,8 @@ class TCPSocket : public bell::Socket {
   TCPSocket(){};
   ~TCPSocket() { close(); };
 
+  int getFd() { return sockFd; }
+
   void open(const std::string& host, uint16_t port) {
     int err;
     int domain = AF_INET;
@@ -101,7 +103,9 @@ class TCPSocket : public bell::Socket {
 #endif
     return value;
   }
-  bool isOpen() { return !isClosed; }
+  bool isOpen() {
+    return !isClosed;
+  }
 
   void close() {
     if (!isClosed) {
