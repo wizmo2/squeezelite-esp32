@@ -70,6 +70,7 @@ set_target_properties(recovery.elf PROPERTIES LINK_LIBRARIES "${BCA};idf::app_re
 # create files with size for recovery 
 # build_size(recovery)
 
+
 # build squeezelite, add app_squeezelite to the link
 add_executable(squeezelite.elf "CMakeLists.txt")
 add_dependencies(squeezelite.elf recovery.elf)
@@ -105,7 +106,28 @@ add_custom_target(_jtag_scripts  ALL
 					POST_BUILD
 					COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_SOURCE_DIR}/generate_debug_scripts.cmake"
 )
- 
+
+if(CMAKE_HOST_UNIX)
+  # Add custom target to set executable permissions before build for cspot component
+    add_custom_target(set_cspot_permissions
+        COMMAND ${CMAKE_COMMAND} -E echo "************************************************************************************************"
+        COMMAND ${CMAKE_COMMAND} -E echo "**** Setting permissions for required files"
+        COMMAND ${CMAKE_COMMAND} -E echo "**** ${CMAKE_SOURCE_DIR}/components/spotify/cspot/bell/external/nanopb/generator/protoc-gen-nanopb"
+        COMMAND ${CMAKE_COMMAND} -E echo "**** ${CMAKE_SOURCE_DIR}/components/spotify/cspot/bell/external/nanopb/generator/*.py"
+        COMMAND ${CMAKE_COMMAND} -E echo "**** ${CMAKE_SOURCE_DIR}/components/spotify/cspot/bell/external/nanopb/generator/*.py2"
+        COMMAND ${CMAKE_COMMAND} -E echo "**** ${CMAKE_SOURCE_DIR}/components/spotify/cspot/bell/external/nanopb/generator/proto/*.py"
+        COMMAND ${CMAKE_COMMAND} -E echo "**** ${CMAKE_SOURCE_DIR}/components/spotify/cspot/bell/external/nanopb/generator/protoc"
+        COMMAND chmod +x ${CMAKE_SOURCE_DIR}/components/spotify/cspot/bell/external/nanopb/generator/protoc-gen-nanopb
+        COMMAND chmod +x ${CMAKE_SOURCE_DIR}/components/spotify/cspot/bell/external/nanopb/generator/*.py
+        COMMAND chmod +x ${CMAKE_SOURCE_DIR}/components/spotify/cspot/bell/external/nanopb/generator/*.py2
+        COMMAND chmod +x ${CMAKE_SOURCE_DIR}/components/spotify/cspot/bell/external/nanopb/generator/proto/*.py
+        COMMAND chmod +x ${CMAKE_SOURCE_DIR}/components/spotify/cspot/bell/external/nanopb/generator/protoc
+        COMMAND ${CMAKE_COMMAND} -E echo "************************************************************************************************"    
+    )
+
+  # Add a dependency to ensure permissions are set before building cspot component
+  add_dependencies(__idf_spotify set_cspot_permissions)
+endif()
 
 # ======================= DEBUG FLAGS ============================
 

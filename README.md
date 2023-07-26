@@ -89,7 +89,7 @@ NB: You can use the pre-build binaries Muse4MBFlash which has all the hardware I
 - define a "buttons" variable with: `[{"gpio":32, "pull":true, "debounce":10, "normal":{"pressed":"ACTRLS_VOLDOWN"}}, {"gpio":19, "pull":true, "debounce":40, "normal":{"pressed":"ACTRLS_VOLUP"}}, {"gpio":12, "pull":true, "debounce":40, "long_press":1000, "normal":{"pressed":"ACTRLS_TOGGLE"},"longpress":{"pressed":"ACTRLS_POWER"}}]`
 
 ### ESP32-A1S
-Works with [ESP32-A1S](https://docs.ai-thinker.com/esp32-a1s) module that includes audio codec and headset output. You still need to use a demo board like [this](https://www.aliexpress.com/item/4001060963585.html) or an external amplifier if you want direct speaker connection. Note that there is a version with AC101 codec and another one with ES8388 with probably two variants - these boards are a mess (see below)
+Works with [ESP32-A1S](https://docs.ai-thinker.com/esp32-a1s) module that includes audio codec and headset output. You still need to use a demo board like [this](https://aliexpress.com/item/4000130915903.html) or an external amplifier if you want direct speaker connection. Note that there is a version with AC101 codec and another one with ES8388 with probably two variants - these boards are a mess (see below)
 
 The board shown above has the following IO set
 - amplifier: GPIO21
@@ -305,7 +305,7 @@ See [set_GPIO](#set-gpio) for how to set the green and red LEDs. In addition, th
 ```
 [green=0..100][,red=0..100]
 ```
-NB: For well-known configuration, this is ignored
+NB: For well-known configuration, GPIO affected to green and red LED cannot be changed but brightness option applies
 
 ### Rotary Encoder
 One rotary encoder is supported, quadrature shift with press. Such encoders usually have 2 pins for encoders (A and B), and common C that must be set to ground and an optional SW pin for press. A, B and SW must be pulled up, so automatic pull-up is provided by ESP32, but you can add your own resistors. A bit of filtering on A and B (~470nF) helps for debouncing which is not made by software. 
@@ -543,21 +543,21 @@ See squeezlite command line, but keys options are
 A simple alternative to building the project's binaries is to leverage the same docker image that is being used on the GitHub Actions to build our releases. The instructions below assume that you have cloned  the squeezelite-esp32 code that you want to build locally and that you have opened a command line/bash session in the folder that contains the code. 
 Pull the most recent docker image for the environment: 
 ```
-docker pull sle118/squeezelite-esp32-idfv43
+docker pull sle118/squeezelite-esp32-idfv435
 ```
 Then run the container interactively :
 ```
 for windows:
-docker run -v %cd%:/project -w /project -it sle118/squeezelite-esp32-idfv43
+docker run -v %cd%:/project -w /project -it sle118/squeezelite-esp32-idfv435
 for linux:
-docker run -it -v `pwd`:/workspace/squeezelite-esp32 sle118/squeezelite-esp32-idfv43
+docker run -it -v `pwd`:/workspace/squeezelite-esp32 sle118/squeezelite-esp32-idfv435
 ```
 The above command will mount this repo into the docker container and start a bash terminal. From there, simply run idf.py build to build, etc. Note that at the time of writing these lines, flashing is not possible for docker running under windows https://github.com/docker/for-win/issues/1018.
 
 ### Manual Install of ESP-IDF
 You can install IDF manually on Linux or Windows (using the Subsystem for Linux) following the instructions at: https://www.instructables.com/id/ESP32-Development-on-Windows-Subsystem-for-Linux/ or see here https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/windows-setup.html for a direct install. 
 
-**Use the esp-idf 4.0 https://github.com/espressif/esp-idf/tree/release/v4.0 and a recent add esp-dsp (after 08/2020)**
+**Use the esp-idf 4.3.5 https://github.com/espressif/esp-idf/tree/release/v4.3.5 **
 
 ## Building Squeezelite-esp32
 When initially cloning the repo, make sure you do it recursively. For example: `git clone --recursive https://github.com/sle118/squeezelite-esp32.git`
