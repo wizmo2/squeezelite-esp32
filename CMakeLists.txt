@@ -70,7 +70,6 @@ set_target_properties(recovery.elf PROPERTIES LINK_LIBRARIES "${BCA};idf::app_re
 # create files with size for recovery 
 # build_size(recovery)
 
-
 # build squeezelite, add app_squeezelite to the link
 add_executable(squeezelite.elf "CMakeLists.txt")
 add_dependencies(squeezelite.elf recovery.elf)
