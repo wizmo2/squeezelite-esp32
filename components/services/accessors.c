@@ -323,8 +323,7 @@ esp_err_t config_ledvu_set(ledvu_struct_t * config){
 	int buffer_size=512;
 	esp_err_t err=ESP_OK;
 	char * config_buffer=malloc_init_external(buffer_size);
-	char * config_buffer2=malloc_init_external(buffer_size);
-	if(config_buffer && config_buffer2)  {
+	if(config_buffer)  {
 		snprintf(config_buffer,buffer_size,"%s,length=%i,gpio=%i",config->type, config->length, config->gpio);
 		log_send_messaging(MESSAGING_INFO,"Updating ledvu configuration to %s",config_buffer);
 		err = config_set_value(NVS_TYPE_STR, "led_vu_config", config_buffer);
@@ -335,6 +334,7 @@ esp_err_t config_ledvu_set(ledvu_struct_t * config){
 	else {
 		err = ESP_ERR_NO_MEM;
 	}
+	FREE_AND_NULL(config_buffer);
 	return err;	
 }
 
