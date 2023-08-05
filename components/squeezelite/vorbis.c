@@ -140,7 +140,7 @@ static int get_ogg_packet(void) {
 	while (!(status = OG(&go, stream_packetout, &v->state, &v->packet)) && bytes) {
         
         // if sync_pageout (or sync_pageseek) is not called first, sync buffers build ups
-        while (!(status = OG(&go, sync_pageout, &u->sync, &u->page)) && bytes) {
+        while (!(status = OG(&go, sync_pageout, &v->sync, &v->page)) && bytes) {
 			size_t consumed = min(bytes, 4096);
 			char* buffer = OG(&gv, sync_buffer, &v->sync, consumed);
 			memcpy(buffer, streambuf->readp, consumed);
