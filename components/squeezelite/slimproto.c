@@ -825,7 +825,7 @@ in_addr_t discover_server(char *default_server, int max) {
 
 	do {
 
-		LOG_INFO("sending discovery");
+		LOG_INFO("sending discovery %u", max);
 		memset(&s, 0, sizeof(s));
 
 		if (sendto(disc_sock, buf, len, 0, (struct sockaddr *)&d, sizeof(d)) < 0) {
@@ -885,7 +885,13 @@ void slimproto(log_level level, char *server, u8_t mac[6], const char *name, con
 	}
 
 	if (!slimproto_ip) {
-		slimproto_ip = discover_server(server, 0);
+#if EMBEDDED        
+        // on first attempt, try really hard to connect before exiting (and only exit if we are not on another sink)
+		slimproto_ip = discover_server(server, MAX_SERVER_RETRIES * 5);
+        if (!slimproto_ip && !output.external) return;
+#else        
+    	slimproto_ip = discover_server(server, 0);
+#endif    
 	}
 
 	if (!slimproto_port) {
@@ -970,7 +976,7 @@ void slimproto(log_level level, char *server, u8_t mac[6], const char *name, con
 
 #if EMBEDDED
 			// in embedded we give up after a while no matter what
-			if (++failed_connect > 5 && !server) {
+			if (++failed_connect > MAX_SERVER_RETRIES && !server) {
 				slimproto_ip = serv_addr.sin_addr.s_addr = discover_server(NULL, MAX_SERVER_RETRIES);
 				if (!slimproto_ip) return;
 			} else if (reconnect && MAX_SERVER_RETRIES && failed_connect > 5 * MAX_SERVER_RETRIES) return;
