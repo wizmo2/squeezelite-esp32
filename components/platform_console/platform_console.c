@@ -313,8 +313,8 @@ void initialize_console() {
 	vfs.open = stdin_dummy;
 	vfs.read = stdin_read;
 
-	ESP_ERROR_CHECK(esp_vfs_register("/dev/console", &vfs, NULL));
-	freopen("/dev/console", "r", stdin);
+	ESP_ERROR_CHECK(esp_vfs_register("/dev/redirect", &vfs, NULL));
+    freopen("/dev/redirect", "r", stdin);
 
 	/* Disable buffering on stdin */
 	setvbuf(stdin, NULL, _IONBF, 0);
