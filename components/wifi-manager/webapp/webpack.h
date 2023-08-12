@@ -1,6 +1,6 @@
 /***********************************
 webpack_headers
-dist/css/index.99c86edb045064f0ff9e.css.gz,dist/favicon-32x32.png,dist/index.html.gz,dist/js/index.ce908e.bundle.js.gz,dist/js/node_vendors.ce908e.bundle.js.gz
+dist/css/index.99c86edb045064f0ff9e.css.gz,dist/favicon-32x32.png,dist/index.html.gz,dist/js/index.b5eac1.bundle.js.gz,dist/js/node_vendors.b5eac1.bundle.js.gz
 ***********************************/
 #pragma once
 #include <inttypes.h>
