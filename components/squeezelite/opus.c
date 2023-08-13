@@ -138,7 +138,9 @@ static int get_opus_packet(void) {
 	size_t bytes = min(_buf_used(streambuf), _buf_cont_read(streambuf));
 	
 	while (!(status = OG(&go, stream_packetout, &u->state, &u->packet)) && bytes) {
-		do {
+        
+        // if sync_pageout (or sync_pageseek) is not called here, sync builds ups
+        while (!(status = OG(&go, sync_pageout, &u->sync, &u->page)) && bytes) {
 			size_t consumed = min(bytes, 4096);
 			char* buffer = OG(&gu, sync_buffer, &u->sync, consumed);
 			memcpy(buffer, streambuf->readp, consumed);
@@ -146,15 +148,15 @@ static int get_opus_packet(void) {
 
 			_buf_inc_readp(streambuf, consumed);
 			bytes -= consumed;
-		} while (!(status = OG(&gu, sync_pageseek, &u->sync, &u->page)) && bytes);
+        }
 
 		// if we have a new page, put it in
 		if (status)	OG(&go, stream_pagein, &u->state, &u->page);
 	} 
     
-    // only return a negative value when end of streaming is reached
+    // only return a negative value when true end of streaming is reached
     if (status > 0) packet = status;
-    else if (stream.state > DISCONNECT) packet = 0;
+    else if (stream.state > DISCONNECT || _buf_used(streambuf)) packet = 0;
 
 	UNLOCK_S;
 	return packet;
@@ -184,7 +186,7 @@ static int read_opus_header(void) {
 		switch (u->status) {
 		case OGG_SYNC:
 			u->status = OGG_ID_HEADER;
-			OG(&gu, stream_reset_serialno, &u->state, OG(&gu, page_serialno, &u->page));
+			OG(&gu, stream_init, &u->state, OG(&gu, page_serialno, &u->page));
             fetch = false;
 			break;
 		case OGG_ID_HEADER:
@@ -208,7 +210,7 @@ static int read_opus_header(void) {
 			fetch = true;
 			break;
 		case OGG_COMMENT_HEADER:
-			// skip pakets to consume VorbisComment. With opus, header packets align on pages
+			// skip packets to consume VorbisComment. With opus, header packets align on pages
 			status = OG(&gu, page_packets, &u->page);
 			break;
 		default:

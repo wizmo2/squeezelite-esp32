@@ -1,9 +1,32 @@
 #include "X509Bundle.h"
 
+#include <mbedtls/md.h>              // for mbedtls_md, mbedtls_md_get_size
+#include <mbedtls/pk.h>              // for mbedtls_pk_can_do, mbedtls_pk_pa...
+#include <mbedtls/ssl.h>             // for mbedtls_ssl_conf_ca_chain, mbedt...
+#include <mbedtls/x509.h>            // for mbedtls_x509_buf, MBEDTLS_ERR_X5...
+#include <stdlib.h>                  // for free, calloc
+#include <string.h>                  // for memcmp, memcpy
+#include <stdexcept>                 // for runtime_error
+
+#include "BellLogger.h"  // for AbstractLogger, BELL_LOG
+
 using namespace bell::X509Bundle;
+
+typedef struct crt_bundle_t {
+  const uint8_t** crts;
+  uint16_t num_certs;
+  size_t x509_crt_bundle_len;
+} crt_bundle_t;
+
+static std::vector<uint8_t> bundleBytes;
+
+static constexpr auto TAG = "X509Bundle";
+static constexpr auto CRT_HEADER_OFFSET = 4;
+static constexpr auto BUNDLE_HEADER_OFFSET = 2;
 
 static mbedtls_x509_crt s_dummy_crt;
 static bool s_should_verify_certs = false;
+static crt_bundle_t s_crt_bundle;
 
 #ifndef MBEDTLS_PRIVATE
 #define MBEDTLS_PRIVATE(member) member
@@ -21,7 +44,8 @@ int bell::X509Bundle::crtCheckCertificate(mbedtls_x509_crt* child,
 
   if ((ret = mbedtls_pk_parse_public_key(&parent.pk, pub_key_buf,
                                          pub_key_len)) != 0) {
-    BELL_LOG(error, TAG, "PK parse failed with error %X", ret);
+    BELL_LOG(error, TAG, "PK parse failed with error 0x%04x, key len = %d", ret,
+             pub_key_len);
     goto cleanup;
   }
 
@@ -110,6 +134,8 @@ int bell::X509Bundle::crtVerifyCallback(void* buf, mbedtls_x509_crt* crt,
     ret = crtCheckCertificate(
         child, s_crt_bundle.crts[middle] + CRT_HEADER_OFFSET + name_len,
         key_len);
+  } else {
+    BELL_LOG(error, TAG, "Certificate not found in bundle");
   }
 
   if (ret == 0) {
@@ -138,10 +164,13 @@ void bell::X509Bundle::init(const uint8_t* x509_bundle, size_t bundle_size) {
     throw std::runtime_error("Unable to allocate memory for bundle");
   }
 
+  bundleBytes.resize(bundle_size);
+  memcpy(bundleBytes.data(), x509_bundle, bundle_size);
+
   const uint8_t* cur_crt;
   /* This is the maximum region that is allowed to access */
-  const uint8_t* bundle_end = x509_bundle + bundle_size;
-  cur_crt = x509_bundle + BUNDLE_HEADER_OFFSET;
+  const uint8_t* bundle_end = bundleBytes.data() + bundle_size;
+  cur_crt = bundleBytes.data() + BUNDLE_HEADER_OFFSET;
 
   for (int i = 0; i < num_certs; i++) {
     crts[i] = cur_crt;

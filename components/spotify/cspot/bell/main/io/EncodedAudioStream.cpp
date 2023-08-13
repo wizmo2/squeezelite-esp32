@@ -1,13 +1,21 @@
 #include "EncodedAudioStream.h"
 
-#include <iostream>
+#include <string.h>     // for memcpy, memmove
+#include <stdexcept>    // for runtime_error
+#include <type_traits>  // for remove_extent_t
+#include <utility>      // for move
+
+#include "BellLogger.h"      // for AbstractLogger, BELL_LOG, bell
+#include "ByteStream.h"      // for ByteStream
+#include "DecoderGlobals.h"  // for DecodersInstance, decodersInstance, AAC_...
+
 using namespace bell;
 
 EncodedAudioStream::EncodedAudioStream() {
   bell::decodersInstance->ensureAAC();
   bell::decodersInstance->ensureMP3();
-  inputBuffer = std::vector<uint8_t>(AAC_READBUF_SIZE * 4);
-  outputBuffer = std::vector<short>(AAC_MAX_NCHANS * AAC_MAX_NSAMPS * 4 * 4);
+  inputBuffer = std::vector<uint8_t>(1024 * 4);
+  outputBuffer = std::vector<short>(2 * 2 * 4 * 4);
   decodePtr = inputBuffer.data();
 }
 
@@ -107,46 +115,47 @@ bool EncodedAudioStream::isReadable() {
 }
 
 size_t EncodedAudioStream::decodeFrameAAC(uint8_t* dst) {
-  size_t writtenBytes = 0;
-  auto bufSize = AAC_READBUF_SIZE;
+  return 0;
+  // size_t writtenBytes = 0;
+  // auto bufSize = AAC_READBUF_SIZE;
 
-  int readBytes = innerStream->read(inputBuffer.data() + bytesInBuffer,
-                                    bufSize - bytesInBuffer);
-  if (readBytes > 0) {
-    bytesInBuffer += readBytes;
-    decodePtr = inputBuffer.data();
-    offset = AACFindSyncWord(inputBuffer.data(), bytesInBuffer);
+  // int readBytes = innerStream->read(inputBuffer.data() + bytesInBuffer,
+  //                                   bufSize - bytesInBuffer);
+  // if (readBytes > 0) {
+  //   bytesInBuffer += readBytes;
+  //   decodePtr = inputBuffer.data();
+  //   offset = AACFindSyncWord(inputBuffer.data(), bytesInBuffer);
 
-    if (offset != -1) {
-      bytesInBuffer -= offset;
-      decodePtr += offset;
+  //   if (offset != -1) {
+  //     bytesInBuffer -= offset;
+  //     decodePtr += offset;
 
-      int decodeStatus =
-          AACDecode(bell::decodersInstance->aacDecoder, &decodePtr,
-                    &bytesInBuffer, outputBuffer.data());
-      AACGetLastFrameInfo(bell::decodersInstance->aacDecoder, &aacFrameInfo);
-      if (decodeStatus == ERR_AAC_NONE) {
-        decodedSampleRate = aacFrameInfo.sampRateOut;
-        writtenBytes =
-            (aacFrameInfo.bitsPerSample / 8) * aacFrameInfo.outputSamps;
+  //     int decodeStatus =
+  //         AACDecode(bell::decodersInstance->aacDecoder, &decodePtr,
+  //                   &bytesInBuffer, outputBuffer.data());
+  //     AACGetLastFrameInfo(bell::decodersInstance->aacDecoder, &aacFrameInfo);
+  //     if (decodeStatus == ERR_AAC_NONE) {
+  //       decodedSampleRate = aacFrameInfo.sampRateOut;
+  //       writtenBytes =
+  //           (aacFrameInfo.bitsPerSample / 8) * aacFrameInfo.outputSamps;
 
-        memcpy(dst, outputBuffer.data(), writtenBytes);
+  //       memcpy(dst, outputBuffer.data(), writtenBytes);
 
-      } else {
-        BELL_LOG(info, TAG, "Error in frame, moving two bytes %d",
-                 decodeStatus);
-        decodePtr += 1;
-        bytesInBuffer -= 1;
-      }
-    } else {
-      BELL_LOG(info, TAG, "Unexpected error in data, skipping a word");
-      decodePtr += 3800;
-      bytesInBuffer -= 3800;
-    }
+  //     } else {
+  //       BELL_LOG(info, TAG, "Error in frame, moving two bytes %d",
+  //                decodeStatus);
+  //       decodePtr += 1;
+  //       bytesInBuffer -= 1;
+  //     }
+  //   } else {
+  //     BELL_LOG(info, TAG, "Unexpected error in data, skipping a word");
+  //     decodePtr += 3800;
+  //     bytesInBuffer -= 3800;
+  //   }
 
-    memmove(inputBuffer.data(), decodePtr, bytesInBuffer);
-  }
-  return writtenBytes;
+  //   memmove(inputBuffer.data(), decodePtr, bytesInBuffer);
+  // }
+  // return writtenBytes;
 }
 
 void EncodedAudioStream::guessDataFormat() {
@@ -171,5 +180,4 @@ void EncodedAudioStream::guessDataFormat() {
   }
 }
 
-void EncodedAudioStream::readFully(uint8_t* dst, size_t nbytes) {
-}
+void EncodedAudioStream::readFully(uint8_t* dst, size_t nbytes) {}

@@ -23,7 +23,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "soc/rtc_cntl_reg.h"
-#include "esp32/rom/uart.h"
 #include "sdkconfig.h"
 #include "platform_console.h"
 #include "messaging.h"

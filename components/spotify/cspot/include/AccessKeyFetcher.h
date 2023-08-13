@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>      // or std::atomic
 #include <functional>  // for function
 #include <memory>      // for shared_ptr
 #include <string>      // for string
@@ -10,22 +11,29 @@ struct Context;
 class AccessKeyFetcher {
  public:
   AccessKeyFetcher(std::shared_ptr<cspot::Context> ctx);
-  ~AccessKeyFetcher();
 
-  typedef std::function<void(std::string)> Callback;
+  /**
+  * @brief Checks if key is expired
+  * @returns true when currently held access key is not valid
+  */
+  bool isExpired();
 
-  void getAccessKey(Callback callback);
+  /**
+  * @brief Fetches a new access key
+  * @remark In case the key is expired, this function blocks until a refresh is done.
+  * @returns access key
+  */
+  std::string getAccessKey();
+
+  /**
+  * @brief Forces a refresh of the access key
+  */
+  void updateAccessKey();
 
  private:
-  const std::string CLIENT_ID =
-      "65b708073fc0480ea92a077233ca87bd";  // Spotify web client's client id
-  const std::string SCOPES =
-      "streaming,user-library-read,user-library-modify,user-top-read,user-read-"
-      "recently-played";  // Required access scopes
-
   std::shared_ptr<cspot::Context> ctx;
 
-  bool isExpired();
+  std::atomic<bool> keyPending = false;
   std::string accessKey;
   long long int expiresAt;
 };

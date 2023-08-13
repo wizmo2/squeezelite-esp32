@@ -1,22 +1,13 @@
 #pragma once
 
-#include <stdexcept>
-#include "BellLogger.h"
-#include "mbedtls/ssl.h"
+#include <mbedtls/x509_crt.h>  // for mbedtls_x509_crt
+#include <stddef.h>            // for size_t
+#include <cstdint>             // for uint8_t, uint16_t, uint32_t
+#include <vector>              // for vector
+
+#include "mbedtls/ssl.h"  // for mbedtls_ssl_config
 
 namespace bell::X509Bundle {
-
-typedef struct crt_bundle_t {
-  const uint8_t** crts;
-  uint16_t num_certs;
-  size_t x509_crt_bundle_len;
-} crt_bundle_t;
-
-static crt_bundle_t s_crt_bundle;
-
-static constexpr auto TAG = "X509Bundle";
-static constexpr auto CRT_HEADER_OFFSET = 4;
-static constexpr auto BUNDLE_HEADER_OFFSET = 2;
 
 int crtCheckCertificate(mbedtls_x509_crt* child, const uint8_t* pub_key_buf,
                         size_t pub_key_len);

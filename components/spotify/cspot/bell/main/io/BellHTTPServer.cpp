@@ -1,8 +1,14 @@
 #include "BellHTTPServer.h"
-#include <mutex>
-#include <regex>
-#include "CivetServer.h"
-#include "civetweb.h"
+
+#include <string.h>   // for memcpy
+#include <cassert>    // for assert
+#include <exception>  // for exception
+#include <mutex>      // for scoped_lock
+#include <regex>      // for sregex_token_iterator, regex
+
+#include "BellLogger.h"   // for AbstractLogger, BELL_LOG, bell
+#include "CivetServer.h"  // for CivetServer, CivetWebSocketHandler
+#include "civetweb.h"     // for mg_get_request_info, mg_printf, mg_set_user...
 
 using namespace bell;
 
@@ -29,7 +35,14 @@ class WebSocketHandler : public CivetWebSocketHandler {
   }
 
   virtual bool handleData(CivetServer* server, struct mg_connection* conn,
-                          int bits, char* data, size_t data_len) {
+                          int flags, char* data, size_t data_len) {
+
+    if ((flags & 0xf) == MG_WEBSOCKET_OPCODE_CONNECTION_CLOSE) {
+      // Received close message from client. Close the connection.
+      this->stateHandler(conn, BellHTTPServer::WSState::CLOSED);
+      return false;
+    }
+
     this->dataHandler(conn, data, data_len);
     return true;
   }
@@ -178,8 +191,10 @@ BellHTTPServer::BellHTTPServer(int serverPort) {
   BELL_LOG(info, "HttpServer", "Server listening on port %d", serverPort);
   this->serverPort = serverPort;
   auto port = std::to_string(this->serverPort);
-  const char* options[] = {"listening_ports", port.c_str(), 0};
-  server = std::make_unique<CivetServer>(options);
+
+  civetWebOptions.push_back("listening_ports");
+  civetWebOptions.push_back(port);
+  server = std::make_unique<CivetServer>(civetWebOptions);
 }
 
 std::unique_ptr<BellHTTPServer::HTTPResponse> BellHTTPServer::makeJsonResponse(
@@ -195,7 +210,8 @@ std::unique_ptr<BellHTTPServer::HTTPResponse> BellHTTPServer::makeJsonResponse(
   return response;
 }
 
-std::unique_ptr<BellHTTPServer::HTTPResponse> BellHTTPServer::makeEmptyResponse() {
+std::unique_ptr<BellHTTPServer::HTTPResponse>
+BellHTTPServer::makeEmptyResponse() {
   auto response = std::make_unique<BellHTTPServer::HTTPResponse>();
   return response;
 }
@@ -225,8 +241,10 @@ void BellHTTPServer::registerNotFound(HTTPHandler handler) {
 
 std::unordered_map<std::string, std::string> BellHTTPServer::extractParams(
     struct mg_connection* conn) {
+  void* data = mg_get_user_connection_data(conn);
+  assert(data != nullptr);
   std::unordered_map<std::string, std::string>& params =
-      *(std::unordered_map<std::string, std::string>*)
-          mg_get_user_connection_data(conn);
+      *(std::unordered_map<std::string, std::string>*)data;
+
   return params;
 }

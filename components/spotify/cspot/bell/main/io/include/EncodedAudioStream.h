@@ -1,15 +1,16 @@
 #pragma once
 
-#include <string>
-#include <vector>
+#include <stddef.h>  // for size_t
+#include <cstdint>   // for uint8_t
+#include <memory>    // for shared_ptr, unique_ptr
+#include <string>    // for basic_string, string
+#include <vector>    // for vector
 
-#include "BellLogger.h"
-#include "ByteStream.h"
-#include "DecoderGlobals.h"
-#include "aacdec.h"
-#include "mp3dec.h"
+#include "mp3dec.h"  // for MP3FrameInfo
 
 namespace bell {
+class ByteStream;
+
 class EncodedAudioStream {
  public:
   EncodedAudioStream();
@@ -46,7 +47,7 @@ class EncodedAudioStream {
   std::vector<uint8_t> mp3MagicBytesUntagged = {0xFF, 0xFB};
   std::vector<uint8_t> mp3MagicBytesIdc = {0x49, 0x44, 0x33};
 
-  AACFrameInfo aacFrameInfo;
+  // AACFrameInfo aacFrameInfo;
   MP3FrameInfo mp3FrameInfo;
 
   size_t decodeFrameMp3(uint8_t* dst);

@@ -18,7 +18,7 @@ jobs:
     name: Global setup
     runs-on: ubuntu-latest
     container:
-      image: sle118/squeezelite-esp32-idfv43
+      image: sle118/squeezelite-esp32-idfv435
     outputs:
       build_number: ${{ steps.buildnumber.outputs.build_number }}
       ui_build: ${{ steps.build_flags.outputs.ui_build }}
@@ -99,7 +99,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: sle118/squeezelite-esp32-idfv43
+      image: sle118/squeezelite-esp32-idfv435
     needs: [bootstrap]
     strategy:
       matrix:
@@ -127,7 +127,7 @@ jobs:
         . /opt/esp/python_env/idf4.3_py3.8_env/bin/activate
         git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
         git status
-        build_tools.py environment --build ${{ needs.bootstrap.outputs.build_number }} --env_file "$GITHUB_ENV" --node "${{matrix.node}}" --depth ${{matrix.depth}} --major 2 --docker sle118/squeezelite-esp32-idfv43 
+        build_tools.py environment --build ${{ needs.bootstrap.outputs.build_number }} --env_file "$GITHUB_ENV" --node "${{matrix.node}}" --depth ${{matrix.depth}} --major 2 --docker sle118/squeezelite-esp32-idfv435 
         
     - uses: actions/download-artifact@master
       name: Restore common objects
@@ -137,11 +137,6 @@ jobs:
       if: ${{ needs.bootstrap.outputs.mock == 0 }} 
       run: |
         . ${IDF_PYTHON_ENV_PATH}/bin/activate
-        chmod +x ./components/spotify/cspot/bell/external/nanopb/generator/protoc
-        chmod +x ./components/spotify/cspot/bell/external/nanopb/generator/protoc-gen-nanopb
-        chmod +x ./components/spotify/cspot/bell/external/nanopb/generator/*.py
-        chmod +x ./components/spotify/cspot/bell/external/nanopb/generator/*.py2
-        chmod +x ./components/spotify/cspot/bell/external/nanopb/generator/proto/*.py      
         echo "Copying target sdkconfig"
         cp build-scripts/${TARGET_BUILD_NAME}-sdkconfig.defaults sdkconfig
         echo "Building project"

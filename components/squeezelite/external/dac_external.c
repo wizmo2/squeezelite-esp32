@@ -24,7 +24,7 @@ static void speaker(bool active);
 static void headset(bool active);
 static bool volume(unsigned left, unsigned right) { return false; }
 static void power(adac_power_e mode);
-static bool init(char *config, int i2c_port_num, i2s_config_t *i2s_config);
+static bool init(char *config, int i2c_port_num, i2s_config_t *i2s_config, bool *mck);
 
 static bool i2c_json_execute(char *set);
 
@@ -56,7 +56,7 @@ static struct {
 /****************************************************************************************
  * init
  */
-static bool init(char *config, int i2c_port_num, i2s_config_t *i2s_config) {	 
+static bool init(char *config, int i2c_port_num, i2s_config_t *i2s_config, bool *mck) {	 
 	char *p;	
 	
 	i2c_addr = adac_init(config, i2c_port_num);
@@ -71,11 +71,7 @@ static bool init(char *config, int i2c_port_num, i2s_config_t *i2s_config) {
 		int i;
 		sscanf(p, "%*[^=]=%31[^,]", model);
 		for (i = 0; *model && ((p = codecs[i].controlset) != NULL) && strcasecmp(codecs[i].model, model); i++);
-		if (p && codecs[i].mclk) {
-			ESP_LOGI(TAG, "Configuring MCLK on GPIO0");
-			PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0_CLK_OUT1);
-			REG_WRITE(PIN_CTRL, 0xFFFFFFF0);
-		}		
+		if (p) *mck = codecs[i].mclk;
 	}	
 
 	i2c_json = cJSON_Parse(p);

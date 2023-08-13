@@ -6,11 +6,9 @@
 #include <stdexcept>    // for runtime_error
 #include <type_traits>  // for remove_extent_t, __underlying_type_impl<>:...
 #include <utility>      // for pair
-
 #ifndef _WIN32
-#include <arpa/inet.h>
+#include <arpa/inet.h>          // for htons, ntohs, htonl, ntohl
 #endif
-
 #include "BellLogger.h"         // for AbstractLogger
 #include "BellTask.h"           // for Task
 #include "BellUtils.h"          // for BELL_SLEEP_MS
@@ -110,6 +108,22 @@ bool MercurySession::triggerTimeout() {
   return false;
 }
 
+void MercurySession::unregister(uint64_t sequenceId) {
+  auto callback = this->callbacks.find(sequenceId);
+
+  if (callback != this->callbacks.end()) {
+    this->callbacks.erase(callback);
+  }
+}
+
+void MercurySession::unregisterAudioKey(uint32_t sequenceId) {
+  auto callback = this->audioKeyCallbacks.find(sequenceId);
+
+  if (callback != this->audioKeyCallbacks.end()) {
+    this->audioKeyCallbacks.erase(callback);
+  }
+}
+
 void MercurySession::disconnect() {
   CSPOT_LOG(info, "Disconnecting mercury session");
   this->isRunning = false;
@@ -145,12 +159,13 @@ void MercurySession::handlePacket() {
 
       // First four bytes mark the sequence id
       auto seqId = ntohl(extract<uint32_t>(packet.data, 0));
-      if (seqId == (this->audioKeySequence - 1) &&
-          audioKeyCallback != nullptr) {
+
+      if (this->audioKeyCallbacks.count(seqId) > 0) {
         auto success = static_cast<RequestType>(packet.command) ==
                        RequestType::AUDIO_KEY_SUCCESS_RESPONSE;
-        audioKeyCallback(success, packet.data);
+        this->audioKeyCallbacks[seqId](success, packet.data);
       }
+
       break;
     }
     case RequestType::SEND:
@@ -290,23 +305,30 @@ uint64_t MercurySession::executeSubscription(RequestType method,
   // Bump sequence id
   this->sequenceId += 1;
 
-  this->shanConn->sendPacket(
-      static_cast<std::underlying_type<RequestType>::type>(method),
-      sequenceIdBytes);
+  try {
+    this->shanConn->sendPacket(
+        static_cast<std::underlying_type<RequestType>::type>(method),
+        sequenceIdBytes);
+  } catch (...) {
+    // @TODO: handle disconnect
+  }
 
   return this->sequenceId - 1;
 }
 
-void MercurySession::requestAudioKey(const std::vector<uint8_t>& trackId,
-                                     const std::vector<uint8_t>& fileId,
-                                     AudioKeyCallback audioCallback) {
+uint32_t MercurySession::requestAudioKey(const std::vector<uint8_t>& trackId,
+                                         const std::vector<uint8_t>& fileId,
+                                         AudioKeyCallback audioCallback) {
   auto buffer = fileId;
-  this->audioKeyCallback = audioCallback;
+
+  // Store callback
+  this->audioKeyCallbacks.insert({this->audioKeySequence, audioCallback});
 
   // Structure: [FILEID] [TRACKID] [4 BYTES SEQUENCE ID] [0x00, 0x00]
   buffer.insert(buffer.end(), trackId.begin(), trackId.end());
-  auto audioKeySequence = pack<uint32_t>(htonl(this->audioKeySequence));
-  buffer.insert(buffer.end(), audioKeySequence.begin(), audioKeySequence.end());
+  auto audioKeySequenceBuffer = pack<uint32_t>(htonl(this->audioKeySequence));
+  buffer.insert(buffer.end(), audioKeySequenceBuffer.begin(),
+                audioKeySequenceBuffer.end());
   auto suffix = std::vector<uint8_t>({0x00, 0x00});
   buffer.insert(buffer.end(), suffix.begin(), suffix.end());
 
@@ -315,6 +337,11 @@ void MercurySession::requestAudioKey(const std::vector<uint8_t>& trackId,
 
   // Used for broken connection detection
   // this->lastRequestTimestamp = timeProvider->getSyncedTimestamp();
-  this->shanConn->sendPacket(
-      static_cast<uint8_t>(RequestType::AUDIO_KEY_REQUEST_COMMAND), buffer);
+  try {
+    this->shanConn->sendPacket(
+        static_cast<uint8_t>(RequestType::AUDIO_KEY_REQUEST_COMMAND), buffer);
+  } catch (...) {
+    // @TODO: Handle disconnect
+  }
+  return audioKeySequence - 1;
 }

@@ -64,6 +64,11 @@ RTC_NOINIT_ATTR uint32_t RecoveryRebootCounter ;
 RTC_NOINIT_ATTR uint16_t ColdBootIndicatorFlag;
 bool cold_boot=true;
 
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+extern const char _ctype_[];
+const char* __ctype_ptr__ = _ctype_;
+#endif
+
 static bool bNetworkConnected=false;
 
 // as an exception _init function don't need include
@@ -282,8 +287,7 @@ void register_default_nvs(){
     register_default_string_val("ethtmout","8");
     register_default_string_val("dhcp_tmout","8");
 	register_default_string_val("target", CONFIG_TARGET);
-	register_default_string_val("led_vu_config", "");
-
+    register_default_string_val("led_vu_config", "");
 	wait_for_commit();
 	ESP_LOGD(TAG,"Done setting default values in nvs.");
 }

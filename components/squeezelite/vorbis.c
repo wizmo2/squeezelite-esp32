@@ -138,7 +138,9 @@ static int get_ogg_packet(void) {
 	size_t bytes = min(_buf_used(streambuf), _buf_cont_read(streambuf));
 
 	while (!(status = OG(&go, stream_packetout, &v->state, &v->packet)) && bytes) {
-		do {
+        
+        // if sync_pageout (or sync_pageseek) is not called first, sync buffers build ups
+        while (!(status = OG(&go, sync_pageout, &v->sync, &v->page)) && bytes) {
 			size_t consumed = min(bytes, 4096);
 			char* buffer = OG(&gv, sync_buffer, &v->sync, consumed);
 			memcpy(buffer, streambuf->readp, consumed);
@@ -146,15 +148,15 @@ static int get_ogg_packet(void) {
 
 			_buf_inc_readp(streambuf, consumed);
 			bytes -= consumed;
-		} while (!(status = OG(&go, sync_pageseek, &v->sync, &v->page)) && bytes);
+        }
 
 		// if we have a new page, put it in
 		if (status)	OG(&go, stream_pagein, &v->state, &v->page);
 	}
     
-    // only return a negative value when end of streaming is reached
+    // only return a negative value when true end of streaming is reached
     if (status > 0) packet = status;
-    else if (stream.state > DISCONNECT) packet = 0;
+    else if (stream.state > DISCONNECT || _buf_used(streambuf)) packet = 0;
 
 	UNLOCK_S;
 	return packet;

@@ -1,5 +1,12 @@
 #include "MP3Decoder.h"
 
+#include <stdlib.h>  // for free, malloc
+#include <cstdio>
+
+namespace bell {
+class AudioContainer;
+}  // namespace bell
+
 using namespace bell;
 
 MP3Decoder::MP3Decoder() {
@@ -33,6 +40,8 @@ uint8_t* MP3Decoder::decode(uint8_t* inData, uint32_t& inLen,
   MP3GetLastFrameInfo(mp3, &frame);
   if (status != ERR_MP3_NONE) {
     lastErrno = status;
+    inLen -= 2;
+    outLen = 0;
     return nullptr;
   }
   if (sampleRate != frame.samprate) {

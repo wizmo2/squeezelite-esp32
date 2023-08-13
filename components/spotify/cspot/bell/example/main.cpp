@@ -9,7 +9,6 @@
 #include "AudioCodecs.h"
 #include "AudioContainers.h"
 #include "BellHTTPServer.h"
-#include "BellTar.h"
 #include "BellTask.h"
 #include "CentralAudioBuffer.h"
 #include "Compressor.h"
@@ -17,9 +16,6 @@
 #include "EncodedAudioStream.h"
 #include "HTTPClient.h"
 #include "PortAudioSink.h"
-#define DEBUG_LEVEL 4
-#include "X509Bundle.h"
-#include "mbedtls/debug.h"
 
 #include <BellDSP.h>
 #include <BellLogger.h>
@@ -45,8 +41,8 @@ class AudioPlayer : bell::Task {
         auto chunk = audioBuffer->readChunk();
 
         if (chunk != nullptr && chunk->pcmSize > 0) {
-          this->dsp->process(chunk->pcmData, chunk->pcmSize, 2, 44100,
-                             bell::BitWidth::BW_16);
+          // this->dsp->process(chunk->pcmData, chunk->pcmSize, 2, 44100,
+          //                    bell::BitWidth::BW_16);
 
           this->audioSink->feedPCMFrames(chunk->pcmData, chunk->pcmSize);
         }
@@ -57,14 +53,51 @@ class AudioPlayer : bell::Task {
 
 int main() {
   bell::setDefaultLogger();
+  bell::createDecoders();
+    size_t size = sizeof(void*);
+  audioBuffer = std::make_shared<bell::CentralAudioBuffer>(512);
+  auto task = AudioPlayer();
 
-  std::fstream file("system.tar", std::ios::in | std::ios::binary);
-  if (!file.is_open()) {
-    std::cout << "file not open" << std::endl;
-    return 1;
+  auto url = "http://193.222.135.71/378";
+  // std::ifstream file("aactest.aac", std::ios::binary);
+
+  auto req = bell::HTTPClient::get(url);
+  auto container = AudioContainers::guessAudioContainer(req->stream());
+  auto codec = AudioCodecs::getCodec(container.get());
+
+  uint32_t dataLen;
+  while (true) {
+    uint8_t* data = codec->decode(container.get(), dataLen);
+
+    if (!data) {
+      std::cout << "data invalid" << std::endl;
+      continue;
+    }
+
+    size_t toWrite = dataLen;
+    while (toWrite > 0) {
+      toWrite -= audioBuffer->writePCM(data + dataLen - toWrite, toWrite, 0);
+    }
+
+    // std::cout << dataLen << std::endl;
   }
 
-  BellTar::reader reader(file);
-  reader.extract_all_files("./dupa2");
+  // return 0;
+
+  // std::vector<uint8_t> frameData(1024 * 10);
+  // /*
+  // while (true) {
+  //   size_t bytes =audioStream->decodeFrame(frameData.data());
+  //   std::cout << bytes <<std::endl;
+
+  //   size_t toWrite = bytes;
+
+  //   if (!isPaused) {
+  //     while (toWrite > 0) {
+  //       toWrite -= audioBuffer->writePCM(frameData.data() + bytes - toWrite,
+  //                                        toWrite, 0);
+  //     }
+  //   }
+  // }*/
   return 0;
 }

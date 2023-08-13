@@ -2,10 +2,10 @@
 
 #include <atomic>
 #include <cmath>
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <mutex>
-#include <functional>
 
 #include "BellUtils.h"
 #include "CircularBuffer.h"
@@ -70,9 +70,9 @@ class CentralAudioBuffer {
 	 */
   void clearBuffer() {
     std::scoped_lock lock(this->dataAccessMutex);
-    //size_t exceptSize = currentSampleRate + (sizeof(AudioChunk) - (currentSampleRate % sizeof(AudioChunk)));
-    hasChunk = false;
+
     audioBuffer->emptyBuffer();
+    hasChunk = false;
   }
 
   void emptyCompletely() {
@@ -106,10 +106,10 @@ class CentralAudioBuffer {
     }
   }
 
-  AudioChunk currentChunk = { };
+  AudioChunk currentChunk = {};
   bool hasChunk = false;
 
-  AudioChunk lastReadChunk = { };
+  AudioChunk lastReadChunk = {};
 
   AudioChunk* readChunk() {
     std::scoped_lock lock(this->dataAccessMutex);
@@ -118,8 +118,7 @@ class CentralAudioBuffer {
       return nullptr;
     }
 
-    auto readBytes =
-        audioBuffer->read((uint8_t*)&lastReadChunk, sizeof(AudioChunk));
+    audioBuffer->read((uint8_t*)&lastReadChunk, sizeof(AudioChunk));
     currentSampleRate = static_cast<uint32_t>(lastReadChunk.sampleRate);
     return &lastReadChunk;
   }

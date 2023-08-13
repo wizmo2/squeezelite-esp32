@@ -2,29 +2,34 @@ FROM ubuntu:20.04
 
 
 ARG DEBIAN_FRONTEND=noninteractive
-ENV GCC_TOOLS_BASE=/opt/esp/tools/xtensa-esp32-elf/esp-2021r2-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-
+ENV GCC_TOOLS_BASE=/opt/esp/tools/xtensa-esp32-elf/esp-2021r2-patch3-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-
 # To build the image for a branch or a tag of IDF, pass --build-arg IDF_CLONE_BRANCH_OR_TAG=name.
 # To build the image with a specific commit ID of IDF, pass --build-arg IDF_CHECKOUT_REF=commit-id.
 # It is possibe to combine both, e.g.:
 #   IDF_CLONE_BRANCH_OR_TAG=release/vX.Y
 #   IDF_CHECKOUT_REF=<some commit on release/vX.Y branch>.
-# The following commit contains the ldgen fix: eab738c79e063b3d6f4c345ea5e1d4f8caef725b
-# to build an image using that commit: docker build . --build-arg IDF_CHECKOUT_REF=eab738c79e063b3d6f4c345ea5e1d4f8caef725b -t sle118/squeezelite-esp32-idfv43
-# Docker build for release 4.3.2 as of 2022/02/28
-# docker build . --build-arg IDF_CHECKOUT_REF=8bf14a9238329954c7c5062eeeda569529aedf75 -t sle118/squeezelite-esp32-idfv43
-# To run the image interactive (windows): 
-# docker run --rm -v %cd%:/project -w /project -it sle118/squeezelite-esp32-idfv43
-# To run the image interactive (linux):
-# docker run --rm -v `pwd`:/project -w /project -it sle118/squeezelite-esp32-idfv43
+# Docker build for release 4.3.5 as of 2023/05/18
+# docker build . --build-arg IDF_CHECKOUT_REF=6d04316cbe4dc35ea7e4885e9821bd9958ac996d -t sle118/squeezelite-esp32-idfv435 
+# Updating the docker image in the repository
+# docker push sle118/squeezelite-esp32-idfv435
+# or to do both:
+# docker build . --build-arg IDF_CHECKOUT_REF=6d04316cbe4dc35ea7e4885e9821bd9958ac996d -t sle118/squeezelite-esp32-idfv435 && docker push sle118/squeezelite-esp32-idfv435
+#
+# (windows) To run the image interactive : 
+# docker run --rm -v %cd%:/project -w /project -it sle118/squeezelite-esp32-idfv435
+# (windows powershell)
+# docker run --rm -v ${PWD}:/project -w /project -it sle118/squeezelite-esp32-idfv435
+# (linux) To run the image interactive :
+# docker run --rm -v `pwd`:/project -w /project -it sle118/squeezelite-esp32-idfv435
 # to build the web app inside of the interactive session
 # pushd components/wifi-manager/webapp/ && npm install && npm run-script build && popd
 #
 # to run the docker with netwotrk port published on the host:
-# docker run --rm -p 5000:5000/tcp -v %cd%:/project -w /project -it sle118/squeezelite-esp32-idfv43
+# docker run --rm -p 5000:5000/tcp -v %cd%:/project -w /project -it sle118/squeezelite-esp32-idfv435
 
 ARG IDF_CLONE_URL=https://github.com/espressif/esp-idf.git
 ARG IDF_CLONE_BRANCH_OR_TAG=master
-ARG IDF_CHECKOUT_REF=8bf14a9238329954c7c5062eeeda569529aedf75
+ARG IDF_CHECKOUT_REF=6d04316cbe4dc35ea7e4885e9821bd9958ac996d
 
 ENV IDF_PATH=/opt/esp/idf
 ENV IDF_TOOLS_PATH=/opt/esp
@@ -35,6 +40,7 @@ RUN : \
   && apt-get update \
   && apt-get install -y \
     apt-utils \
+    build-essential \
     bison \
     ca-certificates \
     ccache \
@@ -42,22 +48,26 @@ RUN : \
     curl \
     flex \
     git \
+    git-lfs \    
     gperf \
     lcov \
+    libbsd-dev \    
+    libpython3.8 \
     libffi-dev \
     libncurses-dev \
-    libpython2.7 \
     libusb-1.0-0-dev \
     make \
     ninja-build \
-    python3 \
+    python3.8 \
     python3-pip \
+    python3-venv \
+    ruby \
     unzip \
     wget \
     xz-utils \
     zip \
-    	npm \
-	nodejs \
+   	npm \
+  	nodejs \
   && apt-get autoremove -y \
   && rm -rf /var/lib/apt/lists/* \
   && update-alternatives --install /usr/bin/python python /usr/bin/python3 10 \
@@ -97,8 +107,8 @@ RUN : \
 COPY docker/patches $IDF_PATH
 
 #set idf environment variabies
-ENV PATH /opt/esp/idf/components/esptool_py/esptool:/opt/esp/idf/components/espcoredump:/opt/esp/idf/components/partition_table:/opt/esp/idf/components/app_update:/opt/esp/tools/xtensa-esp32-elf/esp-2021r2-8.4.0/xtensa-esp32-elf/bin:/opt/esp/tools/xtensa-esp32s2-elf/esp-2021r2-8.4.0/xtensa-esp32s2-elf/bin:/opt/esp/tools/xtensa-esp32s3-elf/esp-2021r2-8.4.0/xtensa-esp32s3-elf/bin:/opt/esp/tools/riscv32-esp-elf/esp-2021r2-8.4.0/riscv32-esp-elf/bin:/opt/esp/tools/esp32ulp-elf/2.28.51-esp-20191205/esp32ulp-elf-binutils/bin:/opt/esp/tools/esp32s2ulp-elf/2.28.51-esp-20191205/esp32s2ulp-elf-binutils/bin:/opt/esp/tools/cmake/3.16.4/bin:/opt/esp/tools/openocd-esp32/v0.10.0-esp32-20211111/openocd-esp32/bin:/opt/esp/python_env/idf4.3_py3.8_env/bin:/opt/esp/idf/tools:$PATH
-ENV GCC_TOOLS_BASE="/opt/esp/tools/xtensa-esp32-elf/esp-2021r2-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-"
+ENV PATH /opt/esp/idf/components/esptool_py/esptool:/opt/esp/idf/components/espcoredump:/opt/esp/idf/components/partition_table:/opt/esp/idf/components/app_update:/opt/esp/tools/xtensa-esp32-elf/esp-2021r2-patch3-8.4.0/xtensa-esp32-elf/bin:/opt/esp/tools/xtensa-esp32s2-elf/esp-2021r2-patch3-8.4.0/xtensa-esp32s2-elf/bin:/opt/esp/tools/xtensa-esp32s3-elf/esp-2021r2-patch3-8.4.0/xtensa-esp32s3-elf/bin:/opt/esp/tools/riscv32-esp-elf/esp-2021r2-patch3-8.4.0/riscv32-esp-elf/bin:/opt/esp/tools/esp32ulp-elf/2.28.51-esp-20191205/esp32ulp-elf-binutils/bin:/opt/esp/tools/esp32s2ulp-elf/2.28.51-esp-20191205/esp32s2ulp-elf-binutils/bin:/opt/esp/tools/cmake/3.16.4/bin:/opt/esp/tools/openocd-esp32/v0.11.0-esp32-20220706/openocd-esp32/bin:/opt/esp/python_env/idf4.3_py3.8_env/bin:/opt/esp/idf/tools:$PATH
+ENV GCC_TOOLS_BASE="/opt/esp/tools/xtensa-esp32-elf/esp-2021r2-patch3-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-"
 ENV IDF_PATH="/opt/esp/idf"
 ENV IDF_PYTHON_ENV_PATH="/opt/esp/python_env/idf4.3_py3.8_env"
 ENV IDF_TOOLS_EXPORT_CMD="/opt/esp/idf/export.sh"
@@ -109,7 +119,32 @@ ENV NODE_VERSION="8"
 ENV OPENOCD_SCRIPTS="/opt/esp/tools/openocd-esp32/v0.10.0-esp32-20211111/openocd-esp32/share/openocd/scripts"
 # Ccache is installed, enable it by default
 
+# The constraint file has been downloaded and the right Python package versions installed. No need to check and
+# download this at every invocation of the container.
+ENV IDF_PYTHON_CHECK_CONSTRAINTS=no
+
+# Ccache is installed, enable it by default
 ENV IDF_CCACHE_ENABLE=1
+
+# Install QEMU runtime dependencies
+RUN : \
+  && apt-get update && apt-get install -y -q \
+    libglib2.0-0 \
+    libpixman-1-0 \
+  && rm -rf /var/lib/apt/lists/* \
+  && :
+
+# Install QEMU
+ARG QEMU_VER=esp-develop-20220919
+ARG QEMU_DIST=qemu-${QEMU_VER}.tar.bz2
+ARG QEMU_SHA256=f6565d3f0d1e463a63a7f81aec94cce62df662bd42fc7606de4b4418ed55f870
+RUN : \
+  && wget --no-verbose https://github.com/espressif/qemu/releases/download/${QEMU_VER}/${QEMU_DIST} \
+  && echo "${QEMU_SHA256} *${QEMU_DIST}" | sha256sum --check --strict - \
+  && tar -xf ${QEMU_DIST} -C /opt \
+  && rm ${QEMU_DIST} \
+  && :
+
 COPY docker/entrypoint.sh /opt/esp/entrypoint.sh
 COPY components/wifi-manager/webapp/package.json /opt
 
@@ -142,6 +177,9 @@ RUN : \
   && node --version \
   && npm install -g \  
   && :      
+RUN : \
+  && npm install -g html-webpack-plugin 
+
 
 ENV NODE_PATH $NVM_DIR/v$NODE_VERSION/lib/node_modules
 ENV PATH $IDF_PYTHON_ENV_PATH:$NVM_DIR/v$NODE_VERSION/bin:$PATH
@@ -151,6 +189,8 @@ RUN : \
   && chmod +x /opt/esp/entrypoint.sh \
   && chmod +x /usr/sbin/build_tools.py \  
   && :
+
+
 
 ENTRYPOINT [ "/opt/esp/entrypoint.sh" ]
 CMD [ "/bin/bash" ]

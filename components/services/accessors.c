@@ -105,11 +105,14 @@ bool is_spdif_config_locked(){
  * Set pin from config string
  */
 static void set_i2s_pin(char *config, i2s_pin_config_t *pin_config) {
-	char *p;
-	pin_config->bck_io_num = pin_config->ws_io_num = pin_config->data_out_num = pin_config->data_in_num = -1; 				
-	if ((p = strcasestr(config, "bck"))) sscanf(p, "bck%*[^=]=%d", &pin_config->bck_io_num);
-	if ((p = strcasestr(config, "ws"))) sscanf(p, "ws%*[^=]=%d", &pin_config->ws_io_num);
-	if ((p = strcasestr(config, "do"))) sscanf(p, "do%*[^=]=%d", &pin_config->data_out_num);
+	pin_config->bck_io_num = pin_config->ws_io_num = pin_config->data_out_num = pin_config->data_in_num = -1;
+	PARSE_PARAM(config, "bck", '=', pin_config->bck_io_num);
+	PARSE_PARAM(config, "ws", '=', pin_config->ws_io_num);
+	PARSE_PARAM(config, "do", '=', pin_config->data_out_num);
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
+    pin_config->mck_io_num = strcasestr(config, "mck") ? 0 : -1;
+    PARSE_PARAM(config, "mck", '=', pin_config->mck_io_num);   
+#endif    
 }
 
 /****************************************************************************************
@@ -323,8 +326,7 @@ esp_err_t config_ledvu_set(ledvu_struct_t * config){
 	int buffer_size=512;
 	esp_err_t err=ESP_OK;
 	char * config_buffer=malloc_init_external(buffer_size);
-	char * config_buffer2=malloc_init_external(buffer_size);
-	if(config_buffer && config_buffer2)  {
+	if(config_buffer)  {
 		snprintf(config_buffer,buffer_size,"%s,length=%i,gpio=%i",config->type, config->length, config->gpio);
 		log_send_messaging(MESSAGING_INFO,"Updating ledvu configuration to %s",config_buffer);
 		err = config_set_value(NVS_TYPE_STR, "led_vu_config", config_buffer);
@@ -335,6 +337,7 @@ esp_err_t config_ledvu_set(ledvu_struct_t * config){
 	else {
 		err = ESP_ERR_NO_MEM;
 	}
+	FREE_AND_NULL(config_buffer);
 	return err;	
 }
 

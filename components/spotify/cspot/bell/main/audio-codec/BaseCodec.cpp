@@ -1,5 +1,6 @@
 #include "BaseCodec.h"
-#include <iostream>
+
+#include "AudioContainer.h"  // for AudioContainer
 
 using namespace bell;
 
@@ -21,10 +22,7 @@ uint8_t* BaseCodec::decode(AudioContainer* container, uint32_t& outLen) {
 
   availableBytes = lastSampleLen;
   auto* result = decode((uint8_t*)data, availableBytes, outLen);
-  if (result == nullptr) {
-    container->consumeBytes(1);
-  } else {
-    container->consumeBytes(lastSampleLen - availableBytes);
-  }
+  container->consumeBytes(lastSampleLen - availableBytes);
+
   return result;
 }

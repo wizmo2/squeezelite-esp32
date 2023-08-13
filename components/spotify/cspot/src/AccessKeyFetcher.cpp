@@ -6,13 +6,17 @@
 #include <type_traits>       // for remove_extent_t
 #include <vector>            // for vector
 
-#include "BellLogger.h"           // for AbstractLogger
-#include "CSpotContext.h"         // for Context
-#include "Logger.h"               // for CSPOT_LOG
-#include "MercurySession.h"       // for MercurySession, MercurySession::Res...
-#include "Packet.h"               // for cspot
-#include "TimeProvider.h"         // for TimeProvider
-#include "Utils.h"                // for string_format
+#include "BellLogger.h"    // for AbstractLogger
+#include "CSpotContext.h"  // for Context
+#include "HTTPClient.h"
+#include "Logger.h"            // for CSPOT_LOG
+#include "MercurySession.h"    // for MercurySession, MercurySession::Res...
+#include "NanoPBExtensions.h"  // for bell::nanopb::encode...
+#include "NanoPBHelper.h"      // for pbEncode and pbDecode
+#include "Packet.h"            // for cspot
+#include "TimeProvider.h"      // for TimeProvider
+#include "Utils.h"             // for string_format
+
 #ifdef BELL_ONLY_CJSON
 #include "cJSON.h"
 #else
@@ -20,13 +24,19 @@
 #include "nlohmann/json_fwd.hpp"  // for json
 #endif
 
+#include "protobuf/login5.pb.h"  // for LoginRequest
+
 using namespace cspot;
 
-AccessKeyFetcher::AccessKeyFetcher(std::shared_ptr<cspot::Context> ctx) {
-  this->ctx = ctx;
-}
+static std::string CLIENT_ID =
+    "65b708073fc0480ea92a077233ca87bd";  // Spotify web client's client id
 
-AccessKeyFetcher::~AccessKeyFetcher() {}
+static std::string SCOPES =
+    "streaming,user-library-read,user-library-modify,user-top-read,user-read-"
+    "recently-played";  // Required access scopes
+
+AccessKeyFetcher::AccessKeyFetcher(std::shared_ptr<cspot::Context> ctx)
+    : ctx(ctx) {}
 
 bool AccessKeyFetcher::isExpired() {
   if (accessKey.empty()) {
@@ -40,45 +50,90 @@ bool AccessKeyFetcher::isExpired() {
   return false;
 }
 
-void AccessKeyFetcher::getAccessKey(AccessKeyFetcher::Callback callback) {
+std::string AccessKeyFetcher::getAccessKey() {
   if (!isExpired()) {
-    return callback(accessKey);
+    return accessKey;
   }
 
-  CSPOT_LOG(info, "Access token expired, fetching new one...");
+  updateAccessKey();
 
-  std::string url =
-      string_format("hm://keymaster/token/authenticated?client_id=%s&scope=%s",
-                    CLIENT_ID.c_str(), SCOPES.c_str());
-  auto timeProvider = this->ctx->timeProvider;
+  return accessKey;
+}
 
-  ctx->session->execute(
-      MercurySession::RequestType::GET, url,
-      [this, timeProvider, callback](MercurySession::Response& res) {
-        if (res.fail)
-          return;
-        char* accessKeyJson = (char*)res.parts[0].data();
-        auto accessJSON = std::string(
-            accessKeyJson, strrchr(accessKeyJson, '}') - accessKeyJson + 1);
-#ifdef BELL_ONLY_CJSON
-        cJSON* jsonBody = cJSON_Parse(accessJSON.c_str());
-        this->accessKey =
-            cJSON_GetObjectItem(jsonBody, "accessToken")->valuestring;
-        int expiresIn = cJSON_GetObjectItem(jsonBody, "expiresIn")->valueint;
-#else
-        auto jsonBody = nlohmann::json::parse(accessJSON);
-        this->accessKey = jsonBody["accessToken"];
-        int expiresIn = jsonBody["expiresIn"];
-#endif
-        expiresIn = expiresIn / 2;  // Refresh token before it expires
+void AccessKeyFetcher::updateAccessKey() {
+  if (keyPending) {
+    // Already pending refresh request
+    return;
+  }
 
-        this->expiresAt =
-            timeProvider->getSyncedTimestamp() + (expiresIn * 1000);
-#ifdef BELL_ONLY_CJSON
-        callback(cJSON_GetObjectItem(jsonBody, "accessToken")->valuestring);
-        cJSON_Delete(jsonBody);
-#else
-        callback(jsonBody["accessToken"]);
-#endif
-      });
+  keyPending = true;
+
+  // Prepare a protobuf login request
+  static LoginRequest loginRequest = LoginRequest_init_zero;
+  static LoginResponse loginResponse = LoginResponse_init_zero;
+
+  // Assign necessary request fields
+  loginRequest.client_info.client_id.funcs.encode = &bell::nanopb::encodeString;
+  loginRequest.client_info.client_id.arg = &CLIENT_ID;
+
+  loginRequest.client_info.device_id.funcs.encode = &bell::nanopb::encodeString;
+  loginRequest.client_info.device_id.arg = &ctx->config.deviceId;
+
+  loginRequest.login_method.stored_credential.username.funcs.encode =
+      &bell::nanopb::encodeString;
+  loginRequest.login_method.stored_credential.username.arg =
+      &ctx->config.username;
+
+  // Set login method to stored credential
+  loginRequest.which_login_method = LoginRequest_stored_credential_tag;
+  loginRequest.login_method.stored_credential.data.funcs.encode =
+      &bell::nanopb::encodeVector;
+  loginRequest.login_method.stored_credential.data.arg = &ctx->config.authData;
+
+  // Max retry of 3, can receive different hash cat types
+  int retryCount = 3;
+  bool success = false;
+
+  do {
+    auto encodedRequest = pbEncode(LoginRequest_fields, &loginRequest);
+    CSPOT_LOG(info, "Access token expired, fetching new one... %d",
+              encodedRequest.size());
+
+    // Perform a login5 request, containing the encoded protobuf data
+    auto response = bell::HTTPClient::post(
+        "https://login5.spotify.com/v3/login",
+        {{"Content-Type", "application/x-protobuf"}}, encodedRequest);
+
+    auto responseBytes = response->bytes();
+
+    // Deserialize the response
+    pbDecode(loginResponse, LoginResponse_fields, responseBytes);
+
+    if (loginResponse.which_response == LoginResponse_ok_tag) {
+      // Successfully received an auth token
+      CSPOT_LOG(info, "Access token sucessfully fetched");
+      success = true;
+
+      accessKey = std::string(loginResponse.response.ok.access_token);
+
+      // Expire in ~30 minutes
+      int expiresIn = 3600 / 2;
+
+      if (loginResponse.response.ok.has_access_token_expires_in) {
+        int expiresIn = loginResponse.response.ok.access_token_expires_in / 2;
+      }
+
+      this->expiresAt =
+          ctx->timeProvider->getSyncedTimestamp() + (expiresIn * 1000);
+    } else {
+      CSPOT_LOG(error, "Failed to fetch access token");
+    }
+
+    // Free up allocated memory for response
+    pb_release(LoginResponse_fields, &loginResponse);
+
+    retryCount--;
+  } while (retryCount >= 0 && !success);
+
+  keyPending = false;
 }

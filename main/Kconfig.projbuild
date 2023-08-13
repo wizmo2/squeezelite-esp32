@@ -209,6 +209,11 @@ menu "Squeezelite-ESP32"
 					default -1
 					help
 						I2S data input gpio pin to use (not used mostly, leave it to -1).
+				config I2S_MCK_IO
+					int "I2S Master Clock GPIO number"
+					default -1
+					help
+						I2S data output gpio pin to use (not used mostly, leave it to -1).
 			endmenu
 			menu "I2C settings"
 				config I2C_SDA

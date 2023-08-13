@@ -1278,8 +1278,8 @@ static void ledv_handler( u8_t *data, int len) {
 	led_visu.style = pkt->style;
 	led_visu.max = pkt->bright;
 
-		led_vu_clear();
-		if (led_visu.mode) {
+	led_vu_clear();
+	if (led_visu.mode) {
 		if (led_visu.mode == VISU_SPECTRUM) {
 			led_visu.n = (led_visu.config < MAX_BARS) ? led_visu.config : MAX_BARS;
 			spectrum_limits(led_visu.bars, 0, led_visu.n, 0, 0.25);

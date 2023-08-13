@@ -288,7 +288,9 @@ static bool led_strip_init_rmt(struct led_strip_t *led_strip)
 
 bool led_strip_init(struct led_strip_t *led_strip)
 {
-    TaskHandle_t led_strip_task_handle;
+    static EXT_RAM_ATTR TaskHandle_t task_created;
+    static DRAM_ATTR StaticTask_t xTaskBuffer __attribute__ ((aligned (4)));
+    static EXT_RAM_ATTR StackType_t xStack[LED_STRIP_TASK_SIZE] __attribute__ ((aligned (4)));
 
     if ((led_strip == NULL) ||
         (led_strip->rmt_channel >= RMT_CHANNEL_MAX) ||
@@ -313,12 +315,12 @@ bool led_strip_init(struct led_strip_t *led_strip)
     }
 
     xSemaphoreGive(led_strip->access_semaphore);
-    BaseType_t task_created = xTaskCreate(led_strip_task,
+    task_created = xTaskCreateStatic(led_strip_task,
                                           "led_strip_task",
                                           LED_STRIP_TASK_SIZE,
                                           led_strip,
                                           LED_STRIP_TASK_PRIORITY,
-                                          &led_strip_task_handle);
+                                          xStack, &xTaskBuffer);
 
     if (!task_created) {
         return false;
