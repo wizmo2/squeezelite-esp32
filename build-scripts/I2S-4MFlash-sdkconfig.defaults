@@ -182,6 +182,7 @@ CONFIG_LOGGING_OUTPUT="info"
 # end of Logging
 
 CONFIG_MUTE_GPIO_LEVEL=0
+CONFIG_TARGET_LOCKED=n
 
 #
 # Target
@@ -202,15 +203,7 @@ CONFIG_SPI_CONFIG=""
 CONFIG_DISPLAY_CONFIG=""
 CONFIG_ETH_CONFIG=""
 CONFIG_DAC_CONTROLSET=""
-CONFIG_AUDIO_CONTROLS=""
-CONFIG_BAT_CONFIG=""
 CONFIG_TARGET=""
-CONFIG_AMP_GPIO=-1
-CONFIG_JACK_GPIO=-1
-CONFIG_SPKFAULT_GPIO=-1
-CONFIG_BAT_CHANNEL=-1
-CONFIG_LED_GREEN_GPIO=-1
-CONFIG_LED_RED_GPIO=-1
 # end of Target
 
 #
@@ -274,11 +267,6 @@ CONFIG_CSPOT_SINK=y
 # end of Audio Input
 
 #
-# Controls
-#
-# end of Controls
-
-#
 # Display Screen
 #
 # end of Display Screen
@@ -294,7 +282,10 @@ CONFIG_ROTARY_ENCODER=""
 #
 # LED configuration
 #
+CONFIG_LED_GREEN_GPIO=-1
+CONFIG_LED_RED_GPIO=-1
 # end of LED configuration
+
 
 #
 # LED Strip configuration
