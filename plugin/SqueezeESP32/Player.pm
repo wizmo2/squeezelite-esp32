@@ -10,6 +10,7 @@ use Slim::Utils::Log;
 use Slim::Utils::Prefs;
 
 use Plugins::SqueezeESP32::FirmwareHelper;
+use Plugins::SqueezeESP32::RgbLed;
 
 my $sprefs = preferences('server');
 my $prefs = preferences('plugin.squeezeesp32');
@@ -63,6 +64,10 @@ sub maxTreble {	20 }
 sub minTreble {	-13 }
 sub maxBass { 20 }
 sub minBass { -13 }
+sub hasLED { 
+	my $client = shift;
+	return $prefs->client($client)->get('led_config') || 0;
+}
 
 sub init {
 	my $client = shift;
@@ -98,6 +103,7 @@ sub init {
 
 	$client->SUPER::init(@_);
 	Plugins::SqueezeESP32::FirmwareHelper::init($client);
+	Plugins::SqueezeESP32::RgbLed::init($client);
 
 	main::INFOLOG && $log->is_info && $log->info("SqueezeESP player connected: " . $client->id);
 }
@@ -110,6 +116,9 @@ sub initPrefs {
 	$prefs->client($client)->init( {
 		equalizer => [(0) x 10],
 		artwork => undef,
+		led_config => 0,
+		led_visualizer => 0,
+		led_brightness => 20,
 	} );
 
 	$prefs->setValidate({
@@ -141,6 +150,9 @@ sub power {
 		$client->update_artwork(1);
 	} else {
 		$client->clear_artwork(1);
+		if ($client->hasLED) {
+			Plugins::SqueezeESP32::RgbLed::updateLED($client, 0);
+		}
 	}
 
 	return $res;
@@ -169,6 +181,9 @@ sub playerSettingsFrame {
 
 			main::INFOLOG && $log->is_info && $log->info("Setting player $value" . "x" . "$height for ", $client->name);
 		}
+		my $led_config = (unpack('Cnnn',$$data_ref))[3];
+		$prefs->client($client)->set('led_config', $led_config);
+		main::INFOLOG && $log->is_info && $led_config && $log->info("Setting led length $led_config for ", $client->name);
 	}
 
 	$client->SUPER::playerSettingsFrame($data_ref);

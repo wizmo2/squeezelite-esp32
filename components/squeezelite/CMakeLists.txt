@@ -17,6 +17,7 @@ idf_component_register( SRC_DIRS . external ac101 tas57xx wm8978
 						 			display
 						 			tools
 						 			audio
+									led_strip
 									_override
 						 			${target_requires}                                    
 						EMBED_FILES vu_s.data arrow.data
