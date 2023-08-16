@@ -233,7 +233,7 @@ static void SetLayout( struct GDS_Device* Device, struct GDS_Layout *Layout ) {
 	}	
 	Device->WriteCommand( Device, 0xA0 );
 	Device->WriteCommand( Device, Private->ReMap );
-    Device->WriteCommand( Device, Layout->Invert ? 0xA7 : 0xA6 );	
+    Device->WriteCommand( Device, Layout->Invert ? 0xA7 : 0xA4 );	
 }	
 
 static void DisplayOn( struct GDS_Device* Device ) { Device->WriteCommand( Device, 0xAF ); }
