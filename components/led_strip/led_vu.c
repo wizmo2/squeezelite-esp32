@@ -43,7 +43,7 @@ static EXT_RAM_ATTR struct led_strip_t  led_strip_config = {
     .rgb_led_type      = RGB_LED_TYPE_WS2812,
     .rmt_channel       = RMT_CHANNEL_1,
     .rmt_interrupt_num = LED_VU_RMT_INTR_NUM,
-    .gpio              = GPIO_NUM_22,
+    .gpio              = -1,
 };
 
 static EXT_RAM_ATTR struct {
