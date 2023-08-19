@@ -123,4 +123,4 @@ bool 						are_statistics_enabled();
 const rotary_struct_t * 	config_rotary_get();
 esp_err_t 					config_rotary_set(rotary_struct_t * rotary);
 const ledvu_struct_t * 		config_ledvu_get();
-esp_err_t 					config_ledvu_set(ledvu_struct_t * rotary);
+esp_err_t 					config_ledvu_set(ledvu_struct_t * ledvu);

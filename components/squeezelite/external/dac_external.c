@@ -32,7 +32,7 @@ const struct adac_s dac_external = { "i2s", init, adac_deinit, power, speaker, h
 static cJSON *i2c_json;
 static int i2c_addr;
 
-static struct {
+static const struct {
 	char *model;
 	bool mclk;
 	char *controlset;
