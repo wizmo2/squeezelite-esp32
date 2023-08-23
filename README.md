@@ -121,7 +121,7 @@ or
 ### T-WATCH2020 by LilyGo
 This is a fun [smartwatch](http://www.lilygo.cn/prod_view.aspx?TypeId=50036&Id=1290&FId=t3:50036:3) based on ESP32. It has a 240x240 ST7789 screen and onboard audio. Not very useful to listen to anything but it works. This is an example of a device that requires an I2C set of commands for its dac (see below). There is a build-option if you decide to rebuild everything by yourself, otherwise the I2S default option works with the following parameters
 
-- dac_config: `model=I2S,bck=26,ws=25,do=33,i2c=106,sda=21,scl=22`
+- dac_config: `model=I2S,bck=26,ws=25,do=33,i2c=53,sda=21,scl=22`
 - dac_controlset:
 	```json
 	{ "init": [ {"reg":41, "val":128}, {"reg":18, "val":255} ], "poweron": [ {"reg":18, "val":64, "mode":"or"} ], "poweroff": [ {"reg":18, "val":191, "mode":"and"} ] }
