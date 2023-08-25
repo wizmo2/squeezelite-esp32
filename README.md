@@ -172,11 +172,11 @@ data|mosi=<gpio>,clk=<gpio>[,dc=<gpio>][,host=1|2][,miso=<gpio>]
 ``` 
 Default and only "host" is 1 as others are used already by flash and spiram. The optional "miso" (MasterInSlaveOut) parameter is only used when SPI bus is bi-directional and shared with other peripheral like ethernet, gpio expander. Note that "data" can also be named "mosi" (MasterOutSlaveIn). 
 ### DAC/I2S
-The NVS parameter "dac_config" set the gpio used for i2s communication with your DAC. You can define the defaults at compile time but nvs parameter takes precedence except for SqueezeAMP and A1S where these are forced at runtime. Syntax is
+The NVS parameter "dac_config" set the gpio used for i2s communication with your DAC. You can define the defaults at compile time but nvs parameter takes precedence except for named configurations
 ```
 bck=<gpio>,ws=<gpio>,do=<gpio>[,mck=0|1|2][,mute=<gpio>[:0|1][,model=TAS57xx|TAS5713|AC101|I2S][,sda=<gpio>,scl=<gpio>[,i2c=<addr>]]
 ```
-if "model" is not set or is not recognized, then default "I2S" is used. The option "mck" is used for some codecs that require a master clock (although they should not). By default GPIO0 is used as MCLK and only recent builds (none as or 2023/05/15) can use 1 or 2. Also be aware that this cannot coexit with RMII Ethernet (see ethernet section below). I2C parameters are optional and only needed if your DAC requires an I2C control (See 'dac_controlset' below). Note that "i2c" parameters are decimal, hex notation is not allowed.
+if "model" is not set or is not recognized, then default "I2S" is used. The option "mck" is used for some codecs that require a master clock (although they should not). By default GPIO0 is used as MCLK and only recent builds (post mid-2023) can use 1 or 2. Also be aware that this cannot coexit with RMII Ethernet (see ethernet section below). I2C parameters are optional and only needed if your DAC requires an I2C control (See 'dac_controlset' below). Note that "i2c" parameters are decimal, hex notation is not allowed.
 
 So far, TAS57xx, TAS5713, AC101, WM8978 and ES8388 are recognized models where the proper init sequence/volume/power controls are sent. For other codecs that might require an I2C commands, please use the parameter "dac_controlset" that allows definition of simple commands to be sent over i2c for init, power, speakder and headset on and off using a JSON syntax:
 ```json
@@ -188,7 +188,7 @@ Where `<command>` is one of init, poweron, poweroff, speakeron, speakeroff, head
 
 This is standard JSON notation, so if you are not familiar with it, Google is your best friend. Be aware that the '...' means you can have as many entries as you want, it's not part of the syntax. Every section is optional, but it does not make sense to set i2c in the 'dac_config' parameter and not setting anything here. The parameter 'mode' allows to *or* the register with the value or to *and* it. Don't set 'mode' if you simply want to write. The 'val parameter can be an array [v1, v2,...] to write a serie of bytes in a single i2c burst (in that case 'mode' is ignored). **Note that all values must be decimal**. You can use a validator like [this](https://jsonlint.com) to verify your syntax
 
-NB: For specific builds (all except I2S), all this is ignored. For know codecs, the built-in sequences can be overwritten using dac_controlset
+NB: For named configurations ((SqueezeAMP, Muse ... all except I2S), all this is ignored. For know codecs, the built-in sequences can be overwritten using dac_controlset
 
 **Please note that you can not use the same GPIO or port as the I2C.**
 
@@ -197,13 +197,13 @@ The NVS parameter "spdif_config" sets the i2s's gpio needed for SPDIF.
 
 SPDIF is made available by re-using i2s interface in a non-standard way, so although only one pin (DO) is needed, the controller must be fully initialized, so the bit clock (bck) and word clock (ws) must be set as well. As i2s and SPDIF are mutually exclusive, you can reuse the same IO if your hardware allows so.
 
-You can define the defaults at compile time but nvs parameter takes precedence except for SqueezeAMP where these are forced at runtime.
+You can define the defaults at compile time but nvs parameter takes precedence except for named configurations (SqueezeAMP, Muse ...)
 
 Leave it blank to disable SPDIF usage, you can also define them at compile time using "make menuconfig". Syntax is 
 ```
 bck=<gpio>,ws=<gpio>,do=<gpio>
 ```
-NB: For well-known configuration, this is ignored
+NB: For named configurations, this is ignored
 
 To optimize speed, a bit-manipulation trick is used and as a result, the bit depth is limited to 20 bits, even in 32 bits mode. As said before, this is more than enough for any human ear. In theory, it could be extended up to 23 bits but I don't see the need. Now, you can also get SPDIF using a specialized chip that offers a I2S interface like a DAC but spits out SPDIF (optical and coax). Refers to DAC chapter then.
 
@@ -277,7 +277,7 @@ Syntax is:
 ```
 <gpio>=Vcc|GND|amp[:1|0]|ir|jack[:0|1]|green[:0|1]|red[:0|1]|spkfault[:0|1][,<repeated sequence for next GPIO>]
 ```
-You can define the defaults for jack, spkfault leds at compile time but nvs parameter takes precedence except for well-known configurations where these are forced at runtime.
+You can define the defaults for jack, spkfault leds at compile time but nvs parameter takes precedence except for named configurations ((SqueezeAMP, Muse ...) where these are forced at runtime.
 **Note that gpio 36 and 39 are input only and cannot use interrupt. When set to jack or speaker fault, a 100ms polling checks their value but that's expensive**
  
 ### GPIO expanders
@@ -305,7 +305,7 @@ See [set_GPIO](#set-gpio) for how to set the green and red LEDs. In addition, th
 ```
 [green=0..100][,red=0..100]
 ```
-NB: For well-known configuration, GPIO affected to green and red LED cannot be changed but brightness option applies
+NB: For named configuration, GPIO affected to green and red LED cannot be changed but brightness option applies
 
 ### LED Strip
 One LED strip with up to 255 addressable LEDs can be configured to offer enhanced visualizations.  The LED strip can also be controlled remotely though the LMS server (using the CLI interface).  Currently only WS2812B LEDs are supported.  Set the LED Strip configuration (or NVS led_vu_config) to `WS2812,length=<n>,gpio=<gpio>, where <n> is the number of leds in the strip (1..255), and <gpio> is the data pin.`  
@@ -384,7 +384,7 @@ Where `<action>` is either the name of another configuration to load (remap) or 
 ACTRLS_NONE, ACTRLS_POWER, ACTRLS_VOLUP, ACTRLS_VOLDOWN, ACTRLS_TOGGLE, ACTRLS_PLAY, 
 ACTRLS_PAUSE, ACTRLS_STOP, ACTRLS_REW, ACTRLS_FWD, ACTRLS_PREV, ACTRLS_NEXT, 
 BCTRLS_UP, BCTRLS_DOWN, BCTRLS_LEFT, BCTRLS_RIGHT, 
-BCTRLS_PS1, BCTRLS_PS2, BCTRLS_PS3, BCTRLS_PS4, BCTRLS_PS5, BCTRLS_PS6,
+BCTRLS_PS1, BCTRLS_PS2, BCTRLS_PS3, BCTRLS_PS4, BCTRLS_PS5, BCTRLS_PS6, BCTRLS_PS7, BCTRLS_PS8, BCTRLS_PS9, BCTRLS_PS10,
 KNOB_LEFT, KNOB_RIGHT, KNOB_PUSH,	
 ```
 				
@@ -439,7 +439,7 @@ buttons
 ```
 **IMPORTANT NOTE**: LMS also supports the possibility to send 'raw' button codes. It's a bit complicated, so bear with me. Buttons can either be processed by SqueezeESP32 and mapped to a "function" like play/pause or they can be just sent to LMS as plain (raw) code and the full logic of press/release/longpress is handled by LMS, you don't have any control on that.
 
-The benefit of the "raw" mode is that you can build a player which is as close as possible to a Boom (e.g.) but you can't use the remapping function nor longress or shift logics to do your own mapping when you have a limited set of buttons. In 'raw' mode, all you really need to define is the mapping between the gpio and the button. As far as LMS is concerned, any other option in these JSON payloads does not matter. Now, when you use BT or AirPlay, the full JSON construct described above fully applies, so the shift, longpress, remapping options still work.
+The benefit of the "raw" mode is that you can build a player which is as close as possible to a Boom (e.g.) but you can't use the remapping function nor longpress or shift logics to do your own mapping when you have a limited set of buttons. In 'raw' mode, all you really need to define is the mapping between the gpio and the button. As far as LMS is concerned, any other option in these JSON payloads does not matter. Now, when you use BT or AirPlay, the full JSON construct described above fully applies, so the shift, longpress, remapping options still work.
 
 **Be aware that when using non "raw" mode, the CLI (Command Line Interface) of LMS is used and *must* be available without password**
 
@@ -471,7 +471,8 @@ model=lan8720,mdc=<gpio>,mdio=<gpio>[,rst=<gpio>]
 Connecting a reset pin for the LAN8720 is optional but recommended to avoid that GPIO0 (50MHz input clock) locks the esp32 in download mode at boot time.
 - Clock
 	
-The APLL of the esp32 is required for the audio codec, so we **need** a LAN8720 that provides a 50MHz clock. That clock **must** be connected to GPIO0, there is no alternative. This means that if your DAC requires an MCLK, then you are out of luck. It is not possible to have both to work together. There might be some workaround using CLK_OUT2 and GPIO3, but I don't have time for this.
+The APLL of the esp32 is required for the audio codec, so we **need** a LAN8720 that provides a 50MHz clock. That clock **must** be connected to GPIO0, there is no alternative. This means that if your DAC requires an MCLK, you need a recent build (later than mid-2023) to be able to select either GPIO 1 or 2.
+
 #### SPI (DM9051 or W5500)
 Ethernet over SPI is supported as well and requires less GPIOs but is obvsiously slower. SPI is the shared bus set with [spi_config](#spi). The "eth_config" parameter syntax becomes:
 ```
@@ -493,7 +494,7 @@ The NVS parameter "bat_config" sets the ADC1 channel used to measure battery/DC 
 ```
 channel=0..7,scale=<scale>,cells=<2|3>[,atten=<0|1|2|3>]
 ```
-NB: Set parameter to empty to disable battery reading. For well-known configuration, this is ignored (except for SqueezeAMP where number of cells is required)
+NB: Set parameter to empty to disable battery reading. For named configurations (SqueezeAMP, Muse ...), this is ignored (except for SqueezeAMP where number of cells is required)
 
 # Configuration
 
