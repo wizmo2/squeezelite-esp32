@@ -549,7 +549,7 @@ See squeezlite command line, but keys options are
 	- C <sec> : set timeout to switch off amp gpio
 	- W : activate WAV and AIFF header parsing
 
- ** There is a safety feature to protect against WiFi/LMS connection loss that forces a reboot every few minutes when there is no LMS server detected. In case you don't want to use LMS at all, please set the server name to "-disable" on squeezelite command line ("-s -disable")**
+ **There is a safety feature to protect against WiFi/LMS connection loss that forces a reboot every few minutes when there is no LMS server detected. In case you don't want to use LMS at all, please set the server name to "-disable" on squeezelite command line ("-s -disable")**
 
 # Building everything yourself
 
