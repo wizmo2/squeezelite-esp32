@@ -185,7 +185,7 @@ struct raop_ctx_s *raop_create(uint32_t host, char *name,
 #endif
 	ctx->running = true;
 		memcpy(ctx->mac, mac, 6);
-	snprintf(id, 64, "%02X%02X%02X%02X%02X%02X@%s",  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], name);
+	snprintf(id, 64, "%02X%02X%02X%02X%02X%02X@%s", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], name);
 #ifdef WIN32
 	// seems that Windows snprintf does not add NULL char if actual size > max
 	id[63] = '\0';
@@ -193,7 +193,7 @@ struct raop_ctx_s *raop_create(uint32_t host, char *name,
 	pthread_create(&ctx->thread, NULL, &rtsp_thread, ctx);
 #else
 	LOG_INFO("starting mDNS with %s", id);
-	ESP_ERROR_CHECK( mdns_service_add(id, "_raop", "_tcp", ctx->port, txt, sizeof(txt) / sizeof(mdns_txt_item_t)) );
+	mdns_service_add(id, "_raop", "_tcp", ctx->port, (mdns_txt_item_t*) txt, sizeof(txt) / sizeof(mdns_txt_item_t));
 	
     ctx->xTaskBuffer = (StaticTask_t*) heap_caps_malloc(sizeof(StaticTask_t), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
 	ctx->thread = xTaskCreateStaticPinnedToCore( (TaskFunction_t) rtsp_thread, "RTSP", RTSP_STACK_SIZE, ctx, 
@@ -619,12 +619,12 @@ static bool handle_rtsp(raop_ctx_t *ctx, int sock)
 				NULL
 			};
 
-			LOG_INFO("[%p]: received metadata", ctx);
 			settings.ctx = &metadata;
 			memset(&metadata, 0, sizeof(struct metadata_s));
 			if (!dmap_parse(&settings, body, len)) {
 				LOG_INFO("[%p]: received metadata\n\tartist: %s\n\talbum:  %s\n\ttitle:  %s",
-						 ctx, metadata.artist, metadata.album, metadata.title);
+						 ctx, metadata.artist ? metadata.artist : "", metadata.album ? metadata.album : "", 
+                         metadata.title ? metadata.title : "");
 				success = ctx->cmd_cb(RAOP_METADATA, metadata.artist, metadata.album, metadata.title);
 				free_metadata(&metadata);
 			}
@@ -873,7 +873,7 @@ static int  base64_pad(char *src, char **padded)
 /*----------------------------------------------------------------------------*/
 static int pos(char c)
 {
-	char *p;
+	const char *p;
 	for (p = base64_chars; *p; p++)
 	if (*p == c)
 		return p - base64_chars;
@@ -959,7 +959,7 @@ static int base64_decode(const char *str, void *data)
 /*----------------------------------------------------------------------------*/
 static void on_dmap_string(void *ctx, const char *code, const char *name, const char *buf, size_t len) {
 	struct metadata_s *metadata = (struct metadata_s *) ctx;
-    // to gain space, most of the code have been removed from dmap_parser.c (define DMAP_FULL)
+    // to gain space, most of the code have been removed from dmap_parser.c (define DMAP_FULL
 	if (!strcasecmp(code, "asar")) metadata->artist = strndup(buf, len);
 	else if (!strcasecmp(code, "asal")) metadata->album = strndup(buf, len);
 	else if (!strcasecmp(code, "minm")) metadata->title = strndup(buf, len);
