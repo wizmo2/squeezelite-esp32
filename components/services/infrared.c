@@ -66,17 +66,6 @@ struct ir_parser_s {
     *      - ESP_FAIL: Get scan code failed because some error occurred
     */
     esp_err_t (*get_scan_code)(ir_parser_t *parser, uint32_t *address, uint32_t *command, bool *repeat);
-
-    /**
-    * @brief Free resources used by IR parser
-    *
-    * @param[in] parser: Handle of IR parser
-    *
-    * @return
-    *      - ESP_OK: Free resource successfully
-    *      - ESP_FAIL: Free resources fail failed because some error occurred
-    */
-    esp_err_t (*del)(ir_parser_t *parser);
 };
 
 typedef struct {
@@ -251,7 +240,6 @@ static esp_err_t nec_parser_get_scan_code(ir_parser_t *parser, uint32_t *address
     uint32_t cmd = 0;
     bool logic_value = false;
     nec_parser_t *nec_parser = __containerof(parser, nec_parser_t, parent);
-    RMT_CHECK(address && command && repeat, "address, command and repeat can't be null", out, ESP_ERR_INVALID_ARG);
     if (nec_parser->repeat) {
         if (nec_parse_repeat_frame(nec_parser)) {
             *address = nec_parser->last_address;
@@ -281,17 +269,7 @@ static esp_err_t nec_parser_get_scan_code(ir_parser_t *parser, uint32_t *address
             ret = ESP_OK;
         }
     }
-out:
     return ret;
-}
-
-/****************************************************************************************
- * 
- */
-static esp_err_t nec_parser_del(ir_parser_t *parser) {
-    nec_parser_t *nec_parser = __containerof(parser, nec_parser_t, parent);
-    free(nec_parser);
-    return ESP_OK;
 }
 
 /****************************************************************************************
@@ -321,7 +299,6 @@ ir_parser_t *ir_parser_rmt_new_nec(const ir_parser_config_t *config) {
     nec_parser->margin_ticks = (uint32_t)(ratio * config->margin_us);
     nec_parser->parent.input = nec_parser_input;
     nec_parser->parent.get_scan_code = nec_parser_get_scan_code;
-    nec_parser->parent.del = nec_parser_del;
     return &nec_parser->parent;
 err:
     return ret;
@@ -396,7 +373,6 @@ static esp_err_t rc5_parser_get_scan_code(ir_parser_t *parser, uint32_t *address
     bool t = false;
     bool exchange = false;
     rc5_parser_t *rc5_parser = __containerof(parser, rc5_parser_t, parent);
-    RMT_CHECK(address && command && repeat, "address, command and repeat can't be null", out, ESP_ERR_INVALID_ARG);
     for (int i = 0; i < rc5_parser->buffer_len; i++) {
         if (rc5_duration_one_unit(rc5_parser, rc5_parser->buffer[i].duration0)) {
             parse_result <<= 1;
@@ -448,15 +424,6 @@ out:
 /****************************************************************************************
  * 
  */
-static esp_err_t rc5_parser_del(ir_parser_t *parser) {
-    rc5_parser_t *rc5_parser = __containerof(parser, rc5_parser_t, parent);
-    free(rc5_parser);
-    return ESP_OK;
-}
-
-/****************************************************************************************
- * 
- */
 ir_parser_t *ir_parser_rmt_new_rc5(const ir_parser_config_t *config) {
     ir_parser_t *ret = NULL;
     rc5_parser_t *rc5_parser = calloc(1, sizeof(rc5_parser_t));
@@ -471,7 +438,6 @@ ir_parser_t *ir_parser_rmt_new_rc5(const ir_parser_config_t *config) {
     rc5_parser->margin_ticks = (uint32_t)(ratio * config->margin_us);
     rc5_parser->parent.input = rc5_parser_input;
     rc5_parser->parent.get_scan_code = rc5_parser_get_scan_code;
-    rc5_parser->parent.del = rc5_parser_del;
     return &rc5_parser->parent;
 err:
     return ret;
@@ -488,14 +454,22 @@ void infrared_receive(RingbufHandle_t rb, infrared_handler handler) {
 	if (item) {
 		uint32_t addr, cmd;
         bool repeat = false;
+        bool decoded = false;
 		      
         rx_size /= 4; // one RMT = 4 Bytes
         
         if (ir_parser->input(ir_parser, item, rx_size) == ESP_OK) {
             if (ir_parser->get_scan_code(ir_parser, &addr, &cmd, &repeat) == ESP_OK) {
+                decoded = true;
                 handler(addr, cmd);
                 ESP_LOGI(TAG, "Scan Code %s --- addr: 0x%04x cmd: 0x%04x", repeat ? "(repeat)" : "", addr, cmd);
             }
+        }
+
+        // if we have not decoded data but lenght is reasonnable, dump it
+        if (!decoded && rx_size > RC5_MAX_FRAME_RMT_WORDS) {
+            ESP_LOGI(TAG, "can't decode IR signal of len %d", rx_size);
+            ESP_LOG_BUFFER_HEX(TAG, item, rx_size * 4);
         }
 
 		// after parsing the data, return spaces to ringbuffer.
