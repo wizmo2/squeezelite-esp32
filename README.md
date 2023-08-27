@@ -251,7 +251,7 @@ The NVS parameter "metadata_config" sets how metadata is displayed for AirPlay a
 - 'artwork' enables coverart display, if available (does not work for Bluetooth). The optional parameter indicates if the artwork should be resized (1) to fit the available space. Note that the built-in resizer can only do 2,4 and 8 downsizing, so fit is not optimal. The artwork will be placed at the right of the display for landscape displays and underneath the two information lines for others (there is no user option to tweak that).
 
 ### Infrared
-You can use any IR receiver compatible with NEC protocol (38KHz). Vcc, GND and output are the only pins that need to be connected, no pullup, no filtering capacitor, it's a straight connection.
+You can use any IR receiver compatible with NEC protocol (38KHz) or RC5. Vcc, GND and output are the only pins that need to be connected, no pullup, no filtering capacitor, it's a straight connection.
 
 The IR codes are send "as is" to LMS, so only a Logitech SB remote from Boom, Classic or Touch will work. I think the file Slim_Devices_Remote.ir in the "server" directory of LMS can be modified to adapt to other codes, but I've not tried that.
 
@@ -275,7 +275,7 @@ The `<ir>` parameter set the GPIO associated to an IR receiver. No need to add p
 Syntax is:
 
 ```
-<gpio>=Vcc|GND|amp[:1|0]|ir|jack[:0|1]|green[:0|1]|red[:0|1]|spkfault[:0|1][,<repeated sequence for next GPIO>]
+<gpio>=Vcc|GND|amp[:1|0]|ir[:nec|rc5]|jack[:0|1]|green[:0|1]|red[:0|1]|spkfault[:0|1][,<repeated sequence for next GPIO>]
 ```
 You can define the defaults for jack, spkfault leds at compile time but nvs parameter takes precedence except for named configurations ((SqueezeAMP, Muse ...) where these are forced at runtime.
 **Note that gpio 36 and 39 are input only and cannot use interrupt. When set to jack or speaker fault, a 100ms polling checks their value but that's expensive**
