@@ -18,112 +18,465 @@
 
 static const char* TAG = "IR";
 
-#define RMT_RX_ACTIVE_LEVEL  0   /*!< If we connect with a IR receiver, the data is active low */
+#define IR_TOOLS_FLAGS_PROTO_EXT (1 << 0) /*!< Enable Extended IR protocol */
+#define IR_TOOLS_FLAGS_INVERSE (1 << 1)   /*!< Inverse the IR signal, i.e. take high level as low, and vice versa */
+
+/**
+* @brief IR device type
+*
+*/
+typedef void *ir_dev_t;
+
+/**
+* @brief IR parser type
+*
+*/
+typedef struct ir_parser_s ir_parser_t;
+
+/**
+* @brief Type definition of IR parser
+*
+*/
+struct ir_parser_s {
+    /**
+    * @brief Input raw data to IR parser
+    *
+    * @param[in] parser: Handle of IR parser
+    * @param[in] raw_data: Raw data which need decoding by IR parser
+    * @param[in] length: Length of raw data
+    *
+    * @return
+    *      - ESP_OK: Input raw data successfully
+    *      - ESP_ERR_INVALID_ARG: Input raw data failed because of invalid argument
+    *      - ESP_FAIL: Input raw data failed because some other error occurred
+    */
+    esp_err_t (*input)(ir_parser_t *parser, void *raw_data, uint32_t length);
+
+    /**
+    * @brief Get the scan code after decoding of raw data
+    *
+    * @param[in] parser: Handle of IR parser
+    * @param[out] address: Address of the scan code
+    * @param[out] command: Command of the scan code
+    * @param[out] repeat: Indicate if it's a repeat code
+    *
+    * @return
+    *      - ESP_OK: Get scan code successfully
+    *      - ESP_ERR_INVALID_ARG: Get scan code failed because of invalid arguments
+    *      - ESP_FAIL: Get scan code failed because some error occurred
+    */
+    esp_err_t (*get_scan_code)(ir_parser_t *parser, uint32_t *address, uint32_t *command, bool *repeat);
+
+    /**
+    * @brief Free resources used by IR parser
+    *
+    * @param[in] parser: Handle of IR parser
+    *
+    * @return
+    *      - ESP_OK: Free resource successfully
+    *      - ESP_FAIL: Free resources fail failed because some error occurred
+    */
+    esp_err_t (*del)(ir_parser_t *parser);
+};
+
+typedef struct {
+    ir_dev_t dev_hdl;   /*!< IR device handle */
+    uint32_t flags;     /*!< Flags for IR parser, different flags will enable different features */
+    uint32_t margin_us; /*!< Timing parameter, indicating the tolerance to environment noise */
+} ir_parser_config_t;
+
+#define IR_PARSER_DEFAULT_CONFIG(dev) \
+    {                                 \
+        .dev_hdl = dev,               \
+        .flags = 0,                   \
+        .margin_us = 200,             \
+    }
+
+ir_parser_t *ir_parser = NULL;
 
 #define RMT_RX_CHANNEL    0     /*!< RMT channel for receiver */
-#define RMT_CLK_DIV      100    /*!< RMT counter clock divider */
-#define RMT_TICK_10_US    (80000000/RMT_CLK_DIV/100000)   /*!< RMT counter value for 10 us.(Source clock is APB clock) */
 
-#define NEC_HEADER_HIGH_US    9000                         /*!< NEC protocol header: positive 9ms */
-#define NEC_HEADER_LOW_US     4500                         /*!< NEC protocol header: negative 4.5ms*/
-#define NEC_BIT_ONE_HIGH_US    560                         /*!< NEC protocol data bit 1: positive 0.56ms */
-#define NEC_BIT_ONE_LOW_US    (2250-NEC_BIT_ONE_HIGH_US)   /*!< NEC protocol data bit 1: negative 1.69ms */
-#define NEC_BIT_ZERO_HIGH_US   560                         /*!< NEC protocol data bit 0: positive 0.56ms */
-#define NEC_BIT_ZERO_LOW_US   (1120-NEC_BIT_ZERO_HIGH_US)  /*!< NEC protocol data bit 0: negative 0.56ms */
-#define NEC_BIT_MARGIN         150                          /*!< NEC parse margin time */
+#define RMT_CHECK(a, str, goto_tag, ret_value, ...)                               \
+    do                                                                            \
+    {                                                                             \
+        if (!(a))                                                                 \
+        {                                                                         \
+            ESP_LOGE(TAG, "%s(%d): " str, __FUNCTION__, __LINE__, ##__VA_ARGS__); \
+            ret = ret_value;                                                      \
+            goto goto_tag;                                                        \
+        }                                                                         \
+    } while (0)
 
-#define NEC_ITEM_DURATION(d)  ((d & 0x7fff)*10/RMT_TICK_10_US)  /*!< Parse duration time from memory register value */
-#define NEC_DATA_ITEM_NUM   34  /*!< NEC code item number: header + 32bit data + end */
-#define rmt_item32_tIMEOUT_US  9500   /*!< RMT receiver timeout value(us) */
+
+/****************************************************************************************
+ * NEC protocol
+ ****************************************************************************************/
+
+#define NEC_DATA_FRAME_RMT_WORDS (34)
+#define NEC_REPEAT_FRAME_RMT_WORDS (2)
+#define NEC_LEADING_CODE_HIGH_US (9000)
+#define NEC_LEADING_CODE_LOW_US (4500)
+#define NEC_PAYLOAD_ONE_HIGH_US (560)
+#define NEC_PAYLOAD_ONE_LOW_US (1690)
+#define NEC_PAYLOAD_ZERO_HIGH_US (560)
+#define NEC_PAYLOAD_ZERO_LOW_US (560)
+#define NEC_REPEAT_CODE_HIGH_US (9000)
+#define NEC_REPEAT_CODE_LOW_US (2250)
+#define NEC_ENDING_CODE_HIGH_US (560)
+
+
+typedef struct {
+    ir_parser_t parent;
+    uint32_t flags;
+    uint32_t leading_code_high_ticks;
+    uint32_t leading_code_low_ticks;
+    uint32_t repeat_code_high_ticks;
+    uint32_t repeat_code_low_ticks;
+    uint32_t payload_logic0_high_ticks;
+    uint32_t payload_logic0_low_ticks;
+    uint32_t payload_logic1_high_ticks;
+    uint32_t payload_logic1_low_ticks;
+    uint32_t margin_ticks;
+    rmt_item32_t *buffer;
+    uint32_t cursor;
+    uint32_t last_address;
+    uint32_t last_command;
+    bool repeat;
+    bool inverse;
+} nec_parser_t;
 
 /****************************************************************************************
  * 
  */
-static bool nec_check_in_range(int duration_ticks, int target_us, int margin_us) {
-    if(( NEC_ITEM_DURATION(duration_ticks) < (target_us + margin_us))
-        && ( NEC_ITEM_DURATION(duration_ticks) > (target_us - margin_us))) {
-        return true;
+static inline bool nec_check_in_range(uint32_t raw_ticks, uint32_t target_ticks, uint32_t margin_ticks) {
+    return (raw_ticks < (target_ticks + margin_ticks)) && (raw_ticks > (target_ticks - margin_ticks));
+}
+
+/****************************************************************************************
+ * 
+ */
+static bool nec_parse_head(nec_parser_t *nec_parser) {
+    nec_parser->cursor = 0;
+    rmt_item32_t item = nec_parser->buffer[nec_parser->cursor];
+    bool ret = (item.level0 == nec_parser->inverse) && (item.level1 != nec_parser->inverse) &&
+               nec_check_in_range(item.duration0, nec_parser->leading_code_high_ticks, nec_parser->margin_ticks) &&
+               nec_check_in_range(item.duration1, nec_parser->leading_code_low_ticks, nec_parser->margin_ticks);
+    nec_parser->cursor += 1;
+    return ret;
+}
+
+/****************************************************************************************
+ * 
+ */
+static bool nec_parse_logic0(nec_parser_t *nec_parser) {
+    rmt_item32_t item = nec_parser->buffer[nec_parser->cursor];
+    bool ret = (item.level0 == nec_parser->inverse) && (item.level1 != nec_parser->inverse) &&
+               nec_check_in_range(item.duration0, nec_parser->payload_logic0_high_ticks, nec_parser->margin_ticks) &&
+               nec_check_in_range(item.duration1, nec_parser->payload_logic0_low_ticks, nec_parser->margin_ticks);
+    return ret;
+}
+
+/****************************************************************************************
+ * 
+ */
+static bool nec_parse_logic1(nec_parser_t *nec_parser) {
+    rmt_item32_t item = nec_parser->buffer[nec_parser->cursor];
+    bool ret = (item.level0 == nec_parser->inverse) && (item.level1 != nec_parser->inverse) &&
+               nec_check_in_range(item.duration0, nec_parser->payload_logic1_high_ticks, nec_parser->margin_ticks) &&
+               nec_check_in_range(item.duration1, nec_parser->payload_logic1_low_ticks, nec_parser->margin_ticks);
+    return ret;
+}
+
+/****************************************************************************************
+ * 
+ */
+static esp_err_t nec_parse_logic(ir_parser_t *parser, bool *logic) {
+    esp_err_t ret = ESP_FAIL;
+    bool logic_value = false;
+    nec_parser_t *nec_parser = __containerof(parser, nec_parser_t, parent);
+    if (nec_parse_logic0(nec_parser)) {
+        logic_value = false;
+        ret = ESP_OK;
+    } else if (nec_parse_logic1(nec_parser)) {
+        logic_value = true;
+        ret = ESP_OK;
+    }
+    if (ret == ESP_OK) {
+        *logic = logic_value;
+    }
+    nec_parser->cursor += 1;
+    return ret;
+}
+
+/****************************************************************************************
+ * 
+ */
+static bool nec_parse_repeat_frame(nec_parser_t *nec_parser) {
+    nec_parser->cursor = 0;
+    rmt_item32_t item = nec_parser->buffer[nec_parser->cursor];
+    bool ret = (item.level0 == nec_parser->inverse) && (item.level1 != nec_parser->inverse) &&
+               nec_check_in_range(item.duration0, nec_parser->repeat_code_high_ticks, nec_parser->margin_ticks) &&
+               nec_check_in_range(item.duration1, nec_parser->repeat_code_low_ticks, nec_parser->margin_ticks);
+    nec_parser->cursor += 1;
+    return ret;
+}
+
+/****************************************************************************************
+ * 
+ */
+static esp_err_t nec_parser_input(ir_parser_t *parser, void *raw_data, uint32_t length) {
+    esp_err_t ret = ESP_OK;
+    nec_parser_t *nec_parser = __containerof(parser, nec_parser_t, parent);
+    RMT_CHECK(raw_data, "input data can't be null", err, ESP_ERR_INVALID_ARG);
+    nec_parser->buffer = raw_data;
+    // Data Frame costs 34 items and Repeat Frame costs 2 items
+    if (length == NEC_DATA_FRAME_RMT_WORDS) {
+        nec_parser->repeat = false;
+    } else if (length == NEC_REPEAT_FRAME_RMT_WORDS) {
+        nec_parser->repeat = true;
     } else {
-        return false;
+        ret = ESP_FAIL;
     }
+    return ret;
+err:
+    return ret;
 }
 
 /****************************************************************************************
  * 
  */
-static bool nec_header_if(rmt_item32_t* item) {
-    if((item->level0 == RMT_RX_ACTIVE_LEVEL && item->level1 != RMT_RX_ACTIVE_LEVEL)
-        && nec_check_in_range(item->duration0, NEC_HEADER_HIGH_US, NEC_BIT_MARGIN)
-        && nec_check_in_range(item->duration1, NEC_HEADER_LOW_US, NEC_BIT_MARGIN)) {
-        return true;
-    }
-    return false;
-}
-
-/****************************************************************************************
- * 
- */
-static bool nec_bit_one_if(rmt_item32_t* item) {
-    if((item->level0 == RMT_RX_ACTIVE_LEVEL && item->level1 != RMT_RX_ACTIVE_LEVEL)
-        && nec_check_in_range(item->duration0, NEC_BIT_ONE_HIGH_US, NEC_BIT_MARGIN)
-        && nec_check_in_range(item->duration1, NEC_BIT_ONE_LOW_US, NEC_BIT_MARGIN)) {
-        return true;
-    }
-    return false;
-}
-
-/****************************************************************************************
- * 
- */
-static bool nec_bit_zero_if(rmt_item32_t* item) {
-    if((item->level0 == RMT_RX_ACTIVE_LEVEL && item->level1 != RMT_RX_ACTIVE_LEVEL)
-        && nec_check_in_range(item->duration0, NEC_BIT_ZERO_HIGH_US, NEC_BIT_MARGIN)
-        && nec_check_in_range(item->duration1, NEC_BIT_ZERO_LOW_US, NEC_BIT_MARGIN)) {
-        return true;
-    }
-    return false;
-}
-
-/****************************************************************************************
- * 
- */
-static int nec_parse_items(rmt_item32_t* item, int item_num, uint16_t* addr, uint16_t* data) {
-    int w_len = item_num;
-    if(w_len < NEC_DATA_ITEM_NUM) {
-        return -1;
-    }
-    int i = 0, j = 0;
-    if(!nec_header_if(item++)) {
-        return -1;
-    }
-    uint16_t addr_t = 0;
-    for(j = 15; j >= 0; j--) {
-        if(nec_bit_one_if(item)) {
-            addr_t |= (1 << j);
-        } else if(nec_bit_zero_if(item)) {
-            addr_t |= (0 << j);
-        } else {
-            return -1;
+static esp_err_t nec_parser_get_scan_code(ir_parser_t *parser, uint32_t *address, uint32_t *command, bool *repeat) {
+    esp_err_t ret = ESP_FAIL;
+    uint32_t addr = 0;
+    uint32_t cmd = 0;
+    bool logic_value = false;
+    nec_parser_t *nec_parser = __containerof(parser, nec_parser_t, parent);
+    RMT_CHECK(address && command && repeat, "address, command and repeat can't be null", out, ESP_ERR_INVALID_ARG);
+    if (nec_parser->repeat) {
+        if (nec_parse_repeat_frame(nec_parser)) {
+            *address = nec_parser->last_address;
+            *command = nec_parser->last_command;
+            *repeat = true;
+            ret = ESP_OK;
         }
-        item++;
-        i++;
-    }
-    uint16_t data_t = 0;
-    for(j = 15; j >= 0; j--) {
-        if(nec_bit_one_if(item)) {
-            data_t |= (1 << j);
-        } else if(nec_bit_zero_if(item)) {
-            data_t |= (0 << j);
-        } else {
-            return -1;
+    } else {
+        if (nec_parse_head(nec_parser)) {
+            // for the forgetful, need to do a bitreverse
+            for (int i = 15; i >= 0; i--) {
+                if (nec_parse_logic(parser, &logic_value) == ESP_OK) {
+                    addr |= (logic_value << i);
+                }
+            }
+            for (int i = 15; i >= 0; i--) {
+                if (nec_parse_logic(parser, &logic_value) == ESP_OK) {
+                    cmd |= (logic_value << i);
+                }
+            }
+            *address = addr;
+            *command = cmd;
+            *repeat = false;
+            // keep it as potential repeat code
+            nec_parser->last_address = addr;
+            nec_parser->last_command = cmd;
+            ret = ESP_OK;
         }
-        item++;
-        i++;
     }
-    *addr = addr_t;
-    *data = data_t;
-    return i;
+out:
+    return ret;
 }
+
+/****************************************************************************************
+ * 
+ */
+static esp_err_t nec_parser_del(ir_parser_t *parser) {
+    nec_parser_t *nec_parser = __containerof(parser, nec_parser_t, parent);
+    free(nec_parser);
+    return ESP_OK;
+}
+
+/****************************************************************************************
+ * 
+ */
+ir_parser_t *ir_parser_rmt_new_nec(const ir_parser_config_t *config) {
+    ir_parser_t *ret = NULL;
+    nec_parser_t *nec_parser = calloc(1, sizeof(nec_parser_t));
+
+    nec_parser->flags = config->flags;
+    if (config->flags & IR_TOOLS_FLAGS_INVERSE) {
+        nec_parser->inverse = true;
+    }
+
+    uint32_t counter_clk_hz = 0;
+    RMT_CHECK(rmt_get_counter_clock((rmt_channel_t)config->dev_hdl, &counter_clk_hz) == ESP_OK,
+              "get rmt counter clock failed", err, NULL);
+    float ratio = (float)counter_clk_hz / 1e6;
+    nec_parser->leading_code_high_ticks = (uint32_t)(ratio * NEC_LEADING_CODE_HIGH_US);
+    nec_parser->leading_code_low_ticks = (uint32_t)(ratio * NEC_LEADING_CODE_LOW_US);
+    nec_parser->repeat_code_high_ticks = (uint32_t)(ratio * NEC_REPEAT_CODE_HIGH_US);
+    nec_parser->repeat_code_low_ticks = (uint32_t)(ratio * NEC_REPEAT_CODE_LOW_US);
+    nec_parser->payload_logic0_high_ticks = (uint32_t)(ratio * NEC_PAYLOAD_ZERO_HIGH_US);
+    nec_parser->payload_logic0_low_ticks = (uint32_t)(ratio * NEC_PAYLOAD_ZERO_LOW_US);
+    nec_parser->payload_logic1_high_ticks = (uint32_t)(ratio * NEC_PAYLOAD_ONE_HIGH_US);
+    nec_parser->payload_logic1_low_ticks = (uint32_t)(ratio * NEC_PAYLOAD_ONE_LOW_US);
+    nec_parser->margin_ticks = (uint32_t)(ratio * config->margin_us);
+    nec_parser->parent.input = nec_parser_input;
+    nec_parser->parent.get_scan_code = nec_parser_get_scan_code;
+    nec_parser->parent.del = nec_parser_del;
+    return &nec_parser->parent;
+err:
+    return ret;
+}
+
+/****************************************************************************************
+ * RC5 protocol
+ ****************************************************************************************/
+ 
+#define RC5_MAX_FRAME_RMT_WORDS (14) // S1+S2+T+ADDR(5)+CMD(6)
+#define RC5_PULSE_DURATION_US (889)
+
+typedef struct {
+    ir_parser_t parent;
+    uint32_t flags;
+    uint32_t pulse_duration_ticks;
+    uint32_t margin_ticks;
+    rmt_item32_t *buffer;
+    uint32_t buffer_len;
+    uint32_t last_command;
+    uint32_t last_address;
+    bool last_t_bit;
+} rc5_parser_t;
+
+/****************************************************************************************
+ * 
+ */
+static inline bool rc5_check_in_range(uint32_t raw_ticks, uint32_t target_ticks, uint32_t margin_ticks) {
+    return (raw_ticks < (target_ticks + margin_ticks)) && (raw_ticks > (target_ticks - margin_ticks));
+}
+
+/****************************************************************************************
+ * 
+ */
+static esp_err_t rc5_parser_input(ir_parser_t *parser, void *raw_data, uint32_t length) {
+    esp_err_t ret = ESP_OK;
+    rc5_parser_t *rc5_parser = __containerof(parser, rc5_parser_t, parent);
+    rc5_parser->buffer = raw_data;
+    rc5_parser->buffer_len = length;
+    if (length > RC5_MAX_FRAME_RMT_WORDS) {
+        ret = ESP_FAIL;
+    }
+    return ret;
+}
+
+/****************************************************************************************
+ * 
+ */
+static inline bool rc5_duration_one_unit(rc5_parser_t *rc5_parser, uint32_t duration) {
+    return (duration < (rc5_parser->pulse_duration_ticks + rc5_parser->margin_ticks)) &&
+           (duration > (rc5_parser->pulse_duration_ticks - rc5_parser->margin_ticks));
+}
+
+/****************************************************************************************
+ * 
+ */
+static inline bool rc5_duration_two_unit(rc5_parser_t *rc5_parser, uint32_t duration) {
+    return (duration < (rc5_parser->pulse_duration_ticks * 2 + rc5_parser->margin_ticks)) &&
+           (duration > (rc5_parser->pulse_duration_ticks * 2 - rc5_parser->margin_ticks));
+}
+
+/****************************************************************************************
+ * 
+ */
+static esp_err_t rc5_parser_get_scan_code(ir_parser_t *parser, uint32_t *address, uint32_t *command, bool *repeat) {
+    esp_err_t ret = ESP_FAIL;
+    uint32_t parse_result = 0; // 32 bit is enough to hold the parse result of one RC5 frame
+    uint32_t addr = 0;
+    uint32_t cmd = 0;
+    bool s1 = true;
+    bool s2 = true;
+    bool t = false;
+    bool exchange = false;
+    rc5_parser_t *rc5_parser = __containerof(parser, rc5_parser_t, parent);
+    RMT_CHECK(address && command && repeat, "address, command and repeat can't be null", out, ESP_ERR_INVALID_ARG);
+    for (int i = 0; i < rc5_parser->buffer_len; i++) {
+        if (rc5_duration_one_unit(rc5_parser, rc5_parser->buffer[i].duration0)) {
+            parse_result <<= 1;
+            parse_result |= exchange;
+            if (rc5_duration_two_unit(rc5_parser, rc5_parser->buffer[i].duration1)) {
+                exchange = !exchange;
+            }
+        } else if (rc5_duration_two_unit(rc5_parser, rc5_parser->buffer[i].duration0)) {
+            parse_result <<= 1;
+            parse_result |= rc5_parser->buffer[i].level0;
+            parse_result <<= 1;
+            parse_result |= !rc5_parser->buffer[i].level0;
+            if (rc5_duration_one_unit(rc5_parser, rc5_parser->buffer[i].duration1)) {
+                exchange = !exchange;
+            }
+        } else {
+            goto out;
+        }
+    }
+    if (!(rc5_parser->flags & IR_TOOLS_FLAGS_INVERSE)) {
+        parse_result = ~parse_result;
+    }
+    s1 = ((parse_result & 0x2000) >> 13) & 0x01;
+    s2 = ((parse_result & 0x1000) >> 12) & 0x01;
+    t = ((parse_result & 0x800) >> 11) & 0x01;
+    // Check S1, must be 1
+    if (s1) {
+        if (!(rc5_parser->flags & IR_TOOLS_FLAGS_PROTO_EXT) && !s2) {
+            // Not standard RC5 protocol, but S2 is 0
+            goto out;
+        }
+        addr = (parse_result & 0x7C0) >> 6;
+        cmd = (parse_result & 0x3F);
+        if (!s2) {
+            cmd |= 1 << 6;
+        }
+        *repeat = (t == rc5_parser->last_t_bit && addr == rc5_parser->last_address && cmd == rc5_parser->last_command);
+        *address = addr;
+        *command = cmd;
+        rc5_parser->last_address = addr;
+        rc5_parser->last_command = cmd;
+        rc5_parser->last_t_bit = t;
+        ret = ESP_OK;
+    }
+out:
+    return ret;
+}
+
+/****************************************************************************************
+ * 
+ */
+static esp_err_t rc5_parser_del(ir_parser_t *parser) {
+    rc5_parser_t *rc5_parser = __containerof(parser, rc5_parser_t, parent);
+    free(rc5_parser);
+    return ESP_OK;
+}
+
+/****************************************************************************************
+ * 
+ */
+ir_parser_t *ir_parser_rmt_new_rc5(const ir_parser_config_t *config) {
+    ir_parser_t *ret = NULL;
+    rc5_parser_t *rc5_parser = calloc(1, sizeof(rc5_parser_t));
+
+    rc5_parser->flags = config->flags;
+
+    uint32_t counter_clk_hz = 0;
+    RMT_CHECK(rmt_get_counter_clock((rmt_channel_t)config->dev_hdl, &counter_clk_hz) == ESP_OK,
+              "get rmt counter clock failed", err, NULL);
+    float ratio = (float)counter_clk_hz / 1e6;
+    rc5_parser->pulse_duration_ticks = (uint32_t)(ratio * RC5_PULSE_DURATION_US);
+    rc5_parser->margin_ticks = (uint32_t)(ratio * config->margin_us);
+    rc5_parser->parent.input = rc5_parser_input;
+    rc5_parser->parent.get_scan_code = rc5_parser_get_scan_code;
+    rc5_parser->parent.del = rc5_parser_del;
+    return &rc5_parser->parent;
+err:
+    return ret;
+}
+
 
 /****************************************************************************************
  * 
@@ -131,47 +484,41 @@ static int nec_parse_items(rmt_item32_t* item, int item_num, uint16_t* addr, uin
 void infrared_receive(RingbufHandle_t rb, infrared_handler handler) {
 	size_t rx_size = 0;
 	rmt_item32_t* item = (rmt_item32_t*) xRingbufferReceive(rb, &rx_size, 10 / portTICK_RATE_MS);
-	
+    
 	if (item) {
-		uint16_t addr, cmd;
-		int offset = 0;
-		
-		while (1) {
-			// parse data value from ringbuffer.
-			int res = nec_parse_items(item + offset, rx_size / 4 - offset, &addr, &cmd);
-			if (res > 0) {
-				offset += res + 1;
-				handler(addr, cmd);
-				ESP_LOGD(TAG, "RMT RCV --- addr: 0x%04x cmd: 0x%04x", addr, cmd);
-			} else break;
+		uint32_t addr, cmd;
+        bool repeat = false;
+		      
+        rx_size /= 4; // one RMT = 4 Bytes
+        
+        if (ir_parser->input(ir_parser, item, rx_size) == ESP_OK) {
+            if (ir_parser->get_scan_code(ir_parser, &addr, &cmd, &repeat) == ESP_OK) {
+                handler(addr, cmd);
+                ESP_LOGI(TAG, "Scan Code %s --- addr: 0x%04x cmd: 0x%04x", repeat ? "(repeat)" : "", addr, cmd);
+            }
         }
-		
+
 		// after parsing the data, return spaces to ringbuffer.
         vRingbufferReturnItem(rb, (void*) item);
     }
 }
 
+
 /****************************************************************************************
  * 
  */
-void infrared_init(RingbufHandle_t *rb, int gpio) {
-	rmt_config_t rmt_rx;
-	
-	ESP_LOGI(TAG, "Starting Infrared Receiver on gpio %d", gpio);
-	
-	// initialize RMT driver
-    rmt_rx.channel = RMT_RX_CHANNEL;
-    rmt_rx.gpio_num = gpio;
-    rmt_rx.clk_div = RMT_CLK_DIV;
-    rmt_rx.mem_block_num = 1;
-    rmt_rx.rmt_mode = RMT_MODE_RX;
-    rmt_rx.rx_config.filter_en = true;
-    rmt_rx.rx_config.filter_ticks_thresh = 100;
-    rmt_rx.rx_config.idle_threshold = rmt_item32_tIMEOUT_US / 10 * (RMT_TICK_10_US);
-    rmt_config(&rmt_rx);
-    rmt_driver_install(rmt_rx.channel, 1000, 0);
-	
-	// get RMT RX ringbuffer
+void infrared_init(RingbufHandle_t *rb, int gpio, infrared_mode_t mode) { 
+    ESP_LOGI(TAG, "Starting Infrared Receiver mode %s on gpio %d", mode == IR_NEC ? "nec" : "rc5", gpio);
+    
+    rmt_config_t rmt_rx_config = RMT_DEFAULT_CONFIG_RX(gpio, RMT_RX_CHANNEL);
+    rmt_config(&rmt_rx_config);
+    rmt_driver_install(rmt_rx_config.channel, 1000, 0);
+    ir_parser_config_t ir_parser_config = IR_PARSER_DEFAULT_CONFIG((ir_dev_t) rmt_rx_config.channel);
+    ir_parser_config.flags |= IR_TOOLS_FLAGS_PROTO_EXT; // Using extended IR protocols (both NEC and RC5 have extended version)
+
+    ir_parser = (mode == IR_NEC) ? ir_parser_rmt_new_nec(&ir_parser_config) : ir_parser_rmt_new_rc5(&ir_parser_config);
+    
+    // get RMT RX ringbuffer
     rmt_get_ringbuf_handle(RMT_RX_CHANNEL, rb);
     rmt_rx_start(RMT_RX_CHANNEL, 1);
 }

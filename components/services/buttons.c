@@ -423,9 +423,9 @@ bool create_rotary(void *id, int A, int B, int SW, int long_press, rotary_handle
 /****************************************************************************************
  * Create Infrared
  */
-bool create_infrared(int gpio, infrared_handler handler) {
+bool create_infrared(int gpio, infrared_handler handler, infrared_mode_t mode) {
 	// initialize IR infrastructure
-	infrared_init(&infrared.rb, gpio);
+	infrared_init(&infrared.rb, gpio, mode);
 	infrared.handler = handler;
 	
 	// join the queue set

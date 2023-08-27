@@ -35,4 +35,4 @@ typedef void (*rotary_handler)(void *id, rotary_event_e event, bool long_press);
 
 bool create_rotary(void *id, int A, int B, int SW, int long_press, rotary_handler handler);
 
-bool create_infrared(int gpio, infrared_handler handler);
+bool create_infrared(int gpio, infrared_handler handler, infrared_mode_t mode);
