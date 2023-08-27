@@ -11,7 +11,10 @@
 #include <stdint.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/ringbuf.h"
- 
+
+typedef enum {IR_NEC, IR_RC5} infrared_mode_t;
 typedef void (*infrared_handler)(uint16_t addr, uint16_t cmd);
+
 void infrared_receive(RingbufHandle_t rb, infrared_handler handler);
-void infrared_init(RingbufHandle_t *rb, int gpio);
+void infrared_init(RingbufHandle_t *rb, int gpio, infrared_mode_t mode);
+

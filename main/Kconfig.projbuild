@@ -178,6 +178,7 @@ menu "Squeezelite-ESP32"
 		config SET_GPIO
 			string
 			default "0=ir" if SQUEEZEAMP
+			default "" if TWATCH2020
 	endmenu
 
 	menu "Audio settings"

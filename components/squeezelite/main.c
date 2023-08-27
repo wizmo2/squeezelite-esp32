@@ -53,6 +53,7 @@ static void usage(const char *argv0) {
 		   "Usage: %s [options]\n"
 		   "  -s <server>[:<port>]\tConnect to specified server, otherwise uses autodiscovery to find server\n"
 #if !EMBEDDED		   
+           "  NB: use \"-disable\" (no quote) as server to disable LMS connection\n"
 		   "  -o <output device>\tSpecify output device, default \"default\", - = output to stdout\n"
 		   "  -l \t\t\tList output devices\n"
 #endif		   
@@ -810,6 +811,12 @@ int squeezelite_main(int argc, char **argv) {
 		exit(1);
 	}
 
+#if EMBEDDED
+    if (server && !strcasecmp(server, "-disable")) {
+        LOG_ERROR("LMS is disabled");
+        while (1) sleep(3600);
+    }
+#endif
 	slimproto(log_slimproto, server, mac, name, namefile, modelname, maxSampleRate);
 
 	decode_close();

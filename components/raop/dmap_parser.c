@@ -46,11 +46,11 @@ typedef struct {
 } dmap_field;
 
 static const dmap_field dmap_fields[] = {
+#ifdef DMAP_FULL
 	{ "abal",    DMAP_DICT, DMAP_STR,  "daap.browsealbumlisting" },
 	{ "abar",    DMAP_DICT, DMAP_STR,  "daap.browseartistlisting" },
 	{ "abcp",    DMAP_DICT, DMAP_STR,  "daap.browsecomposerlisting" },
 	{ "abgn",    DMAP_DICT, DMAP_STR,  "daap.browsegenrelisting" },
-#ifdef DMAP_FULL        
 	{ "abpl",    DMAP_UINT, 0,         "daap.baseplaylist" },
 	{ "abro",    DMAP_DICT, 0,         "daap.databasebrowse" },
 	{ "adbs",    DMAP_DICT, 0,         "daap.databasesongs" },
@@ -139,8 +139,10 @@ static const dmap_field dmap_fields[] = {
 	{ "asaa",    DMAP_STR,  0,         "daap.songalbumartist" },
 	{ "asac",    DMAP_UINT, 0,         "daap.songartworkcount" },
 	{ "asai",    DMAP_UINT, 0,         "daap.songalbumid" },
+#endif
 	{ "asal",    DMAP_STR,  0,         "daap.songalbum" },
 	{ "asar",    DMAP_STR,  0,         "daap.songartist" },
+#ifdef DMAP_FULL
 	{ "asas",    DMAP_UINT, 0,         "daap.songalbumuserratingstatus" },
 	{ "asbk",    DMAP_UINT, 0,         "daap.bookmarkable" },
 	{ "asbo",    DMAP_UINT, 0,         "daap.songbookmark" },
@@ -257,12 +259,12 @@ static const dmap_field dmap_fields[] = {
 	{ "meia",    DMAP_UINT, 0,         "dmap.itemdateadded" },
 	{ "meip",    DMAP_UINT, 0,         "dmap.itemdateplayed" },
 	{ "mext",    DMAP_UINT, 0,         "dmap.objectextradata" },
-#endif    
 	{ "miid",    DMAP_UINT, 0,         "dmap.itemid" },
 	{ "mikd",    DMAP_UINT, 0,         "dmap.itemkind" },
 	{ "mimc",    DMAP_UINT, 0,         "dmap.itemcount" },
+#endif
 	{ "minm",    DMAP_STR,  0,         "dmap.itemname" },
-#ifdef DMAP_FULL    
+#ifdef DMAP_FULL
 	{ "mlcl",    DMAP_DICT, DMAP_DICT, "dmap.listing" },
 	{ "mlid",    DMAP_UINT, 0,         "dmap.sessionid" },
 	{ "mlit",    DMAP_ITEM, 0,         "dmap.listingitem" },
@@ -317,7 +319,7 @@ static const dmap_field dmap_fields[] = {
 	{ "prat",    DMAP_UINT, 0,         "dpap.imagerating" },
 	{ "pret",    DMAP_DICT, 0,         "dpap.retryids" },
 	{ "pwth",    DMAP_UINT, 0,         "dpap.imagepixelwidth" }
-#endif    
+#endif
 };
 static const size_t dmap_field_count = sizeof(dmap_fields) / sizeof(dmap_field);
 
@@ -424,7 +426,7 @@ static int dmap_parse_internal(const dmap_settings *settings, const char *buf, s
 			/* Make a best guess of the type */
 			field_type = DMAP_UNKNOWN;
 			field_name = code;
-#ifdef DMAP_FULL    
+
 			if (field_len >= 8) {
 				/* Look for a four char code followed by a length within the current field */
 				if (isalpha(p[0] & 0xff) &&
@@ -435,7 +437,7 @@ static int dmap_parse_internal(const dmap_settings *settings, const char *buf, s
 						field_type = DMAP_DICT;
 				}
 			}
-
+#ifdef DMAP_FULL
 			if (field_type == DMAP_UNKNOWN) {
 				size_t i;
 				int is_string = 1;
@@ -448,7 +450,7 @@ static int dmap_parse_internal(const dmap_settings *settings, const char *buf, s
 
 				field_type = is_string ? DMAP_STR : DMAP_UINT;
 			}
-#endif            
+#endif
 		}
 
 		switch (field_type) {

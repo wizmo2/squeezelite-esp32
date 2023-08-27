@@ -120,8 +120,9 @@ static void ir_handler(uint16_t addr, uint16_t cmd) {
  * 
  */
 static void set_ir_gpio(int gpio, char *value) {
-	if (!strcasecmp(value, "ir") ) {
-		create_infrared(gpio, ir_handler);
+	if (strcasestr(value, "ir")) {
+        if (strcasestr(value, "rc5")) create_infrared(gpio, ir_handler, IR_RC5);
+		else create_infrared(gpio, ir_handler, IR_NEC);
 	}	
 }	
  
