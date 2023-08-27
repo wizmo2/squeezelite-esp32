@@ -712,7 +712,7 @@ static int do_i2s_cmd(int argc, char **argv)
 		cmd_send_messaging(argv[0],MESSAGING_ERROR,"DAC Configuration is locked on this platform\n");
 		return 1;
 	}
-	strcpy(i2s_dac_pin.model, "I2S");
+	//strcpy(i2s_dac_pin.model, "I2S");
 	ESP_LOGD(TAG,"Processing i2s command %s with %d parameters",argv[0],argc);
 
 	esp_err_t err=ESP_OK;
@@ -1076,7 +1076,7 @@ static char * get_log_level_options(const char * longname){
 
 // loop through dac_set and concatenate model name separated with |
 static char * get_dac_list(){
-	const char * ES8388_MODEL_NAME = "ES8388|";
+	const char * EXTRA_MODEL_NAMES = "ES8388|I2S";
 	char * dac_list=NULL;
 	size_t total_len=0;
 	for(int i=0;dac_set[i];i++){
@@ -1087,7 +1087,7 @@ static char * get_dac_list(){
 			break;
 		}
 	}
-	total_len+=strlen(ES8388_MODEL_NAME);
+	total_len+=strlen(EXTRA_MODEL_NAMES);
 	dac_list = malloc_init_external(total_len+1);
 	if(dac_list){
 		for(int i=0;dac_set[i];i++){
@@ -1099,7 +1099,7 @@ static char * get_dac_list(){
 				break;
 			}
 		}
-		strcat(dac_list,ES8388_MODEL_NAME);
+		strcat(dac_list,EXTRA_MODEL_NAMES);
 	}
 	return dac_list;
 }
@@ -1270,7 +1270,7 @@ static void register_cspot_config(){
 }
 #endif
 static void register_i2s_config(void){
-	i2s_args.model_name = arg_str1(NULL,"model_name",STR_OR_BLANK(get_dac_list()),"DAC Model Name");
+	i2s_args.model_name = arg_str0(NULL,"model_name",STR_OR_BLANK(get_dac_list()),"DAC Model Name");
 	i2s_args.clear = arg_lit0(NULL, "clear", "Clear configuration");
     i2s_args.clock = arg_int0(NULL,"clock","<n>","Clock GPIO. e.g. 33");
     i2s_args.wordselect = arg_int0(NULL,"wordselect","<n>","Word Select GPIO. e.g. 25");
