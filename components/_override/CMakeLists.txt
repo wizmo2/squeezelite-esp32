@@ -1,4 +1,4 @@
-if(IDF_TARGET STREQUAL esp32)
+if(IDF_TARGET STREQUAL esp32 AND IDF_VERSION_MAJOR EQUAL 4 AND IDF_VERSION_MINOR LESS 4)
     set(lib_dir ${build_dir}/esp-idf)
     set(driver esp32/i2s.c esp32/i2s_hal.c)
     string(REPLACE ".c" ".c.obj" driver_obj "${driver}")
@@ -19,4 +19,6 @@ if(IDF_TARGET STREQUAL esp32)
                 COMMAND xtensa-esp32-elf-ar -d ${lib_dir}/driver/libdriver.a ${driver_obj}
                 VERBATIM
     )
+else()
+    message(STATUS "==> NO I2S LIBRARY OVERRIDE, SPDIF MIGHT NOT WORK <==")
 endif()

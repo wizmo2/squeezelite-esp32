@@ -537,7 +537,7 @@ static esp_err_t mpr121_init(gpio_exp_t* self) {
 		{ 0x57, 0x28 }, { 0x58, 0x14 }, /* ELE11: Touch Threshold, Release Threshold */
 
 		{ 0x5e, 0xcc }, /* ECR - must be set last */
-		{0, 0} 
+		{ 0, 0 } 
 	};
 
 	esp_err_t err = 0;
