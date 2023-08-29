@@ -287,14 +287,14 @@ Each expander can support up to 32 GPIO. To use an expander for buttons, an inte
 
 The parameter "gpio_exp_config" is a semicolon (;) separated list with following syntax for each expander
 ```
-model=<model>,addr=<addr>,[,port=system|dac][,base=<n>|100][,count=<n>|16][,intr=<gpio>][,cs=<gpio>][,speed=<Hz>]
+model=<model>,addr=<addr>,[,port=system|dac][,base=<n>][,count=<n>][,intr=<gpio>][,cs=<gpio>][,speed=<Hz>]
 ```	
 - model: pca9535, pca85xx, mcp23017 and mcp23s17 (SPI version)
 - addr: chip i2c/spi address (decimal)
 - port (I2C): use either "system" port (shared with display for example) or "dac" port (system is default)
 - cs (SPI): gpio used for Chip Select
 - speed (SPI): speed of the SPI bus for that device (in Hz)	
-- base: GPIO numbering offset to use everywhere else (default 40)
+- base: GPIO numbering offset to use everywhere else (default 40 on esp32 and 48 on esp32-s3)
 - count: number of GPIO of expander (default 16 - might be obsolted if model if sufficient to decide)
 - intr: real GPIO to use as interrupt.
 	
