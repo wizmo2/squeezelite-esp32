@@ -56,12 +56,10 @@ static bool handler(u8_t *data, int len){
 	
 	if (!strncmp((char*) data, "eqlz", 4)) {
 		s8_t *gain = (s8_t*) (data + sizeof(struct eqlz_packet));
-		LOG_INFO("got equalizer %d", len);
 		// update will be done at next opportunity
 		equalizer_set_gain(gain);
     } else if (!strncmp((char*) data, "loud", 4)) {
 		struct loud_packet *packet = (struct loud_packet*) data;
-		LOG_INFO("got loudness %d", packet->loudness);
 		// update will be done at next opportunity
 		equalizer_set_loudness(packet->loudness);
 	} else {
