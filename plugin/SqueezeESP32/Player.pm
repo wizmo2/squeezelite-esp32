@@ -115,6 +115,7 @@ sub initPrefs {
 
 	$prefs->client($client)->init( {
 		equalizer => [(0) x 10],
+        loudness => 0,
 		artwork => undef,
 		led_config => 0,
 		led_visualizer => 0,
@@ -214,6 +215,14 @@ sub send_equalizer {
 	my $size = @$equalizer;
 	my $data = pack("c[$size]", @{$equalizer});
 	$client->sendFrame( eqlz => \$data );
+}
+
+sub send_loudness {
+	my ($client, $loudness) = @_;
+   
+    $loudness ||= $prefs->client($client)->get('loudness') || 0;
+	my $data = pack("c1", $loudness);
+	$client->sendFrame( loud => \$data );   
 }
 
 sub update_equalizer {
@@ -318,6 +327,7 @@ sub reconnect {
 	$client->pluginData('artwork_md5', '');
 	$client->config_artwork if $client->display->isa("Plugins::SqueezeESP32::Graphics");
 	$client->send_equalizer;
+    $client->send_loudness;
 }
 
 # Change the analog output mode between headphone and sub-woofer

@@ -87,6 +87,8 @@ sub handler {
 			$equalizer = [ splice(@$equalizer, 0, 10) ];
 			$cprefs->set('equalizer', $equalizer);
 			$client->update_tones($equalizer);
+            
+            $cprefs->set('loudness', $paramRef->{"pref_loudness"} || 0);
 		}
 
 		if ($client->hasLED) {
@@ -107,7 +109,10 @@ sub handler {
 		$paramRef->{'ledVisualModes'} = Plugins::SqueezeESP32::RgbLed::ledVisualModeOptions($client);
 	}
 
-	$paramRef->{'pref_equalizer'} = $cprefs->get('equalizer') if $client->can('depth') &&  $client->depth == 16;
+    if ($client->can('depth') &&  $client->depth == 16) {      
+        $paramRef->{'pref_equalizer'} = $cprefs->get('equalizer');
+        $paramRef->{'pref_loudness'} = $cprefs->get('loudness');
+    }
 	$paramRef->{'player_ip'} = $client->ip;
 
 	require Plugins::SqueezeESP32::FirmwareHelper;

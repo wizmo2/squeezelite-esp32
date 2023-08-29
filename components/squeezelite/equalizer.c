@@ -63,9 +63,9 @@ static const float loudness_envelope_coefficients[EQ_BANDS][POLYNOME_COUNT] = {
 /****************************************************************************************
  * calculate loudness gains
  */
-static void calculate_loudness(void) {
-	for (int i = 0; i < EQ_BANDS && equalizer.loudness > 0; i++) {
-		for (int j = 0; j < POLYNOME_COUNT; j++) {
+static void calculate_loudness(void) {      
+	for (int i = 0; i < EQ_BANDS; i++) {
+		for (int j = 0; j < POLYNOME_COUNT && equalizer.loudness != 0; j++) {
 			equalizer.loudness_gain[i] +=
 				loudness_envelope_coefficients[i][j] * pow(equalizer.volume, j);
 		}
