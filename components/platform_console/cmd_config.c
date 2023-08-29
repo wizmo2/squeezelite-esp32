@@ -32,6 +32,7 @@ const char * desc_rotary= "Rotary Control";
 const char * desc_ledvu= "Led Strip Options";
 
 extern const struct adac_s *dac_set[];
+extern void equalizer_set_loudness(uint8_t);
 
 #define CODECS_BASE "flac|pcm|mp3|ogg"
 #if NO_FAAD
@@ -140,6 +141,7 @@ static struct {
 } spdif_args;
 static struct {
     struct arg_str *jack_behavior;	
+   	struct arg_int *loudness;
     struct arg_end *end;
 } audio_args;
 static struct {
@@ -447,6 +449,30 @@ static int do_audio_cmd(int argc, char **argv){
 		fclose(f);
 		return 1;
 	}
+    
+    err = ESP_OK; // suppress any error code that might have happened in a previous step
+
+	if(audio_args.loudness->count>0){
+		char p[4]={0};
+		int loudness_val = audio_args.loudness->ival[0];
+		if( loudness_val < 0 || loudness_val>100){
+			nerrors++;
+            fprintf(f,"Invalid loudness value %d. Valid values are between 0 and 100.\n",loudness_val);
+		}
+        // it's not necessary to store loudness in NVS as set_loudness does it, but it does not hurt
+		else {
+			itoa(loudness_val,p,10);
+			err = config_set_value(NVS_TYPE_STR, "loudness", p);
+		}
+        if(err!=ESP_OK){
+            nerrors++;
+            fprintf(f,"Error setting Loudness value %s. %s\n",p, esp_err_to_name(err));
+        }
+        else {
+            fprintf(f,"Loudness changed to %s\n",p);
+			equalizer_set_loudness(loudness_val);
+       }
+    }
 
     if(audio_args.jack_behavior->count>0){
         err = ESP_OK; // suppress any error code that might have happened in a previous step
@@ -712,7 +738,7 @@ static int do_i2s_cmd(int argc, char **argv)
 		cmd_send_messaging(argv[0],MESSAGING_ERROR,"DAC Configuration is locked on this platform\n");
 		return 1;
 	}
-	//strcpy(i2s_dac_pin.model, "I2S");
+
 	ESP_LOGD(TAG,"Processing i2s command %s with %d parameters",argv[0],argc);
 
 	esp_err_t err=ESP_OK;
@@ -927,7 +953,10 @@ cJSON * audio_cb(){
 	cJSON * values = cJSON_CreateObject();
 	char * 	p = config_alloc_get_default(NVS_TYPE_STR, "jack_mutes_amp", "n", 0);
     cJSON_AddStringToObject(values,"jack_behavior",(strcmp(p,"1") == 0 ||strcasecmp(p,"y") == 0)?"Headphones":"Subwoofer");
-    FREE_AND_NULL(p);    
+    FREE_AND_NULL(p);
+    p = config_alloc_get_default(NVS_TYPE_STR, "loudness", "0", 0);
+    cJSON_AddStringToObject(values,"loudness",p);
+    FREE_AND_NULL(p);     
 	return values;
 }
 cJSON * bt_source_cb(){
@@ -1354,6 +1383,8 @@ static void register_ledvu_config(void){
 
 static void register_audio_config(void){
 	audio_args.jack_behavior = arg_str0("j", "jack_behavior","Headphones|Subwoofer","On supported DAC, determines the audio jack behavior. Selecting headphones will cause the external amp to be muted on insert, while selecting Subwoofer will keep the amp active all the time.");
+    audio_args.loudness = arg_int0("l", "loudness","0-100","Sets the loudness level, from 0 to 100. 0 will disable the loudness completely.");	
+    audio_args.end = arg_end(6);
     audio_args.end = arg_end(6);
 	const esp_console_cmd_t cmd = {
         .command = CFG_TYPE_AUDIO("general"),

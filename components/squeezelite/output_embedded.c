@@ -44,6 +44,11 @@ static void (*close_cb)(void);
 struct eqlz_packet {
 	char  opcode[4];
 };
+
+struct loud_packet {
+	char  opcode[4];
+    u8_t  loudness;
+};
 #pragma pack(pop)
 
 static bool handler(u8_t *data, int len){
@@ -53,7 +58,12 @@ static bool handler(u8_t *data, int len){
 		s8_t *gain = (s8_t*) (data + sizeof(struct eqlz_packet));
 		LOG_INFO("got equalizer %d", len);
 		// update will be done at next opportunity
-		equalizer_update(gain);
+		equalizer_set_gain(gain);
+    } else if (!strncmp((char*) data, "loud", 4)) {
+		struct loud_packet *packet = (struct loud_packet*) data;
+		LOG_INFO("got loudness %d", packet->loudness);
+		// update will be done at next opportunity
+		equalizer_set_loudness(packet->loudness);
 	} else {
 		res = false;
 	}
@@ -114,7 +124,8 @@ void set_volume(unsigned left, unsigned right) {
 		output.gainL = left;
 		output.gainR = right;
 		UNLOCK;
-	} 
+	}
+    equalizer_set_volume(left, right);
 }
 
 bool test_open(const char *device, unsigned rates[], bool userdef_rates) {

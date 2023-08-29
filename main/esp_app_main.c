@@ -254,6 +254,7 @@ void register_default_nvs(){
 	register_default_string_val("ap_pwd", CONFIG_DEFAULT_AP_PASSWORD);
 	register_default_string_val("bypass_wm", "0");
 	register_default_string_val("equalizer", "");
+    register_default_string_val("loudness", "0");
 	register_default_string_val("actrls_config", "");	
 	register_default_string_val("lms_ctrls_raw", "n");	
 	register_default_string_val("rotary_config", CONFIG_ROTARY_ENCODER);

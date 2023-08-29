@@ -376,6 +376,8 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 	i2s_stop(CONFIG_I2S_NUM);
 	i2s_zero_dma_buffer(CONFIG_I2S_NUM);
 	isI2SStarted=false;
+    
+    equalizer_set_samplerate(output.current_sample_rate);
 	
 	adac->power(ADAC_STANDBY);
 
@@ -582,14 +584,13 @@ static void output_thread_i2s(void *arg) {
 			i2s_zero_dma_buffer(CONFIG_I2S_NUM);
 
 #if BYTES_PER_FRAME == 4		
-			equalizer_close();
-			equalizer_open(output.current_sample_rate);
+            equalizer_set_samplerate(output.current_sample_rate);
 #endif			
 		}
 		
 #if BYTES_PER_FRAME == 4		
 		// run equalizer
-		equalizer_process(obuf, oframes * BYTES_PER_FRAME, output.current_sample_rate);
+		equalizer_process(obuf, oframes * BYTES_PER_FRAME);
 #endif		
 
 		// we assume that here we have been able to entirely fill the DMA buffers

@@ -69,6 +69,7 @@ void output_init_bt(log_level level, char *device, unsigned output_buf_size, cha
 	char *p = config_alloc_get_default(NVS_TYPE_STR, "stats", "n", 0);
 	stats = p && (*p == '1' || *p == 'Y' || *p == 'y');
 	free(p);
+    equalizer_set_samplerate(output.current_sample_rate);
 }
 
 void output_close_bt(void) {
@@ -143,7 +144,7 @@ int32_t output_bt_data(uint8_t *data, int32_t len) {
 	output.frames_in_process = oframes;
 	UNLOCK;
 	
-	equalizer_process(data, oframes * BYTES_PER_FRAME, output.current_sample_rate);
+	equalizer_process(data, oframes * BYTES_PER_FRAME);
 
 	SET_MIN_MAX(TIME_MEASUREMENT_GET(start_timer),lock_out_time);
 	SET_MIN_MAX((len-oframes*BYTES_PER_FRAME), rec);
