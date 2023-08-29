@@ -160,7 +160,7 @@ void equalizer_set_loudness(uint8_t loudness) {
     config_set_value(NVS_TYPE_STR, "loudness", p);
     equalizer.update = true;
 
-    LOG_INFO("equalizer loudness %u", (unsigned) loudness);
+    LOG_INFO("loudness %u", (unsigned) loudness);
 }
 
 /****************************************************************************************
