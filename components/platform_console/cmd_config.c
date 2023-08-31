@@ -33,6 +33,7 @@ const char * desc_ledvu= "Led Strip Options";
 
 extern const struct adac_s *dac_set[];
 extern void equalizer_set_loudness(uint8_t);
+extern void register_optional_cmd(void);
 
 #define CODECS_BASE "flac|pcm|mp3|ogg"
 #if NO_FAAD
@@ -1340,7 +1341,7 @@ static void register_bt_source_config(void){
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
 
-static void register_rotary_config(void){
+void register_rotary_config(void){
 	rotary_args.rem = arg_rem("remark","One rotary encoder is supported, quadrature shift with press. Such encoders usually have 2 pins for encoders (A and B), and common C that must be set to ground and an optional SW pin for press. A, B and SW must be pulled up, so automatic pull-up is provided by ESP32, but you can add your own resistors. A bit of filtering on A and B (~470nF) helps for debouncing which is not made by software.\r\nEncoder is normally hard-coded to respectively knob left, right and push on LMS and to volume down/up/play toggle on BT and AirPlay.");
 	rotary_args.A = arg_int1(NULL,"A","gpio","A/DT gpio");
 	rotary_args.B = arg_int1(NULL,"B","gpio","B/CLK gpio");
@@ -1363,7 +1364,7 @@ static void register_rotary_config(void){
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
 
-static void register_ledvu_config(void){
+void register_ledvu_config(void){
 	ledvu_args.type = arg_str1(NULL,"type","<none>|WS2812","Led type (supports one rgb strip to display built in effects and allow remote control through 'dmx' messaging)");
 	ledvu_args.length = arg_int1(NULL,"length","<1..255>","Strip length (1-255 supported)");
 	ledvu_args.gpio = arg_int1(NULL,"gpio","gpio","Data pin");
@@ -1381,7 +1382,7 @@ static void register_ledvu_config(void){
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
 
-static void register_audio_config(void){
+void register_audio_config(void){
 	audio_args.jack_behavior = arg_str0("j", "jack_behavior","Headphones|Subwoofer","On supported DAC, determines the audio jack behavior. Selecting headphones will cause the external amp to be muted on insert, while selecting Subwoofer will keep the amp active all the time.");
     audio_args.loudness = arg_int0("l", "loudness","0-100","Sets the loudness level, from 0 to 100. 0 will disable the loudness completely.");	
     audio_args.end = arg_end(6);
@@ -1464,8 +1465,6 @@ void register_config_cmd(void){
 #ifdef CONFIG_CSPOT_SINK	
 	register_cspot_config();
 #endif	
-	register_audio_config();
-//	register_squeezelite_config();
 	register_bt_source_config();
 	if(!is_dac_config_locked()){
 		register_i2s_config();
@@ -1473,7 +1472,6 @@ void register_config_cmd(void){
 	if(!is_spdif_config_locked()){
 		register_spdif_config();
 	}
-	register_rotary_config();
-	register_ledvu_config();
+    register_optional_cmd();    
 }
 
