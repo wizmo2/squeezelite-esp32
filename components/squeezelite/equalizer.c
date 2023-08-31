@@ -63,7 +63,7 @@ static const float loudness_envelope_coefficients[EQ_BANDS][POLYNOME_COUNT] = {
 /****************************************************************************************
  * calculate loudness gains
  */
-static void calculate_loudness(void) {      
+static void calculate_loudness(void) {
 	for (int i = 0; i < EQ_BANDS; i++) {
 		for (int j = 0; j < POLYNOME_COUNT && equalizer.loudness != 0; j++) {
 			equalizer.loudness_gain[i] +=
@@ -109,29 +109,36 @@ void equalizer_close(void) {
  * change sample rate
  */
 void equalizer_set_samplerate(uint32_t samplerate) {
+#if BYTES_PER_FRAME == 4
     if (equalizer.samplerate != samplerate) equalizer_close();
     equalizer.samplerate = samplerate;
     equalizer.update = true;
 
     LOG_INFO("equalizer sample rate %u", samplerate);
+#else
+    LOG_INFO("no equalizer with 32 bits samples");
+#endif
 }
 
 /****************************************************************************************
  * get volume update and recalculate loudness according to
  */
 void equalizer_set_volume(unsigned left, unsigned right) {
+#if BYTES_PER_FRAME == 4
 	equalizer.volume = (left + right) / 2;
     // do classic dB conversion and scale it 0..100
 	if (equalizer.volume) equalizer.volume = log2(equalizer.volume);
 	equalizer.volume = equalizer.volume / 16.0 * 100.0;
 	calculate_loudness();
     equalizer.update = true;
+#endif
 }
 
 /****************************************************************************************
  * change gains from LMS
  */
 void equalizer_set_gain(int8_t *gain) {
+#if BYTES_PER_FRAME == 4
     char config[EQ_BANDS * 4 + 1] = { };
 	int n = 0;
 
@@ -145,12 +152,16 @@ void equalizer_set_gain(int8_t *gain) {
 	equalizer.update = true;
 
     LOG_INFO("equalizer gain %s", config);
+#else
+    LOG_INFO("no equalizer with 32 bits samples");
+#endif
 }
 
 /****************************************************************************************
  * change loudness from LMS
  */
 void equalizer_set_loudness(uint8_t loudness) {
+#if BYTES_PER_FRAME == 4
     // update loudness gains as a factor of loudness and volume
 	equalizer.loudness = loudness / 100.0;
     calculate_loudness();
@@ -161,12 +172,16 @@ void equalizer_set_loudness(uint8_t loudness) {
     equalizer.update = true;
 
     LOG_INFO("loudness %u", (unsigned) loudness);
+#else
+    LOG_INFO("no equalizer with 32 bits samples");
+#endif
 }
 
 /****************************************************************************************
  * process equalizer
  */
 void equalizer_process(uint8_t *buf, uint32_t bytes) {
+#if BYTES_PER_FRAME == 4    
 	// don't want to process with output locked, so take the small risk to miss one parametric update
 	if (equalizer.update) {
         equalizer.update = false;
@@ -198,4 +213,5 @@ void equalizer_process(uint8_t *buf, uint32_t bytes) {
 	if (equalizer.handle) {
 		esp_equalizer_process(equalizer.handle, buf, bytes, equalizer.samplerate, 2);
 	}
+#endif    
 }

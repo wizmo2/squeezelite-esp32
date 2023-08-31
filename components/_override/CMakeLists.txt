@@ -1,6 +1,6 @@
 if(IDF_TARGET STREQUAL esp32 AND IDF_VERSION_MAJOR EQUAL 4 AND IDF_VERSION_MINOR LESS 4)
     set(lib_dir ${build_dir}/esp-idf)
-    set(driver esp32/i2s.c esp32/i2s_hal.c)
+    set(driver esp32/i2s.c)
     string(REPLACE ".c" ".c.obj" driver_obj "${driver}")
 
     idf_component_register( SRCS ${driver}
@@ -20,5 +20,5 @@ if(IDF_TARGET STREQUAL esp32 AND IDF_VERSION_MAJOR EQUAL 4 AND IDF_VERSION_MINOR
                 VERBATIM
     )
 else()
-    message(STATUS "==> NO I2S LIBRARY OVERRIDE, SPDIF MIGHT NOT WORK <==")
+    message(STATUS "==> NO OVERRIDE <==")
 endif()

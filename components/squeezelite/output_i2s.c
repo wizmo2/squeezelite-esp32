@@ -583,15 +583,11 @@ static void output_thread_i2s(void *arg) {
 			i2s_set_sample_rates(CONFIG_I2S_NUM, spdif.enabled ? i2s_config.sample_rate * 2 : i2s_config.sample_rate);
 			i2s_zero_dma_buffer(CONFIG_I2S_NUM);
 
-#if BYTES_PER_FRAME == 4		
             equalizer_set_samplerate(output.current_sample_rate);
-#endif			
 		}
 		
-#if BYTES_PER_FRAME == 4		
 		// run equalizer
 		equalizer_process(obuf, oframes * BYTES_PER_FRAME);
-#endif		
 
 		// we assume that here we have been able to entirely fill the DMA buffers
 		if (spdif.enabled) {
@@ -600,7 +596,7 @@ static void output_thread_i2s(void *arg) {
 			// need IRAM for speed but can't allocate a FRAME_BLOCK * 16, so process by smaller chunks
 			while (count < oframes) {
 				size_t chunk = min(SPDIF_BLOCK, oframes - count);
-				spdif_convert((ISAMPLE_T*) obuf + count * 2, chunk, (u32_t*) spdif.buf, &spdif.count);
+				spdif_convert((ISAMPLE_T*) obuf + count * 2, chunk, (u32_t*) spdif.buf, &spdif.count);              
 				i2s_write(CONFIG_I2S_NUM, spdif.buf, chunk * 16, &obytes, portMAX_DELAY);
 				bytes += obytes / (16 / BYTES_PER_FRAME);
 				count += chunk;
@@ -709,12 +705,16 @@ static const u16_t spdif_bmclookup[256] = { //biphase mark encoded values (least
 
 /* 
  SPDIF is supposed to be (before BMC encoding, from LSB to MSB)				
-	PPPP AAAA  SSSS SSSS  SSSS SSSS  SSSS VUCP				
- after BMC encoding, each bits becomes 2 hence this becomes a 64 bits word. The
- the trick is to start not with a PPPP sequence but with an VUCP sequence to that
- the 16 bits samples are aligned with a BMC word boundary. Note that the LSB of the
- audio is transmitted first (not the MSB) and that ESP32 libray sends R then L, 
- contrary to what seems to be usually done, so (dst) order had to be changed
+    0....  1...   191..  0
+    BLFMRF MLFWRF MLFWRF BLFMRF (B,M,W=preamble-4, L/R=left/Right-24, F=Flags-4)
+    each xLF pattern is 32 bits 
+	PPPP AAAA  SSSS SSSS  SSSS SSSS  SSSS VUCP (P=preamble, A=auxiliary, S=sample-20bits, V=valid, U=user data, C=channel status, P=parity)
+ After BMC encoding, each bit becomes 2 hence this becomes a 64 bits word. The parity
+ is fixed by changing AAAA bits so that VUPC does not change. Then then trick is to 
+ start not with a PPPP sequence but with an VUCP sequence to that the 16 bits samples
+ are aligned with a BMC word boundary. Input buffer is left first => LRLR...
+ The I2S interface must output first the B/M/W preamble which means that second
+ 32 bits words must be first and so must be marked right channel. 
 */
 static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, size_t *count) {
 	register u16_t hi, lo, aux;
@@ -729,7 +729,6 @@ static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, s
 		// invert if last preceeding bit is 1
 		lo ^= ~((s16_t)hi) >> 16;
 		// first 16 bits
-		*dst++ = ((u32_t)lo << 16) | hi;		
 		aux = 0xb333 ^ (((u32_t)((s16_t)lo)) >> 17);
 #else
 		hi  = spdif_bmclookup[(u8_t)(*src >> 24)];
@@ -738,39 +737,38 @@ static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, s
 		// invert if last preceeding bit is 1
 		lo ^= ~((s16_t)hi) >> 16;
 		// first 16 bits
-		*dst++ = ((u32_t)lo << 16) | hi;		
 		// we use 20 bits samples as we need to force parity
 		aux = spdif_bmclookup[(u8_t)(*src++ >> 12)];
 		aux = (u8_t) (aux ^ (~((s16_t)lo) >> 16));
 		aux |= (0xb3 ^ (((u16_t)((s8_t)aux)) >> 9)) << 8;
 #endif	
 		
-		// VUCP-Bits: Valid, Subcode, Channelstatus, Parity = 0
-		// As parity is always 0, we can use fixed preambles
+		// set special preamble every 192 iteration
 		if (++cnt > 191) {
 			*dst++ =  VUCP | (PREAMBLE_B << 16 ) | aux; //special preamble for one of 192 frames
 			cnt = 0;
 		} else {
 			*dst++ = VUCP | (PREAMBLE_M << 16) | aux;
-		}
+		}     
+        // now write sample's 16 low bits
+        *dst++ = ((u32_t)lo << 16) | hi;		
 
 		// then do right channel, no need to check PREAMBLE_B
 #if BYTES_PER_FRAME == 4		
 		hi  = spdif_bmclookup[(u8_t)(*src >> 8)];
 		lo  = spdif_bmclookup[(u8_t) *src++];
 		lo ^= ~((s16_t)hi) >> 16;
-		*dst++ = ((u32_t)lo << 16) | hi;
 		aux = 0xb333 ^ (((u32_t)((s16_t)lo)) >> 17);
 #else
 		hi  = spdif_bmclookup[(u8_t)(*src >> 24)];
 		lo  = spdif_bmclookup[(u8_t)(*src >> 16)];
 		lo ^= ~((s16_t)hi) >> 16;
-		*dst++ = ((u32_t)lo << 16) | hi;
 		aux = spdif_bmclookup[(u8_t)(*src++ >> 12)];
 		aux = (u8_t) (aux ^ (~((s16_t)lo) >> 16));
 		aux |= (0xb3 ^ (((u16_t)((s8_t)aux)) >> 9)) << 8;
 #endif	
 		*dst++ = VUCP | (PREAMBLE_W << 16) | aux;
+        *dst++ = ((u32_t)lo << 16) | hi;
 	}
 	
 	*count = cnt;
