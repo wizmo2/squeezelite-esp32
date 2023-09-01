@@ -69,7 +69,7 @@ static void calculate_loudness(void) {
 			equalizer.loudness_gain[i] +=
 				loudness_envelope_coefficients[i][j] * pow(equalizer.volume, j);
 		}
-		equalizer.loudness_gain[i] *= equalizer.loudness;
+		equalizer.loudness_gain[i] *= equalizer.loudness / 2;
 	}
 }
 
@@ -90,7 +90,7 @@ void equalizer_init(void) {
 
     // handle loudness
     config = config_alloc_get(NVS_TYPE_STR, "loudness");
-    equalizer.loudness = atof(config) / 100.0;
+    equalizer.loudness = atof(config) / 10.0;
 
 	free(config);
 }
@@ -163,7 +163,7 @@ void equalizer_set_gain(int8_t *gain) {
 void equalizer_set_loudness(uint8_t loudness) {
 #if BYTES_PER_FRAME == 4
     // update loudness gains as a factor of loudness and volume
-	equalizer.loudness = loudness / 100.0;
+	equalizer.loudness = loudness / 10.0;
     calculate_loudness();
 
     char p[4];

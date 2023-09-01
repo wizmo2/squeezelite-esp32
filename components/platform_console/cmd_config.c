@@ -456,9 +456,9 @@ static int do_audio_cmd(int argc, char **argv){
 	if(audio_args.loudness->count>0){
 		char p[4]={0};
 		int loudness_val = audio_args.loudness->ival[0];
-		if( loudness_val < 0 || loudness_val>100){
+		if( loudness_val < 0 || loudness_val>10){
 			nerrors++;
-            fprintf(f,"Invalid loudness value %d. Valid values are between 0 and 100.\n",loudness_val);
+            fprintf(f,"Invalid loudness value %d. Valid values are between 0 and 10.\n",loudness_val);
 		}
         // it's not necessary to store loudness in NVS as set_loudness does it, but it does not hurt
 		else {
@@ -1384,7 +1384,7 @@ void register_ledvu_config(void){
 
 void register_audio_config(void){
 	audio_args.jack_behavior = arg_str0("j", "jack_behavior","Headphones|Subwoofer","On supported DAC, determines the audio jack behavior. Selecting headphones will cause the external amp to be muted on insert, while selecting Subwoofer will keep the amp active all the time.");
-    audio_args.loudness = arg_int0("l", "loudness","0-100","Sets the loudness level, from 0 to 100. 0 will disable the loudness completely.");	
+    audio_args.loudness = arg_int0("l", "loudness","0-10","Sets the loudness level, from 0 to 10. 0 will disable the loudness completely.");	
     audio_args.end = arg_end(6);
     audio_args.end = arg_end(6);
 	const esp_console_cmd_t cmd = {
