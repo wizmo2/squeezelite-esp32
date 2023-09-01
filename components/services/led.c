@@ -27,6 +27,12 @@
 #define MAX_LED	8
 #define BLOCKTIME	10	// up to portMAX_DELAY
 
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+#define LEDC_SPEED_MODE LEDC_LOW_SPEED_MODE
+#else
+#define LEDC_SPEED_MODE LEDC_HIGH_SPEED_MODE
+#endif                
+
 static const char *TAG = "led";
 
 static EXT_RAM_ATTR struct led_s {
@@ -57,8 +63,8 @@ static int led_max = 2;
 static void set_level(struct led_s *led, bool on) {
 	if (led->pwm < 0 || led->gpio >= GPIO_NUM_MAX) gpio_set_level_x(led->gpio, on ? led->onstate : !led->onstate);
 	else {
-		ledc_set_duty(LEDC_HIGH_SPEED_MODE, led->channel, on ? led->pwm : (led->onstate ? 0 : pwm_system.max));
-		ledc_update_duty(LEDC_HIGH_SPEED_MODE, led->channel);
+		ledc_set_duty(LEDC_SPEED_MODE, led->channel, on ? led->pwm : (led->onstate ? 0 : pwm_system.max));
+		ledc_update_duty(LEDC_SPEED_MODE, led->channel);
 	}		
 }
 
@@ -139,8 +145,8 @@ bool led_brightness(int idx, int pwm) {
 	leds[idx].pwm = pwm_system.max * powf(pwm / 100.0, 3);
 	if (!leds[idx].onstate) leds[idx].pwm = pwm_system.max - leds[idx].pwm;
 	
-	ledc_set_duty(LEDC_HIGH_SPEED_MODE, leds[idx].channel, leds[idx].pwm);
-	ledc_update_duty(LEDC_HIGH_SPEED_MODE, leds[idx].channel);
+	ledc_set_duty(LEDC_SPEED_MODE, leds[idx].channel, leds[idx].pwm);
+	ledc_update_duty(LEDC_SPEED_MODE, leds[idx].channel);
 	
 	return true;
 }
@@ -193,7 +199,7 @@ bool led_config(int idx, gpio_num_t gpio, int onstate, int pwm) {
             .channel    = leds[idx].channel,
             .duty       = leds[idx].pwm,
             .gpio_num   = gpio,
-            .speed_mode = LEDC_HIGH_SPEED_MODE,
+            .speed_mode = LEDC_SPEED_MODE,
             .hpoint     = 0,
             .timer_sel  = pwm_system.timer,
         };

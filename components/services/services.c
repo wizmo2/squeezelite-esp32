@@ -133,7 +133,11 @@ void services_init(void) {
 	ledc_timer_config_t pwm_timer = {
 		.duty_resolution = LEDC_TIMER_13_BIT, 
 		.freq_hz = 5000,                     
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+#else
 		.speed_mode = LEDC_HIGH_SPEED_MODE,  
+#endif    
 		.timer_num = pwm_system.timer,
 	};
 	
