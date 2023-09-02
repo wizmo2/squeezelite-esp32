@@ -14,6 +14,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "driver/rmt.h"
+#include "globdefs.h"
 #include "infrared.h"
 
 static const char* TAG = "IR";
@@ -82,8 +83,6 @@ typedef struct {
     }
 
 ir_parser_t *ir_parser = NULL;
-
-#define RMT_RX_CHANNEL    0     /*!< RMT channel for receiver */
 
 #define RMT_CHECK(a, str, goto_tag, ret_value, ...)                               \
     do                                                                            \
@@ -481,10 +480,9 @@ void infrared_receive(RingbufHandle_t rb, infrared_handler handler) {
 /****************************************************************************************
  * 
  */
-void infrared_init(RingbufHandle_t *rb, int gpio, infrared_mode_t mode) { 
-    ESP_LOGI(TAG, "Starting Infrared Receiver mode %s on gpio %d", mode == IR_NEC ? "nec" : "rc5", gpio);
-    
-    rmt_config_t rmt_rx_config = RMT_DEFAULT_CONFIG_RX(gpio, RMT_RX_CHANNEL);
+void infrared_init(RingbufHandle_t *rb, int gpio, infrared_mode_t mode) {  
+    int rmt_channel = rmt_system_base_channel++;
+    rmt_config_t rmt_rx_config = RMT_DEFAULT_CONFIG_RX(gpio, rmt_channel);
     rmt_config(&rmt_rx_config);
     rmt_driver_install(rmt_rx_config.channel, 1000, 0);
     ir_parser_config_t ir_parser_config = IR_PARSER_DEFAULT_CONFIG((ir_dev_t) rmt_rx_config.channel);
@@ -493,6 +491,8 @@ void infrared_init(RingbufHandle_t *rb, int gpio, infrared_mode_t mode) {
     ir_parser = (mode == IR_NEC) ? ir_parser_rmt_new_nec(&ir_parser_config) : ir_parser_rmt_new_rc5(&ir_parser_config);
     
     // get RMT RX ringbuffer
-    rmt_get_ringbuf_handle(RMT_RX_CHANNEL, rb);
-    rmt_rx_start(RMT_RX_CHANNEL, 1);
+    rmt_get_ringbuf_handle(rmt_channel, rb);
+    rmt_rx_start(rmt_channel, 1);
+    
+    ESP_LOGI(TAG, "Starting Infrared Receiver mode %s on gpio %d and channel %d", mode == IR_NEC ? "nec" : "rc5", gpio, rmt_channel);
 }
