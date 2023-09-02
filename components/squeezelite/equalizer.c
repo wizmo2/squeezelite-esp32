@@ -125,12 +125,15 @@ void equalizer_set_samplerate(uint32_t samplerate) {
  */
 void equalizer_set_volume(unsigned left, unsigned right) {
 #if BYTES_PER_FRAME == 4
-	equalizer.volume = (left + right) / 2;
+    float volume = (left + right) / 2;
     // do classic dB conversion and scale it 0..100
-	if (equalizer.volume) equalizer.volume = log2(equalizer.volume);
-	equalizer.volume = equalizer.volume / 16.0 * 100.0;
-	calculate_loudness();
-    equalizer.update = true;
+	if (volume) volume = log2(volume);
+	volume = volume / 16.0 * 100.0;
+    if (volume != equalizer.volume) {
+        equalizer.volume = volume;
+        calculate_loudness();
+        equalizer.update = true;
+    }
 #endif
 }
 
