@@ -54,11 +54,22 @@ sure that using rate_delay would fix that
 #define FRAME_BLOCK MAX_SILENCE_FRAMES
 #define SPDIF_BLOCK	256
 
-// must have an integer ratio with FRAME_BLOCK (see spdif comment)
-#define DMA_SIZE        6144
-// FRAME_BLOCK must be a multiple of DMA_BUF_LEN no matter what
-#define DMA_BUF_LEN		FRAME_BLOCK
-#define DMA_BUF_COUNT	(DMA_SIZE / DMA_BUF_LEN)
+/* we produce FRAME_BLOCK (2048) per loop of the i2s thread so it's better if they fit
+ * inside a set of DMA buffer nicely, i.e. DMA_BUF_FRAMES * DMA_BUF_COUNT is a multiple 
+ * of FRAME_BLOCK so that each DMA buffer is filled and we fully empty a FRAME_BLOCK at 
+ * each loop. Because one DMA buffer in esp32 is 4092 or below, when using 16 bits 
+ * samples and 2 channels, the best multiple is 512 (512*2*2=2048) and we use 6 of these.
+ * In SPDIF, as we virtually use 32 bits per sample, the next proper multiple would
+ * be 256 but such DMA buffers are too small and this causes stuttering. So we will use
+ * non-multiples which means that at every loop one DMA buffer will be not fully filled. 
+ * At least, let's make sure it's not a too small amount of samples so 450*4*2=3600 fits 
+ * nicely in one DMA buffer and 2048/450 = 4 buffers + ~1/2 buffer which is acceptable.
+ */
+#define DMA_BUF_FRAMES	512
+#define DMA_BUF_COUNT	12
+
+#define DMA_BUF_FRAMES_SPDIF	450
+#define DMA_BUF_COUNT_SPDIF     7
 
 #define DECLARE_ALL_MIN_MAX 	\
 	DECLARE_MIN_MAX(o); 		\
@@ -262,6 +273,8 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
     i2s_config.use_apll = true;
 #endif 
 	i2s_config.intr_alloc_flags = ESP_INTR_FLAG_LEVEL1; //Interrupt level 1
+    i2s_config.dma_buf_len = DMA_BUF_FRAMES;	
+	i2s_config.dma_buf_count = DMA_BUF_COUNT;
 	
 	if (strcasestr(device, "spdif")) {
 		spdif.enabled = true;	
@@ -278,14 +291,14 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 		i2s_config.sample_rate = output.current_sample_rate * 2;
 		i2s_config.bits_per_sample = 32;
 		// Normally counted in frames, but 16 sample are transformed into 32 bits in spdif
-		i2s_config.dma_buf_len = DMA_BUF_LEN / 2;	
-		i2s_config.dma_buf_count = DMA_BUF_COUNT * 2;
+		i2s_config.dma_buf_len = DMA_BUF_FRAMES_SPDIF;	
+		i2s_config.dma_buf_count = DMA_BUF_COUNT_SPDIF;
 		/* 
 		   In DMA, we have room for (LEN * COUNT) frames of 32 bits samples that 
 		   we push at sample_rate * 2. Each of these pseudo-frames is a single true
 		   audio frame. So the real depth in true frames is (LEN * COUNT / 2)
 		*/   
-		dma_buf_frames = DMA_BUF_COUNT * DMA_BUF_LEN / 2;	
+		dma_buf_frames = i2s_config.dma_buf_len * i2s_config.dma_buf_count / 2;	
 		
 		// silence DAC output if sharing the same ws/bck
 		if (i2s_dac_pin.ws_io_num == i2s_spdif_pin.ws_io_num && i2s_dac_pin.bck_io_num == i2s_spdif_pin.bck_io_num)	silent_do = i2s_dac_pin.data_out_num;		
@@ -297,9 +310,9 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 		i2s_config.sample_rate = output.current_sample_rate;
 		i2s_config.bits_per_sample = BYTES_PER_FRAME * 8 / 2;
 		// Counted in frames (but i2s allocates a buffer <= 4092 bytes)
-		i2s_config.dma_buf_len = DMA_BUF_LEN;	
+		i2s_config.dma_buf_len = DMA_BUF_FRAMES;	
 		i2s_config.dma_buf_count = DMA_BUF_COUNT;
-		dma_buf_frames = DMA_BUF_COUNT * DMA_BUF_LEN;	
+		dma_buf_frames = i2s_config.dma_buf_len * i2s_config.dma_buf_count;
 		
 		// silence SPDIF output
 		silent_do = i2s_spdif_pin.data_out_num;		

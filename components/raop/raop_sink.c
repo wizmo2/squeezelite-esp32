@@ -170,7 +170,7 @@ static void raop_sink_start(nm_state_t state_id, int sub_state) {
 	esp_netif_get_mac(netif, mac);
 	cmd_handler_chain = raop_cbs.cmd;
 
-	LOG_INFO( "Starting Airplay for ip %s with servicename %s", inet_ntoa(ipInfo.ip.addr), sink_name);
+	LOG_INFO( "starting Airplay for ip %s with servicename %s", inet_ntoa(ipInfo.ip.addr), sink_name);
 	raop = raop_create(ipInfo.ip.addr, sink_name, mac, 0, cmd_handler, raop_cbs.data);
 	free(sink_name);
 }
