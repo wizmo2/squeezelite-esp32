@@ -53,7 +53,7 @@ In 16 bits mode, although 192 kHz is reported as max rate, it's highly recommend
 
 Note as well that some codecs consume more CPU than others or have not been optimized as much. I've done my best to tweak these, but that level of optimization includes writing some assembly which is painful. One very demanding codec is AAC when files are encoded with SBR. It allows reconstruction of upper part of spectrum and thus higher sampling rate, but the codec spec is such that this is optional, you can decode simply lower band and accept lower sampling rate - See the AAC_DISABLE_SBR option below.
 
-On esp32, using Spotify and SPDIF at the same time produced stuttering audio. No solution has been found yet
+**IMPORTANT: on esp32 (not esp32-s3), using Spotify with SPDIF produces stuttering audio when "stats" are enabled. You MUST disable them**
 
 ## Supported Hardware
 Any esp32-based hardware with at least 4MB of flash and 4MB of PSRAM will be capable of running squeezelite-esp32 and there are various boards that include such chip. A few are mentionned below, but any should work. You can find various help & instructions [here](https://forums.slimdevices.com/showthread.php?112697-ANNOUNCE-Squeezelite-ESP32-(dedicated-thread))
@@ -68,7 +68,7 @@ Please note that when sending to a Bluetooth speaker (source), only 44.1 kHz can
 Most DAC will work out-of-the-box with simply an I2S connection, but some require specific commands to be sent using I2C. See DAC option below to understand how to send these dedicated commands. There is build-in support for TAS575x, TAS5780, TAS5713 and AC101 DAC.
 
 ### Raw WROOM esp32-s3 module
-The esp32-s3 based modules like [this]@(https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf) are also supported but requires esp-idf 4.4. It is not yet part of official releases, but it compiles & runs. The s3 does not have bluetooth audio. Note that CPU performances are greatly enhanced and some limitation like Spotify stuttering when using SPDIF does not occur.
+The esp32-s3 based modules like [this]@(https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf) are also supported but requires esp-idf 4.4. It is not yet part of official releases, but it compiles & runs. The s3 does not have bluetooth audio. Note that CPU performances are greatly enhanced.
 
 ### SqueezeAMP
 This is the main hardware companion of Squeezelite-esp32 and has been developped together. Details on capabilities can be found [here](https://forums.slimdevices.com/showthread.php?110926-pre-ANNOUNCE-SqueezeAMP-and-SqueezeliteESP32) and [here](https://github.com/philippe44/SqueezeAMP).
