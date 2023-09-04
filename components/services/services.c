@@ -11,6 +11,7 @@
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 #include "driver/i2c.h"
+#include "driver/rmt.h"
 #include "platform_config.h"
 #include "gpio_exp.h"
 #include "battery.h"
@@ -28,6 +29,7 @@ int i2c_system_port = I2C_SYSTEM_PORT;
 int i2c_system_speed = 400000;
 int spi_system_host = SPI_SYSTEM_HOST;
 int spi_system_dc_gpio = -1;
+int rmt_system_base_channel = RMT_CHANNEL_0;
 pwm_system_t pwm_system = { 
 		.timer = LEDC_TIMER_0,
 		.base_channel = LEDC_CHANNEL_0,
@@ -133,7 +135,11 @@ void services_init(void) {
 	ledc_timer_config_t pwm_timer = {
 		.duty_resolution = LEDC_TIMER_13_BIT, 
 		.freq_hz = 5000,                     
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+#else
 		.speed_mode = LEDC_HIGH_SPEED_MODE,  
+#endif    
 		.timer_num = pwm_system.timer,
 	};
 	

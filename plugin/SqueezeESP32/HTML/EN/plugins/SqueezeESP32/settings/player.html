@@ -21,6 +21,18 @@
 				params: ['[% playerid %]', ['squeezeesp32', 'seteq', eqValues.join()]]
 			});
 		}
+		
+		var ldValue;
+		this.lastLd = this.lastLd;
+		
+		ldValue = Ext.get('pref_loudness').dom.value || 0;
+		
+		if (ldValue != this.lastLd) {
+			this.lastLd = ldValue;
+			SqueezeJS.Controller.request({
+				params: ['[% playerid %]', ['squeezeesp32', 'setld', ldValue]]
+			});
+		}
 	}
 </script>
 [% END; ELSIF !useExtJS; pageHeaderScripts = BLOCK %]
@@ -43,6 +55,23 @@
 					id: 1,
 					method: 'slim.request',
 					params: ['[% playerid %]', ['squeezeesp32', 'seteq', eqValues.join()]]
+				})
+			});
+		}
+		
+		var ldValue;
+		this.lastLd = this.lastLd;
+		
+		ldValue = $('pref_loudness').value || 0;
+		
+		if (ldValue != this.lastLd) {
+			this.lastLd = ldValue;
+			new Ajax.Request('/jsonrpc.js', {
+				method: 'post',
+				postBody: JSON.stringify({
+					id: 1,
+					method: 'slim.request',
+					params: ['[% playerid %]', ['squeezeesp32', 'setld', ldValue]]
 				})
 			});
 		}
@@ -140,6 +169,10 @@
 		[% END %]
 
 		[% WRAPPER settingSection %]
+			[% WRAPPER settingGroup title='Loudness' desc="" %]
+				<input type="text" class="stdedit sliderInput_0_10" name="pref_loudness" id="pref_loudness" value="[% pref_loudness || 0 %]" size="2"">
+			[% END %]			
+			
 			[% WRAPPER settingGroup title='31Hz' desc="" %]
 				<input type="text" class="stdedit sliderInput_-13_20" name="pref_equalizer.0" id="pref_equalizer.0" value="[% pref_equalizer.0 || 0 %]" size="2"">
 			[% END %]

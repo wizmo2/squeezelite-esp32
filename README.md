@@ -55,6 +55,8 @@ In 16 bits mode, although 192 kHz is reported as max rate, it's highly recommend
 
 Note as well that some codecs consume more CPU than others or have not been optimized as much. I've done my best to tweak these, but that level of optimization includes writing some assembly which is painful. One very demanding codec is AAC when files are encoded with SBR. It allows reconstruction of upper part of spectrum and thus higher sampling rate, but the codec spec is such that this is optional, you can decode simply lower band and accept lower sampling rate - See the AAC_DISABLE_SBR option below.
 
+**IMPORTANT: on esp32 (not esp32-s3), using Spotify with SPDIF produces stuttering audio when "stats" are enabled. You MUST disable them**
+
 ## Supported Hardware
 Any esp32-based hardware with at least 4MB of flash and 4MB of PSRAM will be capable of running squeezelite-esp32 and there are various boards that include such chip. A few are mentionned below, but any should work. You can find various help & instructions [here](https://forums.slimdevices.com/showthread.php?112697-ANNOUNCE-Squeezelite-ESP32-(dedicated-thread))
 
@@ -66,6 +68,9 @@ Per above description, a [WROVER module](https://www.espressif.com/en/products/m
 Please note that when sending to a Bluetooth speaker (source), only 44.1 kHz can be used, so you either let LMS do the resampling, but you must make sure it only sends 44.1kHz tracks or enable internal resampling (using -R) option. If you connect a DAC, choice of sample rates will depends on its capabilities. See below for more details.
 
 Most DAC will work out-of-the-box with simply an I2S connection, but some require specific commands to be sent using I2C. See DAC option below to understand how to send these dedicated commands. There is build-in support for TAS575x, TAS5780, TAS5713 and AC101 DAC.
+
+### Raw WROOM esp32-s3 module
+The esp32-s3 based modules like [this]@(https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf) are also supported but requires esp-idf 4.4. It is not yet part of official releases, but it compiles & runs. The s3 does not have bluetooth audio. Note that CPU performances are greatly enhanced.
 
 ### SqueezeAMP
 This is the main hardware companion of Squeezelite-esp32 and has been developped together. Details on capabilities can be found [here](https://forums.slimdevices.com/showthread.php?110926-pre-ANNOUNCE-SqueezeAMP-and-SqueezeliteESP32) and [here](https://github.com/philippe44/SqueezeAMP).
@@ -176,7 +181,7 @@ Default and only "host" is 1 as others are used already by flash and spiram. The
 ### DAC/I2S
 The NVS parameter "dac_config" set the gpio used for i2s communication with your DAC. You can define the defaults at compile time but nvs parameter takes precedence except for named configurations
 ```
-bck=<gpio>,ws=<gpio>,do=<gpio>[,mck=0|1|2][,mute=<gpio>[:0|1][,model=TAS57xx|TAS5713|AC101|I2S][,sda=<gpio>,scl=<gpio>[,i2c=<addr>]]
+bck=<gpio>,ws=<gpio>,do=<gpio>[,mck=0|1|2][,mute=<gpio>[:0|1][,model=TAS57xx|TAS5713|AC101|WM8978|ES8388|I2S][,sda=<gpio>,scl=<gpio>[,i2c=<addr>]]
 ```
 if "model" is not set or is not recognized, then default "I2S" is used. The option "mck" is used for some codecs that require a master clock (although they should not). By default GPIO0 is used as MCLK and only recent builds (post mid-2023) can use 1 or 2. Also be aware that this cannot coexit with RMII Ethernet (see ethernet section below). I2C parameters are optional and only needed if your DAC requires an I2C control (See 'dac_controlset' below). Note that "i2c" parameters are decimal, hex notation is not allowed.
 
@@ -271,14 +276,14 @@ The `<amp>` parameter can use used to assign a GPIO that will be set to active l
 
 If you have an audio jack that supports insertion (use :0 or :1 to set the level when inserted), you can specify which GPIO it's connected to. Using the parameter jack_mutes_amp allows to mute the amp when headset (e.g.) is inserted.
 
-You can set the Green and Red status led as well with their respective active state (:0 or :1)
+You can set the Green and Red status led as well with their respective active state (:0 or :1) or specific the chipset if you use addressable RGB led.
 
 The `<ir>` parameter set the GPIO associated to an IR receiver. No need to add pullup or capacitor
 
 Syntax is:
 
 ```
-<gpio>=Vcc|GND|amp[:1|0]|ir[:nec|rc5]|jack[:0|1]|green[:0|1]|red[:0|1]|spkfault[:0|1][,<repeated sequence for next GPIO>]
+<gpio>=Vcc|GND|amp[:1|0]|ir[:nec|rc5]|jack[:0|1]|green[:0|1|ws2812]|red[:0|1|ws2812]|spkfault[:0|1][,<repeated sequence for next GPIO>]
 ```
 You can define the defaults for jack, spkfault leds at compile time but nvs parameter takes precedence except for named configurations ((SqueezeAMP, Muse ...) where these are forced at runtime.
 **Note that gpio 36 and 39 are input only and cannot use interrupt. When set to jack or speaker fault, a 100ms polling checks their value but that's expensive**
@@ -290,14 +295,14 @@ Each expander can support up to 32 GPIO. To use an expander for buttons, an inte
 
 The parameter "gpio_exp_config" is a semicolon (;) separated list with following syntax for each expander
 ```
-model=<model>,addr=<addr>,[,port=system|dac][,base=<n>|100][,count=<n>|16][,intr=<gpio>][,cs=<gpio>][,speed=<Hz>]
+model=<model>,addr=<addr>,[,port=system|dac][,base=<n>][,count=<n>][,intr=<gpio>][,cs=<gpio>][,speed=<Hz>]
 ```	
 - model: pca9535, pca85xx, mcp23017 and mcp23s17 (SPI version)
 - addr: chip i2c/spi address (decimal)
 - port (I2C): use either "system" port (shared with display for example) or "dac" port (system is default)
 - cs (SPI): gpio used for Chip Select
 - speed (SPI): speed of the SPI bus for that device (in Hz)	
-- base: GPIO numbering offset to use everywhere else (default 40)
+- base: GPIO numbering offset to use everywhere else (default 40 on esp32 and 48 on esp32-s3)
 - count: number of GPIO of expander (default 16 - might be obsolted if model if sufficient to decide)
 - intr: real GPIO to use as interrupt.
 	

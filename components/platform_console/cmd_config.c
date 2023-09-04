@@ -32,6 +32,8 @@ const char * desc_rotary= "Rotary Control";
 const char * desc_ledvu= "Led Strip Options";
 
 extern const struct adac_s *dac_set[];
+extern void equalizer_set_loudness(uint8_t);
+extern void register_optional_cmd(void);
 
 #define CODECS_BASE "flac|pcm|mp3|ogg"
 #if NO_FAAD
@@ -140,6 +142,7 @@ static struct {
 } spdif_args;
 static struct {
     struct arg_str *jack_behavior;	
+   	struct arg_int *loudness;
     struct arg_end *end;
 } audio_args;
 static struct {
@@ -447,6 +450,30 @@ static int do_audio_cmd(int argc, char **argv){
 		fclose(f);
 		return 1;
 	}
+    
+    err = ESP_OK; // suppress any error code that might have happened in a previous step
+
+	if(audio_args.loudness->count>0){
+		char p[4]={0};
+		int loudness_val = audio_args.loudness->ival[0];
+		if( loudness_val < 0 || loudness_val>10){
+			nerrors++;
+            fprintf(f,"Invalid loudness value %d. Valid values are between 0 and 10.\n",loudness_val);
+		}
+        // it's not necessary to store loudness in NVS as set_loudness does it, but it does not hurt
+		else {
+			itoa(loudness_val,p,10);
+			err = config_set_value(NVS_TYPE_STR, "loudness", p);
+		}
+        if(err!=ESP_OK){
+            nerrors++;
+            fprintf(f,"Error setting Loudness value %s. %s\n",p, esp_err_to_name(err));
+        }
+        else {
+            fprintf(f,"Loudness changed to %s\n",p);
+			equalizer_set_loudness(loudness_val);
+       }
+    }
 
     if(audio_args.jack_behavior->count>0){
         err = ESP_OK; // suppress any error code that might have happened in a previous step
@@ -712,7 +739,7 @@ static int do_i2s_cmd(int argc, char **argv)
 		cmd_send_messaging(argv[0],MESSAGING_ERROR,"DAC Configuration is locked on this platform\n");
 		return 1;
 	}
-	strcpy(i2s_dac_pin.model, "I2S");
+
 	ESP_LOGD(TAG,"Processing i2s command %s with %d parameters",argv[0],argc);
 
 	esp_err_t err=ESP_OK;
@@ -927,7 +954,10 @@ cJSON * audio_cb(){
 	cJSON * values = cJSON_CreateObject();
 	char * 	p = config_alloc_get_default(NVS_TYPE_STR, "jack_mutes_amp", "n", 0);
     cJSON_AddStringToObject(values,"jack_behavior",(strcmp(p,"1") == 0 ||strcasecmp(p,"y") == 0)?"Headphones":"Subwoofer");
-    FREE_AND_NULL(p);    
+    FREE_AND_NULL(p);
+    p = config_alloc_get_default(NVS_TYPE_STR, "loudness", "0", 0);
+    cJSON_AddStringToObject(values,"loudness",p);
+    FREE_AND_NULL(p);     
 	return values;
 }
 cJSON * bt_source_cb(){
@@ -1076,7 +1106,7 @@ static char * get_log_level_options(const char * longname){
 
 // loop through dac_set and concatenate model name separated with |
 static char * get_dac_list(){
-	const char * ES8388_MODEL_NAME = "ES8388|";
+	const char * EXTRA_MODEL_NAMES = "ES8388|I2S";
 	char * dac_list=NULL;
 	size_t total_len=0;
 	for(int i=0;dac_set[i];i++){
@@ -1087,7 +1117,7 @@ static char * get_dac_list(){
 			break;
 		}
 	}
-	total_len+=strlen(ES8388_MODEL_NAME);
+	total_len+=strlen(EXTRA_MODEL_NAMES);
 	dac_list = malloc_init_external(total_len+1);
 	if(dac_list){
 		for(int i=0;dac_set[i];i++){
@@ -1099,7 +1129,7 @@ static char * get_dac_list(){
 				break;
 			}
 		}
-		strcat(dac_list,ES8388_MODEL_NAME);
+		strcat(dac_list,EXTRA_MODEL_NAMES);
 	}
 	return dac_list;
 }
@@ -1270,7 +1300,7 @@ static void register_cspot_config(){
 }
 #endif
 static void register_i2s_config(void){
-	i2s_args.model_name = arg_str1(NULL,"model_name",STR_OR_BLANK(get_dac_list()),"DAC Model Name");
+	i2s_args.model_name = arg_str0(NULL,"model_name",STR_OR_BLANK(get_dac_list()),"DAC Model Name");
 	i2s_args.clear = arg_lit0(NULL, "clear", "Clear configuration");
     i2s_args.clock = arg_int0(NULL,"clock","<n>","Clock GPIO. e.g. 33");
     i2s_args.wordselect = arg_int0(NULL,"wordselect","<n>","Word Select GPIO. e.g. 25");
@@ -1311,7 +1341,7 @@ static void register_bt_source_config(void){
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
 
-static void register_rotary_config(void){
+void register_rotary_config(void){
 	rotary_args.rem = arg_rem("remark","One rotary encoder is supported, quadrature shift with press. Such encoders usually have 2 pins for encoders (A and B), and common C that must be set to ground and an optional SW pin for press. A, B and SW must be pulled up, so automatic pull-up is provided by ESP32, but you can add your own resistors. A bit of filtering on A and B (~470nF) helps for debouncing which is not made by software.\r\nEncoder is normally hard-coded to respectively knob left, right and push on LMS and to volume down/up/play toggle on BT and AirPlay.");
 	rotary_args.A = arg_int1(NULL,"A","gpio","A/DT gpio");
 	rotary_args.B = arg_int1(NULL,"B","gpio","B/CLK gpio");
@@ -1334,7 +1364,7 @@ static void register_rotary_config(void){
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
 
-static void register_ledvu_config(void){
+void register_ledvu_config(void){
 	ledvu_args.type = arg_str1(NULL,"type","<none>|WS2812","Led type (supports one rgb strip to display built in effects and allow remote control through 'dmx' messaging)");
 	ledvu_args.length = arg_int1(NULL,"length","<1..255>","Strip length (1-255 supported)");
 	ledvu_args.gpio = arg_int1(NULL,"gpio","gpio","Data pin");
@@ -1352,8 +1382,10 @@ static void register_ledvu_config(void){
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
 
-static void register_audio_config(void){
+void register_audio_config(void){
 	audio_args.jack_behavior = arg_str0("j", "jack_behavior","Headphones|Subwoofer","On supported DAC, determines the audio jack behavior. Selecting headphones will cause the external amp to be muted on insert, while selecting Subwoofer will keep the amp active all the time.");
+    audio_args.loudness = arg_int0("l", "loudness","0-10","Sets the loudness level, from 0 to 10. 0 will disable the loudness completely.");	
+    audio_args.end = arg_end(6);
     audio_args.end = arg_end(6);
 	const esp_console_cmd_t cmd = {
         .command = CFG_TYPE_AUDIO("general"),
@@ -1433,8 +1465,6 @@ void register_config_cmd(void){
 #ifdef CONFIG_CSPOT_SINK	
 	register_cspot_config();
 #endif	
-	register_audio_config();
-//	register_squeezelite_config();
 	register_bt_source_config();
 	if(!is_dac_config_locked()){
 		register_i2s_config();
@@ -1442,7 +1472,6 @@ void register_config_cmd(void){
 	if(!is_spdif_config_locked()){
 		register_spdif_config();
 	}
-	register_rotary_config();
-	register_ledvu_config();
+    register_optional_cmd();    
 }
 

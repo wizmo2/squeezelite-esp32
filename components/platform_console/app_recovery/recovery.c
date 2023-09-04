@@ -27,6 +27,9 @@ const __attribute__((section(".rodata_desc"))) esp_app_desc_t esp_app_desc = {
 #endif
 };
 
+void register_optional_cmd(void) {
+}    
+
 int main(int argc, char **argv){
 	return 1;
 }

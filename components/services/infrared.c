@@ -14,6 +14,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "driver/rmt.h"
+#include "globdefs.h"
 #include "infrared.h"
 
 static const char* TAG = "IR";
@@ -66,17 +67,6 @@ struct ir_parser_s {
     *      - ESP_FAIL: Get scan code failed because some error occurred
     */
     esp_err_t (*get_scan_code)(ir_parser_t *parser, uint32_t *address, uint32_t *command, bool *repeat);
-
-    /**
-    * @brief Free resources used by IR parser
-    *
-    * @param[in] parser: Handle of IR parser
-    *
-    * @return
-    *      - ESP_OK: Free resource successfully
-    *      - ESP_FAIL: Free resources fail failed because some error occurred
-    */
-    esp_err_t (*del)(ir_parser_t *parser);
 };
 
 typedef struct {
@@ -93,8 +83,6 @@ typedef struct {
     }
 
 ir_parser_t *ir_parser = NULL;
-
-#define RMT_RX_CHANNEL    0     /*!< RMT channel for receiver */
 
 #define RMT_CHECK(a, str, goto_tag, ret_value, ...)                               \
     do                                                                            \
@@ -251,7 +239,6 @@ static esp_err_t nec_parser_get_scan_code(ir_parser_t *parser, uint32_t *address
     uint32_t cmd = 0;
     bool logic_value = false;
     nec_parser_t *nec_parser = __containerof(parser, nec_parser_t, parent);
-    RMT_CHECK(address && command && repeat, "address, command and repeat can't be null", out, ESP_ERR_INVALID_ARG);
     if (nec_parser->repeat) {
         if (nec_parse_repeat_frame(nec_parser)) {
             *address = nec_parser->last_address;
@@ -281,17 +268,7 @@ static esp_err_t nec_parser_get_scan_code(ir_parser_t *parser, uint32_t *address
             ret = ESP_OK;
         }
     }
-out:
     return ret;
-}
-
-/****************************************************************************************
- * 
- */
-static esp_err_t nec_parser_del(ir_parser_t *parser) {
-    nec_parser_t *nec_parser = __containerof(parser, nec_parser_t, parent);
-    free(nec_parser);
-    return ESP_OK;
 }
 
 /****************************************************************************************
@@ -321,7 +298,6 @@ ir_parser_t *ir_parser_rmt_new_nec(const ir_parser_config_t *config) {
     nec_parser->margin_ticks = (uint32_t)(ratio * config->margin_us);
     nec_parser->parent.input = nec_parser_input;
     nec_parser->parent.get_scan_code = nec_parser_get_scan_code;
-    nec_parser->parent.del = nec_parser_del;
     return &nec_parser->parent;
 err:
     return ret;
@@ -396,7 +372,6 @@ static esp_err_t rc5_parser_get_scan_code(ir_parser_t *parser, uint32_t *address
     bool t = false;
     bool exchange = false;
     rc5_parser_t *rc5_parser = __containerof(parser, rc5_parser_t, parent);
-    RMT_CHECK(address && command && repeat, "address, command and repeat can't be null", out, ESP_ERR_INVALID_ARG);
     for (int i = 0; i < rc5_parser->buffer_len; i++) {
         if (rc5_duration_one_unit(rc5_parser, rc5_parser->buffer[i].duration0)) {
             parse_result <<= 1;
@@ -448,15 +423,6 @@ out:
 /****************************************************************************************
  * 
  */
-static esp_err_t rc5_parser_del(ir_parser_t *parser) {
-    rc5_parser_t *rc5_parser = __containerof(parser, rc5_parser_t, parent);
-    free(rc5_parser);
-    return ESP_OK;
-}
-
-/****************************************************************************************
- * 
- */
 ir_parser_t *ir_parser_rmt_new_rc5(const ir_parser_config_t *config) {
     ir_parser_t *ret = NULL;
     rc5_parser_t *rc5_parser = calloc(1, sizeof(rc5_parser_t));
@@ -471,7 +437,6 @@ ir_parser_t *ir_parser_rmt_new_rc5(const ir_parser_config_t *config) {
     rc5_parser->margin_ticks = (uint32_t)(ratio * config->margin_us);
     rc5_parser->parent.input = rc5_parser_input;
     rc5_parser->parent.get_scan_code = rc5_parser_get_scan_code;
-    rc5_parser->parent.del = rc5_parser_del;
     return &rc5_parser->parent;
 err:
     return ret;
@@ -488,14 +453,22 @@ void infrared_receive(RingbufHandle_t rb, infrared_handler handler) {
 	if (item) {
 		uint32_t addr, cmd;
         bool repeat = false;
+        bool decoded = false;
 		      
         rx_size /= 4; // one RMT = 4 Bytes
         
         if (ir_parser->input(ir_parser, item, rx_size) == ESP_OK) {
             if (ir_parser->get_scan_code(ir_parser, &addr, &cmd, &repeat) == ESP_OK) {
+                decoded = true;
                 handler(addr, cmd);
                 ESP_LOGI(TAG, "Scan Code %s --- addr: 0x%04x cmd: 0x%04x", repeat ? "(repeat)" : "", addr, cmd);
             }
+        }
+
+        // if we have not decoded data but lenght is reasonnable, dump it
+        if (!decoded && rx_size > RC5_MAX_FRAME_RMT_WORDS) {
+            ESP_LOGI(TAG, "can't decode IR signal of len %d", rx_size);
+            ESP_LOG_BUFFER_HEX(TAG, item, rx_size * 4);
         }
 
 		// after parsing the data, return spaces to ringbuffer.
@@ -507,10 +480,9 @@ void infrared_receive(RingbufHandle_t rb, infrared_handler handler) {
 /****************************************************************************************
  * 
  */
-void infrared_init(RingbufHandle_t *rb, int gpio, infrared_mode_t mode) { 
-    ESP_LOGI(TAG, "Starting Infrared Receiver mode %s on gpio %d", mode == IR_NEC ? "nec" : "rc5", gpio);
-    
-    rmt_config_t rmt_rx_config = RMT_DEFAULT_CONFIG_RX(gpio, RMT_RX_CHANNEL);
+void infrared_init(RingbufHandle_t *rb, int gpio, infrared_mode_t mode) {  
+    int rmt_channel = rmt_system_base_channel++;
+    rmt_config_t rmt_rx_config = RMT_DEFAULT_CONFIG_RX(gpio, rmt_channel);
     rmt_config(&rmt_rx_config);
     rmt_driver_install(rmt_rx_config.channel, 1000, 0);
     ir_parser_config_t ir_parser_config = IR_PARSER_DEFAULT_CONFIG((ir_dev_t) rmt_rx_config.channel);
@@ -519,6 +491,8 @@ void infrared_init(RingbufHandle_t *rb, int gpio, infrared_mode_t mode) {
     ir_parser = (mode == IR_NEC) ? ir_parser_rmt_new_nec(&ir_parser_config) : ir_parser_rmt_new_rc5(&ir_parser_config);
     
     // get RMT RX ringbuffer
-    rmt_get_ringbuf_handle(RMT_RX_CHANNEL, rb);
-    rmt_rx_start(RMT_RX_CHANNEL, 1);
+    rmt_get_ringbuf_handle(rmt_channel, rb);
+    rmt_rx_start(rmt_channel, 1);
+    
+    ESP_LOGI(TAG, "Starting Infrared Receiver mode %s on gpio %d and channel %d", mode == IR_NEC ? "nec" : "rc5", gpio, rmt_channel);
 }

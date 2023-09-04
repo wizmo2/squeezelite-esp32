@@ -14,6 +14,8 @@ typedef struct {
 	int active;
 }  monitor_gpio_t;	
 
+extern void (*pseudo_idle_svc)(uint32_t now);
+
 extern void (*jack_handler_svc)(bool inserted);
 extern bool jack_inserted_svc(void);
 

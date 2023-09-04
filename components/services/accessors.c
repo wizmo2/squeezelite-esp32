@@ -27,7 +27,9 @@
 #include "soc/efuse_periph.h"
 #include "driver/gpio.h"
 #include "driver/spi_common_internal.h"
+#if CONFIG_IDF_TARGET_ESP32   
 #include "esp32/rom/efuse.h"
+#endif
 #include "tools.h"
 #include "monitor.h"
 #include "messaging.h"
@@ -1088,6 +1090,9 @@ gpio_entry_t * get_gpio_by_name(char * name,char * group, bool refresh){
 
 
 cJSON * get_psram_gpio_list(cJSON * list){
+	cJSON * llist=list;
+	
+#if CONFIG_IDF_TARGET_ESP32    
 	const char * psram_dev = "psram";
 	const char * flash_dev = "flash";
 	const char * clk = "clk";
@@ -1096,7 +1101,6 @@ cJSON * get_psram_gpio_list(cJSON * list){
 	const char * spid_sd1_io = "spid_sd1_io";
 	const char * spiwp_sd3_io = "spiwp_sd3_io";
 	const char * spihd_sd2_io = "spihd_sd2_io";
-	cJSON * llist=list;
 	
     uint32_t chip_ver = REG_GET_FIELD(EFUSE_BLK0_RDATA3_REG, EFUSE_RD_CHIP_VER_PKG);
     uint32_t pkg_ver = chip_ver & 0x7;
@@ -1156,6 +1160,9 @@ cJSON * get_psram_gpio_list(cJSON * list){
 		cJSON_AddItemToArray(list,get_gpio_entry(clk,flash_dev,EFUSE_SPICONFIG_RET_SPICLK(spiconfig),true));
 		cJSON_AddItemToArray(list,get_gpio_entry(cs,flash_dev,EFUSE_SPICONFIG_RET_SPICS0(spiconfig),true));
 	}
+#else
+#pragma message("need to add esp32-s3 specific SPIRAM GPIO config code")
+#endif    
     return llist;	
 }
 

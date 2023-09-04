@@ -14,6 +14,7 @@
 #include "freertos/timers.h"
 #include "esp_system.h"
 #include "esp_log.h"
+#include "esp_task.h"
 #include "monitor.h"
 #include "driver/gpio.h"
 #include "buttons.h"
@@ -25,15 +26,14 @@
 #include "cJSON.h"
 #include "tools.h"
 
+#define PSEUDO_IDLE_STACK_SIZE	(3*1024)
+
 #define MONITOR_TIMER	(10*1000)
 #define SCRATCH_SIZE	256
 
 static const char *TAG = "monitor";
 
-static TimerHandle_t monitor_timer;
-
-static monitor_gpio_t jack = { CONFIG_JACK_GPIO, 0 };
-static monitor_gpio_t spkfault = { CONFIG_SPKFAULT_GPIO, 0 };
+void (*pseudo_idle_svc)(uint32_t now);
 
 void (*jack_handler_svc)(bool inserted);
 bool jack_inserted_svc(void);
@@ -41,36 +41,39 @@ bool jack_inserted_svc(void);
 void (*spkfault_handler_svc)(bool inserted);
 bool spkfault_svc(void);
 
+static monitor_gpio_t jack = { CONFIG_JACK_GPIO, 0 };
+static monitor_gpio_t spkfault = { CONFIG_SPKFAULT_GPIO, 0 };
+static bool monitor_stats;
 
 /****************************************************************************************
- * 
+ *
  */
 static void task_stats( cJSON* top ) {
-#ifdef CONFIG_FREERTOS_USE_TRACE_FACILITY 
+#ifdef CONFIG_FREERTOS_USE_TRACE_FACILITY
 #pragma message("Compiled with trace facility")
 	static struct {
 		TaskStatus_t *tasks;
 		uint32_t total, n;
 	} current, previous;
+    
 	cJSON * tlist=cJSON_CreateArray();
 	current.n = uxTaskGetNumberOfTasks();
 	current.tasks = malloc_init_external( current.n * sizeof( TaskStatus_t ) );
 	current.n = uxTaskGetSystemState( current.tasks, current.n, &current.total );
 	cJSON_AddNumberToObject(top,"ntasks",current.n);
-	
-	static EXT_RAM_ATTR char scratch[SCRATCH_SIZE];
-	*scratch = '\0';
+
+	char scratch[SCRATCH_SIZE] = { 0 };
 
 #ifdef CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
 #pragma message("Compiled with runtime stats")
 	uint32_t elapsed = current.total - previous.total;
-    
+
 	for(int i = 0, n = 0; i < current.n; i++ ) {
 		for (int j = 0; j < previous.n; j++) {
 			if (current.tasks[i].xTaskNumber == previous.tasks[j].xTaskNumber) {
-				n += snprintf(scratch + n, SCRATCH_SIZE - n, "%16s (%u) %2u%% s:%5u", current.tasks[i].pcTaskName, 
+				n += snprintf(scratch + n, SCRATCH_SIZE - n, "%16s (%u) %2u%% s:%5u", current.tasks[i].pcTaskName,
 																		   current.tasks[i].eCurrentState,
-																		   100 * (current.tasks[i].ulRunTimeCounter - previous.tasks[j].ulRunTimeCounter) / elapsed, 
+																		   100 * (current.tasks[i].ulRunTimeCounter - previous.tasks[j].ulRunTimeCounter) / elapsed,
 																		   current.tasks[i].usStackHighWaterMark);
 				cJSON * t=cJSON_CreateObject();
 				cJSON_AddNumberToObject(t,"cpu",100 * (current.tasks[i].ulRunTimeCounter - previous.tasks[j].ulRunTimeCounter) / elapsed);
@@ -84,11 +87,11 @@ static void task_stats( cJSON* top ) {
 				if (i % 3 == 2 || i == current.n - 1) {
 					ESP_LOGI(TAG, "%s", scratch);
 					n = 0;
-				}	
+				}
 				break;
 			}
 		}
-	}	
+	}
 #else
 #pragma message("Compiled WITHOUT runtime stats")
 
@@ -105,21 +108,26 @@ static void task_stats( cJSON* top ) {
 		if (i % 3 == 2 || i == current.n - 1) {
 			ESP_LOGI(TAG, "%s", scratch);
 			n = 0;
-		}	
+		}
 	}
-#endif	
+#endif
 	cJSON_AddItemToObject(top,"tasks",tlist);
 	if (previous.tasks) free(previous.tasks);
 	previous = current;
-#else 
-#pragma message("Compiled WITHOUT trace facility")	
-#endif	
+#else
+#pragma message("Compiled WITHOUT trace facility")
+#endif
 }
- 
+
 /****************************************************************************************
- * 
+ *
  */
-static void monitor_callback(TimerHandle_t xTimer) {
+static void monitor_trace(uint32_t now) {
+    static uint32_t last;
+
+    if (now < last + MONITOR_TIMER) return;
+    last = now;
+
 	cJSON * top=cJSON_CreateObject();
 	cJSON_AddNumberToObject(top,"free_iram",heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
 	cJSON_AddNumberToObject(top,"min_free_iram",heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL));
@@ -133,7 +141,7 @@ static void monitor_callback(TimerHandle_t xTimer) {
 			heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM),
 			heap_caps_get_free_size(MALLOC_CAP_DMA),
 			heap_caps_get_minimum_free_size(MALLOC_CAP_DMA));
-			
+
 	task_stats(top);
 	char * top_a= cJSON_PrintUnformatted(top);
 	if(top_a){
@@ -144,7 +152,7 @@ static void monitor_callback(TimerHandle_t xTimer) {
 }
 
 /****************************************************************************************
- * 
+ *
  */
 static void jack_handler_default(void *id, button_event_e event, button_press_e mode, bool long_press) {
 	ESP_LOGI(TAG, "Jack %s", event == BUTTON_PRESSED ? "inserted" : "removed");
@@ -152,7 +160,7 @@ static void jack_handler_default(void *id, button_event_e event, button_press_e 
 }
 
 /****************************************************************************************
- * 
+ *
  */
 bool jack_inserted_svc (void) {
 	if (jack.gpio != -1) return button_is_pressed(jack.gpio, NULL);
@@ -160,7 +168,7 @@ bool jack_inserted_svc (void) {
 }
 
 /****************************************************************************************
- * 
+ *
  */
 static void spkfault_handler_default(void *id, button_event_e event, button_press_e mode, bool long_press) {
 	ESP_LOGD(TAG, "Speaker status %s", event == BUTTON_PRESSED ? "faulty" : "normal");
@@ -170,22 +178,22 @@ static void spkfault_handler_default(void *id, button_event_e event, button_pres
 }
 
 /****************************************************************************************
- * 
+ *
  */
 bool spkfault_svc (void) {
 	return button_is_pressed(spkfault.gpio, NULL);
 }
 
 /****************************************************************************************
- * 
+ *
  */
 #ifndef CONFIG_JACK_LOCKED
 static void set_jack_gpio(int gpio, char *value) {
 	if (strcasestr(value, "jack")) {
 		char *p;
-		jack.gpio = gpio;	
+		jack.gpio = gpio;
 		if ((p = strchr(value, ':')) != NULL) jack.active = atoi(p + 1);
-	}	
+	}
 	else {
 		jack.gpio = -1;
 	}
@@ -193,15 +201,15 @@ static void set_jack_gpio(int gpio, char *value) {
 #endif
 
 /****************************************************************************************
- * 
+ *
  */
 #ifndef CONFIG_SPKFAULT_LOCKED
 static void set_spkfault_gpio(int gpio, char *value) {
 	if (strcasestr(value, "spkfault")) {
 		char *p;
-		spkfault.gpio = gpio;	
+		spkfault.gpio = gpio;
 		if ((p = strchr(value, ':')) != NULL) spkfault.active = atoi(p + 1);
-	}	
+	}
 	else {
 		spkfault.gpio = -1;
 	}
@@ -209,28 +217,41 @@ static void set_spkfault_gpio(int gpio, char *value) {
 #endif
 
 /****************************************************************************************
- * 
+ *
+ */
+static void pseudo_idle(void *arg) {
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        uint32_t now = pdTICKS_TO_MS(xTaskGetTickCount());
+
+        if (monitor_stats) monitor_trace(now);
+        if (pseudo_idle_svc) pseudo_idle_svc(now);
+    }
+}
+
+/****************************************************************************************
+ *
  */
 void monitor_svc_init(void) {
 	ESP_LOGI(TAG, "Initializing monitoring");
-	
+
 #ifdef CONFIG_JACK_GPIO_LEVEL
 	jack.active = CONFIG_JACK_GPIO_LEVEL;
 #endif
 
 #ifndef CONFIG_JACK_LOCKED
 	parse_set_GPIO(set_jack_gpio);
-#endif	
+#endif
 
 	// re-use button management for jack handler, it's a GPIO after all
 	if (jack.gpio != -1) {
-		ESP_LOGI(TAG,"Adding jack (%s) detection GPIO %d", jack.active ? "high" : "low", jack.gpio);					 
+		ESP_LOGI(TAG,"Adding jack (%s) detection GPIO %d", jack.active ? "high" : "low", jack.gpio);
 		button_create(NULL, jack.gpio, jack.active ? BUTTON_HIGH : BUTTON_LOW, false, 250, jack_handler_default, 0, -1);
-	}	
-	
+	}
+
 #ifdef CONFIG_SPKFAULT_GPIO_LEVEL
 	spkfault.active = CONFIG_SPKFAULT_GPIO_LEVEL;
-#endif	
+#endif
 
 #ifndef CONFIG_SPKFAULT_LOCKED
 	parse_set_GPIO(set_spkfault_gpio);
@@ -238,18 +259,15 @@ void monitor_svc_init(void) {
 
 	// re-use button management for speaker fault handler, it's a GPIO after all
 	if (spkfault.gpio != -1) {
-		ESP_LOGI(TAG,"Adding speaker fault (%s) detection GPIO %d", spkfault.active ? "high" : "low", spkfault.gpio);					 
+		ESP_LOGI(TAG,"Adding speaker fault (%s) detection GPIO %d", spkfault.active ? "high" : "low", spkfault.gpio);
 		button_create(NULL, spkfault.gpio, spkfault.active ? BUTTON_HIGH : BUTTON_LOW, false, 0, spkfault_handler_default, 0, -1);
-	}	
+	}
 
 	// do we want stats
 	char *p = config_alloc_get_default(NVS_TYPE_STR, "stats", "n", 0);
-	if (p && (*p == '1' || *p == 'Y' || *p == 'y')) {
-		monitor_timer = xTimerCreate("monitor", MONITOR_TIMER / portTICK_RATE_MS, pdTRUE, NULL, monitor_callback);
-		xTimerStart(monitor_timer, portMAX_DELAY);
-	}	
+	monitor_stats = p && (*p == '1' || *p == 'Y' || *p == 'y');
 	FREE_AND_NULL(p);
-	
+
 	ESP_LOGI(TAG, "Heap internal:%zu (min:%zu) external:%zu (min:%zu) dma:%zu (min:%zu)",
 			heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
 			heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL),
@@ -257,18 +275,24 @@ void monitor_svc_init(void) {
 			heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM),
 			heap_caps_get_free_size(MALLOC_CAP_DMA),
 			heap_caps_get_minimum_free_size(MALLOC_CAP_DMA));
+
+    // pseudo-idle callback => don't use FreeRTOS idle callbacks so we can block (should not but ...)
+	StaticTask_t* xTaskBuffer = (StaticTask_t*) heap_caps_malloc(sizeof(StaticTask_t), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+	static EXT_RAM_ATTR StackType_t xStack[PSEUDO_IDLE_STACK_SIZE] __attribute__ ((aligned (4)));
+	xTaskCreateStatic( (TaskFunction_t) pseudo_idle, "pseudo_idle", PSEUDO_IDLE_STACK_SIZE,
+						NULL, ESP_TASK_PRIO_MIN, xStack, xTaskBuffer );
 }
 
 /****************************************************************************************
- * 
+ *
  */
  monitor_gpio_t * get_spkfault_gpio(){
-	return &spkfault	; 
- } 
+	return &spkfault	;
+ }
 
 /****************************************************************************************
- * 
+ *
  */
  monitor_gpio_t * get_jack_insertion_gpio(){
 	return &jack;
-} 
+}

@@ -19,6 +19,12 @@
 #include "gds.h"
 #include "gds_private.h"
 
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+#define LEDC_SPEED_MODE LEDC_LOW_SPEED_MODE
+#else
+#define LEDC_SPEED_MODE LEDC_HIGH_SPEED_MODE
+#endif                
+
 static struct GDS_Device Display;
 static struct GDS_BacklightPWM PWMConfig;
 
@@ -34,7 +40,7 @@ struct GDS_Device* GDS_AutoDetect( char *Driver, GDS_DetectFunc* DetectFunc[], s
 				ledc_timer_config_t PWMTimer = {
 						.duty_resolution = LEDC_TIMER_13_BIT,
 						.freq_hz = 5000,                   
-						.speed_mode = LEDC_HIGH_SPEED_MODE,
+						.speed_mode = LEDC_SPEED_MODE,
 						.timer_num = PWMConfig.Timer,
 					};
 				ledc_timer_config(&PWMTimer);
@@ -188,7 +194,7 @@ bool GDS_Init( struct GDS_Device* Device ) {
             .channel    = Device->Backlight.Channel,
             .duty       = Device->Backlight.PWM,
             .gpio_num   = Device->Backlight.Pin,
-            .speed_mode = LEDC_HIGH_SPEED_MODE,
+            .speed_mode = LEDC_SPEED_MODE,
             .hpoint     = 0,
             .timer_sel  = PWMConfig.Timer,
         };
@@ -231,8 +237,8 @@ void GDS_SetContrast( struct GDS_Device* Device, uint8_t Contrast ) {
 	if (Device->SetContrast) Device->SetContrast( Device, Contrast ); 
 	else if (Device->Backlight.Pin >= 0) {
 		Device->Backlight.PWM = PWMConfig.Max * powf(Contrast / 255.0, 3);
-		ledc_set_duty( LEDC_HIGH_SPEED_MODE, Device->Backlight.Channel, Device->Backlight.PWM );
-		ledc_update_duty( LEDC_HIGH_SPEED_MODE, Device->Backlight.Channel );		
+		ledc_set_duty( LEDC_SPEED_MODE, Device->Backlight.Channel, Device->Backlight.PWM );
+		ledc_update_duty( LEDC_SPEED_MODE, Device->Backlight.Channel );		
 	}
 }
 

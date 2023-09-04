@@ -40,6 +40,16 @@ const __attribute__((section(".rodata_desc"))) esp_app_desc_t esp_app_desc = {
 #endif
 };
 
+extern void register_audio_config(void);
+extern void register_rotary_config(void);
+extern void register_ledvu_config(void);
+
+void register_optional_cmd(void) {
+    register_rotary_config();
+	register_ledvu_config();
+    register_audio_config();
+}    
+
 extern int squeezelite_main(int argc, char **argv);
 
 static int launchsqueezelite(int argc, char **argv);
