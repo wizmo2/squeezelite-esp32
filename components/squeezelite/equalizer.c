@@ -129,7 +129,9 @@ void equalizer_set_volume(unsigned left, unsigned right) {
     // do classic dB conversion and scale it 0..100
 	if (volume) volume = log2(volume);
 	volume = volume / 16.0 * 100.0;
-    if (volume != equalizer.volume) {
+    
+    // LMS has the bad habit to send multiple volume commands
+    if (volume != equalizer.volume && equalizer.loudness) {
         equalizer.volume = volume;
         calculate_loudness();
         equalizer.update = true;
@@ -144,15 +146,17 @@ void equalizer_set_gain(int8_t *gain) {
 #if BYTES_PER_FRAME == 4
     char config[EQ_BANDS * 4 + 1] = { };
 	int n = 0;
-
-	for (int i = 0; i < EQ_BANDS; i++) {
+    
+    for (int i = 0; i < EQ_BANDS; i++) {
 		equalizer.gain[i] = gain[i];
 		n += sprintf(config + n, "%d,", gain[i]);
 	}
 
 	config[n-1] = '\0';
 	config_set_value(NVS_TYPE_STR, "equalizer", config);
-	equalizer.update = true;
+    
+    // update only if something changed
+    if (!memcmp(equalizer.gain, gain, EQ_BANDS)) equalizer.update = true;
 
     LOG_INFO("equalizer gain %s", config);
 #else
@@ -165,14 +169,16 @@ void equalizer_set_gain(int8_t *gain) {
  */
 void equalizer_set_loudness(uint8_t loudness) {
 #if BYTES_PER_FRAME == 4
-    // update loudness gains as a factor of loudness and volume
-	equalizer.loudness = loudness / 10.0;
-    calculate_loudness();
-
     char p[4];
     itoa(loudness, p, 10);
     config_set_value(NVS_TYPE_STR, "loudness", p);
-    equalizer.update = true;
+    
+    // update loudness gains as a factor of loudness and volume
+    if (equalizer.loudness != loudness / 10.0) {
+        equalizer.loudness = loudness / 10.0;
+        calculate_loudness();
+        equalizer.update = true;
+    }
 
     LOG_INFO("loudness %u", (unsigned) loudness);
 #else

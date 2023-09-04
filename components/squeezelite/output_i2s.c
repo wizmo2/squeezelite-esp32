@@ -55,8 +55,10 @@ sure that using rate_delay would fix that
 #define SPDIF_BLOCK	256
 
 // must have an integer ratio with FRAME_BLOCK (see spdif comment)
-#define DMA_BUF_LEN		512	
-#define DMA_BUF_COUNT	12
+#define DMA_SIZE        6144
+// FRAME_BLOCK must be a multiple of DMA_BUF_LEN no matter what
+#define DMA_BUF_LEN		FRAME_BLOCK
+#define DMA_BUF_COUNT	(DMA_SIZE / DMA_BUF_LEN)
 
 #define DECLARE_ALL_MIN_MAX 	\
 	DECLARE_MIN_MAX(o); 		\
@@ -73,7 +75,7 @@ sure that using rate_delay would fix that
 	RESET_MIN_MAX(buffering);
 	
 #define STATS_PERIOD_MS 5000
-#define STAT_STACK_SIZE	(3*1024)
+static void (*pseudo_idle_chain)(uint32_t now);
 
 #ifndef CONFIG_AMP_GPIO_LEVEL
 #define CONFIG_AMP_GPIO_LEVEL 1
@@ -101,8 +103,7 @@ static struct {
 	size_t count;
 } spdif;
 static size_t dma_buf_frames;
-static TaskHandle_t stats_task, output_i2s_task;
-static bool stats;
+static TaskHandle_t output_i2s_task;
 static struct {
 	int gpio, active;
 } amp_control = { CONFIG_AMP_GPIO, CONFIG_AMP_GPIO_LEVEL },
@@ -113,7 +114,7 @@ DECLARE_ALL_MIN_MAX;
 static int _i2s_write_frames(frames_t out_frames, bool silence, s32_t gainL, s32_t gainR, u8_t flags,
 								s32_t cross_gain_in, s32_t cross_gain_out, ISAMPLE_T **cross_ptr);
 static void output_thread_i2s(void *arg);
-static void output_thread_i2s_stats(void *arg);
+static void i2s_stats(uint32_t now);
 static void spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, size_t *count);
 static void (*jack_handler_chain)(bool inserted);
 
@@ -251,8 +252,6 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
         return;
     }
     
-	/* BEWARE: i2s.c must be patched otherwise L/R are swapped in 32 bits mode */
-	 
 	// common I2S initialization
 	i2s_config.mode = I2S_MODE_MASTER | I2S_MODE_TX;
 	i2s_config.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT;
@@ -410,17 +409,11 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 	
 	// do we want stats
 	p = config_alloc_get_default(NVS_TYPE_STR, "stats", "n", 0);
-	stats = p && (*p == '1' || *p == 'Y' || *p == 'y');
-	free(p);
-	
-	// memory still used but at least task is not created
-	if (stats) {
-		// we allocate TCB but stack is static to avoid SPIRAM fragmentation
-		StaticTask_t* xTaskBuffer = (StaticTask_t*) heap_caps_malloc(sizeof(StaticTask_t), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-		static EXT_RAM_ATTR StackType_t xStack[STAT_STACK_SIZE] __attribute__ ((aligned (4)));
-		stats_task = xTaskCreateStatic( (TaskFunction_t) output_thread_i2s_stats, "output_i2s_sts", STAT_STACK_SIZE, 
-										 NULL, ESP_TASK_PRIO_MIN, xStack, xTaskBuffer);
-	}	
+	if (p && (*p == '1' || *p == 'Y' || *p == 'y')) {
+        pseudo_idle_chain = pseudo_idle_svc;
+        pseudo_idle_svc = i2s_stats;
+	}
+    free(p);
 }
 
 
@@ -433,7 +426,6 @@ void output_close_i2s(void) {
 	UNLOCK;
 	
 	while (!ended) vTaskDelay(20 / portTICK_PERIOD_MS);
-	if (stats) vTaskDelete(stats_task);
 	
 	i2s_driver_uninstall(CONFIG_I2S_NUM);
 	free(obuf);
@@ -488,7 +480,7 @@ static void output_thread_i2s(void *arg) {
 	uint32_t fullness = gettime_ms();
 	bool synced;
 	output_state state = OUTPUT_OFF - 1;
-	
+    
 	while (running) {
 			
 		TIME_MEASUREMENT_START(timer_start);
@@ -537,7 +529,10 @@ static void output_thread_i2s(void *arg) {
 		_output_frames( iframes );
 		// oframes must be a global updated by the write callback
 		output.frames_in_process = oframes;
-						
+        
+        // force some sin
+        //memcpy(obuf, __obuf, oframes*BYTES_PER_FRAME);
+        						
 		SET_MIN_MAX_SIZED(oframes,rec,iframes);
 		SET_MIN_MAX_SIZED(_buf_used(outputbuf),o,outputbuf->size);
 		SET_MIN_MAX_SIZED(_buf_used(streambuf),s,streambuf->size);
@@ -628,33 +623,34 @@ static void output_thread_i2s(void *arg) {
 /****************************************************************************************
  * Stats output thread
  */
-static void output_thread_i2s_stats(void *arg) {
-	while (1) {
-		// no need to lock
-		output_state state = output.state;
-		
-		if(stats && state>OUTPUT_STOPPED){
-			LOG_INFO( "Output State: %d, current sample rate: %d, bytes per frame: %d",state,output.current_sample_rate, BYTES_PER_FRAME);
-			LOG_INFO( LINE_MIN_MAX_FORMAT_HEAD1);
-			LOG_INFO( LINE_MIN_MAX_FORMAT_HEAD2);
-			LOG_INFO( LINE_MIN_MAX_FORMAT_HEAD3);
-			LOG_INFO( LINE_MIN_MAX_FORMAT_HEAD4);
-			LOG_INFO(LINE_MIN_MAX_FORMAT_STREAM, LINE_MIN_MAX_STREAM("stream",s));
-			LOG_INFO(LINE_MIN_MAX_FORMAT,LINE_MIN_MAX("output",o));
-			LOG_INFO(LINE_MIN_MAX_FORMAT_FOOTER);
-			LOG_INFO(LINE_MIN_MAX_FORMAT,LINE_MIN_MAX("received",rec));
-			LOG_INFO(LINE_MIN_MAX_FORMAT_FOOTER);
-			LOG_INFO("");
-			LOG_INFO("              ----------+----------+-----------+-----------+  ");
-			LOG_INFO("              max (us)  | min (us) |   avg(us) |  count    |  ");
-			LOG_INFO("              ----------+----------+-----------+-----------+  ");
-			LOG_INFO(LINE_MIN_MAX_DURATION_FORMAT,LINE_MIN_MAX_DURATION("Buffering(us)",buffering));
-			LOG_INFO(LINE_MIN_MAX_DURATION_FORMAT,LINE_MIN_MAX_DURATION("i2s tfr(us)",i2s_time));
-			LOG_INFO("              ----------+----------+-----------+-----------+");
-			RESET_ALL_MIN_MAX;
-		}
-		vTaskDelay( pdMS_TO_TICKS( STATS_PERIOD_MS ) );
-	}
+static void i2s_stats(uint32_t now) {
+    static uint32_t last;
+    
+    // first chain to next handler
+    if (pseudo_idle_chain) pseudo_idle_chain(now);
+    
+    // then see if we need to act
+    if (output.state <= OUTPUT_STOPPED || now < last + STATS_PERIOD_MS) return;  
+    last = now;
+    
+	LOG_INFO( "Output State: %d, current sample rate: %d, bytes per frame: %d", output.state, output.current_sample_rate, BYTES_PER_FRAME);
+	LOG_INFO( LINE_MIN_MAX_FORMAT_HEAD1);
+	LOG_INFO( LINE_MIN_MAX_FORMAT_HEAD2);
+	LOG_INFO( LINE_MIN_MAX_FORMAT_HEAD3);
+	LOG_INFO( LINE_MIN_MAX_FORMAT_HEAD4);
+	LOG_INFO(LINE_MIN_MAX_FORMAT_STREAM, LINE_MIN_MAX_STREAM("stream",s));
+	LOG_INFO(LINE_MIN_MAX_FORMAT,LINE_MIN_MAX("output",o));
+	LOG_INFO(LINE_MIN_MAX_FORMAT_FOOTER);
+	LOG_INFO(LINE_MIN_MAX_FORMAT,LINE_MIN_MAX("received",rec));
+	LOG_INFO(LINE_MIN_MAX_FORMAT_FOOTER);
+	LOG_INFO("");
+	LOG_INFO("              ----------+----------+-----------+-----------+  ");
+	LOG_INFO("              max (us)  | min (us) |   avg(us) |  count    |  ");
+	LOG_INFO("              ----------+----------+-----------+-----------+  ");
+	LOG_INFO(LINE_MIN_MAX_DURATION_FORMAT,LINE_MIN_MAX_DURATION("Buffering(us)",buffering));
+	LOG_INFO(LINE_MIN_MAX_DURATION_FORMAT,LINE_MIN_MAX_DURATION("i2s tfr(us)",i2s_time));
+	LOG_INFO("              ----------+----------+-----------+-----------+");
+	RESET_ALL_MIN_MAX;
 }
 
 /****************************************************************************************
