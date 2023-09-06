@@ -3,6 +3,14 @@ if(IDF_TARGET STREQUAL "esp32")
     set(target_requires "driver_bt")
 endif()
 
+message(STATUS "Manually Disable Spotify")
+#add_definitions(-DNOCSPOT)
+if (DEFINED $(NOCSPOT))
+	set(cspot_required "spotify")
+else()
+	unset(CONFIG_CSPOT_SINK)
+endif()
+
 idf_component_register( SRC_DIRS . external ac101 tas57xx wm8978
 						INCLUDE_DIRS .  ac101 
 						PRIV_REQUIRES 	
@@ -12,13 +20,13 @@ idf_component_register( SRC_DIRS . external ac101 tas57xx wm8978
 									esp-dsp
 						  			platform_config 
 						 			services 
-									spotify
-						 			raop   
+									raop   
 						 			display
 						 			tools
 						 			audio
 									led_strip
 									_override
+									${cspot_required}
 						 			${target_requires}                                    
 						EMBED_FILES vu_s.data arrow.data
 )

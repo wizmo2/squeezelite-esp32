@@ -1,4 +1,8 @@
 # this must be set *before* idf_component_register
+if (NOT DEFINED NOCSPOT)
+	return()
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 
 idf_component_register(
