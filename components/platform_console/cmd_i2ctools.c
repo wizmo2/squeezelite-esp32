@@ -478,7 +478,7 @@ static int do_spiconfig_cmd(int argc, char **argv){
 
 	if(!nerrors){
 		fprintf(f,"Configuring SPI data=%d clock=%d host=%u dc: %d\n", spi_config.mosi_io_num, spi_config.sclk_io_num, host, dc);
-		err=spi_bus_initialize( host, &spi_config, 1 );
+		err=spi_bus_initialize( host, &spi_config, 3 );
 		if(err!=ESP_OK){
 			if(err==ESP_ERR_INVALID_STATE){
 				// if user is changing the host number, we need to try freeing both hosts
