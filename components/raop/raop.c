@@ -34,7 +34,7 @@
 #include "log_util.h"
 
 #define RTSP_STACK_SIZE 	(8*1024)
-#define SEARCH_STACK_SIZE	(3*1048)
+#define SEARCH_STACK_SIZE	(3*1024)
 
 typedef struct raop_ctx_s {
 #ifdef WIN32

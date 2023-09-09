@@ -539,13 +539,11 @@ static void output_thread_i2s(void *arg) {
 		output.frames_played_dmp = output.frames_played;
 		// try to estimate how much we have consumed from the DMA buffer (calculation is incorrect at the very beginning ...)
 		output.device_frames = dma_buf_frames - ((output.updated - fullness) * output.current_sample_rate) / 1000;
+        // we'll try to produce iframes if we have any, but we might return less if outpuf does not have enough
 		_output_frames( iframes );
 		// oframes must be a global updated by the write callback
 		output.frames_in_process = oframes;
-        
-        // force some sin
-        //memcpy(obuf, __obuf, oframes*BYTES_PER_FRAME);
-        						
+              						
 		SET_MIN_MAX_SIZED(oframes,rec,iframes);
 		SET_MIN_MAX_SIZED(_buf_used(outputbuf),o,outputbuf->size);
 		SET_MIN_MAX_SIZED(_buf_used(streambuf),s,streambuf->size);
@@ -558,12 +556,12 @@ static void output_thread_i2s(void *arg) {
 			discard = output.frames_played_dmp ? 0 : output.device_frames;
 			synced = true;
 		} else if (discard) {
-			discard -= oframes;
-			iframes = discard ? min(FRAME_BLOCK, discard) : FRAME_BLOCK;
+            discard -= min(oframes, discard);
+            iframes = discard ? min(FRAME_BLOCK, discard) : FRAME_BLOCK;
 			UNLOCK;
 			continue;
 		}
-		
+
 		UNLOCK;
 				
 		// now send all the data
@@ -576,7 +574,7 @@ static void output_thread_i2s(void *arg) {
 			i2s_start(CONFIG_I2S_NUM);
 			adac->power(ADAC_ON);	
 		} 
-		
+
 		// this does not work well as set_sample_rates resets the fifos (and it's too early)
 		if (i2s_config.sample_rate != output.current_sample_rate) {
 			LOG_INFO("changing sampling rate %u to %u", i2s_config.sample_rate, output.current_sample_rate);
@@ -608,7 +606,7 @@ static void output_thread_i2s(void *arg) {
 				i2s_write(CONFIG_I2S_NUM, spdif.buf, chunk * 16, &obytes, portMAX_DELAY);
 				bytes += obytes / (16 / BYTES_PER_FRAME);
 				count += chunk;
-			}	
+			}
 #if BYTES_PER_FRAME == 4		
 		} else if (i2s_config.bits_per_sample == 32) {  
 			i2s_write_expand(CONFIG_I2S_NUM, obuf, oframes * BYTES_PER_FRAME, 16, 32, &bytes, portMAX_DELAY);
