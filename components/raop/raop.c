@@ -680,7 +680,7 @@ void cleanup_rtsp(raop_ctx_t *ctx, bool abort) {
 		xSemaphoreTake(ctx->active_remote.destroy_mutex, portMAX_DELAY);
 		vTaskDelete(ctx->active_remote.thread);
 		SAFE_PTR_FREE(ctx->active_remote.xTaskBuffer);
-		vSemaphoreDelete(ctx->active_remote.thread);
+		vSemaphoreDelete(ctx->active_remote.destroy_mutex);
 #endif
 		memset(&ctx->active_remote, 0, sizeof(ctx->active_remote));
 		LOG_INFO("[%p]: Remote search thread aborted", ctx);
