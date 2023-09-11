@@ -26,7 +26,7 @@
 #include "cJSON.h"
 #include "tools.h"
 
-#define PSEUDO_IDLE_STACK_SIZE	(3*1024)
+#define PSEUDO_IDLE_STACK_SIZE	(6*1024)
 
 #define MONITOR_TIMER	(10*1000)
 #define SCRATCH_SIZE	256
@@ -62,7 +62,7 @@ static void task_stats( cJSON* top ) {
 	current.n = uxTaskGetSystemState( current.tasks, current.n, &current.total );
 	cJSON_AddNumberToObject(top,"ntasks",current.n);
 
-	char scratch[SCRATCH_SIZE] = { 0 };
+	char scratch[SCRATCH_SIZE] = { };
 
 #ifdef CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
 #pragma message("Compiled with runtime stats")
