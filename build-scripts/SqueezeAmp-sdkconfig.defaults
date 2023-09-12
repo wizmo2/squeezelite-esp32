@@ -289,6 +289,12 @@ CONFIG_AMP_GPIO=-1
 # end of AMP configuration
 
 #
+# POWER configuration
+#
+CONFIG_POWER_GPIO=-1
+# end of POWER configuration
+
+#
 # Compiler options
 #
 # CONFIG_COMPILER_OPTIMIZATION_DEFAULT is not set

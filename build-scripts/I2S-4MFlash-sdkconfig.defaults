@@ -298,6 +298,12 @@ CONFIG_AMP_GPIO=-1
 # end of AMP configuration
 
 #
+# POWER configuration
+#
+CONFIG_POWER_GPIO=-1
+# end of POWER configuration
+
+#
 # Audio JACK
 #
 CONFIG_JACK_GPIO=-1
