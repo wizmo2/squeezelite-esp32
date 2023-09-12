@@ -7,11 +7,10 @@ assignees: ''
 
 ---
 
+To help us resolve your issue as quickly as possible, please follow these guidelines when submitting an issue. Providing all the necessary information will save both your time and ours.
+
 ### Describe the bug
 A clear and concise description of what the bug is.
-
-
-To help us resolve your issue as quickly as possible, please follow these guidelines when submitting an issue. Providing all the necessary information will save both your time and ours.
 
 ### Preliminary Information
 
@@ -38,6 +37,13 @@ Follow these steps to share your NVS settings:
 5. Scroll to the bottom and click "Download Config".
 6. Share the downloaded content here.
 
+<details>
+<pre><code>
+  Your log content here
+</code></pre>
+</details>
+
+
 ### Logs
 
 To share logs:
@@ -47,21 +53,35 @@ To share logs:
 3. Click "Connect to Device".
 4. Select the appropriate serial port.
 5. Click "Logs And Console".
-
-#### Type of Logs to Share
-
+6. Download the logs and share them here. Please remove any sensitive information like Wi-Fi passwords or MAC addresses.
 - **If the problem occurs soon after booting**: Share the full log until the issue occurs.
 - **If the problem occurs later during playback**: Trim the logs to include information just before and after the problem occurs.
-
-6. Download the logs and share them here. Please remove any sensitive information like Wi-Fi passwords or MAC addresses.
 
 #### Example Log
 
 Here's an example log for reference. Make sure to obfuscate sensitive information like Wi-Fi passwords, MAC addresses, and change IP addresses to something more generic.
 
-\`\`\`plaintext
-[Your obfuscated log here]
-\`\`\`
+<details>
+<pre><code>
+=== START OF LOG ===
+Example of log from the console 
+rst:0x1 (POWERON_RESET),boot:0x17 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:1
+...
+I (1041) cpu_start: Application information:
+I (1044) cpu_start: Project name:     Squeezelite-ESP32
+I (1050) cpu_start: App version:      I2S-4MFlash-1336
+I (1055) cpu_start: Compile time:     Aug 12 2023 01:20:18
+I (1062) cpu_start: ELF file SHA256:  34241d6e99fd1d6b...
+I (1068) cpu_start: ESP-IDF:          v4.3.5-dirty
+...
+I (1133) heap_init: At 40094A8C len 0000B574 (45 KiB): IRAM
+I (1139) spiram: Adding pool of 4066K of external SPI memory to heap allocator
+=== END OF LOG ===   
+</code></pre>
+</details>
 
 ### Issue Description
 
