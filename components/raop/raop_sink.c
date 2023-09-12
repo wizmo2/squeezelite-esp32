@@ -119,7 +119,12 @@ static bool cmd_handler(raop_event_t event, ...) {
 		break;		
 	case RAOP_FLUSH:
 		displayer_control(DISPLAYER_TIMER_PAUSE);
-		break;		
+		break;
+    case RAOP_STALLED:
+        raop_abort(raop);
+        actrls_unset();
+        displayer_control(DISPLAYER_SHUTDOWN);
+        break;
 	case RAOP_STOP:
 		actrls_unset();
 		displayer_control(DISPLAYER_SUSPEND);
@@ -191,8 +196,7 @@ void raop_sink_init(raop_cmd_vcb_t cmd_cb, raop_data_cb_t data_cb) {
  */
 void raop_disconnect(void) {
 	LOG_INFO("forced disconnection");
-	displayer_control(DISPLAYER_SHUTDOWN);
 	// in case we can't communicate with AirPlay controller, abort session 
-	if (!raop_cmd(raop, RAOP_STOP, NULL)) raop_abort(raop);
-	actrls_unset();
+	if (!raop_cmd(raop, RAOP_STOP, NULL)) cmd_handler(RAOP_STALLED);
+    else displayer_control(DISPLAYER_SHUTDOWN);
 }

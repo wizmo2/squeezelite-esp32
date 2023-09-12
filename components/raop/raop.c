@@ -276,6 +276,7 @@ bool raop_cmd(struct raop_ctx_s *ctx, raop_event_t event, void *param) {
 	struct sockaddr_in addr;
 	int sock;
 	char *command = NULL;
+    bool success = false;
 
 	// first notify the remote controller (if any)
 	switch(event) {
@@ -325,7 +326,7 @@ bool raop_cmd(struct raop_ctx_s *ctx, raop_event_t event, void *param) {
 	// no command to send to remote or no remote found yet
 	if (!command || !ctx->active_remote.port) {
 		NFREE(command);
-		return false;
+		return success;
 	}
 
 	sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -348,16 +349,19 @@ bool raop_cmd(struct raop_ctx_s *ctx, raop_event_t event, void *param) {
 		len = recv(sock, resp, 512, 0);
 		if (len > 0) resp[len-1] = '\0';
 		LOG_INFO("[%p]: sending airplay remote\n%s<== received ==>\n%s", ctx, buf, resp);
-
+        
 		NFREE(method);
 		NFREE(buf);
 		kd_free(headers);
-	}
+        success = true;        
+	} else {
+        LOG_INFO("[%p]: can't connect to remote for %s", ctx, command);
+    }
 
 	free(command);
 	closesocket(sock);
 	
-	return true;
+	return success;
 }
 
 /*----------------------------------------------------------------------------*/
