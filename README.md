@@ -272,6 +272,8 @@ GPIO can be set to GND provide or Vcc at boot. This is convenient to power devic
 
 The `<amp>` parameter can use used to assign a GPIO that will be set to active level (default 1) when playback starts. It will be reset when squeezelite becomes idle. The idle timeout is set on the squeezelite command line through `-C <timeout>`
 
+The `<power>` parameter can use used to assign a GPIO that will be set to active level (default 1) when player is powered on and reset when powered off
+
 If you have an audio jack that supports insertion (use :0 or :1 to set the level when inserted), you can specify which GPIO it's connected to. Using the parameter jack_mutes_amp allows to mute the amp when headset (e.g.) is inserted.
 
 You can set the Green and Red status led as well with their respective active state (:0 or :1) or specific the chipset if you use addressable RGB led.
@@ -281,7 +283,7 @@ The `<ir>` parameter set the GPIO associated to an IR receiver. No need to add p
 Syntax is:
 
 ```
-<gpio>=Vcc|GND|amp[:1|0]|ir[:nec|rc5]|jack[:0|1]|green[:0|1|ws2812]|red[:0|1|ws2812]|spkfault[:0|1][,<repeated sequence for next GPIO>]
+<gpio>=Vcc|GND|amp[:1|0]|power[:1:0]|ir[:nec|rc5]|jack[:0|1]|green[:0|1|ws2812]|red[:0|1|ws2812]|spkfault[:0|1][,<repeated sequence for next GPIO>]
 ```
 You can define the defaults for jack, spkfault leds at compile time but nvs parameter takes precedence except for named configurations ((SqueezeAMP, Muse ...) where these are forced at runtime.
 **Note that gpio 36 and 39 are input only and cannot use interrupt. When set to jack or speaker fault, a 100ms polling checks their value but that's expensive**
