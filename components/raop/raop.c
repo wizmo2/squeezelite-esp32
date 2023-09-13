@@ -626,15 +626,19 @@ static bool handle_rtsp(raop_ctx_t *ctx, int sock)
 			settings.ctx = &metadata;
 			memset(&metadata, 0, sizeof(struct metadata_s));
 			if (!dmap_parse(&settings, body, len)) {
-				LOG_INFO("[%p]: received metadata\n\tartist: %s\n\talbum:  %s\n\ttitle:  %s",
-						 ctx, metadata.artist ? metadata.artist : "", metadata.album ? metadata.album : "", 
+                uint32_t timestamp = 0;
+                if ((p = kd_lookup(headers, "RTP-Info")) != NULL) sscanf(p, "%*[^=]=%d", &timestamp);
+				LOG_INFO("[%p]: received metadata (ts: %d)\n\tartist: %s\n\talbum:  %s\n\ttitle:  %s",
+						 ctx, timestamp, metadata.artist ? metadata.artist : "", metadata.album ? metadata.album : "", 
                          metadata.title ? metadata.title : "");
-				success = ctx->cmd_cb(RAOP_METADATA, metadata.artist, metadata.album, metadata.title);
+                success = ctx->cmd_cb(RAOP_METADATA, timestamp, metadata.artist, metadata.album, metadata.title);
 				free_metadata(&metadata);
 			}
 		} else if (body && ((p = kd_lookup(headers, "Content-Type")) != NULL) && strcasestr(p, "image/jpeg")) {			
-			LOG_INFO("[%p]: received JPEG image of %d bytes", ctx, len);
-			ctx->cmd_cb(RAOP_ARTWORK, body, len);
+            uint32_t timestamp = 0;
+            if ((p = kd_lookup(headers, "RTP-Info")) != NULL) sscanf(p, "%*[^=]=%d", &timestamp);
+            LOG_INFO("[%p]: received JPEG image of %d bytes (ts:%d)", ctx, len, timestamp);            
+			ctx->cmd_cb(RAOP_ARTWORK, timestamp, body, len);
 		} else {
 			char *dump = kd_dump(headers);
 			LOG_INFO("Unhandled SET PARAMETER\n%s", dump);

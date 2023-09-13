@@ -113,6 +113,7 @@ static bool cmd_handler(raop_event_t event, ...) {
 	case RAOP_SETUP:
 		actrls_set(controls, false, NULL, actrls_ir_action);
 		displayer_control(DISPLAYER_ACTIVATE, "AIRPLAY", true);
+        displayer_artwork(NULL);
 		break;
 	case RAOP_PLAY:
 		displayer_control(DISPLAYER_TIMER_RUN);
@@ -130,12 +131,13 @@ static bool cmd_handler(raop_event_t event, ...) {
 		displayer_control(DISPLAYER_SUSPEND);
 		break;
 	case RAOP_METADATA: {
+        uint32_t timestamp = va_arg(args, uint32_t);
 		char *artist = va_arg(args, char*), *album = va_arg(args, char*), *title = va_arg(args, char*);
 		displayer_metadata(artist, album, title);
-		displayer_artwork(NULL);
 		break;
 	}	
 	case RAOP_ARTWORK: {
+        uint32_t timestamp = va_arg(args, uint32_t);
 		uint8_t *data = va_arg(args, uint8_t*);
 		displayer_artwork(data);
 		break;
