@@ -508,7 +508,7 @@ NB: Set parameter to empty to disable battery reading. For named configurations 
 ### Sleeping
 The esp32 can be put in deep sleep mode to save some power. How much really depends on the connected periperals, so best is to do your own measures. Waking-up from deep sleep is the equivalent of a reboot, but as the chip takes a few seconds to connect, it's still an efficient process.
 
-The esp32 can enter deep sleep after an audio inactivity timeout, after a button has been pressed or after a GPIO is set to a given level. I wakes up only on GPIO levels. 
+The esp32 can enter deep sleep after an audio inactivity timeout, after a button has been pressed or after a GPIO is set to a given level. It wakes up only on GPIO events 
 
 The NVS parameter `sleep_config` is mostly used for setting sleep conditions
 ```
@@ -518,11 +518,13 @@ The NVS parameter `sleep_config` is mostly used for setting sleep conditions
 - sleep is the GPIO that will put the system into sleep and it can be a level 0 or 1
 - wake is a **list** of GPIOs that with cause it to wake up (reboot) with their respective values. In such list, GPIO's are separated by an actual '|'
 
-Be mindful that if the same GPIO is used to go to sleep and wakeup with the same level, in other word it's a transition/edge that triggers the action, the above will not work and the esp32 will immediately restart. In such case, you case use a button definition. The benefit of buttons is that not only can you re-use one actual button (e.g. 'stop') to make it the sleep trigger (using a long-press or a shift-press) but by selecting the ACTRLS_SLEEP action upon 'release', you can got to sleep upon release (1-0-1) but also wake up upon another press (0 level applied). 
+Be mindful that if the same GPIO is used to go to sleep and wakeup with the *same* level, in other word it's a transition/edge that triggers the action, the above will not work and the esp32 will immediately restart. In such case, you case use a button definition. The benefit of buttons is that not only can you re-use one actual button (e.g. 'stop') to make it the sleep trigger (using a long-press or a shift-press) but by selecting the ACTRLS_SLEEP action upon 'release', you can got to sleep upon release (1-0-1 transition) but also wake up upon another press (0 level applied on GPIO) because you only go to sleep *after* the GPIO returned to 1.
 
 Please see [buttons](#buttons) for detailed syntax.
 
-Note that not all GPIOs can be used to wake-up the esp32 
+The option to use multiple GPIOs is very limited on esp32 and the esp-idf 4.3.x we are using: it is only possible to wake-up when **any** of the defined GPIO is set to 1. The fact that you can specify different levels in the wake list is irrelevant for now, it's just a provision for future upgrades to more recent versions of esp-idf.
+
+**Note that not all GPIOs can be used to wake-up the esp32**
 - ESP32: 0, 2, 4, 12-15, 25-27, 32-39;
 - ESP32-S3: 0-21.
 
