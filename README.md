@@ -1,6 +1,27 @@
 [![Platform Build](https://github.com/sle118/squeezelite-esp32/actions/workflows/Platform_build.yml/badge.svg)](https://github.com/sle118/squeezelite-esp32/actions/workflows/Platform_build.yml)
 # Squeezelite-esp32
 
+### Sleeping
+The esp32 can be put in deep sleep mode to save some power. How much really depends on the connected periperals, so best is to do your own measures. Waking-up from deep sleep is the equivalent of a reboot, but as the chip takes a few seconds to connect, it's still an efficient process.
+
+The esp32 can enter deep sleep after an audio inactivity timeout, after a button has been pressed or after a GPIO is set to a given level. I wakes up only on GPIO levels. 
+
+The NVS parameter `sleep_config` is mostly used for setting sleep conditions
+```
+[delay=<mins>][,sleep=<gpio>[:0|1]][,wake=<gpio>[:0|1][|<gpio>[:0|1]...]
+```
+- delay is in **minutes**
+- sleep is the GPIO that will put the system into sleep and it can be a level 0 or 1
+- wake is a **list** of GPIOs that with cause it to wake up (reboot) with their respective values. In such list, GPIO's are separated by an actual '|'
+
+Be mindful that if the same GPIO is used to go to sleep and wakeup with the same level, in other word it's a transition/edge that triggers the action, the above will not work and the esp32 will immediately restart. In such case, you case use a button definition. The benefit of buttons is that not only can you re-use one actual button (e.g. 'stop') to make it the sleep trigger (using a long-press or a shift-press) but by selecting the ACTRLS_SLEEP action upon 'release', you can got to sleep upon release (1-0-1) but also wake up upon another press (0 level applied). 
+
+Please see [buttons](###buttons) for detailed syntax.
+
+Note that not all GPIOs can be used to wake-up the esp32 
+- ESP32: 0, 2, 4, 12-15, 25-27, 32-39;
+- ESP32-S3: 0-21.
+
 ## What is this?
 Squeezelite-esp32 is an audio software suite made to run on espressif's esp32 and esp32-s3 wifi (b/g/n) and bluetooth chipsets. It offers the following capabilities
 
@@ -389,13 +410,14 @@ Where (all parameters are optionals except gpio)
 Where `<action>` is either the name of another configuration to load (remap) or one amongst
 
 ```
-ACTRLS_NONE, ACTRLS_POWER, ACTRLS_VOLUP, ACTRLS_VOLDOWN, ACTRLS_TOGGLE, ACTRLS_PLAY, 
+ACTRLS_NONE, ACTRLS_SLEEP, ACTRLS_POWER, ACTRLS_VOLUP, ACTRLS_VOLDOWN, ACTRLS_TOGGLE, ACTRLS_PLAY, 
 ACTRLS_PAUSE, ACTRLS_STOP, ACTRLS_REW, ACTRLS_FWD, ACTRLS_PREV, ACTRLS_NEXT, 
 BCTRLS_UP, BCTRLS_DOWN, BCTRLS_LEFT, BCTRLS_RIGHT, 
 BCTRLS_PS1, BCTRLS_PS2, BCTRLS_PS3, BCTRLS_PS4, BCTRLS_PS5, BCTRLS_PS6, BCTRLS_PS7, BCTRLS_PS8, BCTRLS_PS9, BCTRLS_PS10,
 KNOB_LEFT, KNOB_RIGHT, KNOB_PUSH,	
 ```
-				
+Note that ACTRLS_SLEEP is not an actual button that can be sent to LMS, but it's a hook to activate deep sleep mode (see [Sleepin](###sleepin)).
+
 One you've created such a string, use it to fill a new NVS parameter with any name below 16(?) characters. You can have as many of these configs as you can. Then set the config parameter "actrls_config" with the name of your default config
 
 For example a config named "buttons" :
@@ -503,6 +525,27 @@ The NVS parameter "bat_config" sets the ADC1 channel used to measure battery/DC 
 channel=0..7,scale=<scale>,cells=<1..3>[,atten=<0|1|2|3>]
 ```
 NB: Set parameter to empty to disable battery reading. For named configurations (SqueezeAMP, Muse ...), this is ignored (except for SqueezeAMP where number of cells is required)
+
+### Sleeping
+The esp32 can be put in deep sleep mode to save some power. How much really depends on the connected periperals, so best is to do your own measures. Waking-up from deep sleep is the equivalent of a reboot, but as the chip takes a few seconds to connect, it's still an efficient process.
+
+The esp32 can enter deep sleep after an audio inactivity timeout, after a button has been pressed or after a GPIO is set to a given level. I wakes up only on GPIO levels. 
+
+The NVS parameter `sleep_config` is mostly used for setting sleep conditions
+```
+[delay=<mins>][,sleep=<gpio>[:0|1]][,wake=<gpio>[:0|1][|<gpio>[:0|1]...]
+```
+- delay is in **minutes**
+- sleep is the GPIO that will put the system into sleep and it can be a level 0 or 1
+- wake is a **list** of GPIOs that with cause it to wake up (reboot) with their respective values. In such list, GPIO's are separated by an actual '|'
+
+Be mindful that if the same GPIO is used to go to sleep and wakeup with the same level, in other word it's a transition/edge that triggers the action, the above will not work and the esp32 will immediately restart. In such case, you case use a button definition. The benefit of buttons is that not only can you re-use one actual button (e.g. 'stop') to make it the sleep trigger (using a long-press or a shift-press) but by selecting the ACTRLS_SLEEP action upon 'release', you can got to sleep upon release (1-0-1) but also wake up upon another press (0 level applied). 
+
+Please see [buttons](###buttons) for detailed syntax.
+
+Note that not all GPIOs can be used to wake-up the esp32 
+- ESP32: 0, 2, 4, 12-15, 25-27, 32-39;
+- ESP32-S3: 0-21.
 
 # Configuration
 
