@@ -395,7 +395,7 @@ BCTRLS_UP, BCTRLS_DOWN, BCTRLS_LEFT, BCTRLS_RIGHT,
 BCTRLS_PS1, BCTRLS_PS2, BCTRLS_PS3, BCTRLS_PS4, BCTRLS_PS5, BCTRLS_PS6, BCTRLS_PS7, BCTRLS_PS8, BCTRLS_PS9, BCTRLS_PS10,
 KNOB_LEFT, KNOB_RIGHT, KNOB_PUSH,	
 ```
-Note that ACTRLS_SLEEP is not an actual button that can be sent to LMS, but it's a hook to activate deep sleep mode (see [Sleeping](###sleeping)).
+Note that ACTRLS_SLEEP is not an actual button that can be sent to LMS, but it's a hook to activate deep sleep mode (see [Sleeping](#sleeping)).
 
 One you've created such a string, use it to fill a new NVS parameter with any name below 16(?) characters. You can have as many of these configs as you can. Then set the config parameter "actrls_config" with the name of your default config
 
@@ -520,7 +520,7 @@ The NVS parameter `sleep_config` is mostly used for setting sleep conditions
 
 Be mindful that if the same GPIO is used to go to sleep and wakeup with the same level, in other word it's a transition/edge that triggers the action, the above will not work and the esp32 will immediately restart. In such case, you case use a button definition. The benefit of buttons is that not only can you re-use one actual button (e.g. 'stop') to make it the sleep trigger (using a long-press or a shift-press) but by selecting the ACTRLS_SLEEP action upon 'release', you can got to sleep upon release (1-0-1) but also wake up upon another press (0 level applied). 
 
-Please see [buttons](###buttons) for detailed syntax.
+Please see [buttons](#buttons) for detailed syntax.
 
 Note that not all GPIOs can be used to wake-up the esp32 
 - ESP32: 0, 2, 4, 12-15, 25-27, 32-39;
