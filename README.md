@@ -525,7 +525,7 @@ Please see [buttons](#buttons) for detailed syntax.
 
 The option to use multiple GPIOs is very limited on esp32 and the esp-idf 4.3.x we are using: it is only possible to wake-up when **any** of the defined GPIO is set to 1. The fact that you can specify different levels in the wake list is irrelevant for now, it's just a provision for future upgrades to more recent versions of esp-idf.
 
-**Note that not all GPIOs can be used to wake-up the esp32**
+**Only the following GPIOs can be used to wake-up the esp32**
 - ESP32: 0, 2, 4, 12-15, 25-27, 32-39;
 - ESP32-S3: 0-21.
 
