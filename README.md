@@ -508,7 +508,7 @@ NB: Set parameter to empty to disable battery reading. For named configurations 
 ### Sleeping
 The esp32 can be put in deep sleep mode to save some power. How much really depends on the connected periperals, so best is to do your own measures. Waking-up from deep sleep is the equivalent of a reboot, but as the chip takes a few seconds to connect, it's still an efficient process.
 
-The esp32 can enter deep sleep after an audio inactivity timeout, after a button has been pressed or after a GPIO is set to a given level. It wakes up only on GPIO events 
+The esp32 can enter deep sleep after an audio inactivity timeout, after a button has been pressed or after a GPIO is set to a given level. It wakes up only on GPIO events. Note that *all* GPIO are isolated when sleeping, so you can not assume anything about their value, except that they will not drain current.
 
 The NVS parameter `sleep_config` is mostly used for setting sleep conditions
 ```
@@ -527,6 +527,8 @@ The option to use multiple GPIOs is very limited on esp32 and the esp-idf 4.3.x 
 **Note that not all GPIOs can be used to wake-up the esp32**
 - ESP32: 0, 2, 4, 12-15, 25-27, 32-39;
 - ESP32-S3: 0-21.
+
+Some has asked for a soft power on/off option. Although this is not built-in, it's easy to create yours as long as the regulator/power supply of the board can be controlled by Vcc or GND. Depending on how it is active, add a pull-up/down resistor to the regulator's control and connect it also to one GPIO of the esp32. Then using set_GPIO, set that GPIO to Vcc or GND. Use a hardware button that forces the regulator on with a pull- up/down and once the esp32 has booted, it will force the GPIO to the desired value maintaining the board on by software. To power it off by software, just use the deep sleep option which will suspend all GPIO hence switching off the regulator.
 
 # Configuration
 
