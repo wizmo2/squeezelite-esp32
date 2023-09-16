@@ -176,11 +176,13 @@ void services_sleep_activate(sleep_cause_e cause) {
     if (sleep_config.wake_gpio & (sleep_config.wake_gpio - 1)) {
         ESP_LOGI(TAG, "going to sleep cause %d, wake-up on multiple GPIO, any '1' wakes up 0x%llx", cause, sleep_config.wake_gpio);
         esp_sleep_enable_ext1_wakeup(sleep_config.wake_gpio, ESP_EXT1_WAKEUP_ANY_HIGH);
-    } else {
+    } else if (sleep_config.wake_gpio) {
         int gpio = __builtin_ctz(sleep_config.wake_gpio);
         int level = (sleep_config.wake_level >> gpio) & 0x01;
         ESP_LOGI(TAG, "going to sleep cause %d, wake-up on GPIO %d level %d", cause, gpio, level);
         esp_sleep_enable_ext0_wakeup(gpio, level);
+    } else {
+        ESP_LOGW(TAG, "going to sleep cause %d, no wake-up option", cause);
     }
 
     // we need to use a timer in case the same button is used for sleep and wake-up and it's "pressed" vs "released" selected
