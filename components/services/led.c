@@ -283,7 +283,8 @@ void set_led_gpio(int gpio, char *value) {
     struct led_config_s *config;
 
 	if (strcasestr(value, "green")) config = &green;
-    else config = &red;
+    else if (strcasestr(value, "red"))config = &red;
+    else return;
 
     config->gpio = gpio;
     char *p = value;

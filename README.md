@@ -69,7 +69,7 @@ Please note that when sending to a Bluetooth speaker (source), only 44.1 kHz can
 Most DAC will work out-of-the-box with simply an I2S connection, but some require specific commands to be sent using I2C. See DAC option below to understand how to send these dedicated commands. There is build-in support for TAS575x, TAS5780, TAS5713 and AC101 DAC.
 
 ### Raw WROOM esp32-s3 module
-The esp32-s3 based modules like [this]@(https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf) are also supported but requires esp-idf 4.4. It is not yet part of official releases, but it compiles & runs. The s3 does not have bluetooth audio. Note that CPU performances are greatly enhanced.
+The esp32-s3 based modules like [this](https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf) are also supported but requires esp-idf 4.4. It is not yet part of official releases, but it compiles & runs. The s3 does not have bluetooth audio. Note that CPU performances are greatly enhanced.
 
 ### SqueezeAMP
 This is the main hardware companion of Squeezelite-esp32 and has been developped together. Details on capabilities can be found [here](https://forums.slimdevices.com/showthread.php?110926-pre-ANNOUNCE-SqueezeAMP-and-SqueezeliteESP32) and [here](https://github.com/philippe44/SqueezeAMP).
@@ -389,11 +389,12 @@ Where (all parameters are optionals except gpio)
 Where `<action>` is either the name of another configuration to load (remap) or one amongst
 
 ```
-ACTRLS_NONE, ACTRLS_SLEEP, ACTRLS_POWER, ACTRLS_VOLUP, ACTRLS_VOLDOWN, ACTRLS_TOGGLE, ACTRLS_PLAY, 
+ACTRLS_NONE, ACTRLS_POWER, ACTRLS_VOLUP, ACTRLS_VOLDOWN, ACTRLS_TOGGLE, ACTRLS_PLAY, 
 ACTRLS_PAUSE, ACTRLS_STOP, ACTRLS_REW, ACTRLS_FWD, ACTRLS_PREV, ACTRLS_NEXT, 
 BCTRLS_UP, BCTRLS_DOWN, BCTRLS_LEFT, BCTRLS_RIGHT, 
 BCTRLS_PS1, BCTRLS_PS2, BCTRLS_PS3, BCTRLS_PS4, BCTRLS_PS5, BCTRLS_PS6, BCTRLS_PS7, BCTRLS_PS8, BCTRLS_PS9, BCTRLS_PS10,
-KNOB_LEFT, KNOB_RIGHT, KNOB_PUSH,	
+KNOB_LEFT, KNOB_RIGHT, KNOB_PUSH,
+ACTRLS_SLEEP,
 ```
 Note that ACTRLS_SLEEP is not an actual button that can be sent to LMS, but it's a hook to activate deep sleep mode (see [Sleeping](#sleeping)).
 
@@ -508,11 +509,11 @@ NB: Set parameter to empty to disable battery reading. For named configurations 
 ### Sleeping
 The esp32 can be put in deep sleep mode to save some power. How much really depends on the connected periperals, so best is to do your own measures. Waking-up from deep sleep is the equivalent of a reboot, but as the chip takes a few seconds to connect, it's still an efficient process.
 
-The esp32 can enter deep sleep after an audio inactivity timeout, after a button has been pressed or after a GPIO is set to a given level. It wakes up only on GPIO events 
+The esp32 can enter deep sleep after an audio inactivity timeout, after a button has been pressed or after a GPIO is set to a given level. It wakes up only on some GPIO events. Note that *all* GPIO are isolated when sleeping (unless they are set with the `rtc`option) so you can not assume anything about their value, except that they will not drain current. The `rtc` option allows to keep some GPIO (from the RTC domain only) either pulled up or down. This can be useful if you want to keep some periperal active, for example a GPIO expander whose interrupt will be used to wake-up the system.
 
 The NVS parameter `sleep_config` is mostly used for setting sleep conditions
 ```
-[delay=<mins>][,sleep=<gpio>[:0|1]][,wake=<gpio>[:0|1][|<gpio>[:0|1]...]
+[delay=<mins>][,sleep=<gpio>[:0|1]][,wake=<gpio>[:0|1][|<gpio>[:0|1]...][,rtc=<gpio>[:0|1][|<gpio>[:0|1]...]
 ```
 - delay is in **minutes**
 - sleep is the GPIO that will put the system into sleep and it can be a level 0 or 1
@@ -524,9 +525,11 @@ Please see [buttons](#buttons) for detailed syntax.
 
 The option to use multiple GPIOs is very limited on esp32 and the esp-idf 4.3.x we are using: it is only possible to wake-up when **any** of the defined GPIO is set to 1. The fact that you can specify different levels in the wake list is irrelevant for now, it's just a provision for future upgrades to more recent versions of esp-idf.
 
-**Note that not all GPIOs can be used to wake-up the esp32**
+**Only the following GPIOs can be used to wake-up the esp32**
 - ESP32: 0, 2, 4, 12-15, 25-27, 32-39;
 - ESP32-S3: 0-21.
+
+Some have asked for a soft power on/off option. Although this is not built-in, it's easy to create yours as long as the regulator/power supply of the board can be controlled by Vcc or GND. Depending on how it is active, add a pull-up/down resistor to the regulator's control and connect it also to one GPIO of the esp32. Then using set_GPIO, set that GPIO to Vcc or GND. Use a hardware button that forces the regulator on with a pull- up/down and once the esp32 has booted, it will force the GPIO to the desired value maintaining the board on by software. To power it off by software, just use the deep sleep option which will suspend all GPIO hence switching off the regulator.
 
 # Configuration
 

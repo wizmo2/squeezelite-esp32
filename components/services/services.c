@@ -45,6 +45,7 @@ pwm_system_t pwm_system = {
     
 static EXT_RAM_ATTR struct {
     uint64_t wake_gpio, wake_level;
+    uint64_t rtc_gpio, rtc_level;
     uint32_t delay;
 } sleep_config;
     
@@ -136,6 +137,28 @@ static void sleep_init(void) {
             ESP_LOGI(TAG, "Sleep wake-up gpio bitmap 0x%llx (active 0x%llx)", sleep_config.wake_gpio, sleep_config.wake_level);    
         }
     }
+    
+    // get the rtc-pull criteria
+    if ((p = strcasestr(config, "rtc"))) {
+        char list[32] = "", item[8];
+		sscanf(p, "%*[^=]=%31[^,]", list);
+        p = list - 1;
+        while (p++ && sscanf(p, "%7[^|]", item)) {
+            int level = 0, gpio = atoi(item);
+            if (!rtc_gpio_is_valid_gpio(gpio)) {
+                ESP_LOGE(TAG, "invalid rtc GPIO %d", gpio);
+            } else {
+                sleep_config.rtc_gpio |= 1LL << gpio;
+            }
+            if (sscanf(item, "%*[^:]:%d", &level)) sleep_config.rtc_level |= level << gpio;
+            p = strchr(p, '|');
+        }
+        
+        // when moving to esp-idf more recent than 4.4.x, multiple gpio wake-up with level specific can be done
+        if (sleep_config.rtc_gpio) {
+            ESP_LOGI(TAG, "RTC forced gpio bitmap 0x%llx (active 0x%llx)", sleep_config.rtc_gpio, sleep_config.rtc_level);    
+        }
+    }
           
     // then get the gpio that activate sleep (we could check that we have a valid wake)
     if ((p = strcasestr(config, "sleep"))) {
@@ -165,22 +188,37 @@ void services_sleep_activate(sleep_cause_e cause) {
     // call all sleep hooks that might want to do something
     for (void (**hook)(void) = sleep_hooks; *hook; hook++) (*hook)();
            
-    // isolate all possible GPIOs, except the wake-up ones
+    // isolate all possible GPIOs, except the wake-up and RTC-maintaines ones
     esp_sleep_config_gpio_isolate();
+    
+    // keep RTC domain up if we need to maintain pull-up/down of some GPIO from RTC
+    if (sleep_config.rtc_gpio) esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
+    
     for (int i = 0; i < GPIO_NUM_MAX; i++) {
-        if (!rtc_gpio_is_valid_gpio(i) || ((1LL << i) & sleep_config.wake_gpio)) continue;
-        rtc_gpio_isolate(i);
+        // must be a RTC GPIO
+        if (!rtc_gpio_is_valid_gpio(i)) continue;
+        
+        // do we need to maintain a pull-up or down of that GPIO
+        if ((1LL << i) & sleep_config.rtc_gpio) {
+            if ((sleep_config.rtc_level >> i) & 0x01) rtc_gpio_pullup_en(i);
+            else rtc_gpio_pulldown_en(i);
+        // or is this not wake-up GPIO, just isolate it
+        } else if (!((1LL << i) & sleep_config.wake_gpio)) {
+            rtc_gpio_isolate(i);
+        }
     }
     
     // is there just one GPIO
     if (sleep_config.wake_gpio & (sleep_config.wake_gpio - 1)) {
         ESP_LOGI(TAG, "going to sleep cause %d, wake-up on multiple GPIO, any '1' wakes up 0x%llx", cause, sleep_config.wake_gpio);
         esp_sleep_enable_ext1_wakeup(sleep_config.wake_gpio, ESP_EXT1_WAKEUP_ANY_HIGH);
-    } else {
+    } else if (sleep_config.wake_gpio) {
         int gpio = __builtin_ctz(sleep_config.wake_gpio);
         int level = (sleep_config.wake_level >> gpio) & 0x01;
         ESP_LOGI(TAG, "going to sleep cause %d, wake-up on GPIO %d level %d", cause, gpio, level);
         esp_sleep_enable_ext0_wakeup(gpio, level);
+    } else {
+        ESP_LOGW(TAG, "going to sleep cause %d, no wake-up option", cause);
     }
 
     // we need to use a timer in case the same button is used for sleep and wake-up and it's "pressed" vs "released" selected
