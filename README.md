@@ -69,7 +69,7 @@ Please note that when sending to a Bluetooth speaker (source), only 44.1 kHz can
 Most DAC will work out-of-the-box with simply an I2S connection, but some require specific commands to be sent using I2C. See DAC option below to understand how to send these dedicated commands. There is build-in support for TAS575x, TAS5780, TAS5713 and AC101 DAC.
 
 ### Raw WROOM esp32-s3 module
-The esp32-s3 based modules like [this]@(https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf) are also supported but requires esp-idf 4.4. It is not yet part of official releases, but it compiles & runs. The s3 does not have bluetooth audio. Note that CPU performances are greatly enhanced.
+The esp32-s3 based modules like [this](https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf) are also supported but requires esp-idf 4.4. It is not yet part of official releases, but it compiles & runs. The s3 does not have bluetooth audio. Note that CPU performances are greatly enhanced.
 
 ### SqueezeAMP
 This is the main hardware companion of Squeezelite-esp32 and has been developped together. Details on capabilities can be found [here](https://forums.slimdevices.com/showthread.php?110926-pre-ANNOUNCE-SqueezeAMP-and-SqueezeliteESP32) and [here](https://github.com/philippe44/SqueezeAMP).
