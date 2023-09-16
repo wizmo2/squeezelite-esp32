@@ -44,15 +44,6 @@ struct led_strip_t {
     // RMT peripheral settings
     rmt_channel_t rmt_channel;
 
-    /*
-     * Interrupt table is located in soc.h
-     * As of 11/27/16, reccomended interrupts are:
-     * 9, 12, 13, 17, 18, 19, 20, 21 or 23
-     * Ensure that the same interrupt number isn't used twice
-     * across all libraries
-     */
-    int rmt_interrupt_num;
-
     gpio_num_t gpio; // Must be less than GPIO_NUM_33
 
     struct led_color_t *led_strip_working;

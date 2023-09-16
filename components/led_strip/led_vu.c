@@ -28,7 +28,7 @@
 
 static const char *TAG = "led_vu";
 
-#define LED_VU_STACK_SIZE 	(3*1024)
+#define LED_VU_STACK_SIZE (3*1024)
 
 #define LED_VU_PEAK_HOLD 6U
 
@@ -39,6 +39,10 @@ static const char *TAG = "led_vu";
 #define max(a,b) (((a) > (b)) ? (a) : (b))
 
 struct led_strip_t* led_display = NULL;
+static EXT_RAM_ATTR struct led_strip_t  led_strip_config = {
+    .rgb_led_type      = RGB_LED_TYPE_WS2812,
+    .gpio              = -1,
+};
 
 static EXT_RAM_ATTR struct {
     int gpio;
@@ -90,19 +94,18 @@ void led_vu_init()
     strip.vu_odd = strip.length - 1;
 
     // create driver configuration
-    struct led_strip_t led_strip_config = { .rgb_led_type = RGB_LED_TYPE_WS2812 };
     led_strip_config.access_semaphore = xSemaphoreCreateBinary();
     led_strip_config.led_strip_length = strip.length;
     led_strip_config.led_strip_working = heap_caps_malloc(strip.length * sizeof(struct led_color_t), MALLOC_CAP_8BIT);
     led_strip_config.led_strip_showing = heap_caps_malloc(strip.length * sizeof(struct led_color_t), MALLOC_CAP_8BIT);
     led_strip_config.gpio = strip.gpio;
     led_strip_config.rmt_channel = rmt_system_base_channel++;
-
+   
     // initialize driver 
     bool led_init_ok = led_strip_init(&led_strip_config);
     if (led_init_ok) {
         led_display = &led_strip_config;
-        ESP_LOGI(TAG, "led_vu using gpio:%d length:%d on channek:%d", strip.gpio, strip.length, led_strip_config.rmt_channel);
+        ESP_LOGI(TAG, "led_vu using gpio:%d length:%d on channel:%d", strip.gpio, strip.length, led_strip_config.rmt_channel);
     } else {
         ESP_LOGE(TAG, "led_vu init failed");
         goto done;
