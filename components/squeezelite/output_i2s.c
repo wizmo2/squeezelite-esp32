@@ -41,6 +41,7 @@ sure that using rate_delay would fix that
 #include "adac.h"
 #include "time.h"
 #include "led.h"
+#include "services.h"
 #include "monitor.h"
 #include "platform_config.h"
 #include "gpio_exp.h"
@@ -102,9 +103,11 @@ const struct adac_s *adac = &dac_external;
 
 static log_level loglevel;
 
+static uint32_t stopped_time;        
+static void (*pseudo_idle_chain)(uint32_t);
 static bool (*slimp_handler_chain)(u8_t *data, int len);
 static bool jack_mutes_amp;
-static bool running, isI2SStarted, ended;
+static bool running, isI2SStarted, ended, i2s_stats;
 static i2s_config_t i2s_config;
 static u8_t *obuf;
 static frames_t oframes;
@@ -125,7 +128,8 @@ DECLARE_ALL_MIN_MAX;
 static int _i2s_write_frames(frames_t out_frames, bool silence, s32_t gainL, s32_t gainR, u8_t flags,
 								s32_t cross_gain_in, s32_t cross_gain_out, ISAMPLE_T **cross_ptr);
 static void output_thread_i2s(void *arg);
-static void i2s_stats(uint32_t now);
+static void i2s_idle(uint32_t now);
+
 static void spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, size_t *count);
 static void (*jack_handler_chain)(bool inserted);
 
@@ -411,7 +415,15 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 	else adac->speaker(true);
 	
 	adac->headset(jack_inserted_svc());	
-
+    
+    // do we want stats
+	p = config_alloc_get_default(NVS_TYPE_STR, "stats", "n", 0);
+	i2s_stats = p && (*p == '1' || *p == 'Y' || *p == 'y');
+    free(p);
+       
+    pseudo_idle_chain = pseudo_idle_svc;
+    pseudo_idle_svc = i2s_idle;
+    
 	// create task as a FreeRTOS task but uses stack in internal RAM
 	{
 		static DRAM_ATTR StaticTask_t xTaskBuffer __attribute__ ((aligned (4)));
@@ -419,14 +431,6 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 		output_i2s_task = xTaskCreateStaticPinnedToCore( (TaskFunction_t) output_thread_i2s, "output_i2s", OUTPUT_THREAD_STACK_SIZE, 
 											  NULL, CONFIG_ESP32_PTHREAD_TASK_PRIO_DEFAULT + 1, xStack, &xTaskBuffer, 0 );
 	}
-	
-	// do we want stats
-	p = config_alloc_get_default(NVS_TYPE_STR, "stats", "n", 0);
-	if (p && (*p == '1' || *p == 'Y' || *p == 'y')) {
-        pseudo_idle_chain = pseudo_idle_svc;
-        pseudo_idle_svc = i2s_stats;
-	}
-    free(p);
 }
 
 
@@ -493,6 +497,7 @@ static void output_thread_i2s(void *arg) {
 	uint32_t fullness = gettime_ms();
 	bool synced;
 	output_state state = OUTPUT_OFF - 1;
+    stopped_time = pdMS_TO_TICKS(xTaskGetTickCount());
     
 	while (running) {
 			
@@ -508,6 +513,7 @@ static void output_thread_i2s(void *arg) {
 				if (amp_control.gpio != -1) gpio_set_level_x(amp_control.gpio, !amp_control.active);
 				LOG_INFO("switching off amp GPIO %d", amp_control.gpio);
 			} else if (output.state == OUTPUT_STOPPED) {
+                stopped_time = pdMS_TO_TICKS(xTaskGetTickCount());
 				adac->speaker(false);
 				led_blink(LED_GREEN, 200, 1000);
 			} else if (output.state == OUTPUT_RUNNING) {
@@ -632,16 +638,19 @@ static void output_thread_i2s(void *arg) {
 }
 
 /****************************************************************************************
- * Stats output thread
+ * stats output callback
  */
-static void i2s_stats(uint32_t now) {
+static void i2s_idle(uint32_t now) {
     static uint32_t last;
     
     // first chain to next handler
     if (pseudo_idle_chain) pseudo_idle_chain(now);
     
+    // call the sleep mamanger 
+    if (output.state <= OUTPUT_STOPPED) services_sleep_callback(now - stopped_time);
+    
     // then see if we need to act
-    if (output.state <= OUTPUT_STOPPED || now < last + STATS_PERIOD_MS) return;  
+    if (!i2s_stats || output.state <= OUTPUT_STOPPED || now < last + STATS_PERIOD_MS) return;  
     last = now;
     
 	LOG_INFO( "Output State: %d, current sample rate: %d, bytes per frame: %d", output.state, output.current_sample_rate, BYTES_PER_FRAME);

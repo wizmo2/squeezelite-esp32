@@ -33,6 +33,8 @@ static const char *TAG = "led_vu";
 #define LED_VU_PEAK_HOLD 6U
 
 #define LED_VU_DEFAULT_GPIO 22
+#define LED_VU_RMT_INTR_NUM 20
+
 #define LED_VU_DEFAULT_LENGTH 19
 #define LED_VU_MAX_LENGTH 255
 
@@ -90,7 +92,7 @@ void led_vu_init()
     strip.vu_odd = strip.length - 1;
 
     // create driver configuration
-    struct led_strip_t led_strip_config = { .rgb_led_type = RGB_LED_TYPE_WS2812 };
+    struct led_strip_t led_strip_config = { .rgb_led_type = RGB_LED_TYPE_WS2812, .rmt_interrupt_num = LED_VU_RMT_INTR_NUM };
     led_strip_config.access_semaphore = xSemaphoreCreateBinary();
     led_strip_config.led_strip_length = strip.length;
     led_strip_config.led_strip_working = heap_caps_malloc(strip.length * sizeof(struct led_color_t), MALLOC_CAP_8BIT);
