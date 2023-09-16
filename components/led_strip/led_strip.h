@@ -38,7 +38,7 @@ struct led_color_t {
 };
 
 struct led_strip_t {
-    const enum rgb_led_type_t rgb_led_type;
+    enum rgb_led_type_t rgb_led_type; // should be const, but workaround needed for initialization
     uint32_t led_strip_length;
 
     // RMT peripheral settings
