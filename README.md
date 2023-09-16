@@ -528,7 +528,7 @@ The option to use multiple GPIOs is very limited on esp32 and the esp-idf 4.3.x 
 - ESP32: 0, 2, 4, 12-15, 25-27, 32-39;
 - ESP32-S3: 0-21.
 
-Some has asked for a soft power on/off option. Although this is not built-in, it's easy to create yours as long as the regulator/power supply of the board can be controlled by Vcc or GND. Depending on how it is active, add a pull-up/down resistor to the regulator's control and connect it also to one GPIO of the esp32. Then using set_GPIO, set that GPIO to Vcc or GND. Use a hardware button that forces the regulator on with a pull- up/down and once the esp32 has booted, it will force the GPIO to the desired value maintaining the board on by software. To power it off by software, just use the deep sleep option which will suspend all GPIO hence switching off the regulator.
+Some have asked for a soft power on/off option. Although this is not built-in, it's easy to create yours as long as the regulator/power supply of the board can be controlled by Vcc or GND. Depending on how it is active, add a pull-up/down resistor to the regulator's control and connect it also to one GPIO of the esp32. Then using set_GPIO, set that GPIO to Vcc or GND. Use a hardware button that forces the regulator on with a pull- up/down and once the esp32 has booted, it will force the GPIO to the desired value maintaining the board on by software. To power it off by software, just use the deep sleep option which will suspend all GPIO hence switching off the regulator.
 
 # Configuration
 
