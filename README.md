@@ -508,11 +508,11 @@ NB: Set parameter to empty to disable battery reading. For named configurations 
 ### Sleeping
 The esp32 can be put in deep sleep mode to save some power. How much really depends on the connected periperals, so best is to do your own measures. Waking-up from deep sleep is the equivalent of a reboot, but as the chip takes a few seconds to connect, it's still an efficient process.
 
-The esp32 can enter deep sleep after an audio inactivity timeout, after a button has been pressed or after a GPIO is set to a given level. It wakes up only on GPIO events. Note that *all* GPIO are isolated when sleeping, so you can not assume anything about their value, except that they will not drain current.
+The esp32 can enter deep sleep after an audio inactivity timeout, after a button has been pressed or after a GPIO is set to a given level. It wakes up only on some GPIO events. Note that *all* GPIO are isolated when sleeping (unless they are set with the `rtc`option) so you can not assume anything about their value, except that they will not drain current. The `rtc` option allows to keep some GPIO (from the RTC domain only) either pulled up or down. This can be useful if you want to keep some periperal active, for example a GPIO expander whose interrupt will be used to wake-up the system.
 
 The NVS parameter `sleep_config` is mostly used for setting sleep conditions
 ```
-[delay=<mins>][,sleep=<gpio>[:0|1]][,wake=<gpio>[:0|1][|<gpio>[:0|1]...]
+[delay=<mins>][,sleep=<gpio>[:0|1]][,wake=<gpio>[:0|1][|<gpio>[:0|1]...][,rtc=<gpio>[:0|1][|<gpio>[:0|1]...]
 ```
 - delay is in **minutes**
 - sleep is the GPIO that will put the system into sleep and it can be a level 0 or 1
