@@ -100,7 +100,7 @@ void led_vu_init()
     led_strip_config.led_strip_showing = heap_caps_malloc(strip.length * sizeof(struct led_color_t), MALLOC_CAP_8BIT);
     led_strip_config.gpio = strip.gpio;
     led_strip_config.rmt_channel = rmt_system_base_channel++;
-    
+
     // initialize driver 
     bool led_init_ok = led_strip_init(&led_strip_config);
     if (led_init_ok) {
