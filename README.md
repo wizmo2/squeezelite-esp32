@@ -389,11 +389,12 @@ Where (all parameters are optionals except gpio)
 Where `<action>` is either the name of another configuration to load (remap) or one amongst
 
 ```
-ACTRLS_NONE, ACTRLS_SLEEP, ACTRLS_POWER, ACTRLS_VOLUP, ACTRLS_VOLDOWN, ACTRLS_TOGGLE, ACTRLS_PLAY, 
+ACTRLS_NONE, ACTRLS_POWER, ACTRLS_VOLUP, ACTRLS_VOLDOWN, ACTRLS_TOGGLE, ACTRLS_PLAY, 
 ACTRLS_PAUSE, ACTRLS_STOP, ACTRLS_REW, ACTRLS_FWD, ACTRLS_PREV, ACTRLS_NEXT, 
 BCTRLS_UP, BCTRLS_DOWN, BCTRLS_LEFT, BCTRLS_RIGHT, 
 BCTRLS_PS1, BCTRLS_PS2, BCTRLS_PS3, BCTRLS_PS4, BCTRLS_PS5, BCTRLS_PS6, BCTRLS_PS7, BCTRLS_PS8, BCTRLS_PS9, BCTRLS_PS10,
-KNOB_LEFT, KNOB_RIGHT, KNOB_PUSH,	
+KNOB_LEFT, KNOB_RIGHT, KNOB_PUSH,
+ACTRLS_SLEEP,
 ```
 Note that ACTRLS_SLEEP is not an actual button that can be sent to LMS, but it's a hook to activate deep sleep mode (see [Sleeping](#sleeping)).
 
