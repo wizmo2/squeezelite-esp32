@@ -43,7 +43,7 @@ struct led_strip_t {
 
     // RMT peripheral settings
     rmt_channel_t rmt_channel;
-
+    
     gpio_num_t gpio; // Must be less than GPIO_NUM_33
 
     struct led_color_t *led_strip_working;
