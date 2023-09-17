@@ -509,7 +509,7 @@ NB: Set parameter to empty to disable battery reading. For named configurations 
 ### Sleeping
 The esp32 can be put in deep sleep mode to save some power. How much really depends on the connected periperals, so best is to do your own measures. Waking-up from deep sleep is the equivalent of a reboot, but as the chip takes a few seconds to connect, it's still an efficient process.
 
-The esp32 can enter deep sleep after an audio inactivity timeout, after a button has been pressed or after a GPIO is set to a given level. It wakes up only on some GPIO events. Note that *all* GPIO are isolated when sleeping (unless they are set with the `rtc`option) so you can not assume anything about their value, except that they will not drain current. The `rtc` option allows to keep some GPIO (from the RTC domain only) either pulled up or down. This can be useful if you want to keep some periperal active, for example a GPIO expander whose interrupt will be used to wake-up the system.
+The esp32 can enter deep sleep after an audio inactivity timeout, after a button has been pressed, after a GPIO is set to a given level (there is a subtle difference, see below) or if the battery reaches a threashold. It wakes up only on some GPIO events. Note that *all* GPIO are isolated when sleeping (unless they are set with the `rtc`option) so you can not assume anything about their value, except that they will not drain current. The `rtc` option allows to keep some GPIO (from the RTC domain only) either pulled up or down. This can be useful if you want to keep some periperal active, for example a GPIO expander whose interrupt will be used to wake-up the system.
 
 The NVS parameter `sleep_config` is mostly used for setting sleep conditions
 ```
@@ -520,9 +520,9 @@ The NVS parameter `sleep_config` is mostly used for setting sleep conditions
 - wake is a **list** of GPIOs that with cause it to wake up (reboot) with their respective values. In such list, GPIO's are separated by an actual '|'.
 - batt is a threshold in **volts** under which the system will enter into sleep.
 
-The battery voltage is measured every 10 seconds and 30 values are averaged before producing a result. The result must be 3 times below the threashold to enter sleep, so it takes a total of 10*30*3 = 15 minutes.
+The battery voltage is measured every 10 seconds and 30 values are averaged before producing a result. The result must be 3 times below the threshold to enter sleep, so it takes a total of 10\*30\*3 = 15 minutes.
 
-Be mindful that if the same GPIO is used to go to sleep and wakeup with the *same* level, in other word it's a transition/edge that triggers the action, the above will not work and the esp32 will immediately restart. In such case, you case use a button definition. The benefit of buttons is that not only can you re-use one actual button (e.g. 'stop') to make it the sleep trigger (using a long-press or a shift-press) but by selecting the ACTRLS_SLEEP action upon 'release', you can got to sleep upon release (1-0-1 transition) but also wake up upon another press (0 level applied on GPIO) because you only go to sleep *after* the GPIO returned to 1.
+Be mindful that if the same GPIO is used to go to sleep and wakeup with the *same* level (in other word it's a transition/edge that triggers the action) the above will not work and the esp32 will immediately restart. In such case, you case use a button definition. The benefit of buttons is that not only can you re-use one actual button (e.g. 'stop') to make it the sleep trigger (using a long-press or a shift-press) but by selecting the ACTRLS_SLEEP action upon 'release', you can got to sleep upon release (1-0-1 transition) but also wake up upon another press (0 level applied on GPIO) because you only go to sleep *after* the GPIO returned to 1.
 
 Please see [buttons](#buttons) for detailed syntax.
 
