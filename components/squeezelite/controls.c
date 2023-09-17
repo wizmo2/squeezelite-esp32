@@ -70,7 +70,7 @@ static void sendBUTN(int code, bool pressed) {
 	pkt_header.jiffies = htonl(gettime_ms());
 	pkt_header.button = htonl(code + (pressed ? DOWN_OFS : UP_OFS));
 		
-	LOG_INFO("sending BUTN code %04x %s", code, pressed ? "down" : "up");	
+	LOG_DEBUG("sending BUTN code %04x %s", code, pressed ? "down" : "up");	
 
 	LOCK_P;
 	send_packet((uint8_t *) &pkt_header, sizeof(pkt_header));

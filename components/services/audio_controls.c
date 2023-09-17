@@ -192,8 +192,9 @@ static void control_handler(void *client, button_event_e event, button_press_e p
     
    	// in raw mode, we just do normal action press *and* release, there is no longpress nor shift
 	if (current_raw_controls && action_detail.action != ACTRLS_SLEEP) {
-		ESP_LOGD(TAG, "calling action %u in raw mode", key->normal[0].action);
-		if (current_controls[key->normal[0].action]) (*current_controls[key->normal[0].action])(event == BUTTON_PRESSED);
+        actrls_action_e action = key->normal[0].action != ACTRLS_NONE ? key->normal[0].action : key->normal[1].action;
+		ESP_LOGD(TAG, "calling action %u in raw mode", action);
+		if (action != ACTRLS_NONE && current_controls[action]) current_controls[action](event == BUTTON_PRESSED);
 		return;
 	}
 
@@ -218,7 +219,7 @@ static void control_handler(void *client, button_event_e event, button_press_e p
 			ESP_LOGE(TAG,"Invalid profile name %s. Cannot remap buttons",action_detail.name);
 		}	
 	} else if (action_detail.action == ACTRLS_SLEEP) {
-        ESP_LOGI(TAG, "Sleep button pressed");
+        ESP_LOGI(TAG, "special sleep button pressed");
         services_sleep_activate(SLEEP_ONKEY);
     } else if (action_detail.action != ACTRLS_NONE) {
 		ESP_LOGD(TAG, "calling action %u", action_detail.action);

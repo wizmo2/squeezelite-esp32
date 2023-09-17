@@ -24,6 +24,7 @@
 #include "led.h"
 #include "globdefs.h"
 #include "accessors.h"
+#include "services.h"
 
 #define MAX_LED	8
 #define BLOCKTIME	10	// up to portMAX_DELAY
@@ -279,6 +280,14 @@ bool led_config(int idx, gpio_num_t gpio, int color, int bright, led_type_t type
 /****************************************************************************************
  *
  */
+static void led_suspend(void) {
+    led_off(LED_GREEN);
+    led_off(LED_RED);
+}     
+
+/****************************************************************************************
+ *
+ */
 void set_led_gpio(int gpio, char *value) {
     struct led_config_s *config;
 
@@ -326,6 +335,9 @@ void led_svc_init(void) {
 
 	led_config(LED_GREEN, green.gpio, green.color, green.bright, green.type);
 	led_config(LED_RED, red.gpio, red.color, red.bright, red.type);
+    
+    // make sure we switch off all leds (useful for gpio expanders)
+    services_sleep_setsuspend(led_suspend);
 
 	ESP_LOGI(TAG,"Configuring LEDs green:%d (on:%d rmt:%d %d%% ), red:%d (on:%d rmt:%d %d%% )",
                  green.gpio, green.color, green.type, green.bright,
