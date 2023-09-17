@@ -9,12 +9,14 @@
  *
  */
 
+#include <assert.h>
 #include "driver/gpio.h"
 #include "squeezelite.h"
 #include "equalizer.h"
 #include "perf_trace.h"
 #include "platform_config.h"
-#include <assert.h>
+#include "services.h"
+#include "led.h"
 
 extern struct outputstate output;
 extern struct buffer *outputbuf;
@@ -39,6 +41,7 @@ static bool running = false;
 static uint8_t *btout;
 static frames_t oframes;
 static bool stats;
+static uint32_t bt_idle_since;
 
 static int _write_frames(frames_t out_frames, bool silence, s32_t gainL, s32_t gainR, u8_t flags,
 								s32_t cross_gain_in, s32_t cross_gain_out, ISAMPLE_T **cross_ptr);
@@ -60,10 +63,28 @@ static int _write_frames(frames_t out_frames, bool silence, s32_t gainL, s32_t g
 	RESET_MIN_MAX_DURATION(lock_out_time)
 	
 DECLARE_ALL_MIN_MAX;	
+
+/****************************************************************************************
+ * Get inactivity callback
+ */
+static uint32_t bt_idle_callback(void) {
+    return output.state <= OUTPUT_STOPPED ? pdTICKS_TO_MS(xTaskGetTickCount()) - bt_idle_since : 0;
+}
 	
+/****************************************************************************************
+ * Init BT sink
+ */    
 void output_init_bt(log_level level, char *device, unsigned output_buf_size, char *params, unsigned rates[], unsigned rate_delay, unsigned idle) {
 	loglevel = level;
-	running = true;
+    
+    // idle counter
+    bt_idle_since = pdTICKS_TO_MS(xTaskGetTickCount());
+    services_sleep_setsleeper(bt_idle_callback);
+    
+    // even BT has a right to use led :-)
+    led_blink(LED_GREEN, 200, 1000);
+
+	running = true;    
 	output.write_cb = &_write_frames;
 	hal_bluetooth_init(device);
 	char *p = config_alloc_get_default(NVS_TYPE_STR, "stats", "n", 0);
@@ -72,6 +93,9 @@ void output_init_bt(log_level level, char *device, unsigned output_buf_size, cha
     equalizer_set_samplerate(output.current_sample_rate);
 }
 
+/****************************************************************************************
+ * Close BT sink
+ */    
 void output_close_bt(void) {
 	LOCK;
 	running = false;
@@ -80,6 +104,9 @@ void output_close_bt(void) {
 	equalizer_close();
 }	
 
+/****************************************************************************************
+ * Data framing callback
+ */    
 static int _write_frames(frames_t out_frames, bool silence, s32_t gainL, s32_t gainR, u8_t flags,
 						 s32_t cross_gain_in, s32_t cross_gain_out, ISAMPLE_T **cross_ptr) {
 	
@@ -120,6 +147,9 @@ static int _write_frames(frames_t out_frames, bool silence, s32_t gainL, s32_t g
 	return (int)out_frames;
 }
 
+/****************************************************************************************
+ * Data callback for BT stack
+ */    
 int32_t output_bt_data(uint8_t *data, int32_t len) {
 	int32_t iframes = len / BYTES_PER_FRAME, start_timer = 0;
 
@@ -153,6 +183,9 @@ int32_t output_bt_data(uint8_t *data, int32_t len) {
 	return oframes * BYTES_PER_FRAME;
 }
 
+/****************************************************************************************
+ * Tick for BT
+ */    
 void output_bt_tick(void) {
 	static time_t lastTime=0;
 	
@@ -186,3 +219,18 @@ void output_bt_tick(void) {
 	}	
 }	
 
+/****************************************************************************************
+ * BT playback stop
+ */    
+void output_bt_stop(void) {
+	led_blink(LED_GREEN, 200, 1000);
+    bt_idle_since = pdTICKS_TO_MS(xTaskGetTickCount());
+}
+
+/****************************************************************************************
+ * BT playback start
+ */    
+void output_bt_start(void) {
+    led_on(LED_GREEN);
+    bt_idle_since = pdTICKS_TO_MS(xTaskGetTickCount());
+}

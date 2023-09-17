@@ -23,12 +23,14 @@
 #include "driver/rmt.h"
 #include "gpio_exp.h"
 #include "buttons.h"
+#include "services.h"
 #include "rotary_encoder.h"
 #include "globdefs.h"
 
 static const char * TAG = "buttons";
 
 static EXT_RAM_ATTR int n_buttons;
+static EXT_RAM_ATTR uint32_t buttons_idle_since;
 
 #define BUTTON_STACK_SIZE	4096
 #define MAX_BUTTONS			32
@@ -157,16 +159,29 @@ static void buttons_handler(struct button_s *button, int level) {
 }
 
 /****************************************************************************************
+ * Get inactivity callback
+ */
+static uint32_t buttons_idle_callback(void) {
+    return pdTICKS_TO_MS(xTaskGetTickCount()) - buttons_idle_since;
+}    
+
+/****************************************************************************************
  * Tasks that calls the appropriate functions when buttons are pressed
  */
 static void buttons_task(void* arg) {
-	ESP_LOGI(TAG, "starting button tasks");
+	ESP_LOGI(TAG, "starting button tasks");   
+    
+    buttons_idle_since = pdTICKS_TO_MS(xTaskGetTickCount());    
+    services_sleep_setsleeper(buttons_idle_callback);
 	
     while (1) {
 		QueueSetMemberHandle_t xActivatedMember;
 
 		// wait on button, rotary and infrared queues 
 		if ((xActivatedMember = xQueueSelectFromSet( common_queue_set, portMAX_DELAY )) == NULL) continue;
+        
+        // mark the last activity
+        buttons_idle_since = pdTICKS_TO_MS(xTaskGetTickCount());
 		
 		if (xActivatedMember == button_queue) {
 			struct button_s button;

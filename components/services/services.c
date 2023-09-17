@@ -47,10 +47,14 @@ static EXT_RAM_ATTR struct {
     uint64_t wake_gpio, wake_level;
     uint64_t rtc_gpio, rtc_level;
     uint32_t delay;
-} sleep_config;
+    float battery_level;
+    int battery_count;
+    void (*idle_chain)(uint32_t now);
+    void (*battery_chain)(float level, int cells);
+    void (*suspend[10])(void);
+    uint32_t (*sleeper[10])(void);    
+} sleep_context;
     
-static EXT_RAM_ATTR void (*sleep_hooks[16])(void);    
-
 static const char *TAG = "services";
 
 /****************************************************************************************
@@ -105,15 +109,62 @@ static void sleep_gpio_handler(void *id, button_event_e event, button_press_e mo
 /****************************************************************************************
  * 
  */
+static void sleep_timer(uint32_t now) {
+    static uint32_t last;
+      
+    // first chain the calls to psudo_idle function
+    if (sleep_context.idle_chain) sleep_context.idle_chain(now);
+    
+    // only query callbacks every 30s if we have at least one sleeper
+    if (!*sleep_context.sleeper || now < last + 30*1000) return;
+    last = now;
+         
+    // call all sleep hooks that might want to do something
+    for (uint32_t (**sleeper)(void) = sleep_context.sleeper; *sleeper; sleeper++) {
+        if ((*sleeper)() < sleep_context.delay) return;
+    }
+    
+    // if we are here, we are ready to sleep;
+    services_sleep_activate(SLEEP_ONTIMER);   
+}     
+
+/****************************************************************************************
+ * 
+ */
+static void sleep_battery(float level, int cells) {
+    // chain if any
+    if (sleep_context.battery_chain) sleep_context.battery_chain(level, cells);
+    
+    // then assess if we have to stop because of low batt
+    if (level < sleep_context.battery_level) {
+        if (sleep_context.battery_count++ == 2) services_sleep_activate(SLEEP_ONBATTERY);
+    } else {
+        sleep_context.battery_count = 0;
+    }
+}    
+
+/****************************************************************************************
+ * 
+ */
 static void sleep_init(void) {
     char *config = config_alloc_get(NVS_TYPE_STR, "sleep_config");
     char *p;
     
     // do we want delay sleep
-    PARSE_PARAM(config, "delay", '=', sleep_config.delay);
-    sleep_config.delay *= 60*1000;
-    if (sleep_config.delay) {
-        ESP_LOGI(TAG, "Sleep inactivity of %d minute(s)", sleep_config.delay / (60*1000));
+    PARSE_PARAM(config, "delay", '=', sleep_context.delay);
+    sleep_context.delay *= 60*1000;
+    if (sleep_context.delay) {
+        sleep_context.idle_chain = pseudo_idle_svc;
+        pseudo_idle_svc = sleep_timer;
+        ESP_LOGI(TAG, "Sleep inactivity of %d minute(s)", sleep_context.delay / (60*1000));
+    }
+    
+    // do we want battery safety
+    PARSE_PARAM_FLOAT(config, "batt", '=', sleep_context.battery_level);
+    if (sleep_context.battery_level != 0.0) {
+        sleep_context.battery_chain = battery_handler_svc;
+        battery_handler_svc = sleep_battery;
+        ESP_LOGI(TAG, "Sleep on battery level of %.2f", sleep_context.battery_level);
     }
            
     // get the wake criteria
@@ -126,15 +177,15 @@ static void sleep_init(void) {
             if (!rtc_gpio_is_valid_gpio(gpio)) {
                 ESP_LOGE(TAG, "invalid wake GPIO %d (not in RTC domain)", gpio);
             } else {
-                sleep_config.wake_gpio |= 1LL << gpio;
+                sleep_context.wake_gpio |= 1LL << gpio;
             }
-            if (sscanf(item, "%*[^:]:%d", &level)) sleep_config.wake_level |= level << gpio;
+            if (sscanf(item, "%*[^:]:%d", &level)) sleep_context.wake_level |= level << gpio;
             p = strchr(p, '|');
         }
         
         // when moving to esp-idf more recent than 4.4.x, multiple gpio wake-up with level specific can be done
-        if (sleep_config.wake_gpio) {
-            ESP_LOGI(TAG, "Sleep wake-up gpio bitmap 0x%llx (active 0x%llx)", sleep_config.wake_gpio, sleep_config.wake_level);    
+        if (sleep_context.wake_gpio) {
+            ESP_LOGI(TAG, "Sleep wake-up gpio bitmap 0x%llx (active 0x%llx)", sleep_context.wake_gpio, sleep_context.wake_level);    
         }
     }
     
@@ -148,15 +199,15 @@ static void sleep_init(void) {
             if (!rtc_gpio_is_valid_gpio(gpio)) {
                 ESP_LOGE(TAG, "invalid rtc GPIO %d", gpio);
             } else {
-                sleep_config.rtc_gpio |= 1LL << gpio;
+                sleep_context.rtc_gpio |= 1LL << gpio;
             }
-            if (sscanf(item, "%*[^:]:%d", &level)) sleep_config.rtc_level |= level << gpio;
+            if (sscanf(item, "%*[^:]:%d", &level)) sleep_context.rtc_level |= level << gpio;
             p = strchr(p, '|');
         }
         
         // when moving to esp-idf more recent than 4.4.x, multiple gpio wake-up with level specific can be done
-        if (sleep_config.rtc_gpio) {
-            ESP_LOGI(TAG, "RTC forced gpio bitmap 0x%llx (active 0x%llx)", sleep_config.rtc_gpio, sleep_config.rtc_level);    
+        if (sleep_context.rtc_gpio) {
+            ESP_LOGI(TAG, "RTC forced gpio bitmap 0x%llx (active 0x%llx)", sleep_context.rtc_gpio, sleep_context.rtc_level);    
         }
     }
           
@@ -175,46 +226,37 @@ static void sleep_init(void) {
 /****************************************************************************************
  * 
  */
-void services_sleep_callback(uint32_t elapsed) {
-    if (sleep_config.delay && elapsed >= sleep_config.delay) {
-        services_sleep_activate(SLEEP_ONTIMER);
-    }
-}    
-
-/****************************************************************************************
- * 
- */
 void services_sleep_activate(sleep_cause_e cause) {   
     // call all sleep hooks that might want to do something
-    for (void (**hook)(void) = sleep_hooks; *hook; hook++) (*hook)();
+    for (void (**suspend)(void) = sleep_context.suspend; *suspend; suspend++) (*suspend)();
            
     // isolate all possible GPIOs, except the wake-up and RTC-maintaines ones
     esp_sleep_config_gpio_isolate();
     
     // keep RTC domain up if we need to maintain pull-up/down of some GPIO from RTC
-    if (sleep_config.rtc_gpio) esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
+    if (sleep_context.rtc_gpio) esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
     
     for (int i = 0; i < GPIO_NUM_MAX; i++) {
         // must be a RTC GPIO
         if (!rtc_gpio_is_valid_gpio(i)) continue;
         
         // do we need to maintain a pull-up or down of that GPIO
-        if ((1LL << i) & sleep_config.rtc_gpio) {
-            if ((sleep_config.rtc_level >> i) & 0x01) rtc_gpio_pullup_en(i);
+        if ((1LL << i) & sleep_context.rtc_gpio) {
+            if ((sleep_context.rtc_level >> i) & 0x01) rtc_gpio_pullup_en(i);
             else rtc_gpio_pulldown_en(i);
         // or is this not wake-up GPIO, just isolate it
-        } else if (!((1LL << i) & sleep_config.wake_gpio)) {
+        } else if (!((1LL << i) & sleep_context.wake_gpio)) {
             rtc_gpio_isolate(i);
         }
     }
     
     // is there just one GPIO
-    if (sleep_config.wake_gpio & (sleep_config.wake_gpio - 1)) {
-        ESP_LOGI(TAG, "going to sleep cause %d, wake-up on multiple GPIO, any '1' wakes up 0x%llx", cause, sleep_config.wake_gpio);
-        esp_sleep_enable_ext1_wakeup(sleep_config.wake_gpio, ESP_EXT1_WAKEUP_ANY_HIGH);
-    } else if (sleep_config.wake_gpio) {
-        int gpio = __builtin_ctz(sleep_config.wake_gpio);
-        int level = (sleep_config.wake_level >> gpio) & 0x01;
+    if (sleep_context.wake_gpio & (sleep_context.wake_gpio - 1)) {
+        ESP_LOGI(TAG, "going to sleep cause %d, wake-up on multiple GPIO, any '1' wakes up 0x%llx", cause, sleep_context.wake_gpio);
+        esp_sleep_enable_ext1_wakeup(sleep_context.wake_gpio, ESP_EXT1_WAKEUP_ANY_HIGH);
+    } else if (sleep_context.wake_gpio) {
+        int gpio = __builtin_ctz(sleep_context.wake_gpio);
+        int level = (sleep_context.wake_level >> gpio) & 0x01;
         ESP_LOGI(TAG, "going to sleep cause %d, wake-up on GPIO %d level %d", cause, gpio, level);
         esp_sleep_enable_ext0_wakeup(gpio, level);
     } else {
@@ -226,16 +268,29 @@ void services_sleep_activate(sleep_cause_e cause) {
     else esp_deep_sleep_start();
 }
 
+
 /****************************************************************************************
  * 
  */
-void services_sleep_sethook(void (*hook)(void)) {
-    for (int i = 0; i < sizeof(sleep_hooks)/sizeof(void(*)(void)); i++) {
-        if (!sleep_hooks[i]) {
-            sleep_hooks[i] = hook;
-            return;
-        }
+static void register_method(void **store, size_t size, void *method) {
+    for (int i = 0; i < size; i++, *store++) if (!*store) {
+        *store = method;
+        return;
     }
+}
+
+/****************************************************************************************
+ * 
+ */
+void services_sleep_setsuspend(void (*hook)(void)) {
+    register_method((void**) sleep_context.suspend, sizeof(sleep_context.suspend)/sizeof(*sleep_context.suspend), (void*) hook);
+}
+
+/****************************************************************************************
+ * 
+ */
+void services_sleep_setsleeper(uint32_t (*sleeper)(void)) {
+    register_method((void**) sleep_context.sleeper, sizeof(sleep_context.sleeper)/sizeof(*sleep_context.sleeper), (void*) sleeper);
 }
 
 /****************************************************************************************

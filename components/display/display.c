@@ -179,7 +179,7 @@ void display_init(char *welcome) {
 		}	
         
         // and finally register ourselves to power off upon deep sleep
-        services_sleep_sethook(display_sleep);
+        services_sleep_setsuspend(display_sleep);
 	}
 	
 	free(config);

@@ -48,8 +48,8 @@ void ws2812_write_leds(struct led_state new_state);
 
 static const char TAG[] = "muse";	
 
-static void (*battery_handler_chain)(float value);
-static void battery_svc(float value);
+static void (*battery_handler_chain)(float value, int cells);
+static void battery_svc(float value, int cells);
 static bool init(void);
 static void set_battery_led(float value);
 
@@ -81,11 +81,11 @@ static void set_battery_led(float value) {
 	ws2812_write_leds(new_state);	        
 }
 
-static void battery_svc(float value) {
+static void battery_svc(float value, int cells) {
 	set_battery_led(value);
 	ESP_LOGI(TAG, "Called for battery service with %f", value);
 
-	if (battery_handler_chain) battery_handler_chain(value);
+	if (battery_handler_chain) battery_handler_chain(value, cells);
 }
 
 // This is the buffer which the hw peripheral will access while pulsing the output pin
