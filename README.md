@@ -513,11 +513,14 @@ The esp32 can enter deep sleep after an audio inactivity timeout, after a button
 
 The NVS parameter `sleep_config` is mostly used for setting sleep conditions
 ```
-[delay=<mins>][,sleep=<gpio>[:0|1]][,wake=<gpio>[:0|1][|<gpio>[:0|1]...][,rtc=<gpio>[:0|1][|<gpio>[:0|1]...]
+[delay=<mins>][,sleep=<gpio>[:0|1]][,wake=<gpio>[:0|1][|<gpio>[:0|1]...][,rtc=<gpio>[:0|1][|<gpio>[:0|1]...][,batt=<voltage>]
 ```
-- delay is in **minutes**
-- sleep is the GPIO that will put the system into sleep and it can be a level 0 or 1
-- wake is a **list** of GPIOs that with cause it to wake up (reboot) with their respective values. In such list, GPIO's are separated by an actual '|'
+- delay is in **minutes**.
+- sleep is the GPIO that will put the system into sleep and it can be a level 0 or 1.
+- wake is a **list** of GPIOs that with cause it to wake up (reboot) with their respective values. In such list, GPIO's are separated by an actual '|'.
+- batt is a threshold in **volts** under which the system will enter into sleep.
+
+The battery voltage is measured every 10 seconds and 30 values are averaged before producing a result. The result must be 3 times below the threashold to enter sleep, so it takes a total of 10*30*3 = 15 minutes.
 
 Be mindful that if the same GPIO is used to go to sleep and wakeup with the *same* level, in other word it's a transition/edge that triggers the action, the above will not work and the esp32 will immediately restart. In such case, you case use a button definition. The benefit of buttons is that not only can you re-use one actual button (e.g. 'stop') to make it the sleep trigger (using a long-press or a shift-press) but by selecting the ACTRLS_SLEEP action upon 'release', you can got to sleep upon release (1-0-1 transition) but also wake up upon another press (0 level applied on GPIO) because you only go to sleep *after* the GPIO returned to 1.
 
