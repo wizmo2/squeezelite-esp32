@@ -687,6 +687,8 @@ static void i2s_stats(uint32_t now) {
 #define PREAMBLE_M  (0xE2) //11100010
 #define PREAMBLE_W  (0xE4) //11100100
 
+#if BYTES_PER_FRAME == 4
+
 #define VUCP   		((0xCC) << 24)
 #define VUCP_MUTE 	((0xD4) << 24)	// To mute PCM, set VUCP = invalid.
 
@@ -725,6 +727,50 @@ static const u16_t spdif_bmclookup[256] = { //biphase mark encoded values (least
 	0x32aa, 0xb2aa, 0xd2aa, 0x52aa, 0xcaaa, 0x4aaa, 0x2aaa, 0xaaaa
 };
 
+#else
+
+#define VUCP24      (0xCC)
+#define VUCP24I   	(0x32)
+
+u8_t vucp = VUCP24;
+
+static const u16_t spdif_bmclookup[256] = {
+	0xcccc, 0xb333, 0xd333, 0xaccc, 0xcb33, 0xb4cc, 0xd4cc, 0xab33, 
+	0xcd33, 0xb2cc, 0xd2cc, 0xad33, 0xcacc, 0xb533, 0xd533, 0xaacc, 
+	0xccb3, 0xb34c, 0xd34c, 0xacb3, 0xcb4c, 0xb4b3, 0xd4b3, 0xab4c, 
+	0xcd4c, 0xb2b3, 0xd2b3, 0xad4c, 0xcab3, 0xb54c, 0xd54c, 0xaab3, 
+	0xccd3, 0xb32c, 0xd32c, 0xacd3, 0xcb2c, 0xb4d3, 0xd4d3, 0xab2c, 
+	0xcd2c, 0xb2d3, 0xd2d3, 0xad2c, 0xcad3, 0xb52c, 0xd52c, 0xaad3, 
+	0xccac, 0xb353, 0xd353, 0xacac, 0xcb53, 0xb4ac, 0xd4ac, 0xab53, 
+	0xcd53, 0xb2ac, 0xd2ac, 0xad53, 0xcaac, 0xb553, 0xd553, 0xaaac, 
+	0xcccb, 0xb334, 0xd334, 0xaccb, 0xcb34, 0xb4cb, 0xd4cb, 0xab34, 
+	0xcd34, 0xb2cb, 0xd2cb, 0xad34, 0xcacb, 0xb534, 0xd534, 0xaacb, 
+	0xccb4, 0xb34b, 0xd34b, 0xacb4, 0xcb4b, 0xb4b4, 0xd4b4, 0xab4b, 
+	0xcd4b, 0xb2b4, 0xd2b4, 0xad4b, 0xcab4, 0xb54b, 0xd54b, 0xaab4, 
+	0xccd4, 0xb32b, 0xd32b, 0xacd4, 0xcb2b, 0xb4d4, 0xd4d4, 0xab2b, 
+	0xcd2b, 0xb2d4, 0xd2d4, 0xad2b, 0xcad4, 0xb52b, 0xd52b, 0xaad4, 
+	0xccab, 0xb354, 0xd354, 0xacab, 0xcb54, 0xb4ab, 0xd4ab, 0xab54, 
+	0xcd54, 0xb2ab, 0xd2ab, 0xad54, 0xcaab, 0xb554, 0xd554, 0xaaab, 
+	0xcccd, 0xb332, 0xd332, 0xaccd, 0xcb32, 0xb4cd, 0xd4cd, 0xab32, 
+	0xcd32, 0xb2cd, 0xd2cd, 0xad32, 0xcacd, 0xb532, 0xd532, 0xaacd, 
+	0xccb2, 0xb34d, 0xd34d, 0xacb2, 0xcb4d, 0xb4b2, 0xd4b2, 0xab4d, 
+	0xcd4d, 0xb2b2, 0xd2b2, 0xad4d, 0xcab2, 0xb54d, 0xd54d, 0xaab2, 
+	0xccd2, 0xb32d, 0xd32d, 0xacd2, 0xcb2d, 0xb4d2, 0xd4d2, 0xab2d, 
+	0xcd2d, 0xb2d2, 0xd2d2, 0xad2d, 0xcad2, 0xb52d, 0xd52d, 0xaad2, 
+	0xccad, 0xb352, 0xd352, 0xacad, 0xcb52, 0xb4ad, 0xd4ad, 0xab52, 
+	0xcd52, 0xb2ad, 0xd2ad, 0xad52, 0xcaad, 0xb552, 0xd552, 0xaaad, 
+	0xccca, 0xb335, 0xd335, 0xacca, 0xcb35, 0xb4ca, 0xd4ca, 0xab35, 
+	0xcd35, 0xb2ca, 0xd2ca, 0xad35, 0xcaca, 0xb535, 0xd535, 0xaaca, 
+	0xccb5, 0xb34a, 0xd34a, 0xacb5, 0xcb4a, 0xb4b5, 0xd4b5, 0xab4a, 
+	0xcd4a, 0xb2b5, 0xd2b5, 0xad4a, 0xcab5, 0xb54a, 0xd54a, 0xaab5, 
+	0xccd5, 0xb32a, 0xd32a, 0xacd5, 0xcb2a, 0xb4d5, 0xd4d5, 0xab2a, 
+	0xcd2a, 0xb2d5, 0xd2d5, 0xad2a, 0xcad5, 0xb52a, 0xd52a, 0xaad5, 
+	0xccaa, 0xb355, 0xd355, 0xacaa, 0xcb55, 0xb4aa, 0xd4aa, 0xab55, 
+	0xcd55, 0xb2aa, 0xd2aa, 0xad55, 0xcaaa, 0xb555, 0xd555, 0xaaaa	
+};
+
+#endif
+
 /* 
  SPDIF is supposed to be (before BMC encoding, from LSB to MSB)				
     0....  1...   191..  0
@@ -740,8 +786,12 @@ static const u16_t spdif_bmclookup[256] = { //biphase mark encoded values (least
 */
 static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, size_t *count) {
 	register u16_t hi, lo, aux;
+#if (BYTES_PER_FRAME != 4)
+	register u8_t vu;
+	vu = vucp;
+#endif
 	size_t cnt = *count;
-	
+
 	while (frames--) {
 		// start with left channel
 #if BYTES_PER_FRAME == 4		
@@ -752,19 +802,7 @@ static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, s
 		lo ^= ~((s16_t)hi) >> 16;
 		// first 16 bits
 		aux = 0xb333 ^ (((u32_t)((s16_t)lo)) >> 17);
-#else
-		hi  = spdif_bmclookup[(u8_t)(*src >> 24)];
-		lo  = spdif_bmclookup[(u8_t)(*src >> 16)];
-		
-		// invert if last preceeding bit is 1
-		lo ^= ~((s16_t)hi) >> 16;
-		// first 16 bits
-		// we use 20 bits samples as we need to force parity
-		aux = spdif_bmclookup[(u8_t)(*src++ >> 12)];
-		aux = (u8_t) (aux ^ (~((s16_t)lo) >> 16));
-		aux |= (0xb3 ^ (((u16_t)((s8_t)aux)) >> 9)) << 8;
-#endif	
-		
+
 		// set special preamble every 192 iteration
 		if (++cnt > 191) {
 			*dst++ =  VUCP | (PREAMBLE_B << 16 ) | aux; //special preamble for one of 192 frames
@@ -773,7 +811,26 @@ static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, s
 			*dst++ = VUCP | (PREAMBLE_M << 16) | aux;
 		}     
         // now write sample's 16 low bits
-        *dst++ = ((u32_t)lo << 16) | hi;		
+        *dst++ = ((u32_t)lo << 16) | hi;
+#else
+		hi = spdif_bmclookup[(u8_t)(*src >> 24)];
+		lo = spdif_bmclookup[(u8_t)(*src >> 16)];
+		aux = spdif_bmclookup[(u8_t)(*src++ >> 8)];
+		if (aux & 1) lo = ~lo;
+		if (lo & 1) hi = ~hi;
+
+		// i2s library seems to swap the 32bit samples (right, left), so we change the order here
+        *dst++ = ((u32_t)lo << 16) | hi;
+		if (++cnt > 191) {
+			*dst++ = (vu << 24) | (PREAMBLE_B << 16) | aux;
+			cnt = 0;
+		} else {
+			*dst++ = (vu << 24) | (PREAMBLE_M << 16) | aux;
+		}
+
+		if (hi & 1) vu = VUCP24I;
+		else vu = VUCP24;
+#endif	
 
 		// then do right channel, no need to check PREAMBLE_B
 #if BYTES_PER_FRAME == 4		
@@ -781,19 +838,27 @@ static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, s
 		lo  = spdif_bmclookup[(u8_t) *src++];
 		lo ^= ~((s16_t)hi) >> 16;
 		aux = 0xb333 ^ (((u32_t)((s16_t)lo)) >> 17);
-#else
-		hi  = spdif_bmclookup[(u8_t)(*src >> 24)];
-		lo  = spdif_bmclookup[(u8_t)(*src >> 16)];
-		lo ^= ~((s16_t)hi) >> 16;
-		aux = spdif_bmclookup[(u8_t)(*src++ >> 12)];
-		aux = (u8_t) (aux ^ (~((s16_t)lo) >> 16));
-		aux |= (0xb3 ^ (((u16_t)((s8_t)aux)) >> 9)) << 8;
-#endif	
 		*dst++ = VUCP | (PREAMBLE_W << 16) | aux;
         *dst++ = ((u32_t)lo << 16) | hi;
+#else
+		hi = spdif_bmclookup[(u8_t)(*src >> 24)];
+		lo = spdif_bmclookup[(u8_t)(*src >> 16)];
+		aux = spdif_bmclookup[(u8_t)(*src++ >> 8)];
+		if (aux & 1) lo = ~lo;
+		if (lo & 1) hi = ~hi;
+
+        *dst++ = ((u32_t)lo << 16) | hi;
+		*dst++ = (vu << 24) | (PREAMBLE_W << 16) | aux;
+
+		if (hi & 1) vu = VUCP24I;
+		else vu = VUCP24;
+#endif	
 	}
 	
 	*count = cnt;
+#if (BYTES_PER_FRAME != 4)
+	vucp = vu;
+#endif
 }
 
 
