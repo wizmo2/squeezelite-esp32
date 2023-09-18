@@ -82,6 +82,8 @@ NB: You can use the pre-build binaries SqueezeAMP4MBFlash which has all the hard
 - dac_config: `model=TAS57xx,bck=33,ws=25,do=32,sda=27,scl=26,mute=14:0`
 - spdif_config: `bck=33,ws=25,do=15`
 
+The IR can be used as a wake-up signal using (setting `sleep_config` with `wake=0:0`). It's a pull-up so it stays at 1 when not receiving anything which means it cannot be used in conjuction with other wake-up IOs. See [Sleeping](#sleeping) for more details regarding the limitation of waking-up upon multiple inputs.
+
 ### MuseLuxe
 This portable battery-powered [speaker](https://raspiaudio.com/produit/esp-muse-luxe) is compatible with squeezelite-esp32 for which there is a dedicated build supplied with every update. If you want to rebuild, use the `squeezelite-esp32-Muse-sdkconfig.defaults` configuration file.
 
