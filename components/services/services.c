@@ -253,6 +253,10 @@ void services_sleep_activate(sleep_cause_e cause) {
     // is there just one GPIO
     if (sleep_context.wake_gpio & (sleep_context.wake_gpio - 1)) {
         ESP_LOGI(TAG, "going to sleep cause %d, wake-up on multiple GPIO, any '1' wakes up 0x%llx", cause, sleep_context.wake_gpio);
+#if defined(CONFIG_IDF_TARGET_ESP32S3) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 2, 0)
+        if (!sleep_context.wake_level) esp_sleep_enable_ext1_wakeup(sleep_context.wake_gpio, ESP_EXT1_WAKEUP_ANY_LOW);
+        else
+#endif
         esp_sleep_enable_ext1_wakeup(sleep_context.wake_gpio, ESP_EXT1_WAKEUP_ANY_HIGH);
     } else if (sleep_context.wake_gpio) {
         int gpio = __builtin_ctz(sleep_context.wake_gpio);

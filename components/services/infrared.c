@@ -446,14 +446,14 @@ err:
 /****************************************************************************************
  * 
  */
-void infrared_receive(RingbufHandle_t rb, infrared_handler handler) {
+bool infrared_receive(RingbufHandle_t rb, infrared_handler handler) {
 	size_t rx_size = 0;
 	rmt_item32_t* item = (rmt_item32_t*) xRingbufferReceive(rb, &rx_size, 10 / portTICK_RATE_MS);
+    bool decoded = false;
     
 	if (item) {
 		uint32_t addr, cmd;
         bool repeat = false;
-        bool decoded = false;
 		      
         rx_size /= 4; // one RMT = 4 Bytes
         
@@ -474,6 +474,8 @@ void infrared_receive(RingbufHandle_t rb, infrared_handler handler) {
 		// after parsing the data, return spaces to ringbuffer.
         vRingbufferReturnItem(rb, (void*) item);
     }
+    
+    return decoded;
 }
 
 

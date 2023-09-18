@@ -176,13 +176,11 @@ static void buttons_task(void* arg) {
 	
     while (1) {
 		QueueSetMemberHandle_t xActivatedMember;
+        bool active = true;
 
 		// wait on button, rotary and infrared queues 
 		if ((xActivatedMember = xQueueSelectFromSet( common_queue_set, portMAX_DELAY )) == NULL) continue;
-        
-        // mark the last activity
-        buttons_idle_since = pdTICKS_TO_MS(xTaskGetTickCount());
-		
+        	
 		if (xActivatedMember == button_queue) {
 			struct button_s button;
 			button_event_e event;
@@ -236,8 +234,11 @@ static void buttons_task(void* arg) {
 											ROTARY_RIGHT : ROTARY_LEFT, false);   
 		} else {
 			// this is IR
-			infrared_receive(infrared.rb, infrared.handler);
+			active = infrared_receive(infrared.rb, infrared.handler);
 		}	
+        
+        // mark the last activity
+        if (active) buttons_idle_since = pdTICKS_TO_MS(xTaskGetTickCount());
     }
 }	
 	
