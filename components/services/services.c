@@ -259,7 +259,7 @@ void services_sleep_activate(sleep_cause_e cause) {
 #endif
         esp_sleep_enable_ext1_wakeup(sleep_context.wake_gpio, ESP_EXT1_WAKEUP_ANY_HIGH);
     } else if (sleep_context.wake_gpio) {
-        int gpio = __builtin_ctz(sleep_context.wake_gpio);
+        int gpio = __builtin_ctzll(sleep_context.wake_gpio);
         int level = (sleep_context.wake_level >> gpio) & 0x01;
         ESP_LOGI(TAG, "going to sleep cause %d, wake-up on GPIO %d level %d", cause, gpio, level);
         esp_sleep_enable_ext0_wakeup(gpio, level);
