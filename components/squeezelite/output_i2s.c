@@ -820,13 +820,13 @@ static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, s
 		if (lo & 1) hi = ~hi;
 
 		// i2s library seems to swap the 32bit samples (right, left), so we change the order here
-        *dst++ = ((u32_t)lo << 16) | hi;
 		if (++cnt > 191) {
 			*dst++ = (vu << 24) | (PREAMBLE_B << 16) | aux;
 			cnt = 0;
 		} else {
 			*dst++ = (vu << 24) | (PREAMBLE_M << 16) | aux;
 		}
+		*dst++ = ((u32_t)lo << 16) | hi;
 
 		if (hi & 1) vu = VUCP24I;
 		else vu = VUCP24;
@@ -847,8 +847,8 @@ static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, s
 		if (aux & 1) lo = ~lo;
 		if (lo & 1) hi = ~hi;
 
-        *dst++ = ((u32_t)lo << 16) | hi;
 		*dst++ = (vu << 24) | (PREAMBLE_W << 16) | aux;
+        *dst++ = ((u32_t)lo << 16) | hi;
 
 		if (hi & 1) vu = VUCP24I;
 		else vu = VUCP24;
