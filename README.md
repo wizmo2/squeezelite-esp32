@@ -515,12 +515,13 @@ The esp32 can enter deep sleep after an audio inactivity timeout, after a button
 
 The NVS parameter `sleep_config` is mostly used for setting sleep conditions
 ```
-[delay=<mins>][,sleep=<gpio>[:0|1]][,wake=<gpio>[:0|1][|<gpio>[:0|1]...][,rtc=<gpio>[:0|1][|<gpio>[:0|1]...][,batt=<voltage>]
+[delay=<mins>][,sleep=<gpio>[:0|1]][,wake=<gpio>[:0|1][|<gpio>[:0|1]...][,rtc=<gpio>[:0|1][|<gpio>[:0|1]...][,batt=<voltage>][,spurious=<mins>]
 ```
-- delay is in **minutes**.
-- sleep is the GPIO that will put the system into sleep and it can be a level 0 or 1.
-- wake is a **list** of GPIOs that with cause it to wake up (reboot) with their respective values. In such list, GPIO's are separated by an actual '|'.
-- batt is a threshold in **volts** under which the system will enter into sleep.
+- delay: inactivity in **minutes** before going to sleep
+- spurious: when using IR, wake-up can be trigger by any activity on the allocated GPIO, so other remotes may cause unwanted wake-up. This sets (in **minutes**) an inactivity delay after which sleep resumes.
+- sleep: GPIO that will put the system into sleep and it can be a level 0 or 1.
+- wake: **list** of GPIOs that with cause it to wake up (reboot) with their respective values. In such list, GPIO's are separated by an actual '|'.
+- batt: threshold in **volts** under which the system will enter into sleep.
 
 The battery voltage is measured every 10 seconds and 30 values are averaged before producing a result. The result must be 3 times below the threshold to enter sleep, so it takes a total of 10\*30\*3 = 15 minutes.
 
