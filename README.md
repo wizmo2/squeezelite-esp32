@@ -518,7 +518,7 @@ The NVS parameter `sleep_config` is mostly used for setting sleep conditions
 [delay=<mins>][,sleep=<gpio>[:0|1]][,wake=<gpio>[:0|1][|<gpio>[:0|1]...][,rtc=<gpio>[:0|1][|<gpio>[:0|1]...][,batt=<voltage>][,spurious=<mins>]
 ```
 - delay: inactivity in **minutes** before going to sleep
-- spurious: when using IR, wake-up can be triggered by any activity on the allocated GPIO, hence other remotes may cause unwanted wake-up. This sets (in **minutes**) an inactivity delay after which sleep resumes.
+- spurious: when using IR, wake-up can be triggered by any activity on the allocated GPIO, hence other remotes may cause unwanted wake-up. This sets (in **minutes** - default is 1) an inactivity delay after which sleep resumes.
 - sleep: GPIO that will put the system into sleep and it can be a level 0 or 1.
 - wake: **list** of GPIOs that with cause it to wake up (reboot) with their respective values. In such list, GPIO's are separated by an actual '|'.
 - batt: threshold in **volts** under which the system will enter into sleep.
