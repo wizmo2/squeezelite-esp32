@@ -782,13 +782,9 @@ static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, s
 #if BYTES_PER_FRAME == 4		
 		hi = spdif_bmclookup[(u8_t)(*src >> 8)];
 		lo = spdif_bmclookup[(u8_t)*src++];
-
 		if (lo & 1) hi = ~hi;
 
 		*dst++ = (vu << 24) | (PREAMBLE_W << 16) | 0xCCCC;
-		
-		if (hi & 1) vu = VUCP24I;
-		else vu = VUCP24;
 #else
 		hi = spdif_bmclookup[(u8_t)(*src >> 24)];
 		lo = spdif_bmclookup[(u8_t)(*src >> 16)];
