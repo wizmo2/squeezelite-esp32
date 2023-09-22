@@ -93,6 +93,9 @@ static void (*pseudo_idle_chain)(uint32_t now);
 #define CONFIG_AMP_GPIO_LEVEL 1
 #endif
 
+#define VUCP24      (0xCC)
+#define VUCP24I   	(0x32)
+
 extern struct outputstate output;
 extern struct buffer *streambuf;
 extern struct buffer *outputbuf;
@@ -115,6 +118,7 @@ static struct {
 	bool enabled;
 	u8_t *buf;
 	size_t count;
+	u8_t vucp;
 } spdif;
 static size_t dma_buf_frames;
 static TaskHandle_t output_i2s_task;
@@ -130,7 +134,7 @@ static int _i2s_write_frames(frames_t out_frames, bool silence, s32_t gainL, s32
 static void output_thread_i2s(void *arg);
 static void i2s_stats(uint32_t now);
 
-static void spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, size_t *count);
+static void spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, size_t *count, u8_t *vucp);
 static void (*jack_handler_chain)(bool inserted);
 
 #define I2C_PORT	0
@@ -542,6 +546,7 @@ static void output_thread_i2s(void *arg) {
 				i2s_stop(CONFIG_I2S_NUM);
 				adac->power(ADAC_STANDBY);
 				spdif.count = 0;
+				spdif.vucp = VUCP24;
 			}
 			usleep(100000);
 			continue;
@@ -617,7 +622,7 @@ static void output_thread_i2s(void *arg) {
 			// need IRAM for speed but can't allocate a FRAME_BLOCK * 16, so process by smaller chunks
 			while (count < oframes) {
 				size_t chunk = min(SPDIF_BLOCK, oframes - count);
-				spdif_convert((ISAMPLE_T*) obuf + count * 2, chunk, (u32_t*) spdif.buf, &spdif.count);              
+				spdif_convert((ISAMPLE_T*) obuf + count * 2, chunk, (u32_t*) spdif.buf, &spdif.count, &spdif.vucp);              
 				i2s_write(CONFIG_I2S_NUM, spdif.buf, chunk * 16, &obytes, portMAX_DELAY);
 				bytes += obytes / (16 / BYTES_PER_FRAME);
 				count += chunk;
@@ -687,11 +692,6 @@ static void i2s_stats(uint32_t now) {
 #define PREAMBLE_M  (0xE2) //11100010
 #define PREAMBLE_W  (0xE4) //11100100
 
-#define VUCP24      (0xCC)
-#define VUCP24I   	(0x32)
-
-u8_t vucp = VUCP24;
-
 static const u16_t spdif_bmclookup[256] = {
 	0xcccc, 0xb333, 0xd333, 0xaccc, 0xcb33, 0xb4cc, 0xd4cc, 0xab33, 
 	0xcd33, 0xb2cc, 0xd2cc, 0xad33, 0xcacc, 0xb533, 0xd533, 0xaacc, 
@@ -740,10 +740,12 @@ static const u16_t spdif_bmclookup[256] = {
  The I2S interface must output first the B/M/W preamble which means that second
  32 bits words must be first and so must be marked right channel. 
 */
-static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, size_t *count) {
-	register u16_t hi, lo, aux;
-	register u8_t vu;
-	vu = vucp;
+static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, size_t *count, u8_t *vucp) {
+	register u16_t hi, lo;
+#if BYTES_PER_FRAME == 8
+	register u16_t aux;
+#endif
+	register u8_t vu = *vucp;
 	size_t cnt = *count;
 
 	while (frames--) {
@@ -801,7 +803,7 @@ static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, s
 	}
 
 	*count = cnt;
-	vucp = vu;
+	*vucp = vu;
 }
 
 
