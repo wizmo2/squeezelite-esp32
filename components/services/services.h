@@ -14,3 +14,4 @@ typedef enum { SLEEP_ONTIMER, SLEEP_ONKEY, SLEEP_ONGPIO, SLEEP_ONIR, SLEEP_ONBAT
 void services_sleep_activate(sleep_cause_e cause);
 void services_sleep_setsuspend(void (*hook)(void));
 void services_sleep_setsleeper(uint32_t (*sleeper)(void));
+void services_sleep_init(void);

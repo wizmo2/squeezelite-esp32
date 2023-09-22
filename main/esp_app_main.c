@@ -73,6 +73,7 @@ static bool bNetworkConnected=false;
 
 // as an exception _init function don't need include
 extern void services_init(void);
+extern void services_sleep_init(void);
 extern void	display_init(char *welcome);
 extern void led_vu_init(void);
 extern void target_init(char *target);
@@ -463,5 +464,6 @@ void app_main()
 		}
 		free(fwurl);
 	}
+    services_sleep_init();
 	messaging_post_message(MESSAGING_INFO,MESSAGING_CLASS_SYSTEM,"System started");
 }
