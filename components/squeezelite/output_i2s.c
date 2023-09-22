@@ -297,7 +297,7 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 		i2s_config.sample_rate = output.current_sample_rate;
 		i2s_config.bits_per_sample = BYTES_PER_FRAME * 8 / 2;
 		// Counted in frames (but i2s allocates a buffer <= 4092 bytes)
-		i2s_config.dma_buf_len = DMA_BUF_LEN;	
+		i2s_config.dma_buf_len = DMA_BUF_LEN / 2;	
 		i2s_config.dma_buf_count = DMA_BUF_COUNT;
 		dma_buf_frames = DMA_BUF_COUNT * DMA_BUF_LEN;	
 		
