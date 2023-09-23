@@ -213,7 +213,7 @@ bck=<gpio>,ws=<gpio>,do=<gpio>
 ```
 NB: For named configurations, this is ignored
 
-To optimize speed, a bit-manipulation trick is used and as a result, the bit depth is limited to 20 bits, even in 32 bits mode. As said before, this is more than enough for any human ear. In theory, it could be extended up to 23 bits but I don't see the need. Now, you can also get SPDIF using a specialized chip that offers a I2S interface like a DAC but spits out SPDIF (optical and coax). Refers to DAC chapter then.
+The bit depth is 24 bits, even in 32 bits mode (this a SPDIF limitation - thank @UrbanLienert for theupdate from 20 to 24 bit). Now, you can also get SPDIF using a specialized chip that offers a I2S interface like a DAC but spits out SPDIF (optical and coax). Refers to DAC chapter then.
 
 If you want coax, you can also use a poor-man's trick to generate signal from a 3.3V GPIO. All that does is dividing the 3.3V to generate a 0.6V peak-to-peak and then remove DC
 ```
