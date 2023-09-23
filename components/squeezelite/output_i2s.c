@@ -93,9 +93,6 @@ static void (*pseudo_idle_chain)(uint32_t now);
 #define CONFIG_AMP_GPIO_LEVEL 1
 #endif
 
-#define VUCP24      (0xCC)
-#define VUCP24I   	(0x32)
-
 extern struct outputstate output;
 extern struct buffer *streambuf;
 extern struct buffer *outputbuf;
@@ -117,8 +114,6 @@ static frames_t oframes;
 static struct {
 	bool enabled;
 	u8_t *buf;
-	size_t count;
-	u8_t vucp;
 } spdif;
 static size_t dma_buf_frames;
 static TaskHandle_t output_i2s_task;
@@ -134,7 +129,7 @@ static int _i2s_write_frames(frames_t out_frames, bool silence, s32_t gainL, s32
 static void output_thread_i2s(void *arg);
 static void i2s_stats(uint32_t now);
 
-static void spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, size_t *count, u8_t *vucp);
+static void spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst);
 static void (*jack_handler_chain)(bool inserted);
 
 #define I2C_PORT	0
@@ -545,8 +540,6 @@ static void output_thread_i2s(void *arg) {
 				isI2SStarted = false;
 				i2s_stop(CONFIG_I2S_NUM);
 				adac->power(ADAC_STANDBY);
-				spdif.count = 0;
-				spdif.vucp = VUCP24;
 			}
 			usleep(100000);
 			continue;
@@ -593,6 +586,7 @@ static void output_thread_i2s(void *arg) {
 			i2s_zero_dma_buffer(CONFIG_I2S_NUM);
 			i2s_start(CONFIG_I2S_NUM);
 			adac->power(ADAC_ON);	
+            if (spdif.enabled) spdif_convert(NULL, 0, NULL);
 		} 
 
 		// this does not work well as set_sample_rates resets the fifos (and it's too early)
@@ -622,7 +616,7 @@ static void output_thread_i2s(void *arg) {
 			// need IRAM for speed but can't allocate a FRAME_BLOCK * 16, so process by smaller chunks
 			while (count < oframes) {
 				size_t chunk = min(SPDIF_BLOCK, oframes - count);
-				spdif_convert((ISAMPLE_T*) obuf + count * 2, chunk, (u32_t*) spdif.buf, &spdif.count, &spdif.vucp);              
+                spdif_convert((ISAMPLE_T*) obuf + count * 2, chunk, (u32_t*) spdif.buf);              
 				i2s_write(CONFIG_I2S_NUM, spdif.buf, chunk * 16, &obytes, portMAX_DELAY);
 				bytes += obytes / (16 / BYTES_PER_FRAME);
 				count += chunk;
@@ -663,7 +657,7 @@ static void i2s_stats(uint32_t now) {
     // then see if we need to act
     if (output.state <= OUTPUT_STOPPED || now < last + STATS_PERIOD_MS) return;  
     last = now;
-    
+
 	LOG_INFO( "Output State: %d, current sample rate: %d, bytes per frame: %d", output.state, output.current_sample_rate, BYTES_PER_FRAME);
 	LOG_INFO( LINE_MIN_MAX_FORMAT_HEAD1);
 	LOG_INFO( LINE_MIN_MAX_FORMAT_HEAD2);
@@ -687,10 +681,11 @@ static void i2s_stats(uint32_t now) {
 /****************************************************************************************
  * SPDIF support
  */
- 
 #define PREAMBLE_B  (0xE8) //11101000
 #define PREAMBLE_M  (0xE2) //11100010
 #define PREAMBLE_W  (0xE4) //11100100
+
+static const u8_t VUCP24[2] = { 0xCC, 0x32 };
 
 static const u16_t spdif_bmclookup[256] = {
 	0xcccc, 0xb333, 0xd333, 0xaccc, 0xcb33, 0xb4cc, 0xd4cc, 0xab33, 
@@ -740,14 +735,18 @@ static const u16_t spdif_bmclookup[256] = {
  The I2S interface must output first the B/M/W preamble which means that second
  32 bits words must be first and so must be marked right channel. 
 */
-static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, size_t *count, u8_t *vucp) {
+static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst) {
+    static u8_t vu, count;    
 	register u16_t hi, lo;
 #if BYTES_PER_FRAME == 8
 	register u16_t aux;
 #endif
-	register u8_t vu = *vucp;
-	size_t cnt = *count;
-
+    
+    if (!src) {
+        count =  192;
+        vu = VUCP24[0];
+    }
+    
 	while (frames--) {
 		// start with left channel
 #if BYTES_PER_FRAME == 4		
@@ -755,9 +754,9 @@ static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, s
 		lo = spdif_bmclookup[(u8_t)*src++];
 		if (lo & 1) hi = ~hi;
 
-		if (++cnt > 191) {
+        if (!count--) {            
 			*dst++ = (vu << 24) | (PREAMBLE_B << 16) | 0xCCCC;
-			cnt = 0;
+			count = 192;
 		} else {
 			*dst++ = (vu << 24) | (PREAMBLE_M << 16) | 0xCCCC;
 		}
@@ -768,16 +767,16 @@ static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, s
 		if (aux & 1) lo = ~lo;
 		if (lo & 1) hi = ~hi;
 
-		if (++cnt > 191) {
+
+        if (!count--) {
 			*dst++ = (vu << 24) | (PREAMBLE_B << 16) | aux;
-			cnt = 0;
+			count = 192;
 		} else {
 			*dst++ = (vu << 24) | (PREAMBLE_M << 16) | aux;
 		}
 #endif
 
-		if (hi & 1) vu = VUCP24I;
-		else vu = VUCP24;
+        vu = VUCP24[hi & 1];
 		*dst++ = ((u32_t)lo << 16) | hi;
 
 		// then do right channel, no need to check PREAMBLE_B
@@ -797,16 +796,7 @@ static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst, s
 		*dst++ = (vu << 24) | (PREAMBLE_W << 16) | aux;
 #endif
 
-		if (hi & 1) vu = VUCP24I;
-		else vu = VUCP24;
+        vu = VUCP24[hi & 1];
 		*dst++ = ((u32_t)lo << 16) | hi;
 	}
-
-	*count = cnt;
-	*vucp = vu;
 }
-
-
-
-
-

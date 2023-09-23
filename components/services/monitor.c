@@ -26,7 +26,7 @@
 #include "cJSON.h"
 #include "tools.h"
 
-#define PSEUDO_IDLE_STACK_SIZE	(6*1024)
+#define PSEUDO_IDLE_STACK_SIZE	(8*1024)
 
 #define MONITOR_TIMER	(10*1000)
 #define SCRATCH_SIZE	256
