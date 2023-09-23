@@ -73,6 +73,7 @@ static bool bNetworkConnected=false;
 
 // as an exception _init function don't need include
 extern void services_init(void);
+extern void services_sleep_init(void);
 extern void	display_init(char *welcome);
 extern void led_vu_init(void);
 extern void target_init(char *target);
@@ -270,6 +271,7 @@ void register_default_nvs(){
 	register_default_string_val( "i2c_config", CONFIG_I2C_CONFIG);
 	register_default_string_val( "spi_config", CONFIG_SPI_CONFIG);
 	register_default_string_val( "set_GPIO", CONFIG_SET_GPIO);
+	register_default_string_val( "sleep_config", "");    
 	register_default_string_val( "led_brightness", "");
 	register_default_string_val( "spdif_config", "");
 	register_default_string_val( "dac_config", "");
@@ -462,5 +464,6 @@ void app_main()
 		}
 		free(fwurl);
 	}
+    services_sleep_init();
 	messaging_post_message(MESSAGING_INFO,MESSAGING_CLASS_SYSTEM,"System started");
 }

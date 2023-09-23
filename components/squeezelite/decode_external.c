@@ -289,6 +289,7 @@ static bool raop_sink_cmd_handler(raop_event_t event, va_list args)
 			raop_sync.enabled = !strcasestr(output.device, "BT");
 			output.next_sample_rate = output.current_sample_rate = RAOP_SAMPLE_RATE;
 			break;
+        case RAOP_STALLED:
 		case RAOP_STOP:
 			output.external = 0;
 			__attribute__ ((fallthrough));
@@ -492,7 +493,6 @@ void decode_restore(int external) {
 #if CONFIG_AIRPLAY_SINK
 	case DECODE_RAOP:
 		raop_disconnect();
-		raop_state = RAOP_STOP;
 		break;
 #endif
 #if CONFIG_CSPOT_SINK

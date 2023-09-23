@@ -25,6 +25,8 @@ static const char * TAG = "bt_app_source";
 static const char * BT_RC_CT_TAG="RCCT";
 extern int32_t 	output_bt_data(uint8_t *data, int32_t len);
 extern void 	output_bt_tick(void);
+extern void 	output_bt_stop(void);
+extern void 	output_bt_start(void);
 extern char*	output_state_str(void);
 extern bool		output_stopped(void);
 extern bool is_recovery_running;
@@ -803,6 +805,7 @@ static void bt_app_av_media_proc(uint16_t event, void *param)
             if (a2d->media_ctrl_stat.cmd == ESP_A2D_MEDIA_CTRL_START &&
                     a2d->media_ctrl_stat.status == ESP_A2D_MEDIA_CTRL_ACK_SUCCESS) {
             	ESP_LOGI(TAG,"a2dp media started successfully.");
+                output_bt_start();
                 set_a2dp_media_state(APP_AV_MEDIA_STATE_STARTED);
             } else {
                 // not started succesfully, transfer to idle state
@@ -831,6 +834,7 @@ static void bt_app_av_media_proc(uint16_t event, void *param)
             if (a2d->media_ctrl_stat.cmd == ESP_A2D_MEDIA_CTRL_STOP &&
                     a2d->media_ctrl_stat.status == ESP_A2D_MEDIA_CTRL_ACK_SUCCESS) {
                 ESP_LOGI(TAG,"a2dp media stopped successfully...");
+                output_bt_stop();
                	set_a2dp_media_state(APP_AV_MEDIA_STATE_IDLE);
             } else {
                 ESP_LOGI(TAG,"a2dp media stopping...");

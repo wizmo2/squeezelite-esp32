@@ -113,13 +113,19 @@ static bool cmd_handler(raop_event_t event, ...) {
 	case RAOP_SETUP:
 		actrls_set(controls, false, NULL, actrls_ir_action);
 		displayer_control(DISPLAYER_ACTIVATE, "AIRPLAY", true);
+        displayer_artwork(NULL);
 		break;
 	case RAOP_PLAY:
 		displayer_control(DISPLAYER_TIMER_RUN);
 		break;		
 	case RAOP_FLUSH:
 		displayer_control(DISPLAYER_TIMER_PAUSE);
-		break;		
+		break;
+    case RAOP_STALLED:
+        raop_abort(raop);
+        actrls_unset();
+        displayer_control(DISPLAYER_SHUTDOWN);
+        break;
 	case RAOP_STOP:
 		actrls_unset();
 		displayer_control(DISPLAYER_SUSPEND);
@@ -127,7 +133,6 @@ static bool cmd_handler(raop_event_t event, ...) {
 	case RAOP_METADATA: {
 		char *artist = va_arg(args, char*), *album = va_arg(args, char*), *title = va_arg(args, char*);
 		displayer_metadata(artist, album, title);
-		displayer_artwork(NULL);
 		break;
 	}	
 	case RAOP_ARTWORK: {
@@ -170,7 +175,7 @@ static void raop_sink_start(nm_state_t state_id, int sub_state) {
 	esp_netif_get_mac(netif, mac);
 	cmd_handler_chain = raop_cbs.cmd;
 
-	LOG_INFO( "Starting Airplay for ip %s with servicename %s", inet_ntoa(ipInfo.ip.addr), sink_name);
+	LOG_INFO( "starting Airplay for ip %s with servicename %s", inet_ntoa(ipInfo.ip.addr), sink_name);
 	raop = raop_create(ipInfo.ip.addr, sink_name, mac, 0, cmd_handler, raop_cbs.data);
 	free(sink_name);
 }
@@ -191,8 +196,7 @@ void raop_sink_init(raop_cmd_vcb_t cmd_cb, raop_data_cb_t data_cb) {
  */
 void raop_disconnect(void) {
 	LOG_INFO("forced disconnection");
-	displayer_control(DISPLAYER_SHUTDOWN);
 	// in case we can't communicate with AirPlay controller, abort session 
-	if (!raop_cmd(raop, RAOP_STOP, NULL)) raop_abort(raop);
-	actrls_unset();
+	if (!raop_cmd(raop, RAOP_STOP, NULL)) cmd_handler(RAOP_STALLED);
+    else displayer_control(DISPLAYER_SHUTDOWN);
 }

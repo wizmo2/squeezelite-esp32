@@ -265,6 +265,12 @@ CONFIG_CSPOT_SINK=y
 # end of Display Screen
 
 #
+# POWER configuration
+#
+CONFIG_POWER_GPIO=-1
+# end of POWER configuration
+
+#
 # Various I/O
 #
 CONFIG_I2C_CONFIG=""

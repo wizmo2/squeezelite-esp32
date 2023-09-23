@@ -148,6 +148,9 @@ menu "Squeezelite-ESP32"
 			int
 			default 21 if MUSE
 			default -1
+		config POWER_GPIO		
+			int
+			default -1			
 		config JACK_GPIO
 			int
 			default 34 if SQUEEZEAMP || MUSE
@@ -405,14 +408,25 @@ menu "Squeezelite-ESP32"
 			default 0
 	endmenu	
 	
-	menu "Amplifier"	
-		visible if !TARGET_LOCKED
+	menu "External amplifier control"	
+		visible if !AMP_LOCKED
 		config AMP_GPIO		
 			int "Amplifier GPIO"
 			help
-				GPIO to switch on/off amplifier. Set to -1 for no amplifier. 
+				GPIO to switch on/off external amplifier. Set to -1 for no amplifier. 
 		config AMP_GPIO_LEVEL
 			depends on AMP_GPIO != -1
+			int "Active level(0/1)"
+			default 1
+	endmenu	
+	
+	menu "Power on/off status"	
+		config POWER_GPIO
+			int "Power on/off GPIO"
+			help
+				GPIO that is switched when LMS turns player one. Set to -1 to disable
+		config POWER_GPIO_LEVEL
+			depends on POWER_GPIO != -1
 			int "Active level(0/1)"
 			default 1
 	endmenu	

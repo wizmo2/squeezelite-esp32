@@ -64,13 +64,17 @@ static const float loudness_envelope_coefficients[EQ_BANDS][POLYNOME_COUNT] = {
  * calculate loudness gains
  */
 static void calculate_loudness(void) {
+    char trace[EQ_BANDS * 5 + 1];
+    size_t n = 0;
 	for (int i = 0; i < EQ_BANDS; i++) {
 		for (int j = 0; j < POLYNOME_COUNT && equalizer.loudness != 0; j++) {
 			equalizer.loudness_gain[i] +=
 				loudness_envelope_coefficients[i][j] * pow(equalizer.volume, j);
 		}
 		equalizer.loudness_gain[i] *= equalizer.loudness / 2;
+        n += sprintf(trace + n, "%.2g%c", equalizer.loudness_gain[i], i < EQ_BANDS ? ',' : '\0');
 	}
+    LOG_INFO("loudness %s", trace);    
 }
 
 /****************************************************************************************
@@ -211,7 +215,6 @@ void equalizer_process(uint8_t *buf, uint32_t bytes) {
 			esp_equalizer_set_band_value(equalizer.handle, gain, i, 0);
 			esp_equalizer_set_band_value(equalizer.handle, gain, i, 1);
 			active |= gain != 0;
-            LOG_INFO("EQUALIZER INDEX %u => gain:%.2f, loudness:%.2f,", i, equalizer.gain[i], equalizer.loudness_gain[i]);
 		}
 
 		// at the end do not activate equalizer if all gain are 0

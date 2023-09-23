@@ -77,7 +77,7 @@ cspotPlayer::cspotPlayer(const char* name, httpd_handle_t server, int port, cspo
 
     cJSON *item, *config = config_alloc_get_cjson("cspot_config");
     if ((item = cJSON_GetObjectItem(config, "volume")) != NULL) volume = item->valueint;
-    if ((item = cJSON_GetObjectItem(config, "bitrate")) != NULL) bitrate = item->valueint;
+    if ((item = cJSON_GetObjectItem(config, "bitrate")) != NULL) bitrate = item->valueint;   
     if ((item = cJSON_GetObjectItem(config, "deviceName") ) != NULL) this->name = item->valuestring;
     else this->name = name;
     cJSON_Delete(config);
@@ -306,8 +306,9 @@ void cspotPlayer::runTask() {
     // Register mdns service, for spotify to find us
     bell::MDNSService::registerService( blob->getDeviceName(), "_spotify-connect", "_tcp", "", serverPort,
             { {"VERSION", "1.0"}, {"CPath", "/spotify_info"}, {"Stack", "SP"} });
+            
+    CSPOT_LOG(info, "CSpot instance service name %s (id %s)", blob->getDeviceName().c_str(), blob->getDeviceId().c_str());
 
-                                static int count = 0;
     // gone with the wind...
     while (1) {
         clientConnected.wait();

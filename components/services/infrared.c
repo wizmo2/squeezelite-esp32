@@ -22,6 +22,8 @@ static const char* TAG = "IR";
 #define IR_TOOLS_FLAGS_PROTO_EXT (1 << 0) /*!< Enable Extended IR protocol */
 #define IR_TOOLS_FLAGS_INVERSE (1 << 1)   /*!< Inverse the IR signal, i.e. take high level as low, and vice versa */
 
+static int8_t ir_gpio = -1;
+
 /**
 * @brief IR device type
 *
@@ -446,14 +448,14 @@ err:
 /****************************************************************************************
  * 
  */
-void infrared_receive(RingbufHandle_t rb, infrared_handler handler) {
+bool infrared_receive(RingbufHandle_t rb, infrared_handler handler) {
 	size_t rx_size = 0;
 	rmt_item32_t* item = (rmt_item32_t*) xRingbufferReceive(rb, &rx_size, 10 / portTICK_RATE_MS);
+    bool decoded = false;
     
 	if (item) {
 		uint32_t addr, cmd;
         bool repeat = false;
-        bool decoded = false;
 		      
         rx_size /= 4; // one RMT = 4 Bytes
         
@@ -474,8 +476,16 @@ void infrared_receive(RingbufHandle_t rb, infrared_handler handler) {
 		// after parsing the data, return spaces to ringbuffer.
         vRingbufferReturnItem(rb, (void*) item);
     }
+    
+    return decoded;
 }
 
+/****************************************************************************************
+ * 
+ */
+int8_t infrared_gpio(void) {
+    return ir_gpio;
+};    
 
 /****************************************************************************************
  * 
@@ -489,6 +499,7 @@ void infrared_init(RingbufHandle_t *rb, int gpio, infrared_mode_t mode) {
     ir_parser_config.flags |= IR_TOOLS_FLAGS_PROTO_EXT; // Using extended IR protocols (both NEC and RC5 have extended version)
 
     ir_parser = (mode == IR_NEC) ? ir_parser_rmt_new_nec(&ir_parser_config) : ir_parser_rmt_new_rc5(&ir_parser_config);
+    ir_gpio = gpio;
     
     // get RMT RX ringbuffer
     rmt_get_ringbuf_handle(rmt_channel, rb);

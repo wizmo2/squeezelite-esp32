@@ -19,6 +19,7 @@
 #include "buttons.h"
 #include "platform_config.h"
 #include "accessors.h"
+#include "services.h"
 #include "audio_controls.h"
 
 typedef esp_err_t (actrls_config_map_handler) (const cJSON * member, actrls_config_t *cur_config,uint32_t offset);
@@ -61,7 +62,7 @@ static const char * actrls_action_s[ ] = { EP(ACTRLS_POWER),EP(ACTRLS_VOLUP),EP(
 									EP(ACTRLS_PAUSE),EP(ACTRLS_STOP),EP(ACTRLS_REW),EP(ACTRLS_FWD),EP(ACTRLS_PREV),EP(ACTRLS_NEXT),
 									EP(BCTRLS_UP),EP(BCTRLS_DOWN),EP(BCTRLS_LEFT),EP(BCTRLS_RIGHT), 
 									EP(BCTRLS_PS0),EP(BCTRLS_PS1),EP(BCTRLS_PS2),EP(BCTRLS_PS3),EP(BCTRLS_PS4),EP(BCTRLS_PS5),EP(BCTRLS_PS6),EP(BCTRLS_PS7),EP(BCTRLS_PS8),EP(BCTRLS_PS9),
-									EP(KNOB_LEFT),EP(KNOB_RIGHT),EP(KNOB_PUSH),
+									EP(KNOB_LEFT),EP(KNOB_RIGHT),EP(KNOB_PUSH), EP(ACTRLS_SLEEP),
 									""} ;
 									
 static const char * TAG = "audio controls";
@@ -170,13 +171,6 @@ static void control_handler(void *client, button_event_e event, button_press_e p
 	actrls_config_t *key = (actrls_config_t*) client;
 	actrls_action_detail_t  action_detail;
 
-	// in raw mode, we just do normal action press *and* release, there is no longpress nor shift
-	if (current_raw_controls) {
-		ESP_LOGD(TAG, "calling action %u in raw mode", key->normal[0].action);
-		if (current_controls[key->normal[0].action]) (*current_controls[key->normal[0].action])(event == BUTTON_PRESSED);
-		return;
-	}
-	
 	switch(press) {
 	case BUTTON_NORMAL:
 		if (long_press) action_detail = key->longpress[event == BUTTON_PRESSED ? 0 : 1];
@@ -195,7 +189,15 @@ static void control_handler(void *client, button_event_e event, button_press_e p
 
 	// stop here if control hook served the request
 	if (current_hook && (*current_hook)(key->gpio, action_detail.action, event, press, long_press)) return;
-	
+    
+   	// in raw mode, we just do normal action press *and* release, there is no longpress nor shift
+	if (current_raw_controls && action_detail.action != ACTRLS_SLEEP) {
+        actrls_action_e action = key->normal[0].action != ACTRLS_NONE ? key->normal[0].action : key->normal[1].action;
+		ESP_LOGD(TAG, "calling action %u in raw mode", action);
+		if (action != ACTRLS_NONE && current_controls[action]) current_controls[action](event == BUTTON_PRESSED);
+		return;
+	}
+
 	// otherwise process using configuration
 	if (action_detail.action == ACTRLS_REMAP) {
 		// remap requested
@@ -216,7 +218,10 @@ static void control_handler(void *client, button_event_e event, button_press_e p
 		} else {
 			ESP_LOGE(TAG,"Invalid profile name %s. Cannot remap buttons",action_detail.name);
 		}	
-	} else if (action_detail.action != ACTRLS_NONE) {
+	} else if (action_detail.action == ACTRLS_SLEEP) {
+        ESP_LOGI(TAG, "special sleep button pressed");
+        services_sleep_activate(SLEEP_ONKEY);
+    } else if (action_detail.action != ACTRLS_NONE) {
 		ESP_LOGD(TAG, "calling action %u", action_detail.action);
 		if (current_controls[action_detail.action]) (*current_controls[action_detail.action])(event == BUTTON_PRESSED);
 	}	
