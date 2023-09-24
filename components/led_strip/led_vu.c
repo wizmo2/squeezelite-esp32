@@ -22,12 +22,16 @@
 #include "esp_log.h"
 
 #include "globdefs.h"
+#include "monitor.h"
 #include "led_strip.h"
 #include "platform_config.h"
 #include "led_vu.h"
 
-
 static const char *TAG = "led_vu";
+
+static void (*battery_handler_chain)(float value, int cells);
+static void battery_svc(float value, int cells);
+static float battery_status = 0;
 
 #define LED_VU_STACK_SIZE (3*1024)
 
@@ -36,6 +40,10 @@ static const char *TAG = "led_vu";
 #define LED_VU_DEFAULT_GPIO 22
 #define LED_VU_DEFAULT_LENGTH 19
 #define LED_VU_MAX_LENGTH 255
+
+#define LED_VU_STATUS_SCALE 25
+#define LED_VU_STATUS_GREEN 90
+#define LED_VU_STATUS_RED 75
 
 #define max(a,b) (((a) > (b)) ? (a) : (b))
 
@@ -49,7 +57,7 @@ static EXT_RAM_ATTR struct {
     int vu_length;
     int vu_start_l;
     int vu_start_r;
-    int status_led;
+    int vu_status;
 } strip;
 
 static int led_addr(int pos ) {
@@ -58,13 +66,19 @@ static int led_addr(int pos ) {
     return pos;
 }
 
+static void battery_svc(float value, int cells) {
+	battery_status = value * LED_VU_STATUS_SCALE / cells;
+	ESP_LOGI(TAG, "Called for battery service with volt:%f cells:%d status:%f", value, cells, battery_status);
+
+	if (battery_handler_chain) battery_handler_chain(value, cells);
+}
+
 /****************************************************************************************
  * Initialize the led vu strip if configured.
  * 
  */
 void led_vu_init()
 {
-    char* p;
     char* config = config_alloc_get_str("led_vu_config", NULL, "N/A");
 
     // Initialize led VU strip 
@@ -72,28 +86,30 @@ void led_vu_init()
 
     PARSE_PARAM(config, "length",'=', strip.length);
     PARSE_PARAM(config, "gpio",'=', strip.gpio);
-    PARSE_PARAM(config, "status",'=', strip.status_led);
     // check for valid configuration
     if (!strip.gpio) {
         ESP_LOGI(TAG, "led_vu configuration invalid");
         goto done;
     }
 
+	battery_handler_chain = battery_handler_svc;
+	battery_handler_svc = battery_svc;
+
     if (strip.length > LED_VU_MAX_LENGTH) strip.length = LED_VU_MAX_LENGTH;
     // initialize vu meter settings
-    //strip.vu_length = (strip.length % 2) ? strip.length / 2 : (strip.length  - 1) / 2;
     if (strip.length < 10) {
         // single bar for small strips
         strip.vu_length = strip.length;
         strip.vu_start_l  = 0;
         strip.vu_start_r = strip.vu_start_l;
+        strip.vu_status = 0;
     } else {
         strip.vu_length = (strip.length  - 1) / 2;
-        strip.vu_start_l  = strip.vu_length;
-        strip.vu_start_r = strip.vu_start_l + 1;
+        strip.vu_start_l  = (strip.length % 2) ? strip.vu_length -1 : strip.vu_length;
+        strip.vu_start_r = strip.vu_length + 1;
+        strip.vu_status = strip.vu_length;
     }
-    //strip.status_led = 0;
-    ESP_LOGD(TAG, "vu meter using length:%d left:%d right:%d status:%d", strip.vu_length, strip.vu_start_l, strip.vu_start_r, strip.status_led);
+    ESP_LOGD(TAG, "vu meter using length:%d left:%d right:%d status:%d", strip.vu_length, strip.vu_start_l, strip.vu_start_r, strip.vu_status);
 
     // create driver configuration
     if (strcasestr(config, "APA102")) { // TODO:  Need to add options to web ui
@@ -377,6 +393,14 @@ void led_vu_display(int vu_l, int vu_r, int bright, bool comet) {
         g = (g < step) ? 0 : g - step;
     }
 
+    // show battery status
+    if (battery_status > LED_VU_STATUS_GREEN)
+        led_strip_set_pixel_rgb(led_display, strip.vu_status, 0, bright, 0);
+    else if (battery_status > LED_VU_STATUS_RED)
+        led_strip_set_pixel_rgb(led_display, strip.vu_status, bright/2, bright/2, 0);
+    else if (battery_status > 0)
+        led_strip_set_pixel_rgb(led_display, strip.vu_status, bright, 0, 0);
+    
     led_strip_show(led_display);
 }
 
