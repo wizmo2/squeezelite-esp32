@@ -65,15 +65,16 @@ extern log_level loglevel;
 /****************************************************************************************
  * Common sink data handler
  */
-static void sink_data_handler(const uint8_t *data, uint32_t len)
+static uint32_t sink_data_handler(const uint8_t *data, uint32_t len, int retries)
 {
     size_t bytes, space;
-	int wait = 10;
+    uint32_t written = 0;    
+	int wait = retries + 1;
 		
 	// would be better to lock output, but really, it does not matter
 	if (!output.external) {
 		LOG_SDEBUG("Cannot use external sink while LMS is controlling player");
-		return;
+		return 0;
 	} 
 
 	LOCK_O;
@@ -98,27 +99,38 @@ static void sink_data_handler(const uint8_t *data, uint32_t len)
 
 		len -= bytes;
 		data += bytes;
+        written += bytes;
 				
 		// allow i2s to empty the buffer if needed
 		if (len && !space) {
-			if (output.state == OUTPUT_RUNNING) wait--;
+            if (!retries) break;
+			wait--;
 			UNLOCK_O; usleep(50000); LOCK_O;
 		}
 	}	
 
 	if (!wait) {
-        // re-align the buffer according to what we throw away
+        // re-align the buffer according to what we threw away
         _buf_inc_writep(outputbuf, outputbuf->size - (BYTES_PER_FRAME - (len % BYTES_PER_FRAME)));
 		LOG_WARN("Waited too long, dropping frames %d", len);
 	}
     
     UNLOCK_O;
+    
+    return written;
 }
+
+/****************************************************************************************
+ * BT sink data handler
+ */
+#if CONFIG_BT_SINK
+static void bt_sink_data_handler(const uint8_t *data, uint32_t len) {
+    sink_data_handler(data, len, 10);
+}    
 
 /****************************************************************************************
  * BT sink command handler
  */
-#if CONFIG_BT_SINK
 static bool bt_sink_cmd_handler(bt_sink_cmd_t cmd, va_list args) 
 {
 	// don't LOCK_O as there is always a chance that LMS takes control later anyway
@@ -195,7 +207,7 @@ static void raop_sink_data_handler(const uint8_t *data, uint32_t len, u32_t play
 	raop_sync.playtime = playtime;
 	raop_sync.len = len;
 
-	sink_data_handler(data, len);
+	sink_data_handler(data, len, 10);
 }	
 
 /****************************************************************************************
@@ -332,9 +344,17 @@ static bool raop_sink_cmd_handler(raop_event_t event, va_list args)
 #endif
 
 /****************************************************************************************
- * cspot sink command handler
+ * cspot sink data handler
  */
 #if CONFIG_CSPOT_SINK
+static uint32_t cspot_sink_data_handler(const uint8_t *data, uint32_t len) {
+    return sink_data_handler(data, len, 0);
+}    
+
+/****************************************************************************************
+ * cspot sink command handler
+ */
+
 static bool cspot_cmd_handler(cspot_event_t cmd, va_list args) 
 {
 	// don't LOCK_O as there is always a chance that LMS takes control later anyway
@@ -433,7 +453,7 @@ void register_external(void) {
 		enable_bt_sink = !strcmp(p,"1") || !strcasecmp(p,"y");
 		free(p);
 		if (!strcasestr(output.device, "BT") && enable_bt_sink) {
-			bt_sink_init(bt_sink_cmd_handler, sink_data_handler);
+			bt_sink_init(bt_sink_cmd_handler,  bt_sink_data_handler);
 		}	
 	}
 #endif	
@@ -454,7 +474,7 @@ void register_external(void) {
 		enable_cspot = strcmp(p,"1") == 0 || strcasecmp(p,"y") == 0;
 		free(p);
 		if (enable_cspot){
-			cspot_sink_init(cspot_cmd_handler, sink_data_handler);
+			cspot_sink_init(cspot_cmd_handler, cspot_sink_data_handler);
 			LOG_INFO("Initializing CSpot sink");
 		}	
 	}	
