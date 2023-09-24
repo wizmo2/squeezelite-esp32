@@ -742,6 +742,7 @@ static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst) {
 	register u16_t aux;
 #endif
     
+    // we assume frame == 0 as well...
     if (!src) {
         count =  192;
         vu = VUCP24[0];

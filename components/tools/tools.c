@@ -1,4 +1,4 @@
-/* 
+/*
  *  (c) Philippe G. 20201, philippe_44@outlook.com
  *	see other copyrights below
  *
@@ -19,6 +19,10 @@
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "tools.h"
+
+#if CONFIG_FREERTOS_THREAD_LOCAL_STORAGE_POINTERS < 2
+#error CONFIG_FREERTOS_THREAD_LOCAL_STORAGE_POINTERS must be at least 2
+#endif
 
 const static char TAG[] = "tools";
 
@@ -104,11 +108,11 @@ static uint8_t UNICODEtoCP1252(uint16_t chr) {
 void utf8_decode(char *src) {
 	uint32_t codep = 0, state = UTF8_ACCEPT;
 	char *dst = src;
-			
+
 	while (src && *src) {
 		if (!decode(&state, &codep, *src++)) *dst++ = UNICODEtoCP1252(codep);
 	}
-	
+
 	*dst = '\0';
 }
 
@@ -178,12 +182,61 @@ char * strdup_psram(const char * source){
 }
 
 /****************************************************************************************
- * URL download 
+ * Task manager
  */
- 
+#define TASK_TLS_INDEX 1
+
+typedef struct {
+    StaticTask_t *xTaskBuffer;
+    StackType_t *xStack;
+} task_context_t;
+
+static void task_cleanup(int index, task_context_t *context) {
+    free(context->xTaskBuffer);
+    free(context->xStack);
+    free(context);    
+}
+
+BaseType_t xTaskCreateEXTRAM( TaskFunction_t pvTaskCode,
+                            const char * const pcName,
+                            configSTACK_DEPTH_TYPE usStackDepth,
+                            void *pvParameters,
+                            UBaseType_t uxPriority,
+                            TaskHandle_t *pxCreatedTask) {
+    // create the worker task as a static
+    task_context_t *context = calloc(1, sizeof(task_context_t));
+    context->xTaskBuffer = (StaticTask_t*) heap_caps_malloc(sizeof(StaticTask_t), (MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT));
+	context->xStack = heap_caps_malloc(usStackDepth,(MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT));
+    TaskHandle_t handle = xTaskCreateStatic(pvTaskCode, pcName, usStackDepth, pvParameters, uxPriority, context->xStack, context->xTaskBuffer);
+
+    // store context in TCB or free everything in case of failure
+    if (!handle) {
+        free(context->xTaskBuffer);
+        free(context->xStack);
+        free(context);    
+    } else {
+        vTaskSetThreadLocalStoragePointerAndDelCallback( handle, TASK_TLS_INDEX, context, (TlsDeleteCallbackFunction_t) task_cleanup);
+    }
+    
+    if (pxCreatedTask) *pxCreatedTask = handle;
+    return handle != NULL ? pdPASS : pdFAIL;
+}
+
+void vTaskDeleteEXTRAM(TaskHandle_t xTask) {
+    /* At this point we leverage FreeRTOS extension to have callbacks on task deletion. 
+     * If not, we need to have here our own deletion implementation that include delayed
+     * free for when this is called with NULL (self-deletion)
+     */
+    vTaskDelete(xTask);
+}
+
+/****************************************************************************************
+ * URL download
+ */
+
 typedef struct {
 	void *user_context;
-	http_download_cb_t callback;	
+	http_download_cb_t callback;
 	size_t max, bytes;
 	bool abort;
 	uint8_t *data;
@@ -192,22 +245,22 @@ typedef struct {
 
 static void http_downloader(void *arg);
 static esp_err_t http_event_handler(esp_http_client_event_t *evt);
- 
+
 void http_download(char *url, size_t max, http_download_cb_t callback, void *context) {
 	http_context_t *http_context = (http_context_t*) heap_caps_calloc(sizeof(http_context_t), 1, MALLOC_CAP_SPIRAM);
-	
+
 	esp_http_client_config_t config = {
 		.url = url,
 		.event_handler = http_event_handler,
 		.user_data = http_context,
-	};	
-		
+	};
+
 	http_context->callback = callback;
 	http_context->user_context = context;
 	http_context->max = max;
 	http_context->client = esp_http_client_init(&config);
-	
-	xTaskCreate(http_downloader, "downloader", 4*1024, http_context, ESP_TASK_PRIO_MIN + 1, NULL);
+
+	xTaskCreateEXTRAM(http_downloader, "downloader", 8*1024, http_context, ESP_TASK_PRIO_MIN + 1, NULL);
 }
 
 static void http_downloader(void *arg) {
@@ -215,14 +268,14 @@ static void http_downloader(void *arg) {
 
 	esp_http_client_perform(http_context->client);
 	esp_http_client_cleanup(http_context->client);
-	
+
 	free(http_context);
-	vTaskDelete(NULL);
+	vTaskDeleteEXTRAM(NULL);
 }
 
 static esp_err_t http_event_handler(esp_http_client_event_t *evt) {
 	http_context_t *http_context = (http_context_t*) evt->user_data;
-		
+
 	if (http_context->abort) return ESP_FAIL;
 
 	switch(evt->event_id) {
@@ -234,42 +287,42 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt) {
 		if (!strcasecmp(evt->header_key, "Content-Length")) {
 			size_t len = atoi(evt->header_value);
 			if (!len || len > http_context->max) {
-				ESP_LOGI(TAG, "content-length null or too large %zu / %zu", len, http_context->max);			
+				ESP_LOGI(TAG, "content-length null or too large %zu / %zu", len, http_context->max);
 				http_context->abort = true;
-			}	
-		}	
+			}
+		}
 		break;
 	case HTTP_EVENT_ON_DATA: {
 		size_t len = esp_http_client_get_content_length(evt->client);
 		if (!http_context->data) {
 			if ((http_context->data = (uint8_t*) malloc(len)) == NULL) {
 				http_context->abort = true;
-				ESP_LOGE(TAG, "gailed to allocate memory for output buffer %zu", len);
+				ESP_LOGE(TAG, "failed to allocate memory for output buffer %zu", len);
 				return ESP_FAIL;
-			}	
-		}	
+			}
+		}
 		memcpy(http_context->data + http_context->bytes, evt->data, evt->data_len);
 		http_context->bytes += evt->data_len;
 		break;
-	}	
+	}
 	case HTTP_EVENT_ON_FINISH:
-		http_context->callback(http_context->data, http_context->bytes, http_context->user_context);			
+		http_context->callback(http_context->data, http_context->bytes, http_context->user_context);
 		break;
 	case HTTP_EVENT_DISCONNECTED: {
 		int mbedtls_err = 0;
 		esp_err_t err = esp_tls_get_and_clear_last_error(evt->data, &mbedtls_err, NULL);
 		if (err != ESP_OK) {
-			ESP_LOGE(TAG, "HTTP download disconnect %d", err);				
+			ESP_LOGE(TAG, "HTTP download disconnect %d", err);
 			if (http_context->data) free(http_context->data);
-			http_context->callback(NULL, 0, http_context->user_context);		
+			http_context->callback(NULL, 0, http_context->user_context);
 			return ESP_FAIL;
 		}
 		break;
 	default:
 		break;
-	}	
 	}
-	
+	}
+
 	return ESP_OK;
 }
- 
+
