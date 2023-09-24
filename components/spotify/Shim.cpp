@@ -92,8 +92,7 @@ size_t cspotPlayer::pcmWrite(uint8_t *pcm, size_t bytes, std::string_view trackI
         trackHandler();
     }
 
-    dataHandler(pcm, bytes);
-    return bytes;
+    return dataHandler(pcm, bytes);
 }    
 
 extern "C" {
