@@ -26,6 +26,7 @@
 #include "platform_config.h"
 #include "led_vu.h"
 
+
 static const char *TAG = "led_vu";
 
 #define LED_VU_STACK_SIZE (3*1024)
@@ -43,11 +44,12 @@ static EXT_RAM_ATTR struct led_strip_t  led_strip_config;
 
 static EXT_RAM_ATTR struct {
     int gpio;
+    int clk;
     int length;
     int vu_length;
     int vu_start_l;
     int vu_start_r;
-    int vu_odd;
+    int status_led;
 } strip;
 
 static int led_addr(int pos ) {
@@ -66,38 +68,52 @@ void led_vu_init()
     char* config = config_alloc_get_str("led_vu_config", NULL, "N/A");
 
     // Initialize led VU strip 
-    char* drivername = strcasestr(config, "WS2812");
+    //char* drivername = strcasestr(config, "WS2812|APA102");
 
-    if ((p = strcasestr(config, "length")) != NULL) {
-        strip.length = atoi(strchr(p, '=') + 1);
-    } // else 0
-    if ((p = strcasestr(config, "gpio")) != NULL) {
-        strip.gpio = atoi(strchr(p, '=') + 1);
-    } else {
-        strip.gpio = LED_VU_DEFAULT_GPIO;
-    }
+    PARSE_PARAM(config, "length",'=', strip.length);
+    PARSE_PARAM(config, "gpio",'=', strip.gpio);
+    PARSE_PARAM(config, "status",'=', strip.status_led);
     // check for valid configuration
-    if (!drivername || !strip.gpio) {
+    if (!strip.gpio) {
         ESP_LOGI(TAG, "led_vu configuration invalid");
         goto done;
     }
-   
+
     if (strip.length > LED_VU_MAX_LENGTH) strip.length = LED_VU_MAX_LENGTH;
-    // initialize vu settings
+    // initialize vu meter settings
     //strip.vu_length = (strip.length % 2) ? strip.length / 2 : (strip.length  - 1) / 2;
-    strip.vu_length = (strip.length  - 1) / 2;
-    strip.vu_start_l  = strip.vu_length;
-    strip.vu_start_r = strip.vu_start_l + 1;
-    strip.vu_odd = strip.length - 1;
+    if (strip.length < 10) {
+        // single bar for small strips
+        strip.vu_length = strip.length;
+        strip.vu_start_l  = 0;
+        strip.vu_start_r = strip.vu_start_l;
+    } else {
+        strip.vu_length = (strip.length  - 1) / 2;
+        strip.vu_start_l  = strip.vu_length;
+        strip.vu_start_r = strip.vu_start_l + 1;
+    }
+    //strip.status_led = 0;
+    ESP_LOGD(TAG, "vu meter using length:%d left:%d right:%d status:%d", strip.vu_length, strip.vu_start_l, strip.vu_start_r, strip.status_led);
 
     // create driver configuration
-    led_strip_config.rgb_led_type = RGB_LED_TYPE_WS2812;
+    if (strcasestr(config, "APA102")) { // TODO:  Need to add options to web ui
+        PARSE_PARAM(config, "clk",'=', strip.clk);
+        if (!strip.clk) {
+            ESP_LOGI(TAG, "led_vu missing clock pin");
+            goto done;
+        }
+
+        led_strip_config.rgb_led_type = RGB_LED_TYPE_APA102;
+        led_strip_config.clk = strip.clk;
+    } else {
+        led_strip_config.rgb_led_type = RGB_LED_TYPE_WS2812;
+        led_strip_config.rmt_channel = rmt_system_base_channel++;
+    }
     led_strip_config.access_semaphore = xSemaphoreCreateBinary();
     led_strip_config.led_strip_length = strip.length;
     led_strip_config.led_strip_working = heap_caps_malloc(strip.length * sizeof(struct led_color_t), MALLOC_CAP_8BIT);
     led_strip_config.led_strip_showing = heap_caps_malloc(strip.length * sizeof(struct led_color_t), MALLOC_CAP_8BIT);
     led_strip_config.gpio = strip.gpio;
-    led_strip_config.rmt_channel = rmt_system_base_channel++;
 
     // initialize driver 
     bool led_init_ok = led_strip_init(&led_strip_config);
@@ -296,7 +312,11 @@ void led_vu_display(int vu_l, int vu_r, int bright, bool comet) {
     static int decay_r = 0;
     if (!led_display) return;
 
-
+    // single bar
+    if (strip.vu_start_l == strip.vu_start_r) {
+        vu_r = (vu_l + vu_r) / 2;
+        vu_l = 0;
+    }
 
     // scale vu samples to length
     vu_l  = vu_l * strip.vu_length / bright;

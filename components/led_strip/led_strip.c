@@ -20,6 +20,10 @@
 #include "freertos/task.h"
 
 #include <string.h>
+#include "driver/gpio.h"
+#include "esp_log.h"
+
+#define TAG "led_strip"
 
 #define LED_STRIP_TASK_SIZE             (1024)
 #define LED_STRIP_TASK_PRIORITY         (configMAX_PRIORITIES - 1)
@@ -54,6 +58,9 @@
 #define LED_STRIP_RMT_TICKS_BIT_1_LOW_APA106   3 // 350ns +/- 150ns per datasheet
 #define LED_STRIP_RMT_TICKS_BIT_0_HIGH_APA106  3 // 350ns +/- 150ns per datasheet
 #define LED_STRIP_RMT_TICKS_BIT_0_LOW_APA106  14 // 1.36us +/- 150ns per datasheet
+
+#define LED_STRIP_APA102_MAX_BRIGHTNESS  31
+const uint8_t LED_STRIP_APA102_SEQUENCE[7] = { 2,1,0,6,5,4,3 }; // TODO: This is for TEMBED, add as custom nvs parameter
 
 // Function pointer for generating waveforms based on different LED drivers
 typedef void (*led_fill_rmt_items_fn)(struct led_color_t *led_strip_buf, rmt_item32_t *rmt_items, uint32_t led_strip_length);
@@ -204,53 +211,147 @@ static void led_strip_fill_rmt_items_apa106(struct led_color_t *led_strip_buf, r
     }
 }
 
+void apa102_init(struct led_strip_t *led_strip)
+{
+    ESP_LOGI(TAG, "apa102 init clk:%d data:%d", led_strip->clk, led_strip->gpio);
+    gpio_config_t d_gpio_config = {
+        .mode = GPIO_MODE_OUTPUT,
+        .pin_bit_mask = 1ULL << led_strip->gpio
+    };
+    ESP_ERROR_CHECK(gpio_config(&d_gpio_config));
+    gpio_set_level(led_strip->gpio, 0);
+    gpio_config_t c_gpio_config = {
+        .mode = GPIO_MODE_OUTPUT,
+        .pin_bit_mask = 1ULL << led_strip->clk
+    };
+    ESP_ERROR_CHECK(gpio_config(&c_gpio_config));
+    gpio_set_level(led_strip->clk, 0);
+}
+
+static void apa102_transfer(uint8_t dataPin, uint8_t clockPin, uint8_t b)
+{
+    gpio_set_level(dataPin,b >> 7 & 1);
+    gpio_set_level(clockPin,1);
+    gpio_set_level(clockPin,0);
+    gpio_set_level(dataPin,b >> 6 & 1);
+    gpio_set_level(clockPin,1);
+    gpio_set_level(clockPin,0);
+    gpio_set_level(dataPin,b >> 5 & 1);
+    gpio_set_level(clockPin,1);
+    gpio_set_level(clockPin,0);
+    gpio_set_level(dataPin,b >> 4 & 1);
+    gpio_set_level(clockPin,1);
+    gpio_set_level(clockPin,0);
+    gpio_set_level(dataPin,b >> 3 & 1);
+    gpio_set_level(clockPin,1);
+    gpio_set_level(clockPin,0);
+    gpio_set_level(dataPin,b >> 2 & 1);
+    gpio_set_level(clockPin,1);
+    gpio_set_level(clockPin,0);
+    gpio_set_level(dataPin,b >> 1 & 1);
+    gpio_set_level(clockPin,1);
+    gpio_set_level(clockPin,0);
+    gpio_set_level(dataPin,b >> 0 & 1);
+    gpio_set_level(clockPin,1);
+    gpio_set_level(clockPin,0);
+}
+
+static void apa102_write(struct led_strip_t* led_strip, struct led_color_t *colors, uint8_t brightness)
+{
+    //ESP_LOGI(TAG, "apa102 init clk:%d data:%d length:%d", led_strip->clk, led_strip->gpio, led_strip->led_strip_length);
+
+    uint8_t dataPin = led_strip->gpio;
+    uint8_t clockPin = led_strip->clk;
+    
+    // reset pins
+    gpio_set_level(clockPin,0);
+    gpio_set_level(dataPin,0);
+
+    // start frame
+    apa102_transfer(dataPin,clockPin,0);
+    apa102_transfer(dataPin,clockPin,0);
+    apa102_transfer(dataPin,clockPin,0);
+    apa102_transfer(dataPin,clockPin,0);
+    
+    //  send color data
+    for(uint16_t i = 0; i < led_strip->led_strip_length; i++)
+    {
+        struct led_color_t *color = (struct led_color_t *)&colors[LED_STRIP_APA102_SEQUENCE[i]];
+        apa102_transfer(dataPin,clockPin,0b11100000 | brightness);
+        apa102_transfer(dataPin,clockPin,color->blue);
+        apa102_transfer(dataPin,clockPin,color->green);
+        apa102_transfer(dataPin,clockPin,color->red);
+    }
+    // start frame
+    apa102_transfer(dataPin,clockPin,255);
+    apa102_transfer(dataPin,clockPin,255);
+    apa102_transfer(dataPin,clockPin,255);
+    apa102_transfer(dataPin,clockPin,255);
+
+    // reset pins
+    gpio_set_level(clockPin,0);
+    gpio_set_level(dataPin,0);
+}
+
 static void led_strip_task(void *arg)
 {
     struct led_strip_t *led_strip = (struct led_strip_t *)arg;
-    led_fill_rmt_items_fn led_make_waveform = NULL;
 
-    size_t num_items_malloc = (LED_STRIP_NUM_RMT_ITEMS_PER_LED * led_strip->led_strip_length);
-    rmt_item32_t *rmt_items = (rmt_item32_t*) malloc(sizeof(rmt_item32_t) * num_items_malloc);
-    if (!rmt_items) {
-        vTaskDelete(NULL);
-    }
+    if (led_strip->rgb_led_type == RGB_LED_TYPE_APA102) {
+        uint8_t brightness = LED_STRIP_APA102_MAX_BRIGHTNESS;
 
-    switch (led_strip->rgb_led_type) {
-        case RGB_LED_TYPE_WS2812:
-            led_make_waveform = led_strip_fill_rmt_items_ws2812;
-            break;
+        for(;;) {
+            vTaskDelay(LED_STRIP_REFRESH_PERIOD_MS / portTICK_PERIOD_MS);
+            xSemaphoreTake(led_strip->access_semaphore, portMAX_DELAY);
 
-        case RGB_LED_TYPE_SK6812:
-            led_make_waveform = led_strip_fill_rmt_items_sk6812;
-            break;
+            apa102_write(led_strip, led_strip->led_strip_working, brightness);
+        }
+    } else {
+        led_fill_rmt_items_fn led_make_waveform = NULL;
 
-        case RGB_LED_TYPE_APA106:
-            led_make_waveform = led_strip_fill_rmt_items_apa106;
-            break;
+        size_t num_items_malloc = (LED_STRIP_NUM_RMT_ITEMS_PER_LED * led_strip->led_strip_length);
+        rmt_item32_t *rmt_items = (rmt_item32_t*) malloc(sizeof(rmt_item32_t) * num_items_malloc);
+        if (!rmt_items) {
+            vTaskDelete(NULL);
+        }
 
-        default:
-            // Will avoid keeping it point to NULL
-            led_make_waveform = led_strip_fill_rmt_items_ws2812;
-            break;
-    };
+        switch (led_strip->rgb_led_type) {
+            case RGB_LED_TYPE_WS2812:
+                led_make_waveform = led_strip_fill_rmt_items_ws2812;
+                break;
 
-    for(;;) {
-        rmt_wait_tx_done(led_strip->rmt_channel, portMAX_DELAY);
-        vTaskDelay(LED_STRIP_REFRESH_PERIOD_MS / portTICK_PERIOD_MS);
+            case RGB_LED_TYPE_SK6812:
+                led_make_waveform = led_strip_fill_rmt_items_sk6812;
+                break;
 
-        xSemaphoreTake(led_strip->access_semaphore, portMAX_DELAY);
+            case RGB_LED_TYPE_APA106:
+                led_make_waveform = led_strip_fill_rmt_items_apa106;
+                break;
 
-        led_make_waveform(led_strip->led_strip_working,
-                          rmt_items,
-                          led_strip->led_strip_length);
-        rmt_write_items(led_strip->rmt_channel,
-                        rmt_items,
-                        num_items_malloc,
-                        false);
-    }
+            default:
+                // Will avoid keeping it point to NULL
+                led_make_waveform = led_strip_fill_rmt_items_ws2812;
+                break;
+        };
 
-    if (rmt_items) {
-        free(rmt_items);
+        for(;;) {
+            rmt_wait_tx_done(led_strip->rmt_channel, portMAX_DELAY);
+            vTaskDelay(LED_STRIP_REFRESH_PERIOD_MS / portTICK_PERIOD_MS);
+
+            xSemaphoreTake(led_strip->access_semaphore, portMAX_DELAY);
+
+            led_make_waveform(led_strip->led_strip_working,
+                            rmt_items,
+                            led_strip->led_strip_length);
+            rmt_write_items(led_strip->rmt_channel,
+                            rmt_items,
+                            num_items_malloc,
+                            false);
+        }
+
+        if (rmt_items) {
+            free(rmt_items);
+        }
     }
     vTaskDelete(NULL);
 }
@@ -293,11 +394,11 @@ bool led_strip_init(struct led_strip_t *led_strip)
     static EXT_RAM_ATTR StackType_t xStack[LED_STRIP_TASK_SIZE] __attribute__ ((aligned (4)));
 
     if ((led_strip == NULL) ||
-        (led_strip->rmt_channel >= RMT_CHANNEL_MAX) ||
-        (led_strip->gpio > GPIO_NUM_33) || 
+        //(led_strip->rmt_channel >= RMT_CHANNEL_MAX) ||
+        //(led_strip->gpio > GPIO_NUM_33) || 
         (led_strip->led_strip_working == NULL) ||
         (led_strip->led_strip_showing == NULL) ||
-        (led_strip->led_strip_length == 0) ||
+        //(led_strip->led_strip_length == 0) ||
         (led_strip->access_semaphore == NULL)) {
         return false;
     }
@@ -309,18 +410,22 @@ bool led_strip_init(struct led_strip_t *led_strip)
     memset(led_strip->led_strip_working, 0, sizeof(struct led_color_t) * led_strip->led_strip_length);
     memset(led_strip->led_strip_showing, 0, sizeof(struct led_color_t) * led_strip->led_strip_length);
 
-    bool init_rmt = led_strip_init_rmt(led_strip);
-    if (!init_rmt) {
-        return false;
+    if (led_strip->rgb_led_type == RGB_LED_TYPE_APA102 ) {
+        apa102_init(led_strip);
+    } else {
+        bool init_rmt = led_strip_init_rmt(led_strip);
+        if (!init_rmt) {
+            return false;
+        }
     }
 
     xSemaphoreGive(led_strip->access_semaphore);
     task_created = xTaskCreateStatic(led_strip_task,
-                                          "led_strip_task",
-                                          LED_STRIP_TASK_SIZE,
-                                          led_strip,
-                                          LED_STRIP_TASK_PRIORITY,
-                                          xStack, xTaskBuffer);
+                                        "led_strip_task",
+                                        LED_STRIP_TASK_SIZE,
+                                        led_strip,
+                                        LED_STRIP_TASK_PRIORITY,
+                                        xStack, xTaskBuffer);
 
     if (!task_created) {
         return false;

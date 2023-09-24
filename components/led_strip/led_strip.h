@@ -24,7 +24,7 @@ enum rgb_led_type_t {
     RGB_LED_TYPE_WS2812 = 0,
     RGB_LED_TYPE_SK6812 = 1,
     RGB_LED_TYPE_APA106 = 2,
-
+    RGB_LED_TYPE_APA102 = 3,
     RGB_LED_TYPE_MAX,
 };
 
@@ -45,6 +45,7 @@ struct led_strip_t {
     rmt_channel_t rmt_channel;
     
     gpio_num_t gpio; // Must be less than GPIO_NUM_33
+    gpio_num_t clk; 
 
     struct led_color_t *led_strip_working;
     struct led_color_t *led_strip_showing;
