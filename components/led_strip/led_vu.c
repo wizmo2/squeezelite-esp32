@@ -13,7 +13,6 @@
  * Driver does support other led device. Maybe look at supporting in future. 
  * The VU refresh rate has been decreaced (100->75) to optimize animation of spin dial.  Could make
  *   configurable like text scrolling (or use the same value) 
- * Look at reserving a status led within the effects.  (may require nvs setting for center or end position)
  * Artwork function, but not released as very buggy and not really practical
  */
 

@@ -2,8 +2,9 @@
     File: led_strip.c
     Author(s):  Lucas Bruder <LBruder@me.com>
     Date Created: 11/23/2016
-    Last modified: 11/26/2016
+    Last modified: 09/24/2023
 
+    Updated: Wizmo - Adds support for APA102 using direct io 
     Updated: C. Rohs  - The update thread now
     only runs when signalled. The double buffer code was modified to copy on show
     instead of the ping pong buffer that destroyed the buffers contents.

@@ -2,7 +2,9 @@
     File: led_strip.h
     Author(s):  Lucas Bruder <LBruder@me.com>
     Date Created: 11/23/2016
-    Last modified: 11/26/2016
+    Last modified: 09/24/2023
+
+    Updated:  Wizmo - ad support for APA102 
 
     Description: 
     This library can drive led strips through the RMT module on the ESP32.
