@@ -13,7 +13,6 @@
  * Driver does support other led device. Maybe look at supporting in future. 
  * The VU refresh rate has been decreaced (100->75) to optimize animation of spin dial.  Could make
  *   configurable like text scrolling (or use the same value) 
- * Look at reserving a status led within the effects.  (may require nvs setting for center or end position)
  * Artwork function, but not released as very buggy and not really practical
  */
 
@@ -22,11 +21,16 @@
 #include "esp_log.h"
 
 #include "globdefs.h"
+#include "monitor.h"
 #include "led_strip.h"
 #include "platform_config.h"
 #include "led_vu.h"
 
 static const char *TAG = "led_vu";
+
+static void (*battery_handler_chain)(float value, int cells);
+static void battery_svc(float value, int cells);
+static int battery_status = 0;
 
 #define LED_VU_STACK_SIZE (3*1024)
 
@@ -35,6 +39,9 @@ static const char *TAG = "led_vu";
 #define LED_VU_DEFAULT_GPIO 22
 #define LED_VU_DEFAULT_LENGTH 19
 #define LED_VU_MAX_LENGTH 255
+
+#define LED_VU_STATUS_GREEN 75
+#define LED_VU_STATUS_RED 25
 
 #define max(a,b) (((a) > (b)) ? (a) : (b))
 
@@ -47,13 +54,20 @@ static EXT_RAM_ATTR struct {
     int vu_length;
     int vu_start_l;
     int vu_start_r;
-    int vu_odd;
+    int vu_status;
 } strip;
 
 static int led_addr(int pos ) {
     if (pos < 0) return pos + strip.length;
     if (pos >= strip.length) return pos - strip.length;
     return pos;
+}
+
+static void battery_svc(float value, int cells) {
+	battery_status = battery_level_svc(); 
+	ESP_LOGI(TAG, "Called for battery service with volt:%f cells:%d status:%d", value, cells, battery_status);
+
+	if (battery_handler_chain) battery_handler_chain(value, cells);
 }
 
 /****************************************************************************************
@@ -81,14 +95,26 @@ void led_vu_init()
         ESP_LOGI(TAG, "led_vu configuration invalid");
         goto done;
     }
+
+	battery_handler_chain = battery_handler_svc;
+	battery_handler_svc = battery_svc;
+    battery_status = battery_level_svc();
    
     if (strip.length > LED_VU_MAX_LENGTH) strip.length = LED_VU_MAX_LENGTH;
-    // initialize vu settings
-    //strip.vu_length = (strip.length % 2) ? strip.length / 2 : (strip.length  - 1) / 2;
-    strip.vu_length = (strip.length  - 1) / 2;
-    strip.vu_start_l  = strip.vu_length;
-    strip.vu_start_r = strip.vu_start_l + 1;
-    strip.vu_odd = strip.length - 1;
+    // initialize vu meter settings
+    if (strip.length < 10) {
+        // single bar for small strips
+        strip.vu_length = strip.length;
+        strip.vu_start_l  = 0;
+        strip.vu_start_r = strip.vu_start_l;
+        strip.vu_status = 0;
+    } else {
+        strip.vu_length = (strip.length  - 1) / 2;
+        strip.vu_start_l  = (strip.length % 2) ? strip.vu_length -1 : strip.vu_length;
+        strip.vu_start_r = strip.vu_length + 1;
+        strip.vu_status = strip.vu_length;
+    }
+    ESP_LOGI(TAG, "vu meter using length:%d left:%d right:%d status:%d", strip.vu_length, strip.vu_start_l, strip.vu_start_r, strip.vu_status);
 
     // create driver configuration
     led_strip_config.rgb_led_type = RGB_LED_TYPE_WS2812;
@@ -296,7 +322,11 @@ void led_vu_display(int vu_l, int vu_r, int bright, bool comet) {
     static int decay_r = 0;
     if (!led_display) return;
 
-
+    // single bar
+    if (strip.vu_start_l == strip.vu_start_r) {
+        vu_r = (vu_l + vu_r) / 2;
+        vu_l = 0;
+    }
 
     // scale vu samples to length
     vu_l  = vu_l * strip.vu_length / bright;
@@ -357,6 +387,14 @@ void led_vu_display(int vu_l, int vu_r, int bright, bool comet) {
         g = (g < step) ? 0 : g - step;
     }
 
+    // show battery status
+    if (battery_status > LED_VU_STATUS_GREEN)
+        led_strip_set_pixel_rgb(led_display, strip.vu_status, 0, bright, 0);
+    else if (battery_status > LED_VU_STATUS_RED)
+        led_strip_set_pixel_rgb(led_display, strip.vu_status, bright/2, bright/2, 0);
+    else if (battery_status > 0)
+        led_strip_set_pixel_rgb(led_display, strip.vu_status, bright, 0, 0);
+    
     led_strip_show(led_display);
 }
 
