@@ -57,7 +57,7 @@ Note as well that some codecs consume more CPU than others or have not been opti
 **IMPORTANT: on esp32 (not esp32-s3), using Spotify with SPDIF produces stuttering audio when "stats" are enabled. You MUST disable them**
 
 ## Supported Hardware
-Any esp32-based hardware with at least 4MB of flash and 4MB of PSRAM will be capable of running squeezelite-esp32 and there are various boards that include such chip. A few are mentionned below, but any should work. You can find various help & instructions [here](https://forums.slimdevices.com/showthread.php?112697-ANNOUNCE-Squeezelite-ESP32-(dedicated-thread))
+Any esp32-based hardware with at least 4MB of flash and 4MB of PSRAM will be capable of running squeezelite-esp32 and there are various boards that include such chip. A few are mentioned below, but any should work. You can find various help & instructions [here](https://forums.slimdevices.com/showthread.php?112697-ANNOUNCE-Squeezelite-ESP32-(dedicated-thread))
 
 **For the sake of clarity, WROOM modules DO NOT work as they don't include PSRAM. Some designs might add it externally, but it's (very) unlikely.**
 
@@ -72,7 +72,7 @@ Most DAC will work out-of-the-box with simply an I2S connection, but some requir
 The esp32-s3 based modules like [this](https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf) are also supported but requires esp-idf 4.4. It is not yet part of official releases, but it compiles & runs. The s3 does not have bluetooth audio. Note that CPU performances are greatly enhanced.
 
 ### SqueezeAMP
-This is the main hardware companion of Squeezelite-esp32 and has been developped together. Details on capabilities can be found [here](https://forums.slimdevices.com/showthread.php?110926-pre-ANNOUNCE-SqueezeAMP-and-SqueezeliteESP32) and [here](https://github.com/philippe44/SqueezeAMP).
+This is the main hardware companion of Squeezelite-esp32 and has been developed together. Details on capabilities can be found [here](https://forums.slimdevices.com/showthread.php?110926-pre-ANNOUNCE-SqueezeAMP-and-SqueezeliteESP32) and [here](https://github.com/philippe44/SqueezeAMP).
 
 If you want to rebuild, use the `squeezelite-esp32-SqueezeAmp-sdkconfig.defaults` configuration file.
 
@@ -82,7 +82,7 @@ NB: You can use the pre-build binaries SqueezeAMP4MBFlash which has all the hard
 - dac_config: `model=TAS57xx,bck=33,ws=25,do=32,sda=27,scl=26,mute=14:0`
 - spdif_config: `bck=33,ws=25,do=15`
 
-The IR can be used as a wake-up signal using (setting `sleep_config` with `wake=0:0`). It's a pull-up so it stays at 1 when not receiving anything which means it cannot be used in conjuction with other wake-up IOs. See [Sleeping](#sleeping) for more details regarding the limitation of waking-up upon multiple inputs.
+The IR can be used as a wake-up signal using (setting `sleep_config` with `wake=0:0`). It's a pull-up so it stays at 1 when not receiving anything which means it cannot be used in conjunction with other wake-up IOs. See [Sleeping](#sleeping) for more details regarding the limitation of waking-up upon multiple inputs.
 
 ### MuseLuxe
 This portable battery-powered [speaker](https://raspiaudio.com/produit/esp-muse-luxe) is compatible with squeezelite-esp32 for which there is a dedicated build supplied with every update. If you want to rebuild, use the `squeezelite-esp32-Muse-sdkconfig.defaults` configuration file.
@@ -162,9 +162,9 @@ And the super cool project https://github.com/rochuck/squeeze-amp-too
 ## Configuration
 To access NVS, in the webUI, go to credits and select "shows nvs editor". Go into the NVS editor tab to change NFS parameters. In syntax description below \<\> means a value while \[\] describe optional parameters. 
 
-As mentionned above, there are a few dedicated builds that are provided today: SqueezeAMP and Muse but if you build it yourself, you can also create a build for T-WATCH2020. The default build is a generic firmware named I2S which can be configured through NVS to produce *exactly* the same results than dedicated builds. The difference is that parameters must be entered and can accidently be erased. The GUI provides a great help to load "known config sets" as well. 
+As mentioned above, there are a few dedicated builds that are provided today: SqueezeAMP and Muse but if you build it yourself, you can also create a build for T-WATCH2020. The default build is a generic firmware named I2S which can be configured through NVS to produce *exactly* the same results than dedicated builds. The difference is that parameters must be entered and can accidently be erased. The GUI provides a great help to load "known config sets" as well. 
 
-By design choice, there is no code that is only embedded for a given version, all code is always there. The philosophy is to minimize as much as possible platform-specific code and use of specific `#ifdef` is prohibited, no matter what. So if you want to add your own platfrom, please look **very hard** at the `main\KConfig.projbuild` to see how you can, using parameters below, make your device purely a configuration-based solution. When there is really no other option, look at `targets\<target>` to add your own code. I will not accept PR for code that can avoid creating such dedicated code whenever possible. The NVS "target" will be used to call target-specific code then, but again this is purely runtime, not compile-time.
+By design choice, there is no code that is only embedded for a given version, all code is always there. The philosophy is to minimize as much as possible platform-specific code and use of specific `#ifdef` is prohibited, no matter what. So if you want to add your own platform, please look **very hard** at the `main\KConfig.projbuild` to see how you can, using parameters below, make your device purely a configuration-based solution. When there is really no other option, look at `targets\<target>` to add your own code. I will not accept PR for code that can avoid creating such dedicated code whenever possible. The NVS "target" will be used to call target-specific code then, but again this is purely runtime, not compile-time.
 
 ### I2C
 The NVS parameter "i2c_config" set the i2c's gpio used for generic purpose (e.g. display). Leave it blank to disable I2C usage. Note that on SqueezeAMP, port must be 1. Default speed is 400000 but some display can do up to 800000 or more. Syntax is
@@ -174,7 +174,7 @@ sda=<gpio>,scl=<gpio>[,port=0|1][,speed=<speed>]
 **Please note that you can not use the same GPIO or port as the DAC.**
 
 ### SPI
-The esp32 has 4 SPI sub-systems, one is unaccessible so numbering is 0..2 and SPI0 is reserved for Flash/PSRAM. The NVS parameter "spi_config" set the spi's gpio used for generic purpose (e.g. display). Leave it blank to disable SPI usage. The DC parameter is needed for displays. Syntax is
+The esp32 has 4 SPI sub-systems, one is inaccessible so numbering is 0..2 and SPI0 is reserved for Flash/PSRAM. The NVS parameter "spi_config" set the spi's gpio used for generic purpose (e.g. display). Leave it blank to disable SPI usage. The DC parameter is needed for displays. Syntax is
 ```
 data|mosi=<gpio>,clk=<gpio>[,dc=<gpio>][,host=1|2][,miso=<gpio>]
 ``` 
@@ -186,7 +186,7 @@ bck=<gpio>,ws=<gpio>,do=<gpio>[,mck=0|1|2][,mute=<gpio>[:0|1][,model=TAS57xx|TAS
 ```
 if "model" is not set or is not recognized, then default "I2S" is used. The option "mck" is used for some codecs that require a master clock (although they should not). By default GPIO0 is used as MCLK and only recent builds (post mid-2023) can use 1 or 2. Also be aware that this cannot coexit with RMII Ethernet (see ethernet section below). I2C parameters are optional and only needed if your DAC requires an I2C control (See 'dac_controlset' below). Note that "i2c" parameters are decimal, hex notation is not allowed.
 
-So far, TAS57xx, TAS5713, AC101, WM8978 and ES8388 are recognized models where the proper init sequence/volume/power controls are sent. For other codecs that might require an I2C commands, please use the parameter "dac_controlset" that allows definition of simple commands to be sent over i2c for init, power, speakder and headset on and off using a JSON syntax:
+So far, TAS57xx, TAS5713, AC101, WM8978 and ES8388 are recognized models where the proper init sequence/volume/power controls are sent. For other codecs that might require an I2C commands, please use the parameter "dac_controlset" that allows definition of simple commands to be sent over i2c for init, power, speaker and headset on and off using a JSON syntax:
 ```json
 { <command>: [ {"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"}, ... {{"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"} ],
   <command>: [ {"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"}, ... {{"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"} ],
@@ -194,7 +194,7 @@ So far, TAS57xx, TAS5713, AC101, WM8978 and ES8388 are recognized models where t
 ```
 Where `<command>` is one of init, poweron, poweroff, speakeron, speakeroff, headseton, headsetoff
 
-This is standard JSON notation, so if you are not familiar with it, Google is your best friend. Be aware that the '...' means you can have as many entries as you want, it's not part of the syntax. Every section is optional, but it does not make sense to set i2c in the 'dac_config' parameter and not setting anything here. The parameter 'mode' allows to *or* the register with the value or to *and* it. Don't set 'mode' if you simply want to write. The 'val parameter can be an array [v1, v2,...] to write a serie of bytes in a single i2c burst (in that case 'mode' is ignored). **Note that all values must be decimal**. You can use a validator like [this](https://jsonlint.com) to verify your syntax
+This is standard JSON notation, so if you are not familiar with it, Google is your best friend. Be aware that the '...' means you can have as many entries as you want, it's not part of the syntax. Every section is optional, but it does not make sense to set i2c in the 'dac_config' parameter and not setting anything here. The parameter 'mode' allows to *or* the register with the value or to *and* it. Don't set 'mode' if you simply want to write. The 'val parameter can be an array [v1, v2,...] to write a series of bytes in a single i2c burst (in that case 'mode' is ignored). **Note that all values must be decimal**. You can use a validator like [this](https://jsonlint.com) to verify your syntax
 
 NB: For named configurations ((SqueezeAMP, Muse ... all except I2S), all this is ignored. For know codecs, the built-in sequences can be overwritten using dac_controlset
 
@@ -213,7 +213,7 @@ bck=<gpio>,ws=<gpio>,do=<gpio>
 ```
 NB: For named configurations, this is ignored
 
-The maximum bit depth is 24 bits, even in 32 bits mode (this a SPDIF limitation - thank @UrbanLienert for theupdate from 20 to 24 bit). Now, you can also get SPDIF using a specialized chip that offers a I2S interface like a DAC but spits out SPDIF (optical and coax). Refers to DAC chapter then.
+The maximum bit depth is 24 bits, even in 32 bits mode (this a SPDIF limitation - thank @UrbanLienert for the update from 20 to 24 bit). Now, you can also get SPDIF using a specialized chip that offers a I2S interface like a DAC but spits out SPDIF (optical and coax). Refers to DAC chapter then.
 
 If you want coax, you can also use a poor-man's trick to generate signal from a 3.3V GPIO. All that does is dividing the 3.3V to generate a 0.6V peak-to-peak and then remove DC
 ```
@@ -243,7 +243,7 @@ SPI,width=<pixels>,height=<pixels>,cs=<gpio>[,back=<gpio>][,reset=<gpio>][,speed
 - SSD1327 is 128x128 16-level grayscale SPI [here](https://www.amazon.com/gp/product/B079N1LLG8/ref=ox_sc_act_title_1?smid=A1N6DLY3NQK2VM&psc=1) - artwork can be up to 96x96 with vertical vu-meter/spectrum
 - SSD1351 is 128x128 65k/262k color SPI [here](https://www.waveshare.com/product/displays/lcd-oled/lcd-oled-3/1.5inch-rgb-oled-module.htm)
 - SSD1675 is an e-ink paper and is experimental as e-ink is really not suitable for LMS du to its very low refresh rate
-- ST7735 is a 128x160 65k color SPI [here](https://www.waveshare.com/product/displays/lcd-oled/lcd-oled-3/1.8inch-lcd-module.htm). This needs a backlight control. Some have X/Y offsets betwen the driver and the glass (green/black/red models) that can be added using "x" and "y" options (case sensitive!)
+- ST7735 is a 128x160 65k color SPI [here](https://www.waveshare.com/product/displays/lcd-oled/lcd-oled-3/1.8inch-lcd-module.htm). This needs a backlight control. Some have X/Y offsets between the driver and the glass (green/black/red models) that can be added using "x" and "y" options (case sensitive!)
 - ST7789 is a 240x320 65k (262k not enabled) color SPI [here](https://www.waveshare.com/product/displays/lcd-oled/lcd-oled-3/2inch-lcd-module.htm). It also exist with 240x240 displays. See **rotate** for use in portrait mode
 - ILI9341 is another 240x320 65k (262k capable) color SPI. I've not used it much, the driver it has been provided by one external contributor to the project
 
@@ -256,7 +256,7 @@ The NVS parameter "metadata_config" sets how metadata is displayed for AirPlay a
 - 'speed' is the scrolling speed in ms (default is 33ms)
 - 'pause' is the pause time between scrolls in ms (default is 3600ms)
 - 'format' can contain free text and any of the 3 keywords `%artist%`, `%album%`, `%title%`. Using that format string, the keywords are replaced by their value to build the string to be displayed. Note that the plain text following a keyword that happens to be empty during playback of a track will be removed. For example, if you have set format=`%artist% - %title%` and there is no artist in the metadata then only `<title>` will be displayed not ` - <title>`.
-- 'artwork' enables coverart display, if available (does not work for Bluetooth). The optional parameter indicates if the artwork should be resized (1) to fit the available space. Note that the built-in resizer can only do 2,4 and 8 downsizing, so fit is not optimal. The artwork will be placed at the right of the display for landscape displays and underneath the two information lines for others (there is no user option to tweak that).
+- 'artwork' enables cover-art display, if available (does not work for Bluetooth). The optional parameter indicates if the artwork should be resized (1) to fit the available space. Note that the built-in resizer can only do 2,4 and 8 downsizing, so fit is not optimal. The artwork will be placed at the right of the display for landscape displays and underneath the two information lines for others (there is no user option to tweak that).
 
 ### Infrared
 You can use any IR receiver compatible with NEC protocol (38KHz) or RC5. Vcc, GND and output are the only pins that need to be connected, no pullup, no filtering capacitor, it's a straight connection.
@@ -293,7 +293,7 @@ You can define the defaults for jack, spkfault leds at compile time but nvs para
 ### GPIO expanders
 It is possible to add GPIO expanders using I2C or SPI bus. They should mainly be used for buttons but they can support generic-purpose outputs as well. These additional GPIOs can be numbered starting from an arbitrary value (40 and above as esp32 has GPIO 0..39). Then these new "virtual" GPIOs from (e.g) 100 to 115 can be used in [button](#Buttons) configuration, [set_GPIO](#set-gpio) or other config settings.
 
-Each expander can support up to 32 GPIO. To use an expander for buttons, an interrupt must be provided, polling mode is not acceptable. An expander w/o interruption can still be configured, but only output will be usable. Note that the same interrupt can be shared accross expanders, as long as they are using open drain or open collectors (which they probably all do)
+Each expander can support up to 32 GPIO. To use an expander for buttons, an interrupt must be provided, polling mode is not acceptable. An expander w/o interruption can still be configured, but only output will be usable. Note that the same interrupt can be shared across expanders, as long as they are using open drain or open collectors (which they probably all do)
 
 The parameter "gpio_exp_config" is a semicolon (;) separated list with following syntax for each expander
 ```
@@ -305,7 +305,7 @@ model=<model>,addr=<addr>,[,port=system|dac][,base=<n>][,count=<n>][,intr=<gpio>
 - cs (SPI): gpio used for Chip Select
 - speed (SPI): speed of the SPI bus for that device (in Hz)	
 - base: GPIO numbering offset to use everywhere else (default 40 on esp32 and 48 on esp32-s3)
-- count: number of GPIO of expander (default 16 - might be obsolted if model if sufficient to decide)
+- count: number of GPIO of expander (default 16 - might be obsoleted if model if sufficient to decide)
 - intr: real GPIO to use as interrupt.
 	
 Note that PWM ("led_brightness" below) is not supported for expanded GPIOs and they cannot be used for high speed or precise timing signals like CS, D/C, Reset and Ready. Buttons, rotary encoder, amplifier control and power are supported. Depending on the actual chipset, pullup or pulldown might be supported so you might have to add external resistors (only MCP23x17 does pullup). The pca8575 is not a great chip, it generate a fair bit of spurious interrupts when used for GPIO out. When using a SPI expander, the bus must be configured using shared [SPI](#SPI) bus
@@ -318,25 +318,25 @@ See [set_GPIO](#set-gpio) for how to set the green and red LEDs (including addre
 NB: For named configuration, GPIO affected to green and red LED cannot be changed but brightness option applies
 
 ### LED Strip
-One LED strip with up to 255 addressable LEDs can be configured to offer enhanced visualizations.  The LED strip can also be controlled remotely though the LMS server (using the CLI interface).  Currently only WS2812B LEDs are supported.  Set the LED Strip configuration (or NVS led_vu_config) to `WS2812,length=<n>,gpio=<gpio>, where <n> is the number of leds in the strip (1..255), and <gpio> is the data pin.`  
-
-The latest LMS plugin update is required to set the visualizer mode and brightness, in the ESP32 settings page for the player.  The plugin also adds the following CLI command options
+One LED strip with up to 255 addressable LEDs can be configured to offer enhanced visualizations.  The VU Meter visualizer includes a battery status indicator (see Battery).  Currently only WS2812B and APA102 LEDs are supported.  Set the LED Strip hardware configuration, or the NVS led_vu_config syntax is 
 ```
-<playerid> led_visual [<mode>] [brightness(1-255)]
-  Toggles or selects the visulaizer mode.
-  The visualizer brighness can be controled using the optional <brighness> tag.
-
-<playerid> dmx <R,G,B|R,G,B,R,G,B ... R,G,B> [<offset>]
-  Sets the LED at position "offset" to any RGB color where "R"(red),"G"(green), and "B"(blue) are values from 0(off) to 255(max brightness).
-  Add additional RGB values to the delimited string to set multiple LEDs. 
+type=[WS2812|APA102],length=<n>,gpio=<dataPin>,clk=<clockPin>
 ```
+where <n> is the number of LEDs in the strip (1..255).  The Clock pin is required for APA102 LEDs.  
+
+The latest LMS plugin update is required to set the visualizer mode and brightness (ESP32 settings page for the player).  The plugin adds additional LMS CLI commands.
+
+| Command                                            | Notes       |
+| -------------------------------------------------- | ----------- |
+| \<playerid\> led_visual \[\<mode\>\] \[\<brightness\>\] | Toggles or selects the visualizer "mode".<br />The visualizer brightness(0..255) can be controlled using the "brightness" tag. |
+| \<playerid\> dmx \<R,G,B,R,G,B, ... R,G,B\> \[\<offset\>\] | Sets the LED color starting at position "offset"<br />  with "R"(red),"G"(green),and "B"(blue) color sequences.<br />Add additional RGB values to the delimited string to set multiple LEDs.<br /> |
 
 ### Rotary Encoder
 One rotary encoder is supported, quadrature shift with press. Such encoders usually have 2 pins for encoders (A and B), and common C that must be set to ground and an optional SW pin for press. A, B and SW must be pulled up, so automatic pull-up is provided by ESP32, but you can add your own resistors. A bit of filtering on A and B (~470nF) helps for debouncing which is not made by software. 
 
 Encoder is normally hard-coded to respectively knob left, right and push on LMS and to volume down/up/play toggle on BT and AirPlay. Using the option 'volume' makes it hard-coded to volume down/up/play toggle all the time (even in LMS). The option 'longpress' allows an alternate mode when SW is long-pressed. In that mode, left is previous, right is next and press is toggle. Every long press on SW alternates between modes (the main mode actual behavior depends on 'volume').
 
-There is also the possibility to use 'knobonly' option (exclusive with 'volume' and 'longpress'). This mode attempts to offer a single knob full navigation which is a bit contorded due to LMS UI's principles. Left, Right and Press obey to LMS's navigation rules and especially Press always goes to lower submenu item, even when navigating in the Music Library. That causes a challenge as there is no 'Play', 'Back' or 'Pause' button. Workaround are as of below:
+There is also the possibility to use 'knobonly' option (exclusive with 'volume' and 'longpress'). This mode attempts to offer a single knob full navigation which is a bit contorted due to LMS UI's principles. Left, Right and Press obey to LMS's navigation rules and especially Press always goes to lower submenu item, even when navigating in the Music Library. That causes a challenge as there is no 'Play', 'Back' or 'Pause' button. Workaround are as of below:
 - longpress is 'Play'
 - double press is 'Back' (Left in LMS's terminology). 
 - a quick left-right movement on the encoder is 'Pause' 
@@ -377,7 +377,7 @@ Buttons are described using a JSON string with the following syntax
 ] 
 ```
 
-Where (all parameters are optionals except gpio) 
+Where (all parameters are optional except gpio) 
  - "type": (BUTTON_LOW) logic level when the button is pressed 
  - "pull": (false) activate internal pull up/down
  - "long_press": (0) duration (in ms) of keypress to detect long press, 0 to disable it
@@ -486,7 +486,7 @@ Connecting a reset pin for the LAN8720 is optional but recommended to avoid that
 The APLL of the esp32 is required for the audio codec, so we **need** a LAN8720 that provides a 50MHz clock. That clock **must** be connected to GPIO0, there is no alternative. This means that if your DAC requires an MCLK, you need a recent build (later than mid-2023) to be able to select either GPIO 1 or 2.
 
 #### SPI (DM9051 or W5500)
-Ethernet over SPI is supported as well and requires less GPIOs but is obvsiously slower. SPI is the shared bus set with [spi_config](#spi). The "eth_config" parameter syntax becomes:
+Ethernet over SPI is supported as well and requires less GPIOs but is obviously slower. SPI is the shared bus set with [spi_config](#spi). The "eth_config" parameter syntax becomes:
 ```
 model=dm9051|w5500,cs=<gpio>,speed=<clk_in_Hz>,intr=<gpio>[,rst=<gpio>]
 ```
@@ -509,9 +509,9 @@ channel=0..7,scale=<scale>,cells=<1..3>[,atten=<0|1|2|3>]
 NB: Set parameter to empty to disable battery reading. For named configurations (SqueezeAMP, Muse ...), this is ignored (except for SqueezeAMP where number of cells is required)
 
 ### Sleeping
-The esp32 can be put in deep sleep mode to save some power. How much really depends on the connected periperals, so best is to do your own measures. Waking-up from deep sleep is the equivalent of a reboot, but as the chip takes a few seconds to connect, it's still an efficient process.
+The esp32 can be put in deep sleep mode to save some power. How much really depends on the connected peripherals, so best is to do your own measures. Waking-up from deep sleep is the equivalent of a reboot, but as the chip takes a few seconds to connect, it's still an efficient process.
 
-The esp32 can enter deep sleep after an audio inactivity timeout, after a button has been pressed, after a GPIO is set to a given level (there is a subtle difference, see below) or if the battery reaches a threashold. It wakes up only on some GPIO events. Note that *all* GPIO are isolated when sleeping (unless they are set with the `rtc`option) so you can not assume anything about their value, except that they will not drain current. The `rtc` option allows to keep some GPIO (from the RTC domain only) either pulled up or down. This can be useful if you want to keep some periperal active, for example a GPIO expander whose interrupt will be used to wake-up the system.
+The esp32 can enter deep sleep after an audio inactivity timeout, after a button has been pressed, after a GPIO is set to a given level (there is a subtle difference, see below) or if the battery reaches a threshold. It wakes up only on some GPIO events. Note that *all* GPIO are isolated when sleeping (unless they are set with the `rtc`option) so you can not assume anything about their value, except that they will not drain current. The `rtc` option allows to keep some GPIO (from the RTC domain only) either pulled up or down. This can be useful if you want to keep some peripherals active, for example a GPIO expander whose interrupt will be used to wake-up the system.
 
 The NVS parameter `sleep_config` is mostly used for setting sleep conditions
 ```
@@ -552,11 +552,11 @@ At this point, the device should have disabled its built-in access point and sho
 - Using the list of predefined options, choose the mode in which you want squeezelite to start
 - Generate the command
 - Add or change any additional command line option (for example player name, etc)
-- Activate squeezelite execution: this tells the device to automatiaclly run the command at start
+- Activate squeezelite execution: this tells the device to automatically run the command at start
 - Update the configuration
 - click on the "start toggle" button. This will force a reboot. 
 - The toggle switch should be set to 'ON' to ensure that squeezelite is active after booting (you might have to fiddle with it a few times)
-- You can enable accessto  NVS parameters under 'credits'
+- You can enable access to NVS parameters under 'credits'
 
 ## Monitor
 In addition of the esp-idf serial link monitor option, you can also enable a telnet server (see NVS parameters) where you'll have access to a ton of logs of what's happening inside the WROVER.
