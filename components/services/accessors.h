@@ -89,6 +89,7 @@ typedef struct {
 	char type[16];
 	int length;
 	int gpio;
+	int clk;
 } ledvu_struct_t;
 
 typedef struct {

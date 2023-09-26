@@ -329,7 +329,7 @@ esp_err_t config_ledvu_set(ledvu_struct_t * config){
 	esp_err_t err=ESP_OK;
 	char * config_buffer=malloc_init_external(buffer_size);
 	if(config_buffer)  {
-		snprintf(config_buffer,buffer_size,"%s,length=%i,gpio=%i",config->type, config->length, config->gpio);
+		snprintf(config_buffer,buffer_size,"type=%s,length=%i,gpio=%i,clk=%i",config->type, config->length, config->gpio, config->clk);
 		log_send_messaging(MESSAGING_INFO,"Updating ledvu configuration to %s",config_buffer);
 		err = config_set_value(NVS_TYPE_STR, "led_vu_config", config_buffer);
 		if(err!=ESP_OK){
@@ -761,14 +761,13 @@ const rotary_struct_t * config_rotary_get() {
  */
 const ledvu_struct_t * config_ledvu_get() {
 
-	static ledvu_struct_t ledvu={  .type = "WS2812", .gpio = -1, .length = 0};
+	static ledvu_struct_t ledvu={ .type = "WS2812", .gpio = -1, .length = 0};
 	char *config = config_alloc_get_default(NVS_TYPE_STR, "led_vu_config", NULL, 0);
 	if (config && *config) {
-		char *p;
-	
-		// ToDo:  Add code for future support of alternate led types
-		if ((p = strcasestr(config, "gpio")) != NULL) ledvu.gpio = atoi(strchr(p, '=') + 1);
-		if ((p = strcasestr(config, "length")) != NULL) ledvu.length = atoi(strchr(p, '=') + 1);
+		PARSE_PARAM_STR(config, "type", '=', ledvu.type, 15);
+		PARSE_PARAM(config, "gpio", '=', ledvu.gpio);
+		PARSE_PARAM(config, "clk", '=', ledvu.clk);
+		PARSE_PARAM(config, "length", '=', ledvu.length);
 		free(config);
 	}
 	return &ledvu;
@@ -985,6 +984,8 @@ cJSON * get_ledvu_GPIO(cJSON * list){
 
 	const ledvu_struct_t *ledvu= config_ledvu_get();
 	add_gpio_for_value(llist,"gpio",ledvu->gpio, "led_vu", false);
+	if (ledvu->clk >= 0)
+		add_gpio_for_value(llist,"clk",ledvu->clk, "led_vu", false);
 	return llist;
 }
 

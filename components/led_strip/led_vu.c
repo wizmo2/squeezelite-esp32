@@ -30,7 +30,7 @@ static const char *TAG = "led_vu";
 
 static void (*battery_handler_chain)(float value, int cells);
 static void battery_svc(float value, int cells);
-static float battery_status = 0;
+static int battery_status = 0;
 
 #define LED_VU_STACK_SIZE (3*1024)
 
@@ -40,9 +40,8 @@ static float battery_status = 0;
 #define LED_VU_DEFAULT_LENGTH 19
 #define LED_VU_MAX_LENGTH 255
 
-#define LED_VU_STATUS_SCALE 25
-#define LED_VU_STATUS_GREEN 90
-#define LED_VU_STATUS_RED 75
+#define LED_VU_STATUS_GREEN 75
+#define LED_VU_STATUS_RED 25
 
 #define max(a,b) (((a) > (b)) ? (a) : (b))
 
@@ -66,8 +65,8 @@ static int led_addr(int pos ) {
 }
 
 static void battery_svc(float value, int cells) {
-	battery_status = value * LED_VU_STATUS_SCALE / cells;
-	ESP_LOGI(TAG, "Called for battery service with volt:%f cells:%d status:%f", value, cells, battery_status);
+	battery_status = battery_level_svc();
+	ESP_LOGI(TAG, "Called for battery service with volt:%f cells:%d status:%d", value, cells, battery_status);
 
 	if (battery_handler_chain) battery_handler_chain(value, cells);
 }
@@ -93,7 +92,8 @@ void led_vu_init()
 
 	battery_handler_chain = battery_handler_svc;
 	battery_handler_svc = battery_svc;
-
+    battery_status = battery_level_svc();
+	
     if (strip.length > LED_VU_MAX_LENGTH) strip.length = LED_VU_MAX_LENGTH;
     // initialize vu meter settings
     if (strip.length < 10) {

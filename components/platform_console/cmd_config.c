@@ -116,6 +116,7 @@ static struct {
 	struct arg_str * type;
 	struct arg_int * length;
 	struct arg_int * gpio;
+	struct arg_int * clk;
 	struct arg_lit * clear;
 	struct arg_end * end;
 } ledvu_args;
@@ -702,7 +703,17 @@ static int do_ledvu_cmd(int argc, char **argv){
 		return 1;
 	}
 
+	if (ledvu_args.type->count > 0) {
+		strncpy(ledvu.type,ledvu_args.type->sval[0],sizeof(ledvu.type));
+		ledvu.type[sizeof(ledvu.type) - 1] = '\0';
+	}
 	nerrors+=is_output_gpio(ledvu_args.gpio, f, &ledvu.gpio, true);
+	if(strcasecmp(ledvu_args.type->sval[0],"APA102")> 0 && ledvu_args.clk->count == 0) {
+        fprintf(f,"error: APA102 requires a Clock pin\n");
+	} 
+	else {
+		nerrors+=is_output_gpio(ledvu_args.clk, f, &ledvu.clk, true);
+	}
 	
 	if(ledvu_args.length->count==0 || ledvu_args.length->ival[0]<1 || ledvu_args.length->ival[0]>255){
 		fprintf(f,"error: strip length must be greater than 0 and no more than 255\n");
@@ -939,6 +950,7 @@ cJSON * ledvu_cb(){
 	
 	if(GPIO_IS_VALID_GPIO(ledvu->gpio) && ledvu->gpio>=0 && ledvu->length > 0){
 		cJSON_AddNumberToObject(values,"gpio",ledvu->gpio);
+		cJSON_AddNumberToObject(values,"clk",ledvu->clk);
 		cJSON_AddNumberToObject(values,"length",ledvu->length);
 	}
 	if(strlen(ledvu->type)>0){
@@ -1365,9 +1377,10 @@ void register_rotary_config(void){
 }
 
 void register_ledvu_config(void){
-	ledvu_args.type = arg_str1(NULL,"type","<none>|WS2812","Led type (supports one rgb strip to display built in effects and allow remote control through 'dmx' messaging)");
+	ledvu_args.type = arg_str1(NULL,"type","WS2812|APA102","Led type (supports one rgb strip to display built in effects and allow remote control through 'dmx' messaging)");
 	ledvu_args.length = arg_int1(NULL,"length","<1..255>","Strip length (1-255 supported)");
-	ledvu_args.gpio = arg_int1(NULL,"gpio","gpio","Data pin");
+	ledvu_args.gpio = arg_int1(NULL,"gpio","<n>","Data pin");
+	ledvu_args.clk = arg_int1(NULL,"clk","<n>","Clock pin (APA102 only)");
 	ledvu_args.clear = arg_lit0(NULL, "clear", "Clear configuration");
 	ledvu_args.end = arg_end(4);
 
