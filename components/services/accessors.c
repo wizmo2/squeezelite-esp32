@@ -761,7 +761,7 @@ const rotary_struct_t * config_rotary_get() {
  */
 const ledvu_struct_t * config_ledvu_get() {
 
-	static ledvu_struct_t ledvu={ .type = "WS2812", .gpio = -1, .length = 0};
+	static ledvu_struct_t ledvu={ .type = "WS2812", .gpio = -1, .length = 0, .clk = -1};
 	char *config = config_alloc_get_default(NVS_TYPE_STR, "led_vu_config", NULL, 0);
 	if (config && *config) {
 		PARSE_PARAM_STR(config, "type", '=', ledvu.type, 15);

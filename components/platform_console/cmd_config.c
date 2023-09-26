@@ -682,7 +682,7 @@ static int do_cspot_config(int argc, char **argv){
 #endif
 
 static int do_ledvu_cmd(int argc, char **argv){
-	ledvu_struct_t ledvu={  .type = "WS2812", .gpio = -1, .length = 0};
+	ledvu_struct_t ledvu={  .type = "WS2812", .gpio = -1, .length = 0, .clk = -1};
 	esp_err_t err=ESP_OK;
 	int nerrors = arg_parse(argc, argv,(void **)&ledvu_args);
 	if (ledvu_args.clear->count) {
@@ -690,7 +690,7 @@ static int do_ledvu_cmd(int argc, char **argv){
 		config_set_value(NVS_TYPE_STR, "led_vu_config", "");
 		return 0;
 	}
-
+	
 	char *buf = NULL;
 	size_t buf_size = 0;
 	FILE *f = open_memstream(&buf, &buf_size);
@@ -698,37 +698,33 @@ static int do_ledvu_cmd(int argc, char **argv){
 		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.\n");
 		return 1;
 	}
-	if(nerrors >0){
-		arg_print_errors(f,ledvu_args.end,desc_ledvu);
-		return 1;
-	}
 
+	nerrors = 0; // ignore arg_pass result and check for errors 
 	if (ledvu_args.type->count > 0) {
 		strncpy(ledvu.type,ledvu_args.type->sval[0],sizeof(ledvu.type));
 		ledvu.type[sizeof(ledvu.type) - 1] = '\0';
 	}
-	nerrors+=is_output_gpio(ledvu_args.gpio, f, &ledvu.gpio, true);
-	if(strcasecmp(ledvu_args.type->sval[0],"APA102")> 0 && ledvu_args.clk->count == 0) {
-        fprintf(f,"error: APA102 requires a Clock pin\n");
-	} 
 	else {
-		nerrors+=is_output_gpio(ledvu_args.clk, f, &ledvu.clk, true);
+		fprintf(f, "warning: LED type defaulting to WS2812\n");
 	}
-	
-	if(ledvu_args.length->count==0 || ledvu_args.length->ival[0]<1 || ledvu_args.length->ival[0]>255){
-		fprintf(f,"error: strip length must be greater than 0 and no more than 255\n");
+	nerrors+=is_output_gpio(ledvu_args.gpio, f, &ledvu.gpio, true);
+	nerrors+=is_output_gpio(ledvu_args.clk, f, &ledvu.clk, false);
+	if(strcasecmp(ledvu.type,"APA102") == 0 && ledvu.clk < 0 ) {
+    	cmd_send_messaging(argv[0],MESSAGING_ERROR,"APA102 requires a valid Clock pin.\n");
+		nerrors++;
+    } 
+	ledvu.length = ledvu_args.length->count>0?ledvu_args.length->ival[0]:0;
+	if(ledvu.length < 1 || ledvu.length > 255) {
+    	cmd_send_messaging(argv[0],MESSAGING_ERROR,"Strip length must be greater than 0 and no more than 255.\n");
 		nerrors++;
 	}
-	else {
-		ledvu.length = ledvu_args.length->count>0?ledvu_args.length->ival[0]:0;
-	}
-	
+		
 	if(!nerrors ){
 		fprintf(f,"Storing ledvu parameters.\n");
 		nerrors+=(config_ledvu_set(&ledvu )!=ESP_OK);
 	}
 	if(!nerrors ){
-		fprintf(f,"Done.\n");
+		fprintf(f,"Done. {type:%s gpio:%d length:%d clk:%d}\n", ledvu.type, ledvu.gpio, ledvu.length, ledvu.clk);
 	}
 	fflush (f);
 	cmd_send_messaging(argv[0],nerrors>0?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
@@ -948,7 +944,7 @@ cJSON * ledvu_cb(){
 	cJSON * values = cJSON_CreateObject();
 	const ledvu_struct_t *ledvu= config_ledvu_get();
 	
-	if(GPIO_IS_VALID_GPIO(ledvu->gpio) && ledvu->gpio>=0 && ledvu->length > 0){
+if(GPIO_IS_VALID_GPIO(ledvu->gpio) && ledvu->gpio>=0 && ledvu->length > 0){
 		cJSON_AddNumberToObject(values,"gpio",ledvu->gpio);
 		cJSON_AddNumberToObject(values,"clk",ledvu->clk);
 		cJSON_AddNumberToObject(values,"length",ledvu->length);
