@@ -96,8 +96,8 @@ void led_vu_init()
         goto done;
     }
 
-	battery_handler_chain = battery_handler_svc;
-	battery_handler_svc = battery_svc;
+    battery_handler_chain = battery_handler_svc;
+    battery_handler_svc = battery_svc;
     battery_status = battery_level_svc();
    
     if (strip.length > LED_VU_MAX_LENGTH) strip.length = LED_VU_MAX_LENGTH;
