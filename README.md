@@ -229,7 +229,7 @@ Ground -------------------------- coax signal ground
 The NVS parameter "display_config" sets the parameters for an optional display. It can be I2C (see [here](#i2c) for shared bus) or SPI (see [here](#spi) for shared bus) Syntax is
 ```
 I2C,width=<pixels>,height=<pixels>[address=<i2c_address>][,reset=<gpio>][,HFlip][,VFlip][driver=SSD1306|SSD1326[:1|4]|SSD1327|SH1106]
-SPI,width=<pixels>,height=<pixels>,cs=<gpio>[,back=<gpio>][,reset=<gpio>][,speed=<speed>][,HFlip][,VFlip][driver=SSD1306|SSD1322|SSD1326[:1|4]|SSD1327|SH1106|SSD1675|ST7735[:x=<offset>][:y=<offset>]|ST7789|ILI9341[:16|18][,rotate]]
+SPI,width=<pixels>,height=<pixels>,cs=<gpio>[,back=<gpio>][,reset=<gpio>][,speed=<speed>][,HFlip][,VFlip][driver=SSD1306|SSD1322|SSD1326[:1|4]|SSD1327|SH1106|SSD1675|ST7735|ST7789[:x=<offset>][:y=<offset>]|ILI9341[:16|18][,rotate]]
 ```
 - back: a LED backlight used by some older devices (ST7735). It is PWM controlled for brightness
 - reset: some display have a reset pin that is should normally be pulled up if unused. Most displays require reset and will not initialize well otherwise.
