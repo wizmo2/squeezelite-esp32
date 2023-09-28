@@ -95,7 +95,7 @@ void setup_rmt_data_buffer(struct led_state new_state);
 
 void ws2812_control_init(void)
 {
-  rmt_channel = rmt_system_base_channel++;  
+  rmt_channel = RMT_NEXT_TX_CHANNEL();  
   rmt_config_t config;
   config.rmt_mode = RMT_MODE_TX;
   config.channel = rmt_channel;

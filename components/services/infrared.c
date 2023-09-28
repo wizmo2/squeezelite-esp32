@@ -491,7 +491,7 @@ int8_t infrared_gpio(void) {
  * 
  */
 void infrared_init(RingbufHandle_t *rb, int gpio, infrared_mode_t mode) {  
-    int rmt_channel = rmt_system_base_channel++;
+    int rmt_channel = RMT_NEXT_RX_CHANNEL();
     rmt_config_t rmt_rx_config = RMT_DEFAULT_CONFIG_RX(gpio, rmt_channel);
     rmt_config(&rmt_rx_config);
     rmt_driver_install(rmt_rx_config.channel, 1000, 0);

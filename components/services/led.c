@@ -241,7 +241,7 @@ bool led_config(int idx, gpio_num_t gpio, int color, int bright, led_type_t type
         for (const struct rmt_led_param_s *p = rmt_led_param; !leds[idx].rmt && p->type >= 0; p++) if (p->type == type) leds[idx].rmt = p;
         if (!leds[idx].rmt) return false;
 
-        if (led_rmt_channel < 0) led_rmt_channel = rmt_system_base_channel++;
+        if (led_rmt_channel < 0) led_rmt_channel = RMT_NEXT_TX_CHANNEL();
         leds[idx].channel = led_rmt_channel;
 		leds[idx].bright = bright > 0 ? bright : 100;
 
