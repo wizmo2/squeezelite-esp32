@@ -122,7 +122,7 @@ void led_vu_init()
         led_strip_config.clk = strip.clk;
     } else {
         led_strip_config.rgb_led_type = RGB_LED_TYPE_WS2812;
-        led_strip_config.rmt_channel = RMT_NEXT_TX_CHANNEL;
+        led_strip_config.rmt_channel = RMT_NEXT_TX_CHANNEL();
     }
     led_strip_config.access_semaphore = xSemaphoreCreateBinary();
     led_strip_config.led_strip_length = strip.length;
