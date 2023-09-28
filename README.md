@@ -7,7 +7,7 @@ Squeezelite-esp32 is an audio software suite made to run on espressif's esp32 an
 - Stream your local music and connect to all major on-line music providers (Spotify, Deezer, Tidal, Qobuz) using [Logitech Media Server - a.k.a LMS](https://forums.slimdevices.com/) and enjoy multi-room audio synchronization. LMS can be extended by numerous plugins and can be controlled using a Web browser or dedicated applications (iPhone, Android). It can also send audio to UPnP, Sonos, ChromeCast and AirPlay speakers/devices.
 - Stream from a **Bluetooth** device (iPhone, Android)
 - Stream from an **AirPlay** controller (iPhone, iTunes ...) and enjoy synchronization multiroom as well (although it's AirPlay 1 only)
-- Stream directly from **Spotify** using SpotifyConnect (thanks to [cspot](https://github.com/feelfreelinux/cspot))
+- Stream directly from **Spotify** using SpotifyConnect (thanks to [cspot](https://github.com/feelfreelinux/cspot)) - please read carefully [this](#spotify)
 
 Depending on the hardware connected to the esp32, you can send audio to a local DAC, to SPDIF or to a Bluetooth speaker. The bare minimum required hardware is a WROVER module with 4MB of Flash and 4MB of PSRAM (https://www.espressif.com/en/products/modules/esp32). With that module standalone, just apply power and you can stream to a Bluetooth speaker. You can also send audio to most I2S DAC as well as to SPDIF receivers using just a cable or an optical transducer.
 
@@ -537,7 +537,7 @@ The option to use multiple GPIOs is very limited on esp32 and the esp-idf 4.3.x 
 
 Some have asked for a soft power on/off option. Although this is not built-in, it's easy to create yours as long as the regulator/power supply of the board can be controlled by Vcc or GND. Depending on how it is active, add a pull-up/down resistor to the regulator's control and connect it also to one GPIO of the esp32. Then using set_GPIO, set that GPIO to Vcc or GND. Use a hardware button that forces the regulator on with a pull- up/down and once the esp32 has booted, it will force the GPIO to the desired value maintaining the board on by software. To power it off by software, just use the deep sleep option which will suspend all GPIO hence switching off the regulator.
 
-# Configuration
+# Software configuration
 
 ## Setup WiFi
 - Boot the esp, look for a new wifi access point showing up and connect to it. Default build ssid and passwords are "squeezelite"/"squeezelite". 
@@ -557,6 +557,15 @@ At this point, the device should have disabled its built-in access point and sho
 - click on the "start toggle" button. This will force a reboot. 
 - The toggle switch should be set to 'ON' to ensure that squeezelite is active after booting (you might have to fiddle with it a few times)
 - You can enable accessto  NVS parameters under 'credits'
+
+## Spotify
+By default, SqueezeESP32 will use ZeroConf to advertise its Spotify capabilties. This means that until at least one local Spotify Connect application controllers discovers and connects to it, SqueezeESP32 will not be registered to Spotify servers. As a consequence, Spotify's WebAPI will not be able to see it (for example, Home Assistant services will miss it). Once you are connected to it using for example Spotify Desktop app, it will be registered and displayed everywhere.
+
+If you want the player to be registered at start-up, you need to disable the ZeroConf option using the WebUI or `cspot_config::ZeroConf`. In that mode, the first time you run SqueezeESP32, it will be in ZeroConf mode and when you connect to it using a controller for the firt time, it receives and store credentials that will be used next time (after reboot). 
+
+Set ZeroConf to 1 will always force ZeroConf mode to be used. 
+
+The ZeroConf mode consumes less memory as it uses the built-in HTTP and mDNS servers to broadcast its capabilities. A Spotify controller will then discover these and trigger the SqueezeESP32 Spotify stack (cspot) to start. When the controller disconnects, the stack is shut down. In non-ZeroConf mode, the stack starts immediately (providing stored credentials are valid) and always run - a disconnect will not shut it down.
 
 ## Monitor
 In addition of the esp-idf serial link monitor option, you can also enable a telnet server (see NVS parameters) where you'll have access to a ton of logs of what's happening inside the WROVER.
