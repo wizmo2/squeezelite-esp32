@@ -77,10 +77,7 @@ static void battery_svc(float value, int cells) {
  */
 void led_vu_init()
 {
-    char* config = config_alloc_get_str("led_vu_config", NULL, "N/A");
-
-    // Initialize led VU strip 
-    //char* drivername = strcasestr(config, "WS2812|APA102");
+    char* config = config_alloc_get_str("led_vu_config", CONFIG_LED_VU_CONFIG, "N/A");
 
     PARSE_PARAM(config, "length",'=', strip.length);
     PARSE_PARAM(config, "gpio",'=', strip.gpio);

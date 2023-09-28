@@ -290,7 +290,7 @@ void register_default_nvs(){
     register_default_string_val("ethtmout","8");
     register_default_string_val("dhcp_tmout","8");
 	register_default_string_val("target", CONFIG_TARGET);
-    register_default_string_val("led_vu_config", "");
+    register_default_string_val("led_vu_config", CONFIG_LED_VU_CONFIG);
 	wait_for_commit();
 	ESP_LOGD(TAG,"Done setting default values in nvs.");
 }

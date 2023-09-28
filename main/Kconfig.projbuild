@@ -100,81 +100,86 @@ menu "Squeezelite-ESP32"
 			default "ESP32"
 		# AGGREGATES - begin
 		# these parameters are "aggregates"	that take precedence. They must have a default value
-		config DAC_CONFIG
-			string
-			default "model=TAS57xx,bck=33,ws=25,do=32,sda=27,scl=26,mute=14:0" if SQUEEZEAMP
-			default "model=I2S,bck=26,ws=25,do=33,i2c=53,sda=21,scl=22" if TWATCH2020
-			default "model=I2S,bck=5,ws=25,do=26,di=35,i2c=16,sda=18,scl=23,mck" if MUSE
-			default ""
-		config SPDIF_CONFIG
-			string
-			default "bck=33,ws=25,do=15" if SQUEEZEAMP
-			default	""
-		config GPIO_EXP_CONFIG		
-			string
-			default	""
-		config SPI_CONFIG
-			string
-			default "dc=27,data=19,clk=18" if TWATCH2020	
-			default "mosi=15,miso=2,clk=14"	if MUSE
-			default	""          
-		config DISPLAY_CONFIG
-			string
-			default "SPI,driver=ST7789,width=240,height=240,cs=5,back=12,speed=16000000,HFlip,VFlip" if TWATCH2020
-			default ""
-		config ETH_CONFIG
-			string
-			default ""
-		# AGGREGATES - end		
-		config DAC_CONTROLSET
-			string
-			default "{ \"init\": [ {\"reg\":41, \"val\":128}, {\"reg\":18, \"val\":255} ], \"poweron\": [ {\"reg\":18, \"val\":64, \"mode\":\"or\"} ], \"poweroff\": [ {\"reg\":18, \"val\":191, \"mode\":\"and\"} ] }" if TWATCH2020
-			default "{\"init\":[ {\"reg\":0,\"val\":128}, {\"reg\":0,\"val\":0}, {\"reg\":25,\"val\":4}, {\"reg\":1,\"val\":80}, {\"reg\":2,\"val\":0},	{\"reg\":8,\"val\":0}, {\"reg\":4,\"val\":192},	{\"reg\":0,\"val\":18}, {\"reg\":1,\"val\":0}, {\"reg\":23,\"val\":24}, {\"reg\":24,\"val\":2}, {\"reg\":38,\"val\":9}, {\"reg\":39,\"val\":144}, {\"reg\":42,\"val\":144}, {\"reg\":43,\"val\":128}, {\"reg\":45,\"val\":128}, {\"reg\":27,\"val\":0}, {\"reg\":26,\"val\":0}, {\"reg\":2,\"val\":240}, {\"reg\":2,\"val\":0},	{\"reg\":29,\"val\":28}, {\"reg\":4,\"val\":48}, {\"reg\":25,\"val\":0}, {\"reg\":46,\"val\":33}, {\"reg\":47,\"val\":33} ]}" if MUSE
-			default ""		
-		config AUDIO_CONTROLS
-			string
-			default "[{\"gpio\":32, \"pull\":true, \"long_press\":1000, \"normal\":{\"pressed\":\"ACTRLS_VOLDOWN\"}, \"longpress\":{\"pressed\":\"ACTRLS_PREV\"}}, {\"gpio\":19, \"pull\":true, \"long_press\":1000, \"normal\":{\"pressed\":\"ACTRLS_VOLUP\"}, \"longpress\":{\"pressed\":\"ACTRLS_NEXT\"}}, {\"gpio\":12, \"pull\":true, \"long_press\":1000, \"normal\":{\"pressed\":\"ACTRLS_TOGGLE\"},\"longpress\":{\"pressed\":\"ACTRLS_POWER\"}}]" if MUSE
-			default ""
-		config BAT_CONFIG
-			string
-			default "channel=7,scale=20.24,atten=0" if SQUEEZEAMP
-			default "channel=5,scale=7.00,atten=3,cells=1" if MUSE
-			default ""			
-		config TARGET
-			string
-			default "muse" if MUSE
-			default ""			
-		config AMP_GPIO		
-			int
-			default 21 if MUSE
-			default -1
-		config POWER_GPIO		
-			int
-			default -1			
-		config JACK_GPIO
-			int
-			default 34 if SQUEEZEAMP || MUSE
-			default -1			
-		config SPKFAULT_GPIO
-			int
-			default 2 if SQUEEZEAMP
-			default -1			
-		config BAT_CHANNEL
-			int 
-			default 7 if SQUEEZEAMP
-			default -1
-		config LED_GREEN_GPIO
-			int 
-			default 12 if SQUEEZEAMP
-			default -1
-		config LED_RED_GPIO
-			int
-			default 13 if SQUEEZEAMP
-			default -1
-		config SET_GPIO
-			string
-			default "0=ir" if SQUEEZEAMP
-			default "" if TWATCH2020
+		menu "Target Configuration"
+			config DAC_CONFIG
+				string "dac_config"
+				default "model=TAS57xx,bck=33,ws=25,do=32,sda=27,scl=26,mute=14:0" if SQUEEZEAMP
+				default "model=I2S,bck=26,ws=25,do=33,i2c=53,sda=21,scl=22" if TWATCH2020
+				default "model=I2S,bck=5,ws=25,do=26,di=35,i2c=16,sda=18,scl=23,mck" if MUSE
+				default ""
+			config SPDIF_CONFIG
+				string "spidf_config"
+				default "bck=33,ws=25,do=15" if SQUEEZEAMP
+				default	""
+			config GPIO_EXP_CONFIG		
+				string "gpio_exp_config"
+				default	""
+			config SPI_CONFIG
+				string "spi_config"
+				default "dc=27,data=19,clk=18" if TWATCH2020	
+				default "mosi=15,miso=2,clk=14"	if MUSE
+				default	""          
+			config DISPLAY_CONFIG
+				string "display_config"
+				default "SPI,driver=ST7789,width=240,height=240,cs=5,back=12,speed=16000000,HFlip,VFlip" if TWATCH2020
+				default ""
+			config LED_VU_CONFIG
+				string "led_vu_config"
+				default ""
+			config ETH_CONFIG
+				string "eth_config"
+				default ""
+			# AGGREGATES - end		
+			config DAC_CONTROLSET
+				string "dac_control_set"
+				default "{ \"init\": [ {\"reg\":41, \"val\":128}, {\"reg\":18, \"val\":255} ], \"poweron\": [ {\"reg\":18, \"val\":64, \"mode\":\"or\"} ], \"poweroff\": [ {\"reg\":18, \"val\":191, \"mode\":\"and\"} ] }" if TWATCH2020
+				default "{\"init\":[ {\"reg\":0,\"val\":128}, {\"reg\":0,\"val\":0}, {\"reg\":25,\"val\":4}, {\"reg\":1,\"val\":80}, {\"reg\":2,\"val\":0},	{\"reg\":8,\"val\":0}, {\"reg\":4,\"val\":192},	{\"reg\":0,\"val\":18}, {\"reg\":1,\"val\":0}, {\"reg\":23,\"val\":24}, {\"reg\":24,\"val\":2}, {\"reg\":38,\"val\":9}, {\"reg\":39,\"val\":144}, {\"reg\":42,\"val\":144}, {\"reg\":43,\"val\":128}, {\"reg\":45,\"val\":128}, {\"reg\":27,\"val\":0}, {\"reg\":26,\"val\":0}, {\"reg\":2,\"val\":240}, {\"reg\":2,\"val\":0},	{\"reg\":29,\"val\":28}, {\"reg\":4,\"val\":48}, {\"reg\":25,\"val\":0}, {\"reg\":46,\"val\":33}, {\"reg\":47,\"val\":33} ]}" if MUSE
+				default ""		
+			config AUDIO_CONTROLS
+				string "audio_control_set"
+				default "[{\"gpio\":32, \"pull\":true, \"long_press\":1000, \"normal\":{\"pressed\":\"ACTRLS_VOLDOWN\"}, \"longpress\":{\"pressed\":\"ACTRLS_PREV\"}}, {\"gpio\":19, \"pull\":true, \"long_press\":1000, \"normal\":{\"pressed\":\"ACTRLS_VOLUP\"}, \"longpress\":{\"pressed\":\"ACTRLS_NEXT\"}}, {\"gpio\":12, \"pull\":true, \"long_press\":1000, \"normal\":{\"pressed\":\"ACTRLS_TOGGLE\"},\"longpress\":{\"pressed\":\"ACTRLS_POWER\"}}]" if MUSE
+				default ""
+			config BAT_CONFIG
+				string "bat_config"
+				default "channel=7,scale=20.24,atten=0" if SQUEEZEAMP
+				default "channel=5,scale=7.00,atten=3,cells=1" if MUSE
+				default ""			
+			config TARGET
+				string "target"
+				default "muse" if MUSE
+				default ""			
+			config AMP_GPIO		
+				int "set_GPIO_amp"
+				default 21 if MUSE
+				default -1
+			config POWER_GPIO		
+				int "set_GPIO_power"
+				default -1			
+			config JACK_GPIO
+				int "set_GPIO_jack"
+				default 34 if SQUEEZEAMP || MUSE
+				default -1			
+			config SPKFAULT_GPIO
+				int "set_GPIO_spkfault"
+				default 2 if SQUEEZEAMP
+				default -1			
+			config BAT_CHANNEL
+				int "battery_channel"
+				default 7 if SQUEEZEAMP
+				default -1
+			config LED_GREEN_GPIO
+				int "set_GPIO_green"
+				default 12 if SQUEEZEAMP
+				default -1
+			config LED_RED_GPIO
+				int "set_GPIO_red"
+				default 13 if SQUEEZEAMP
+				default -1
+			config SET_GPIO
+				string "set_GPIO"
+				default "0=ir" if SQUEEZEAMP
+				default "" if TWATCH2020
+		endmenu
 	endmenu
 
 	menu "Audio settings"
@@ -337,6 +342,14 @@ menu "Squeezelite-ESP32"
 				Set parameters for display screen, leave empty for no screen
 				I2C,driver=<model>,width=<pixels>,height=<pixels>[address=<i2c_address>][,HFlip][,VFlip][,rotate]
 				SPI,driver=<model>,width=<pixels>,height=<pixels>,cs=<gpio>[,HFlip][,VFlip][,rotate]
+	endmenu
+
+	menu "LED Visulaizer"
+		config LED_VU_CONFIG
+			string "LED strip configuraton"
+			help
+				Set parameters for LED strip settings, leave empty for no screen
+				type=[WS2812|APA102],length=<n>,gpio=<gpio>[,clk=<gpio>]
 	endmenu
 
 	menu "Various I/O"
