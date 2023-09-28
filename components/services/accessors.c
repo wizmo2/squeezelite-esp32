@@ -104,6 +104,19 @@ bool is_spdif_config_locked(){
 }
 
 /****************************************************************************************
+ * 
+ */
+bool is_ledvu_config_locked(){
+#if ( defined CONFIG_LED_VU_CONFIG )
+	if(strlen(CONFIG_LED_VU_CONFIG) > 0){
+		return true;
+	}
+#endif
+	return false;
+}
+
+
+/****************************************************************************************
  * Set pin from config string
  */
 static void set_i2s_pin(char *config, i2s_pin_config_t *pin_config) {
@@ -983,9 +996,9 @@ cJSON * get_ledvu_GPIO(cJSON * list){
 	cJSON * llist = list?list:cJSON_CreateArray();
 
 	const ledvu_struct_t *ledvu= config_ledvu_get();
-	add_gpio_for_value(llist,"gpio",ledvu->gpio, "led_vu", false);
+	add_gpio_for_value(llist,"gpio",ledvu->gpio, "led_vu", is_ledvu_config_locked());
 	if (ledvu->clk >= 0)
-		add_gpio_for_value(llist,"clk",ledvu->clk, "led_vu", false);
+		add_gpio_for_value(llist,"clk",ledvu->clk, "led_vu", is_ledvu_config_locked());
 	return llist;
 }
 

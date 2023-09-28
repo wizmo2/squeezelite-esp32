@@ -125,3 +125,4 @@ const rotary_struct_t * 	config_rotary_get();
 esp_err_t 					config_rotary_set(rotary_struct_t * rotary);
 const ledvu_struct_t * 		config_ledvu_get();
 esp_err_t 					config_ledvu_set(ledvu_struct_t * ledvu);
+bool 						is_ledvu_config_locked();

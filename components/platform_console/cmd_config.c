@@ -690,6 +690,12 @@ static int do_cspot_config(int argc, char **argv){
 
 static int do_ledvu_cmd(int argc, char **argv){
 	ledvu_struct_t ledvu={  .type = "WS2812", .gpio = -1, .length = 0, .clk = -1};
+
+	if(is_ledvu_config_locked()) {
+		cmd_send_messaging(argv[0],MESSAGING_ERROR,"LED Strip Configuration is locked on this platform\n");
+		return 1;
+	}
+
 	esp_err_t err=ESP_OK;
 	int nerrors = arg_parse(argc, argv,(void **)&ledvu_args);
 	if (ledvu_args.clear->count) {
@@ -1499,6 +1505,9 @@ void register_config_cmd(void){
 	}
 	if(!is_spdif_config_locked()){
 		register_spdif_config();
+	}
+	if (is_ledvu_config_locked()){
+        register_ledvu_config();
 	}
     register_optional_cmd();    
 }
