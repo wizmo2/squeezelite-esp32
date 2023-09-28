@@ -65,7 +65,7 @@ static int led_addr(int pos ) {
 }
 
 static void battery_svc(float value, int cells) {
-	battery_status = battery_level_svc();
+	battery_status = battery_level_svc(); 
 	ESP_LOGI(TAG, "Called for battery service with volt:%f cells:%d status:%d", value, cells, battery_status);
 
 	if (battery_handler_chain) battery_handler_chain(value, cells);
@@ -87,10 +87,10 @@ void led_vu_init()
         goto done;
     }
 
-	battery_handler_chain = battery_handler_svc;
-	battery_handler_svc = battery_svc;
+    battery_handler_chain = battery_handler_svc;
+    battery_handler_svc = battery_svc;
     battery_status = battery_level_svc();
-	
+   
     if (strip.length > LED_VU_MAX_LENGTH) strip.length = LED_VU_MAX_LENGTH;
     // initialize vu meter settings
     if (strip.length < 10) {
@@ -105,7 +105,7 @@ void led_vu_init()
         strip.vu_start_r = strip.vu_length + 1;
         strip.vu_status = strip.vu_length;
     }
-    ESP_LOGD(TAG, "vu meter using length:%d left:%d right:%d status:%d", strip.vu_length, strip.vu_start_l, strip.vu_start_r, strip.vu_status);
+    ESP_LOGI(TAG, "vu meter using length:%d left:%d right:%d status:%d", strip.vu_length, strip.vu_start_l, strip.vu_start_r, strip.vu_status);
 
     // create driver configuration
     if (strcasestr(config, "APA102")) { // TODO:  Need to add options to web ui
