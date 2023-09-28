@@ -171,15 +171,20 @@ CONFIG_RELEASE_API="https://api.github.com/repos/sle118/squeezelite-esp32/releas
 CONFIG_SQUEEZELITE_ESP32_RELEASE_URL="https://github.com/sle118/squeezelite-esp32/releases"
 CONFIG_PROJECT_NAME="Squeezelite-ESP32"
 CONFIG_FW_PLATFORM_NAME="ESP32"
-CONFIG_DAC_CONFIG=""
-CONFIG_SPDIF_CONFIG=""
+
+#
+# Target Configuration
+#
+CONFIG_DAC_CONFIG="model=I2S,bck=7,ws=5,do=6"
+CONFIG_SPDIF_CONFIG="bck=7,ws=5,do=17"
 CONFIG_GPIO_EXP_CONFIG=""
-CONFIG_SPI_CONFIG=""
-CONFIG_DISPLAY_CONFIG=""
+CONFIG_SPI_CONFIG="data=11,clk=12,dc=13,host=1"
+CONFIG_DISPLAY_CONFIG="SPI,width=320,height=170,cs=10,reset=9,back=15,speed=8000000,mode=0,driver=ST7789:x=35,VFlip,rotate"
+CONFIG_LED_VU_CONFIG="type=APA102,length=7,gpio=42,clk=45"
 CONFIG_ETH_CONFIG=""
 CONFIG_DAC_CONTROLSET=""
 CONFIG_AUDIO_CONTROLS=""
-CONFIG_BAT_CONFIG=""
+CONFIG_BAT_CONFIG="channel=3,scale=6.5,cells=1,atten=3"
 CONFIG_TARGET=""
 CONFIG_AMP_GPIO=-1
 CONFIG_POWER_GPIO=-1
@@ -188,7 +193,8 @@ CONFIG_SPKFAULT_GPIO=-1
 CONFIG_BAT_CHANNEL=-1
 CONFIG_LED_GREEN_GPIO=-1
 CONFIG_LED_RED_GPIO=-1
-CONFIG_SET_GPIO=""
+CONFIG_SET_GPIO="46=power:1,16=ir"
+# end of Target Configuration
 # end of Target
 
 #
@@ -258,10 +264,15 @@ CONFIG_A2DP_CONNECT_TIMEOUT_MS=1000
 # end of Display Screen
 
 #
+# LED Visulaizer
+#
+# end of LED Visulaizer
+
+#
 # Various I/O
 #
 CONFIG_I2C_CONFIG=""
-CONFIG_ROTARY_ENCODER=""
+CONFIG_ROTARY_ENCODER="A=1,B=2,SW=0"
 # end of Various I/O
 
 #
