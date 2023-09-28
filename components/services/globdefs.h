@@ -13,8 +13,8 @@
 #define I2C_SYSTEM_PORT		1
 #define SPI_SYSTEM_HOST		SPI2_HOST
 
-#define RMT_NEXT_TX_CHANNEL rmt_system_base_tx_channel++;
-#define RMT_NEXT_RX_CHANNEL rmt_system_base_rx_channel--;
+#define RMT_NEXT_TX_CHANNEL() rmt_system_base_tx_channel++;
+#define RMT_NEXT_RX_CHANNEL() rmt_system_base_rx_channel--;
 
 extern int i2c_system_port;
 extern int i2c_system_speed;
