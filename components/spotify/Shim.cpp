@@ -30,9 +30,15 @@
 #include "cspot_private.h"
 #include "cspot_sink.h"
 #include "platform_config.h"
+#include "nvs_utilities.h"
 #include "tools.h"
 
 static class cspotPlayer *player;
+
+static const struct {
+    const char *ns;
+    const char *credentials;
+} spotify_ns = { .ns = "spotify", .credentials = "credentials" };
 
 /****************************************************************************************
  * Player's main class  & task
@@ -42,7 +48,11 @@ class cspotPlayer : public bell::Task {
 private:
     std::string name;
     bell::WrappedSemaphore clientConnected;
-    std::atomic<bool> isPaused, isConnected;
+    std::atomic<bool> isPaused;
+    enum states { ABORT, LINKED, DISCO };
+    std::atomic<states> state;
+    std::string credentials;
+    bool zeroConf;
         
     int startOffset, volume = 0, bitrate = 160;
     httpd_handle_t serverHandle;
@@ -57,6 +67,7 @@ private:
     void eventHandler(std::unique_ptr<cspot::SpircHandler::Event> event);
     void trackHandler(void);
     size_t pcmWrite(uint8_t *pcm, size_t bytes, std::string_view trackId);
+    void enableZeroConf(void);
 
     void runTask();
 
@@ -79,8 +90,25 @@ cspotPlayer::cspotPlayer(const char* name, httpd_handle_t server, int port, cspo
     if ((item = cJSON_GetObjectItem(config, "volume")) != NULL) volume = item->valueint;
     if ((item = cJSON_GetObjectItem(config, "bitrate")) != NULL) bitrate = item->valueint;   
     if ((item = cJSON_GetObjectItem(config, "deviceName") ) != NULL) this->name = item->valuestring;
-    else this->name = name;
-    cJSON_Delete(config);
+    else this->name = name; 
+    
+    if ((item = cJSON_GetObjectItem(config, "zeroConf")) != NULL) {
+        zeroConf = item->valueint;
+        cJSON_Delete(config);
+    } else {
+        zeroConf = true;
+        cJSON_AddNumberToObject(config, "zeroConf", 1);
+        config_set_cjson_str_and_free("cspot_config", config);
+    }
+    
+    // get optional credentials from own NVS
+    if (!zeroConf) {
+        char *credentials = (char*) get_nvs_value_alloc_for_partition(NVS_DEFAULT_PART_NAME, spotify_ns.ns, NVS_TYPE_STR, spotify_ns.credentials, NULL);
+        if (credentials) {
+            this->credentials = credentials;
+            free(credentials); 
+        }
+    }
 
     if (bitrate != 96 && bitrate != 160 && bitrate != 320) bitrate = 160;
 }
@@ -207,7 +235,7 @@ void cspotPlayer::eventHandler(std::unique_ptr<cspot::SpircHandler::Event> event
     }
     case cspot::SpircHandler::EventType::DISC:
         cmdHandler(CSPOT_DISC);
-        isConnected = false;
+        state = DISCO;
         break;
     case cspot::SpircHandler::EventType::SEEK: {
         cmdHandler(CSPOT_SEEK, std::get<int>(event->data));
@@ -265,7 +293,7 @@ void cspotPlayer::command(cspot_event_t event) {
      * generate any cspot::event */
     case CSPOT_DISC:
         cmdHandler(CSPOT_DISC);
-        isConnected = false;
+        state = ABORT;
         break;
     // spirc->setRemoteVolume does not generate a cspot::event so call cmdHandler
     case CSPOT_VOLUME_UP:
@@ -285,34 +313,48 @@ void cspotPlayer::command(cspot_event_t event) {
 	}
 }
 
-void cspotPlayer::runTask() {
+void cspotPlayer::enableZeroConf(void) {
     httpd_uri_t request = {
 		.uri = "/spotify_info",
 		.method = HTTP_GET,
 		.handler = ::handleGET,
 		.user_ctx = NULL,
-	};
-
+    };
+    
     // register GET and POST handler for built-in server
     httpd_register_uri_handler(serverHandle, &request);
     request.method = HTTP_POST;
     request.handler = ::handlePOST;
     httpd_register_uri_handler(serverHandle, &request);
-
-    // construct blob for that player
-    blob = std::make_unique<cspot::LoginBlob>(name);
+        
+    CSPOT_LOG(info, "ZeroConf mode (port %d)", serverPort);
 
     // Register mdns service, for spotify to find us
     bell::MDNSService::registerService( blob->getDeviceName(), "_spotify-connect", "_tcp", "", serverPort,
-            { {"VERSION", "1.0"}, {"CPath", "/spotify_info"}, {"Stack", "SP"} });
-            
+                                       { {"VERSION", "1.0"}, {"CPath", "/spotify_info"}, {"Stack", "SP"} });    
+}
+ 
+void cspotPlayer::runTask() {
+    bool useZeroConf = zeroConf;
+    
+    // construct blob for that player
+    blob = std::make_unique<cspot::LoginBlob>(name);
+                  
     CSPOT_LOG(info, "CSpot instance service name %s (id %s)", blob->getDeviceName().c_str(), blob->getDeviceId().c_str());
+    
+    if (!zeroConf && !credentials.empty()) {
+        blob->loadJson(credentials);
+        CSPOT_LOG(info, "Reusable credentials mode");
+    } else {      
+        // whether we want it or not we must use ZeroConf
+        useZeroConf = true;
+        enableZeroConf();
+    }
 
     // gone with the wind...
     while (1) {
-        clientConnected.wait();
-
-        CSPOT_LOG(info, "Spotify client connected for %s", name.c_str());
+        if (useZeroConf) clientConnected.wait();
+        CSPOT_LOG(info, "Spotify client launched for %s", name.c_str());
 
         auto ctx = cspot::Context::createFromBlob(blob);
 
@@ -321,12 +363,26 @@ void cspotPlayer::runTask() {
         else ctx->config.audioFormat = AudioFormat_OGG_VORBIS_160;
 
         ctx->session->connectWithRandomAp();
-        auto token = ctx->session->authenticate(blob);
+        ctx->config.authData = ctx->session->authenticate(blob);
 
         // Auth successful
-        if (token.size() > 0) {
+        if (ctx->config.authData.size() > 0) {
+            // we might have been forced to use zeroConf, so store credentials and reset zeroConf usage
+            if (!zeroConf) {
+                useZeroConf = false;
+                // can't call store_nvs... from a task running on EXTRAM stack
+                TimerHandle_t timer = xTimerCreate( "credentials", 1, pdFALSE, strdup(ctx->getCredentialsJson().c_str()),
+                            [](TimerHandle_t xTimer) {
+                                auto credentials = (char*) pvTimerGetTimerID(xTimer);
+                                store_nvs_value_len_for_partition(NVS_DEFAULT_PART_NAME, spotify_ns.ns, NVS_TYPE_STR, spotify_ns.credentials, credentials, 0);
+                                free(credentials);
+                                xTimerDelete(xTimer, portMAX_DELAY);
+                            } );
+                xTimerStart(timer, portMAX_DELAY);
+            }
+
             spirc = std::make_unique<cspot::SpircHandler>(ctx);
-            isConnected = true;            
+            state = LINKED;
 			
             // set call back to calculate a hash on trackId
             spirc->getTrackPlayer()->setDataCallback(
@@ -347,7 +403,7 @@ void cspotPlayer::runTask() {
             cmdHandler(CSPOT_VOLUME, volume);
 
             // exit when player has stopped (received a DISC)
-            while (isConnected) {
+            while (state == LINKED) {
                 ctx->session->handlePacket();
 
                 // low-accuracy polling events
@@ -371,23 +427,32 @@ void cspotPlayer::runTask() {
                         spirc->setPause(true);
                     }
                 }
+                
+                // on disconnect, stay in the core loop unless we are in ZeroConf mode
+                if (state == DISCO) {
+                    // update volume then
+                    cJSON *config = config_alloc_get_cjson("cspot_config");
+                    cJSON_DeleteItemFromObject(config, "volume");
+                    cJSON_AddNumberToObject(config, "volume", volume);
+                    config_set_cjson_str_and_free("cspot_config", config);
+                    
+                    // in ZeroConf mod, stay connected (in this loop)
+                    if (!zeroConf) state = LINKED;
+                }
             }
 
             spirc->disconnect();
             spirc.reset();
 
             CSPOT_LOG(info, "disconnecting player %s", name.c_str());
+        } else {
+            CSPOT_LOG(error, "failed authentication, forcing ZeroConf");
+            if (!useZeroConf) enableZeroConf();
+            useZeroConf = true;
         }
-
+            
         // we want to release memory ASAP and for sure
-        ctx.reset();
-        token.clear();
-        
-        // update volume when we disconnect
-        cJSON *config = config_alloc_get_cjson("cspot_config");
-        cJSON_DeleteItemFromObject(config, "volume");
-        cJSON_AddNumberToObject(config, "volume", volume);
-        config_set_cjson_str_and_free("cspot_config", config);
+        ctx.reset();      
     }
 }
 

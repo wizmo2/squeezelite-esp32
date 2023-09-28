@@ -131,6 +131,7 @@ static struct {
 	struct arg_str *deviceName;
 //	struct arg_int *volume;
 	struct arg_int *bitrate;
+    struct arg_int *zeroConf;
 	struct arg_end *end;
 } cspot_args;
 static struct {
@@ -656,6 +657,9 @@ static int do_cspot_config(int argc, char **argv){
 	if(cspot_args.bitrate->count>0){
 		cjson_update_number(&cspot_config,cspot_args.bitrate->hdr.longopts,cspot_args.bitrate->ival[0]);
 	}	
+    if(cspot_args.zeroConf->count>0){
+		cjson_update_number(&cspot_config,cspot_args.zeroConf->hdr.longopts,cspot_args.zeroConf->ival[0]);
+	}	
 	
 	if(!nerrors ){
 		fprintf(f,"Storing cspot parameters.\n");
@@ -667,6 +671,9 @@ static int do_cspot_config(int argc, char **argv){
 		}
 		if(cspot_args.bitrate->count>0){
 			fprintf(f,"Bitrate changed to %u\n",cspot_args.bitrate->ival[0]);
+		}
+        if(cspot_args.zeroConf->count>0){
+			fprintf(f,"ZeroConf changed to %u\n",cspot_args.zeroConf->ival[0]);
 		}
 	}
 	if(!nerrors ){
@@ -852,6 +859,10 @@ cJSON * cspot_cb(){
 	cspot_values = cJSON_GetObjectItem(cspot_config,cspot_args.bitrate->hdr.longopts);
 	if(cspot_values){
 		cJSON_AddNumberToObject(values,cspot_args.bitrate->hdr.longopts,cJSON_GetNumberValue(cspot_values));
+	}
+    cspot_values = cJSON_GetObjectItem(cspot_config,cspot_args.zeroConf->hdr.longopts);
+	if(cspot_values){
+		cJSON_AddNumberToObject(values,cspot_args.zeroConf->hdr.longopts,cJSON_GetNumberValue(cspot_values));
 	}
 
 	cJSON_Delete(cspot_config);
@@ -1286,6 +1297,7 @@ static void register_known_templates_config(){
 static void register_cspot_config(){
 	cspot_args.deviceName = arg_str1(NULL,"deviceName","","Device Name");
 	cspot_args.bitrate = arg_int1(NULL,"bitrate","96|160|320","Streaming Bitrate (kbps)");
+    cspot_args.zeroConf = arg_int1(NULL,"zeroConf","0|1","Force use of ZeroConf");
 //	cspot_args.volume = arg_int1(NULL,"volume","","Spotify Volume");
 	cspot_args.end = arg_end(1);
 	 const esp_console_cmd_t cmd = {
