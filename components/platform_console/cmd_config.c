@@ -560,7 +560,7 @@ static int do_spdif_cmd(int argc, char **argv){
 static int do_rotary_cmd(int argc, char **argv){
 	rotary_struct_t rotary={  .A = -1, .B = -1, .SW = -1, .longpress = 0, .knobonly=0,.volume_lock=false};
 	
-	if(is_ledvu_config_locked()) {
+	if(is_rotary_config_locked()) {
 		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Rotary Encoder Configuration is locked on this platform\n");
 		return 1;
 	}

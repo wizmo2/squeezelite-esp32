@@ -347,14 +347,6 @@ menu "Squeezelite-ESP32"
 				SPI,driver=<model>,width=<pixels>,height=<pixels>,cs=<gpio>[,HFlip][,VFlip][,rotate]
 	endmenu
 
-	menu "LED Visulaizer"
-		config LED_VU_CONFIG
-			string "LED strip configuraton"
-			help
-				Set parameters for LED strip settings, leave empty for no screen
-				type=[WS2812|APA102],length=<n>,gpio=<gpio>[,clk=<gpio>]
-	endmenu
-
 	menu "Various I/O"
 		visible if !TWATCH2020
 		config I2C_CONFIG
@@ -385,6 +377,11 @@ menu "Squeezelite-ESP32"
 			help
 				Set GPIO for rotary encoder (quadrature phase). See README on SqueezeESP32 project's GitHub for more details
 				A=<gpio>,B=<gpio>[,SW=gpio>[[,knobonly[=<ms>]|[,volume][,longpress]]			
+		config LED_VU_CONFIG
+			string "LED strip configuraton"
+			help
+				Set parameters for LED strip settings, leave empty for no screen
+				type=[WS2812|APA102],length=<n>,gpio=<gpio>[,clk=<gpio>]
 		config GPIO_EXP_CONFIG
 			string "GPIO expander configuration"
 			help
