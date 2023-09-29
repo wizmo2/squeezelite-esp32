@@ -126,6 +126,9 @@ menu "Squeezelite-ESP32"
 			config LED_VU_CONFIG
 				string "led_vu_config"
 				default ""
+			config ROTARY_ENCODER
+				string "rotary_config"
+				default ""
 			config ETH_CONFIG
 				string "eth_config"
 				default ""

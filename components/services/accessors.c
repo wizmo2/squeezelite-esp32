@@ -122,8 +122,8 @@ bool is_display_config_locked(){
 }
 
 bool is_rotary_config_locked(){
-#if ( defined CONFIG_ROTARY_CONFIG )
-	if(strlen(CONFIG_ROTARY_CONFIG) > 0){
+#if ( defined CONFIG_ROTARY_ENCODER )
+	if(strlen(CONFIG_ROTARY_ENCODER) > 0){
 		return true;
 	}
 #endif

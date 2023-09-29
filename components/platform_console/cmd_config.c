@@ -1381,7 +1381,7 @@ static void register_bt_source_config(void){
 }
 
 void register_rotary_config(void){
-	if (!is_rotary_config_locked()){
+	if (is_rotary_config_locked()){
 		return;
 	}
 	rotary_args.rem = arg_rem("remark","One rotary encoder is supported, quadrature shift with press. Such encoders usually have 2 pins for encoders (A and B), and common C that must be set to ground and an optional SW pin for press. A, B and SW must be pulled up, so automatic pull-up is provided by ESP32, but you can add your own resistors. A bit of filtering on A and B (~470nF) helps for debouncing which is not made by software.\r\nEncoder is normally hard-coded to respectively knob left, right and push on LMS and to volume down/up/play toggle on BT and AirPlay.");
