@@ -1363,7 +1363,7 @@ static void register_i2s_config(void){
 }
 
 static void register_bt_source_config(void){
-	
+	#if CONFIG_BT_ENABLED
 	bt_source_args.sink_name= arg_str1("n","sink_name", "name","Bluetooth audio device name. This applies when output mode is Bluetooth");
 	bt_source_args.pin_code= arg_str1("p","pin_code", "pin","Bluetooth security/pin code. Usually 0000. This applies when output mode is Bluetooth");
 //	bt_source_args.control_delay= arg_dbl0("d","control_delay","seconds","Control response delay, in seconds. This determines the response time of the system Bluetooth events. The default value should work for the majority of cases and changing this could lead to instabilities.");
@@ -1378,6 +1378,7 @@ static void register_bt_source_config(void){
     };
     cmd_to_json_with_cb(&cmd,&bt_source_cb);
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
+	#endif
 }
 
 void register_rotary_config(void){

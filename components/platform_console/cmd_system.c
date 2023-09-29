@@ -45,9 +45,11 @@ EXT_RAM_ATTR static struct {
 EXT_RAM_ATTR static struct {
     #if CONFIG_CSPOT_SINK	
     struct arg_lit *cspot;
-    #endif     
+    #endif
+    #if CONFIG_BT_ENABLED
  	struct arg_lit *btspeaker;
- 	struct arg_lit *airplay;
+ 	#endif
+    struct arg_lit *airplay;
  	struct arg_str *telnet;
 
 #if WITH_TASKS_INFO    
@@ -656,7 +658,9 @@ static int do_set_services(int argc, char **argv)
 	}
 
 	nerrors += enable_disable(f,"enable_airplay",set_services_args.airplay);
+    #if CONFIG_BT_ENABLED
 	nerrors += enable_disable(f,"enable_bt_sink",set_services_args.btspeaker);
+    #endif
     #if CONFIG_CSPOT_SINK	
     nerrors += enable_disable(f,"enable_cspot",set_services_args.cspot);
     #endif    
@@ -698,7 +702,9 @@ static int do_set_services(int argc, char **argv)
 cJSON * set_services_cb(){
 	cJSON * values = cJSON_CreateObject();
 	char * p=NULL;
-    console_set_bool_parameter(values,"enable_bt_sink",set_services_args.btspeaker);
+    #if CONFIG_BT_ENABLED
+	console_set_bool_parameter(values,"enable_bt_sink",set_services_args.btspeaker);
+    #endif
     console_set_bool_parameter(values,"enable_airplay",set_services_args.airplay);
     #if CONFIG_CSPOT_SINK	
     console_set_bool_parameter(values,"enable_cspot",set_services_args.cspot);
@@ -729,8 +735,10 @@ static void register_set_services(){
     #if CONFIG_CSPOT_SINK	
     set_services_args.cspot = arg_lit0(NULL, "cspot", "Spotify (cspot)");
     #endif
+    #if CONFIG_BT_ENABLED
 	set_services_args.btspeaker = arg_lit0(NULL, "BT_Speaker", "Bluetooth Speaker");
-	set_services_args.telnet= arg_str0("t", "telnet","Disabled|Telnet Only|Telnet and Serial","Telnet server. Use only for troubleshooting");
+	#endif
+    set_services_args.telnet= arg_str0("t", "telnet","Disabled|Telnet Only|Telnet and Serial","Telnet server. Use only for troubleshooting");
 #if WITH_TASKS_INFO    
 	set_services_args.stats= arg_lit0(NULL, "stats", "System Statistics. Use only for troubleshooting");
 #endif    
