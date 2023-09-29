@@ -299,6 +299,10 @@ static esp_err_t i2c_master_driver_initialize(const char * cmdname, i2c_config_t
 
 static int do_i2c_set_display(int argc, char **argv)
 {
+	if(is_display_config_locked()) {
+		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Display Configuration is locked on this platform\n");
+		return 1;
+	}
 	bool bHasi2cConfig = false, bHasSpiConfig=false;
     int nerrors = arg_parse_msg(argc, argv,(struct arg_hdr **)&i2cdisp_args);
 	display_config_t config = {
@@ -445,6 +449,11 @@ static int do_spiconfig_cmd(int argc, char **argv){
 	        .quadwp_io_num = -1,
 	        .quadhd_io_num = -1
 	    };
+	
+	if(is_spi_config_locked()) {
+		cmd_send_messaging(argv[0],MESSAGING_ERROR,"SPI Configuration is locked on this platform\n");
+		return 1;
+	}
 	int dc=-1,host = 0;
 	esp_err_t err=ESP_OK;
 	int nerrors = arg_parse_msg(argc, argv,(struct arg_hdr **)&spiconfig_args);
@@ -979,6 +988,10 @@ cJSON * i2c_set_display_cb(){
 }
 
 static void register_i2c_set_display(){
+	if (is_display_config_locked()){
+		return;
+	}
+
 	char * supported_drivers = display_get_supported_drivers();
 
 	i2cdisp_args.width = 	arg_int1("w", "width", "<n>", "Width");
@@ -1112,6 +1125,10 @@ cJSON * spiconfig_cb(){
 
 static void register_spiconfig(void)
 {
+	if (is_spi_config_locked()){
+		return;
+	}
+
 	spiconfig_args.clear = arg_lit0(NULL, "clear", "Clear configuration");
 	spiconfig_args.clk = arg_int0("k", "clk", "<n>", "Clock GPIO");
 	spiconfig_args.data = arg_int0("d","data", "<n>","Data OUT GPIO");

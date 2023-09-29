@@ -13,6 +13,7 @@
 #include "esp_app_format.h"
 #include "tools.h"
 #include "messaging.h"
+#include "accessors.h"
 
 extern esp_err_t process_recovery_ota(const char * bin_url, char * bin_buffer, uint32_t length);
 static const char * TAG = "squeezelite_cmd";
@@ -42,7 +43,6 @@ const __attribute__((section(".rodata_desc"))) esp_app_desc_t esp_app_desc = {
 
 extern void register_audio_config(void);
 extern void register_rotary_config(void);
-extern void register_ledvu_config(void);
 
 void register_optional_cmd(void) {
     register_rotary_config();

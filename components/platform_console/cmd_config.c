@@ -559,6 +559,12 @@ static int do_spdif_cmd(int argc, char **argv){
 
 static int do_rotary_cmd(int argc, char **argv){
 	rotary_struct_t rotary={  .A = -1, .B = -1, .SW = -1, .longpress = 0, .knobonly=0,.volume_lock=false};
+	
+	if(is_ledvu_config_locked()) {
+		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Rotary Encoder Configuration is locked on this platform\n");
+		return 1;
+	}
+	
 	esp_err_t err=ESP_OK;
 	int nerrors = arg_parse(argc, argv,(void **)&rotary_args);
 	if (rotary_args.clear->count) {
@@ -1375,6 +1381,9 @@ static void register_bt_source_config(void){
 }
 
 void register_rotary_config(void){
+	if (!is_rotary_config_locked()){
+		return;
+	}
 	rotary_args.rem = arg_rem("remark","One rotary encoder is supported, quadrature shift with press. Such encoders usually have 2 pins for encoders (A and B), and common C that must be set to ground and an optional SW pin for press. A, B and SW must be pulled up, so automatic pull-up is provided by ESP32, but you can add your own resistors. A bit of filtering on A and B (~470nF) helps for debouncing which is not made by software.\r\nEncoder is normally hard-coded to respectively knob left, right and push on LMS and to volume down/up/play toggle on BT and AirPlay.");
 	rotary_args.A = arg_int1(NULL,"A","gpio","A/DT gpio");
 	rotary_args.B = arg_int1(NULL,"B","gpio","B/CLK gpio");
@@ -1398,6 +1407,9 @@ void register_rotary_config(void){
 }
 
 void register_ledvu_config(void){
+	if (is_ledvu_config_locked()){
+		return;
+	}
 	ledvu_args.type = arg_str0(NULL,"type","WS2812|APA102","Led type (supports one rgb strip to display built in effects and allow remote control through 'dmx' messaging)");
 	ledvu_args.length = arg_int1(NULL,"length","<1..255>","Strip length (1-255 supported)");
 	ledvu_args.gpio = arg_int1(NULL,"gpio","<n>","Data pin");
@@ -1506,9 +1518,8 @@ void register_config_cmd(void){
 	if(!is_spdif_config_locked()){
 		register_spdif_config();
 	}
-	if (is_ledvu_config_locked()){
-        register_ledvu_config();
-	}
+    register_ledvu_config();
+
     register_optional_cmd();    
 }
 

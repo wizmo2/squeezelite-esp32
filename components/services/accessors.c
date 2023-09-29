@@ -103,9 +103,6 @@ bool is_spdif_config_locked(){
 	return false;
 }
 
-/****************************************************************************************
- * 
- */
 bool is_ledvu_config_locked(){
 #if ( defined CONFIG_LED_VU_CONFIG )
 	if(strlen(CONFIG_LED_VU_CONFIG) > 0){
@@ -115,6 +112,41 @@ bool is_ledvu_config_locked(){
 	return false;
 }
 
+bool is_display_config_locked(){
+#if ( defined CONFIG_DISPLAY_CONFIG )
+	if(strlen(CONFIG_DISPLAY_CONFIG) > 0){
+		return true;
+	}
+#endif
+	return false;
+}
+
+bool is_rotary_config_locked(){
+#if ( defined CONFIG_ROTARY_CONFIG )
+	if(strlen(CONFIG_ROTARY_CONFIG) > 0){
+		return true;
+	}
+#endif
+	return false;
+}
+
+bool is_spi_config_locked(){
+#if ( defined CONFIG_SPI_CONFIG )
+	if(strlen(CONFIG_SPI_CONFIG) > 0){
+		return true;
+	}
+#endif
+	return false;
+}
+
+bool is_i2c_config_locked(){
+#if ( defined CONFIG_I2C_CONFIG )
+	if(strlen(CONFIG_I2C_CONFIG) > 0){
+		return true;
+	}
+#endif
+	return false;
+}
 
 /****************************************************************************************
  * Set pin from config string
