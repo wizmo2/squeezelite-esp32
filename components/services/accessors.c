@@ -874,22 +874,22 @@ cJSON * get_GPIO_nvs_list(cJSON * list) {
 /****************************************************************************************
  *
  */
-cJSON * get_DAC_GPIO(cJSON * list){
+cJSON * get_DAC_GPIO(cJSON * list, bool fixed){
 	cJSON * llist = list;
 	if(!llist){
 		llist = cJSON_CreateArray();
 	}	
 	const i2s_platform_config_t * i2s_config= config_dac_get();
 	if(i2s_config->pin.bck_io_num>=0){
-		cJSON_AddItemToArray(llist,get_gpio_entry("bck","dac",i2s_config->pin.bck_io_num,is_dac_config_locked()));
-		cJSON_AddItemToArray(llist,get_gpio_entry("ws","dac",i2s_config->pin.ws_io_num,is_dac_config_locked()));
-		cJSON_AddItemToArray(llist,get_gpio_entry("do","dac",i2s_config->pin.data_out_num,is_dac_config_locked()));
+		cJSON_AddItemToArray(llist,get_gpio_entry("bck","dac",i2s_config->pin.bck_io_num,fixed));
+		cJSON_AddItemToArray(llist,get_gpio_entry("ws","dac",i2s_config->pin.ws_io_num,fixed));
+		cJSON_AddItemToArray(llist,get_gpio_entry("do","dac",i2s_config->pin.data_out_num,fixed));
 		if(i2s_config->sda>=0){
-			cJSON_AddItemToArray(llist,get_gpio_entry("sda","dac",i2s_config->sda,is_dac_config_locked()));
-			cJSON_AddItemToArray(llist,get_gpio_entry("scl","dac",i2s_config->scl,is_dac_config_locked()));
+			cJSON_AddItemToArray(llist,get_gpio_entry("sda","dac",i2s_config->sda,fixed));
+			cJSON_AddItemToArray(llist,get_gpio_entry("scl","dac",i2s_config->scl,fixed));
 		}
 		if(i2s_config->mute_gpio>=0){
-			cJSON_AddItemToArray(llist,get_gpio_entry("mute","dac",i2s_config->mute_gpio,is_dac_config_locked()));
+			cJSON_AddItemToArray(llist,get_gpio_entry("mute","dac",i2s_config->mute_gpio,fixed));
 		}
 	}
 	return llist;
@@ -898,27 +898,27 @@ cJSON * get_DAC_GPIO(cJSON * list){
 /****************************************************************************************
  *
  */
-cJSON * get_Display_GPIO(cJSON * list){
+cJSON * get_Display_GPIO(cJSON * list, bool fixed){
 	cJSON * llist = list;
 	if(!llist){
 		llist = cJSON_CreateArray();
 	}	
 	const display_config_t * config= config_display_get();
 	if(config->back >=0){
-		cJSON_AddItemToArray(llist,get_gpio_entry("backlight","display",config->back,false));
+		cJSON_AddItemToArray(llist,get_gpio_entry("backlight","display",config->back,fixed));
 	}
 	if(config->CS_pin >=0){
-		cJSON_AddItemToArray(llist,get_gpio_entry("CS","display",config->CS_pin,false));
+		cJSON_AddItemToArray(llist,get_gpio_entry("CS","display",config->CS_pin,fixed));
 	}	
 	if(config->RST_pin >=0){
-		cJSON_AddItemToArray(llist,get_gpio_entry("reset","display",config->RST_pin,false));
+		cJSON_AddItemToArray(llist,get_gpio_entry("reset","display",config->RST_pin,fixed));
 	}
 	return llist;
 }
 /****************************************************************************************
  *
  */
-cJSON * get_I2C_GPIO(cJSON * list){
+cJSON * get_I2C_GPIO(cJSON * list, bool fixed){
 	cJSON * llist = list;
 	if(!llist){
 		llist = cJSON_CreateArray();
@@ -926,8 +926,8 @@ cJSON * get_I2C_GPIO(cJSON * list){
 	int port=0;
 	const i2c_config_t * i2c_config = config_i2c_get(&port);
 	if(i2c_config->scl_io_num>=0){
-		cJSON_AddItemToArray(llist,get_gpio_entry("scl","i2c",i2c_config->scl_io_num,false));
-		cJSON_AddItemToArray(llist,get_gpio_entry("sda","i2c",i2c_config->sda_io_num,false));
+		cJSON_AddItemToArray(llist,get_gpio_entry("scl","i2c",i2c_config->scl_io_num,fixed));
+		cJSON_AddItemToArray(llist,get_gpio_entry("sda","i2c",i2c_config->sda_io_num,fixed));
 	}
 	return llist;
 }
@@ -935,7 +935,7 @@ cJSON * get_I2C_GPIO(cJSON * list){
 /****************************************************************************************
  *
  */
-cJSON * get_SPI_GPIO(cJSON * list){
+cJSON * get_SPI_GPIO(cJSON * list, bool fixed){
 	cJSON * llist = list;
 	if(!llist){
 		llist = cJSON_CreateArray();
@@ -943,13 +943,17 @@ cJSON * get_SPI_GPIO(cJSON * list){
 	spi_host_device_t spi_host;
 	const spi_bus_config_t * spi_config = config_spi_get(&spi_host);
 	
-	if(spi_config->miso_io_num>=0){
-		cJSON_AddItemToArray(llist,get_gpio_entry("data","spi",spi_config->miso_io_num,false));
-		cJSON_AddItemToArray(llist,get_gpio_entry("data","clk",spi_config->sclk_io_num,false));
+	if(spi_config ->mosi_io_num>=0){
+		cJSON_AddItemToArray(llist,get_gpio_entry("data","spi",spi_config->mosi_io_num,fixed));
+		cJSON_AddItemToArray(llist,get_gpio_entry("clk","spi",spi_config->sclk_io_num,fixed));
 	}
 	if(spi_system_dc_gpio>0){
-		cJSON_AddItemToArray(llist,get_gpio_entry("data","dc",spi_system_dc_gpio,false));
+		cJSON_AddItemToArray(llist,get_gpio_entry("dc","spi",spi_system_dc_gpio,fixed));
 	}
+	if(spi_config ->miso_io_num>=0){
+		cJSON_AddItemToArray(llist,get_gpio_entry("clk","spi",spi_config->miso_io_num,fixed));
+	}
+	
 	return llist;
 }
 
@@ -1011,26 +1015,26 @@ cJSON * get_SPDIF_GPIO(cJSON * list, bool fixed){
 /****************************************************************************************
  *
  */
-cJSON * get_Rotary_GPIO(cJSON * list){
+cJSON * get_Rotary_GPIO(cJSON * list, bool fixed){
 	cJSON * llist = list?list:cJSON_CreateArray();
 
 	const rotary_struct_t *rotary= config_rotary_get();
-	add_gpio_for_value(llist,"A",rotary->A, "rotary", false);
-	add_gpio_for_value(llist,"B",rotary->B, "rotary", false);
-	add_gpio_for_value(llist,"SW",rotary->SW, "rotary", false);
+	add_gpio_for_value(llist,"A",rotary->A, "rotary", fixed);
+	add_gpio_for_value(llist,"B",rotary->B, "rotary", fixed);
+	add_gpio_for_value(llist,"SW",rotary->SW, "rotary", fixed);
 	return llist;
 }
 
 /****************************************************************************************
  *
  */
-cJSON * get_ledvu_GPIO(cJSON * list){
+cJSON * get_ledvu_GPIO(cJSON * list, bool fixed){
 	cJSON * llist = list?list:cJSON_CreateArray();
 
 	const ledvu_struct_t *ledvu= config_ledvu_get();
-	add_gpio_for_value(llist,"gpio",ledvu->gpio, "led_vu", is_ledvu_config_locked());
+	add_gpio_for_value(llist,"gpio",ledvu->gpio, "led_vu", fixed);
 	if (ledvu->clk >= 0)
-		add_gpio_for_value(llist,"clk",ledvu->clk, "led_vu", is_ledvu_config_locked());
+		add_gpio_for_value(llist,"clk",ledvu->clk, "led_vu", fixed);
 	return llist;
 }
 
@@ -1239,12 +1243,12 @@ cJSON * get_gpio_list(bool refresh) {
 	}
 	gpio_list=get_GPIO_nvs_list(gpio_list);
 	gpio_list=get_SPDIF_GPIO(gpio_list,is_spdif_config_locked());
-	gpio_list=get_Rotary_GPIO(gpio_list);
-	gpio_list=get_Display_GPIO(gpio_list);
-	gpio_list=get_SPI_GPIO(gpio_list);
-	gpio_list=get_I2C_GPIO(gpio_list);
-	gpio_list=get_DAC_GPIO(gpio_list);
-	gpio_list=get_ledvu_GPIO(gpio_list);
+	gpio_list=get_Rotary_GPIO(gpio_list,is_rotary_config_locked());
+	gpio_list=get_Display_GPIO(gpio_list,is_display_config_locked());
+	gpio_list=get_SPI_GPIO(gpio_list,is_spi_config_locked());
+	gpio_list=get_I2C_GPIO(gpio_list,is_i2c_config_locked());
+	gpio_list=get_DAC_GPIO(gpio_list,is_dac_config_locked());
+	gpio_list=get_ledvu_GPIO(gpio_list,is_ledvu_config_locked());
 	gpio_list=get_psram_gpio_list(gpio_list);
 	gpio_list=get_eth_GPIO(gpio_list);
 	return gpio_list;
