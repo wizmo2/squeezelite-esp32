@@ -25,7 +25,7 @@ typedef enum { 	CSPOT_START, CSPOT_DISC, CSPOT_FLUSH, CSPOT_STOP, CSPOT_PLAY, CS
 				
 typedef bool (*cspot_cmd_cb_t)(cspot_event_t event, ...);				
 typedef bool (*cspot_cmd_vcb_t)(cspot_event_t event, va_list args);
-typedef void (*cspot_data_cb_t)(const uint8_t *data, size_t len);
+typedef uint32_t (*cspot_data_cb_t)(const uint8_t *data, size_t len);
 
 /**
  * @brief     init sink mode (need to be provided)

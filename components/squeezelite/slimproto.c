@@ -441,6 +441,10 @@ static void process_aude(u8_t *pkt, int len) {
 	struct aude_packet *aude = (struct aude_packet *)pkt;
 
 	LOG_DEBUG("enable spdif: %d dac: %d", aude->enable_spdif, aude->enable_dac);
+    
+#if EMBEDDED
+    powering(aude->enable_spdif),
+#endif    
 
 	LOCK_O;
 	if (!aude->enable_spdif && output.state != OUTPUT_OFF) {

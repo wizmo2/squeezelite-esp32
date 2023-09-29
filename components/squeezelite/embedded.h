@@ -71,6 +71,7 @@ int 		embedded_init(void);
 void 		register_external(void);
 void 		deregister_external(void);
 void 		decode_restore(int external);
+void        powering(bool on);
 // used when other client wants to use slimproto socket to send messages
 extern mutex_type slimp_mutex;
 #define LOCK_P   mutex_lock(slimp_mutex)

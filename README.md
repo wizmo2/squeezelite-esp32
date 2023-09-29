@@ -2,16 +2,16 @@
 # Squeezelite-esp32
 
 ## What is this?
-Squeezelite-esp32 is an audio software suite made to run on espressif's ESP32 wifi (b/g/n) and bluetooth chipset. It offers the following capabilities
+Squeezelite-esp32 is an audio software suite made to run on espressif's esp32 and esp32-s3 wifi (b/g/n) and bluetooth chipsets. It offers the following capabilities
 
 This branch is targeted at wizmo2 [taudio-case](https://github.com/wizmo2/TAudio-Case) project.  It includes some changes specifically for this device and integrations with home-assistant, plus other parrallel developments to sle118/phillippe_44s project.  The tAudio-Case project also includes other device projects, including a bluetooth watcher project and a portable squeezebox soundbar project.
 
 - Stream your local music and connect to all major on-line music providers (Spotify, Deezer, Tidal, Qobuz) using [Logitech Media Server - a.k.a LMS](https://forums.slimdevices.com/) and enjoy multi-room audio synchronization. LMS can be extended by numerous plugins and can be controlled using a Web browser or dedicated applications (iPhone, Android). It can also send audio to UPnP, Sonos, ChromeCast and AirPlay speakers/devices.
 - Stream from a **Bluetooth** device (iPhone, Android)
 - Stream from an **AirPlay** controller (iPhone, iTunes ...) and enjoy synchronization multiroom as well (although it's AirPlay 1 only)
-- Stream direcly from **Spotify** using SpotifyConnect (thanks to [cspot](https://github.com/feelfreelinux/cspot)
+- Stream directly from **Spotify** using SpotifyConnect (thanks to [cspot](https://github.com/feelfreelinux/cspot)) - please read carefully [this](#spotify)
 
-Depending on the hardware connected to the ESP32, you can send audio to a local DAC, to SPDIF or to a Bluetooth speaker. The bare minimum required hardware is a WROVER module with 4MB of Flash and 4MB of PSRAM (https://www.espressif.com/en/products/modules/esp32). With that module standalone, just apply power and you can stream to a Bluetooth speaker. You can also send audio to most I2S DAC as well as to SPDIF receivers using just a cable or an optical transducer.
+Depending on the hardware connected to the esp32, you can send audio to a local DAC, to SPDIF or to a Bluetooth speaker. The bare minimum required hardware is a WROVER module with 4MB of Flash and 4MB of PSRAM (https://www.espressif.com/en/products/modules/esp32). With that module standalone, just apply power and you can stream to a Bluetooth speaker. You can also send audio to most I2S DAC as well as to SPDIF receivers using just a cable or an optical transducer.
 
 But squeezelite-esp32 is highly extensible and you can add
 
@@ -19,12 +19,13 @@ But squeezelite-esp32 is highly extensible and you can add
 - [GPIO expander](#gpio-expanders) (buttons, led and rotary)
 - [IR receiver](#infrared) (no pullup resistor or capacitor needed, just the 38kHz receiver)
 - [Monochrome, GrayScale or Color displays](#display) using SPI or I2C (supported drivers are SH1106, SSD1306, SSD1322, SSD1326/7, SSD1351, ST7735, ST7789 and ILI9341).
-- [Ethernet](#ethernet-required-unpublished-version-43) using a Microchip LAN8720 with RMII interface or Davicom DM9051/W5500 over SPI.
+- [LED strip](#led-strip) for VU-meter 
+- [Ethernet](#ethernet) using a Microchip LAN8720 with RMII interface or Davicom DM9051/W5500 over SPI.
 
 Other features include
 
- - Resampling 
- - 10-bands equalizer
+ - Resampling (16 bits mode)
+ - 10-bands equalizer (16 bits mode)
  - Automatic initial setup using any WiFi device 
  - Full web interface for further configuration/management
  - Firmware over-the-air update 
@@ -70,7 +71,7 @@ Please note that when sending to a Bluetooth speaker (source), only 44.1 kHz can
 Most DAC will work out-of-the-box with simply an I2S connection, but some require specific commands to be sent using I2C. See DAC option below to understand how to send these dedicated commands. There is build-in support for TAS575x, TAS5780, TAS5713 and AC101 DAC.
 
 ### Raw WROOM esp32-s3 module
-The esp32-s3 based modules like [this]@(https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf) are also supported but requires esp-idf 4.4. It is not yet part of official releases, but it compiles & runs. The s3 does not have bluetooth audio. Note that CPU performances are greatly enhanced.
+The esp32-s3 based modules like [this](https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf) are also supported but requires esp-idf 4.4. It is not yet part of official releases, but it compiles & runs. The s3 does not have bluetooth audio. Note that CPU performances are greatly enhanced.
 
 ### SqueezeAMP
 This is the main hardware companion of Squeezelite-esp32 and has been developped together. Details on capabilities can be found [here](https://forums.slimdevices.com/showthread.php?110926-pre-ANNOUNCE-SqueezeAMP-and-SqueezeliteESP32) and [here](https://github.com/philippe44/SqueezeAMP).
@@ -82,6 +83,8 @@ NB: You can use the pre-build binaries SqueezeAMP4MBFlash which has all the hard
 - bat_config: `channel=7,scale=20.24`
 - dac_config: `model=TAS57xx,bck=33,ws=25,do=32,sda=27,scl=26,mute=14:0`
 - spdif_config: `bck=33,ws=25,do=15`
+
+The IR can be used as a wake-up signal using (setting `sleep_config` with `wake=0:0`). It's a pull-up so it stays at 1 when not receiving anything which means it cannot be used in conjuction with other wake-up IOs. See [Sleeping](#sleeping) for more details regarding the limitation of waking-up upon multiple inputs.
 
 ### MuseLuxe
 This portable battery-powered [speaker](https://raspiaudio.com/produit/esp-muse-luxe) is compatible with squeezelite-esp32 for which there is a dedicated build supplied with every update. If you want to rebuild, use the `squeezelite-esp32-Muse-sdkconfig.defaults` configuration file.
@@ -126,7 +129,7 @@ or
 - dac_config: `model=ES8388,bck=27,ws=25,do=26,sda=33,scl=32,i2c=16`
 
 ### T-WATCH2020 by LilyGo
-This is a fun [smartwatch](http://www.lilygo.cn/prod_view.aspx?TypeId=50036&Id=1290&FId=t3:50036:3) based on ESP32. It has a 240x240 ST7789 screen and onboard audio. Not very useful to listen to anything but it works. This is an example of a device that requires an I2C set of commands for its dac (see below). There is a build-option if you decide to rebuild everything by yourself, otherwise the I2S default option works with the following parameters
+This is a fun [smartwatch](http://www.lilygo.cn/prod_view.aspx?TypeId=50036&Id=1290&FId=t3:50036:3) based on ESP32. It has a 240x240 ST7789 screen and onboard audio. Not very useful to listen to anything but it works. This is an example of a device that requires an I2C set of commands for its DAC/APU (see below). There is a build-option if you decide to rebuild everything by yourself, otherwise the I2S default option works with the following parameters
 
 - dac_config: `model=I2S,bck=26,ws=25,do=33,i2c=53,sda=21,scl=22`
 - dac_controlset:
@@ -137,7 +140,7 @@ This is a fun [smartwatch](http://www.lilygo.cn/prod_view.aspx?TypeId=50036&Id=1
 - display_config: `SPI,driver=ST7789,width=240,height=240,cs=5,back=12,speed=16000000,HFlip,VFlip`
 
 ### ESP32-WROVER + I2S DAC
-Squeezelite-esp32 requires esp32 chipset and 4MB PSRAM. ESP32-WROVER meets these requirements. To get an audio output an I2S DAC can be used. Cheap PCM5102 I2S DACs work others may also work. PCM5012 DACs can be hooked up via:
+Squeezelite-esp32 requires esp32 chipset and 4MB PSRAM. ESP32-WROVER meets these requirements. To get an audio output an I2S DAC can be used. Cheap PCM5102 I2S DACs work but many others also do. PCM5012 DACs can be hooked up via:
 
 I2S - WROVER  
 VCC - 3.3V  
@@ -212,7 +215,7 @@ bck=<gpio>,ws=<gpio>,do=<gpio>
 ```
 NB: For named configurations, this is ignored
 
-To optimize speed, a bit-manipulation trick is used and as a result, the bit depth is limited to 20 bits, even in 32 bits mode. As said before, this is more than enough for any human ear. In theory, it could be extended up to 23 bits but I don't see the need. Now, you can also get SPDIF using a specialized chip that offers a I2S interface like a DAC but spits out SPDIF (optical and coax). Refers to DAC chapter then.
+The maximum bit depth is 24 bits, even in 32 bits mode (this a SPDIF limitation - thank @UrbanLienert for theupdate from 20 to 24 bit). Now, you can also get SPDIF using a specialized chip that offers a I2S interface like a DAC but spits out SPDIF (optical and coax). Refers to DAC chapter then.
 
 If you want coax, you can also use a poor-man's trick to generate signal from a 3.3V GPIO. All that does is dividing the 3.3V to generate a 0.6V peak-to-peak and then remove DC
 ```
@@ -228,7 +231,7 @@ Ground -------------------------- coax signal ground
 The NVS parameter "display_config" sets the parameters for an optional display. It can be I2C (see [here](#i2c) for shared bus) or SPI (see [here](#spi) for shared bus) Syntax is
 ```
 I2C,width=<pixels>,height=<pixels>[address=<i2c_address>][,reset=<gpio>][,HFlip][,VFlip][driver=SSD1306|SSD1326[:1|4]|SSD1327|SH1106]
-SPI,width=<pixels>,height=<pixels>,cs=<gpio>[,back=<gpio>][,reset=<gpio>][,speed=<speed>][,HFlip][,VFlip][driver=SSD1306|SSD1322|SSD1326[:1|4]|SSD1327|SH1106|SSD1675|ST7735[:x=<offset>][:y=<offset>]|ST7789|ILI9341[:16|18][,rotate]][,mode=<mode>]
+SPI,width=<pixels>,height=<pixels>,cs=<gpio>[,back=<gpio>][,reset=<gpio>][,speed=<speed>][,HFlip][,VFlip][driver=SSD1306|SSD1322|SSD1326[:1|4]|SSD1327|SH1106|SSD1675|ST7735|ST7789[:x=<offset>][:y=<offset>]|ILI9341[:16|18][,rotate]]
 ```
 - back: a LED backlight used by some older devices (ST7735). It is PWM controlled for brightness
 - reset: some display have a reset pin that is should normally be pulled up if unused. Most displays require reset and will not initialize well otherwise.
@@ -274,6 +277,8 @@ GPIO can be set to GND provide or Vcc at boot. This is convenient to power devic
 
 The `<amp>` parameter can use used to assign a GPIO that will be set to active level (default 1) when playback starts. It will be reset when squeezelite becomes idle. The idle timeout is set on the squeezelite command line through `-C <timeout>`
 
+The `<power>` parameter can use used to assign a GPIO that will be set to active level (default 1) when player is powered on and reset when powered off
+
 If you have an audio jack that supports insertion (use :0 or :1 to set the level when inserted), you can specify which GPIO it's connected to. Using the parameter jack_mutes_amp allows to mute the amp when headset (e.g.) is inserted.
 
 You can set the Green and Red status led as well with their respective active state (:0 or :1) or specific the chipset if you use addressable RGB led.
@@ -283,7 +288,7 @@ The `<ir>` parameter set the GPIO associated to an IR receiver. No need to add p
 Syntax is:
 
 ```
-<gpio>=Vcc|GND|amp[:1|0]|ir[:nec|rc5]|jack[:0|1]|green[:0|1|ws2812]|red[:0|1|ws2812]|spkfault[:0|1][,<repeated sequence for next GPIO>]
+<gpio>=Vcc|GND|amp[:1|0]|power[:1:0]|ir[:nec|rc5]|jack[:0|1]|green[:0|1|ws2812]|red[:0|1|ws2812]|spkfault[:0|1][,<repeated sequence for next GPIO>]
 ```
 You can define the defaults for jack, spkfault leds at compile time but nvs parameter takes precedence except for named configurations ((SqueezeAMP, Muse ...) where these are forced at runtime.
 **Note that gpio 36 and 39 are input only and cannot use interrupt. When set to jack or speaker fault, a 100ms polling checks their value but that's expensive**
@@ -309,7 +314,7 @@ model=<model>,addr=<addr>,[,port=system|dac][,base=<n>][,count=<n>][,intr=<gpio>
 Note that PWM ("led_brightness" below) is not supported for expanded GPIOs and they cannot be used for high speed or precise timing signals like CS, D/C, Reset and Ready. Buttons, rotary encoder, amplifier control and power are supported. Depending on the actual chipset, pullup or pulldown might be supported so you might have to add external resistors (only MCP23x17 does pullup). The pca8575 is not a great chip, it generate a fair bit of spurious interrupts when used for GPIO out. When using a SPI expander, the bus must be configured using shared [SPI](#SPI) bus
 
 ### LED 
-See [set_GPIO](#set-gpio) for how to set the green and red LEDs. In addition, their brightness can be controlled using the "led_brigthness" parameter. The syntax is
+See [set_GPIO](#set-gpio) for how to set the green and red LEDs (including addressable RGB ones). In addition, their brightness can be controlled using the "led_brigthness" parameter. The syntax is
 ```
 [green=0..100][,red=0..100]
 ```
@@ -407,9 +412,11 @@ ACTRLS_NONE, ACTRLS_POWER, ACTRLS_VOLUP, ACTRLS_VOLDOWN, ACTRLS_TOGGLE, ACTRLS_P
 ACTRLS_PAUSE, ACTRLS_STOP, ACTRLS_REW, ACTRLS_FWD, ACTRLS_PREV, ACTRLS_NEXT, 
 BCTRLS_UP, BCTRLS_DOWN, BCTRLS_LEFT, BCTRLS_RIGHT, 
 BCTRLS_PS1, BCTRLS_PS2, BCTRLS_PS3, BCTRLS_PS4, BCTRLS_PS5, BCTRLS_PS6, BCTRLS_PS7, BCTRLS_PS8, BCTRLS_PS9, BCTRLS_PS10,
-KNOB_LEFT, KNOB_RIGHT, KNOB_PUSH,	
+KNOB_LEFT, KNOB_RIGHT, KNOB_PUSH,
+ACTRLS_SLEEP,
 ```
-				
+Note that ACTRLS_SLEEP is not an actual button that can be sent to LMS, but it's a hook to activate deep sleep mode (see [Sleeping](#sleeping)).
+
 One you've created such a string, use it to fill a new NVS parameter with any name below 16(?) characters. You can have as many of these configs as you can. Then set the config parameter "actrls_config" with the name of your default config
 
 For example a config named "buttons" :
@@ -469,7 +476,7 @@ There is no good or bad option, it's your choice. Use the NVS parameter "lms_ctr
 	
 **Note that gpio 36 and 39 are input only and cannot use interrupt. When using them for a button, a 100ms polling is started which is expensive. Long press is also likely to not work very well**
 ### Ethernet 
-Wired ethernet is supported by esp32 with various options but squeezelite is only supporting a Microchip LAN8720 with a RMII interface like [this](https://www.aliexpress.com/item/32858432526.html) or SPI-ethernet bridges like Davicom DM9051 [that](https://www.amazon.com/dp/B08JLFWX9Z) or W5500 like [this](https://www.aliexpress.com/item/32312441357.html).
+Wired ethernet is supported by esp32 with various options but squeezeESP32 is only supporting a Microchip LAN8720 with a RMII interface like [this](https://www.aliexpress.com/item/32858432526.html) or SPI-ethernet bridges like Davicom DM9051 [that](https://www.amazon.com/dp/B08JLFWX9Z) or W5500 like [this](https://www.aliexpress.com/item/32312441357.html).
 
 **Note:** Touch buttons that can be find on some board like the LyraT V4.3 are not supported currently.
 
@@ -514,11 +521,40 @@ model=dm9051|w5500,cs=<gpio>,speed=<clk_in_Hz>,intr=<gpio>[,rst=<gpio>]
 ### Battery / ADC
 The NVS parameter "bat_config" sets the ADC1 channel used to measure battery/DC voltage. The "atten" value attenuates the input voltage to the ADC input (the read value maintains a 0-1V rage) where: 0=no attenuation(0..800mV), 1=2.5dB attenuation(0..1.1V), 2=6dB attenuation(0..1.35V), 3=11dB attenuation(0..2.6V). Scale is a float ratio applied to every sample of the 12 bits ADC. A measure is taken every 10s and an average is made every 5 minutes (not a sliding window). Syntax is
 ```
-channel=0..7,scale=<scale>,cells=<2|3>[,atten=<0|1|2|3>]
+channel=0..7,scale=<scale>,cells=<1..3>[,atten=<0|1|2|3>]
 ```
 NB: Set parameter to empty to disable battery reading. For named configurations (SqueezeAMP, Muse ...), this is ignored (except for SqueezeAMP where number of cells is required)
 
-# Configuration
+### Sleeping
+The esp32 can be put in deep sleep mode to save some power. How much really depends on the connected periperals, so best is to do your own measures. Waking-up from deep sleep is the equivalent of a reboot, but as the chip takes a few seconds to connect, it's still an efficient process.
+
+The esp32 can enter deep sleep after an audio inactivity timeout, after a button has been pressed, after a GPIO is set to a given level (there is a subtle difference, see below) or if the battery reaches a threashold. It wakes up only on some GPIO events. Note that *all* GPIO are isolated when sleeping (unless they are set with the `rtc`option) so you can not assume anything about their value, except that they will not drain current. The `rtc` option allows to keep some GPIO (from the RTC domain only) either pulled up or down. This can be useful if you want to keep some periperal active, for example a GPIO expander whose interrupt will be used to wake-up the system.
+
+The NVS parameter `sleep_config` is mostly used for setting sleep conditions
+```
+[delay=<mins>][,sleep=<gpio>[:0|1]][,wake=<gpio>[:0|1][|<gpio>[:0|1]...][,rtc=<gpio>[:0|1][|<gpio>[:0|1]...][,batt=<voltage>][,spurious=<mins>]
+```
+- delay: inactivity in **minutes** before going to sleep
+- spurious: when using IR, wake-up can be triggered by any activity on the allocated GPIO, hence other remotes may cause unwanted wake-up. This sets (in **minutes** - default is 1) an inactivity delay after which sleep resumes.
+- sleep: GPIO that will put the system into sleep and it can be a level 0 or 1.
+- wake: **list** of GPIOs that with cause it to wake up (reboot) with their respective values. In such list, GPIO's are separated by an actual '|'.
+- batt: threshold in **volts** under which the system will enter into sleep.
+
+The battery voltage is measured every 10 seconds and 30 values are averaged before producing a result. The result must be 3 times below the threshold to enter sleep, so it takes a total of 10\*30\*3 = 15 minutes.
+
+Be mindful that if the same GPIO is used to go to sleep and wakeup with the *same* level (in other word it's a transition/edge that triggers the action) the above will not work and the esp32 will immediately restart. In such case, you case use a button definition. The benefit of buttons is that not only can you re-use one actual button (e.g. 'stop') to make it the sleep trigger (using a long-press or a shift-press) but by selecting the ACTRLS_SLEEP action upon 'release', you can got to sleep upon release (1-0-1 transition) but also wake up upon another press (0 level applied on GPIO) because you only go to sleep *after* the GPIO returned to 1.
+
+Please see [buttons](#buttons) for detailed syntax.
+
+The option to use multiple GPIOs is very limited on esp32 and the esp-idf 4.3.x we are using: it is only possible to wake-up when **any** of the defined GPIO is set to 1. The fact that you can specify different levels in the wake list is irrelevant for now, it's just a provision for future upgrades to more recent versions of esp-idf.
+
+**Only the following GPIOs can be used to wake-up the esp32**
+- ESP32: 0, 2, 4, 12-15, 25-27, 32-39;
+- ESP32-S3: 0-21.
+
+Some have asked for a soft power on/off option. Although this is not built-in, it's easy to create yours as long as the regulator/power supply of the board can be controlled by Vcc or GND. Depending on how it is active, add a pull-up/down resistor to the regulator's control and connect it also to one GPIO of the esp32. Then using set_GPIO, set that GPIO to Vcc or GND. Use a hardware button that forces the regulator on with a pull- up/down and once the esp32 has booted, it will force the GPIO to the desired value maintaining the board on by software. To power it off by software, just use the deep sleep option which will suspend all GPIO hence switching off the regulator.
+
+# Software configuration
 
 ## Setup WiFi
 - Boot the esp, look for a new wifi access point showing up and connect to it. Default build ssid and passwords are "squeezelite"/"squeezelite". 
@@ -538,6 +574,15 @@ At this point, the device should have disabled its built-in access point and sho
 - click on the "start toggle" button. This will force a reboot. 
 - The toggle switch should be set to 'ON' to ensure that squeezelite is active after booting (you might have to fiddle with it a few times)
 - You can enable accessto  NVS parameters under 'credits'
+
+## Spotify
+By default, SqueezeESP32 will use ZeroConf to advertise its Spotify capabilties. This means that until at least one local Spotify Connect application controllers discovers and connects to it, SqueezeESP32 will not be registered to Spotify servers. As a consequence, Spotify's WebAPI will not be able to see it (for example, Home Assistant services will miss it). Once you are connected to it using for example Spotify Desktop app, it will be registered and displayed everywhere.
+
+If you want the player to be registered at start-up, you need to disable the ZeroConf option using the WebUI or `cspot_config::ZeroConf`. In that mode, the first time you run SqueezeESP32, it will be in ZeroConf mode and when you connect to it using a controller for the firt time, it receives and store credentials that will be used next time (after reboot). 
+
+Set ZeroConf to 1 will always force ZeroConf mode to be used. 
+
+The ZeroConf mode consumes less memory as it uses the built-in HTTP and mDNS servers to broadcast its capabilities. A Spotify controller will then discover these and trigger the SqueezeESP32 Spotify stack (cspot) to start. When the controller disconnects, the stack is shut down. In non-ZeroConf mode, the stack starts immediately (providing stored credentials are valid) and always run - a disconnect will not shut it down.
 
 ## Monitor
 In addition of the esp-idf serial link monitor option, you can also enable a telnet server (see NVS parameters) where you'll have access to a ton of logs of what's happening inside the WROVER.
@@ -564,13 +609,14 @@ For example, so use a BT speaker named MySpeaker, accept audio up to 192kHz and 
 	
 	squeezelite -o "BT -n 'BT <sinkname>'" -b 500:2000 -R -u m -Z 192000 -r "44100-44100"
 
-See squeezlite command line, but keys options are
+See squeezelite command line, but keys options are
 
 	- Z <rate> : tell LMS what is the max sample rate supported before LMS resamples
 	- R (see above)
 	- r "<minrate>-<maxrate>"
 	- C <sec> : set timeout to switch off amp gpio
 	- W : activate WAV and AIFF header parsing
+ 	- s <name>|-disable: connect to a specific server. Use -disable to not search for any server
 
  **There is a safety feature to protect against WiFi/LMS connection loss that forces a reboot every few minutes when there is no LMS server detected. In case you don't want to use LMS at all, please set the server name to "-disable" on squeezelite command line ("-s -disable")**
 
@@ -599,12 +645,11 @@ docker run -it -v `pwd`:/workspace/squeezelite-esp32 sle118/squeezelite-esp32-id
 The above command will mount this repo into the docker container and start a bash terminal. From there, simply run idf.py build to build, etc. Note that at the time of writing these lines, flashing is not possible for docker running under windows https://github.com/docker/for-win/issues/1018.
 
 ### Manual Install of ESP-IDF
-You can install IDF manually on Linux or Windows (using the Subsystem for Linux) following the instructions at: https://www.instructables.com/id/ESP32-Development-on-Windows-Subsystem-for-Linux/ or see here https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/windows-setup.html for a direct install. 
+You can install IDF manually on Linux or Windows (using the Subsystem for Linux) following the instructions at: https://www.instructables.com/id/ESP32-Development-on-Windows-Subsystem-for-Linux/ or see here https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/windows-setup.html for a direct install. You also need a few extra Python libraries for cspot by addingsudo `pip3 install protobuf grpcio-tools`
 
-**Use the esp-idf 4.3.5 https://github.com/espressif/esp-idf/tree/release/v4.3.5 **
+**Use the esp-idf 4.3.5 https://github.com/espressif/esp-idf/tree/release/v4.3.5 ** or the 4.4.5 (and above version) if you want to build for esp32-s3
 
-**For the master-v4.3 branch, Use the esp-idf release 4.3.2 as of 2022/02/28**
-## Building Squeezelite-esp32
+## Building SqueezeESP32
 When initially cloning the repo, make sure you do it recursively. For example: `git clone --recursive https://github.com/sle118/squeezelite-esp32.git`
 
 To clone the v4.3 branch with all the required components use `git clone --branch master-v4.3 --recursive https://github.com/sle118/squeezelite-esp32.git` 
@@ -639,5 +684,11 @@ If you have already cloned the repository and you are getting compile errors on 
 	- stack consumption can be very high with some codec variants, so set NONTHREADSAFE_PSEUDOSTACK and GLOBAL_STACK_SIZE=48000 and unset VAR_ARRAYS in config.h
 - libmad has been patched to avoid using a lot of stack and is not provided here. There is an issue with sync detection in 1.15.1b from where the original stack patch was done but since a few fixes have been made wrt sync detection. This 1.15.1b-10 found on debian fixes the issue where mad thinks it has reached sync but has not and so returns a wrong sample rate. It comes at the expense of 8KB (!) of code where a simple check in squeezelite/mad.c that next_frame[0] is 0xff and next_frame[1] & 0xf0 is 0xf0 does the trick ...
 
+# Hardware tips
+There is a possibility to have a software on/off where a temporary switch can power-up the esp32 which then will auto-sustain its power. Depending on the selected hardware, it a can also include a power-off by using a long press on the same button. 
+
+The auto-power is simply acheived by using `setGPIO` and forcing a GPIO to Vcc or GND and the sustain on/off requires a button creation whose longpress is an ACTRLS_SLEEP action (see also the [Sleeping](#sleeping) section). Credits [Renber78](http://github.com/Renber78) for schedmatics below
+
+![alt text](https://github.com/sle118/squeezelite-esp32/blob/7eb4b218e31aa4692c5280fbec4619f690032c4a/Soft%20Power.png)
+
 # Footnotes
-(1) SPDIF is made by tricking the I2S bus but this consumes a fair bit of CPU as it multiplies by four the throughput on the i2s bus. To optimize some computation, the parity of the spdif frames must always be 0, so at least one bit has to be available to force it. As SPDIF samples are 20+4 bits length maximum, the LSB is used for that purpose, so the bit 24 is randomly toggling. It does not matter for 16 bits samples but it has been chosen to truncate the last 4 bits for 24 bits samples. I'm sure that some smart dude can further optimize spdif_convert() and use the user bit instead. You're welcome to do a PR but, as said above, I (philippe44) am not interested by 24 bits mental illness :-) and I've already made an effort to provide 20 bits which already way more what's needed :-)

@@ -136,10 +136,8 @@ static bool cmd_handler(cspot_event_t event, ...) {
 		displayer_timer(DISPLAYER_ELAPSED, va_arg(args, int), -1);
 		break;
 	case CSPOT_TRACK_INFO: {
-		uint32_t duration = va_arg(args, int);
-        uint32_t offset = va_arg(args, int);
-		char *artist = va_arg(args, char*), *album = va_arg(args, char*), *title = va_arg(args, char*);
-		char *artwork = va_arg(args, char*);
+		uint32_t duration = va_arg(args, int), offset = va_arg(args, int);
+		char *artist = va_arg(args, char*), *album = va_arg(args, char*), *title = va_arg(args, char*), *artwork = va_arg(args, char*);
 		if (artwork && displayer_can_artwork()) {
 			ESP_LOGI(TAG, "requesting artwork %s", artwork);
 			http_download(artwork, 128*1024, got_artwork, NULL);
@@ -163,15 +161,11 @@ static bool cmd_handler(cspot_event_t event, ...) {
  */
 static void cspot_sink_start(nm_state_t state_id, int sub_state) {
     const char *hostname;
-	uint8_t mac[6];
 
 	cmd_handler_chain = cspot_cbs.cmd;
 	network_get_hostname(&hostname);
 	
-	esp_netif_get_mac(network_get_active_interface(), mac);
-	for (int i = 0; i < 6; i++) sprintf(deviceId + 2*i, "%02x", mac[i]);
-
-	ESP_LOGI(TAG, "Starting Spotify (CSpot) servicename %s with id %s", hostname, deviceId);
+	ESP_LOGI(TAG, "starting Spotify on host %s", hostname);
     
     int port;
     httpd_handle_t server = http_get_server(&port);

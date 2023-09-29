@@ -24,6 +24,7 @@
 #include "led.h"
 #include "globdefs.h"
 #include "accessors.h"
+#include "services.h"
 
 #define MAX_LED	8
 #define BLOCKTIME	10	// up to portMAX_DELAY
@@ -240,7 +241,7 @@ bool led_config(int idx, gpio_num_t gpio, int color, int bright, led_type_t type
         for (const struct rmt_led_param_s *p = rmt_led_param; !leds[idx].rmt && p->type >= 0; p++) if (p->type == type) leds[idx].rmt = p;
         if (!leds[idx].rmt) return false;
 
-        if (led_rmt_channel < 0) led_rmt_channel = rmt_system_base_channel++;
+        if (led_rmt_channel < 0) led_rmt_channel = RMT_NEXT_TX_CHANNEL();
         leds[idx].channel = led_rmt_channel;
 		leds[idx].bright = bright > 0 ? bright : 100;
 
@@ -279,11 +280,20 @@ bool led_config(int idx, gpio_num_t gpio, int color, int bright, led_type_t type
 /****************************************************************************************
  *
  */
+static void led_suspend(void) {
+    led_off(LED_GREEN);
+    led_off(LED_RED);
+}     
+
+/****************************************************************************************
+ *
+ */
 void set_led_gpio(int gpio, char *value) {
     struct led_config_s *config;
 
 	if (strcasestr(value, "green")) config = &green;
-    else config = &red;
+    else if (strcasestr(value, "red"))config = &red;
+    else return;
 
     config->gpio = gpio;
     char *p = value;
@@ -325,6 +335,9 @@ void led_svc_init(void) {
 
 	led_config(LED_GREEN, green.gpio, green.color, green.bright, green.type);
 	led_config(LED_RED, red.gpio, red.color, red.bright, red.type);
+    
+    // make sure we switch off all leds (useful for gpio expanders)
+    services_sleep_setsuspend(led_suspend);
 
 	ESP_LOGI(TAG,"Configuring LEDs green:%d (on:%d rmt:%d %d%% ), red:%d (on:%d rmt:%d %d%% )",
                  green.gpio, green.color, green.type, green.bright,
