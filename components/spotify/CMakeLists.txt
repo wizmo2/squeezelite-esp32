@@ -1,5 +1,5 @@
 # this must be set *before* idf_component_register
-if (NOT DEFINED NOCSPOT)
+if (DEFINED NOCSPOT)
 	return()
 endif()
 

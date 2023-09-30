@@ -3,6 +3,8 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 set(PROJECT_VER $ENV{PROJECT_VER})
 add_definitions(-DMODEL_NAME=SqueezeESP32)
+#add_definitions(-DNOCSPOT=Y)
+add_definitions(-DDEPTH=32)
 
 if(NOT DEFINED DEPTH)
 	set(DEPTH "16")

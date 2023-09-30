@@ -3,11 +3,10 @@ if(IDF_TARGET STREQUAL "esp32")
     set(target_requires "driver_bt")
 endif()
 
-message(STATUS "Manually Disable Spotify")
-#add_definitions(-DNOCSPOT)
-if (DEFINED $(NOCSPOT))
+if (NOT DEFINED NOCSPOT)
 	set(cspot_required "spotify")
 else()
+	message(STATUS "Manually Disable Spotify")
 	unset(CONFIG_CSPOT_SINK)
 endif()
 
