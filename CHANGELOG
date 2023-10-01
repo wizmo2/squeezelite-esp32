@@ -1,0 +1,8 @@
+2023-09-29
+- sleep mechanism
+- spotify can store credentials so that zeroconf is optional and players are always registered
+- add battery to led_vu (see credits)
+- spdif can do 24 bits (see credits)
+- rmt fixes
+- airplay & spotify artwork fixes
+- airplay stability improvments
