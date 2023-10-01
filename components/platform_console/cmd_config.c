@@ -117,6 +117,7 @@ static struct {
 	struct arg_int * length;
 	struct arg_int * gpio;
 	struct arg_int * clk;
+	struct arg_int * scale;
 	struct arg_lit * clear;
 	struct arg_end * end;
 } ledvu_args;
@@ -695,7 +696,7 @@ static int do_cspot_config(int argc, char **argv){
 #endif
 
 static int do_ledvu_cmd(int argc, char **argv){
-	ledvu_struct_t ledvu={  .type = "WS2812", .gpio = -1, .length = 0, .clk = -1};
+	ledvu_struct_t ledvu={  .type = "WS2812", .gpio = -1, .length = 0, .clk = -1, .scale = 100};
 
 	if(is_ledvu_config_locked()) {
 		cmd_send_messaging(argv[0],MESSAGING_ERROR,"LED Strip Configuration is locked on this platform\n");
@@ -741,6 +742,7 @@ static int do_ledvu_cmd(int argc, char **argv){
 			cmd_send_messaging(argv[0],MESSAGING_ERROR,"Strip length must be greater than 0 and no more than 255.\n");
 			nerrors++;
 		}
+		nerrors+=is_output_gpio(ledvu_args.scale, f, &ledvu.scale, true);
 	}
 
 	if(!nerrors ){
@@ -748,7 +750,7 @@ static int do_ledvu_cmd(int argc, char **argv){
 		nerrors+=(config_ledvu_set(&ledvu )!=ESP_OK);
 	}
 	if(!nerrors ){
-		fprintf(f,"Done. {type:%s gpio:%d length:%d clk:%d}\n", ledvu.type, ledvu.gpio, ledvu.length, ledvu.clk);
+		fprintf(f,"Done. {type:%s gpio:%d length:%d clk:%d scale:%d}\n", ledvu.type, ledvu.gpio, ledvu.length, ledvu.clk, ledvu.scale);
 	}
 	fflush (f);
 	cmd_send_messaging(argv[0],nerrors>0?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
@@ -985,6 +987,7 @@ cJSON * ledvu_cb(){
 	else {
 		cJSON_AddStringToObject(values,"type","WS2812");
 	}
+	cJSON_AddNumberToObject(values,"scale",ledvu->scale);
 	return values;
 }
 
@@ -1415,6 +1418,7 @@ void register_ledvu_config(void){
 	ledvu_args.length = arg_int1(NULL,"length","<1..255>","Strip length (1-255 supported)");
 	ledvu_args.gpio = arg_int1(NULL,"gpio","<n>","Data pin");
 	ledvu_args.clk = arg_int0(NULL,"clk","<n>","Clock pin (APA102 only)");
+	ledvu_args.scale = arg_int0(NULL,"scale","<n>","Gain scale (precent)");
 	ledvu_args.clear = arg_lit0(NULL, "clear", "Clear configuration");
 	ledvu_args.end = arg_end(4);
 

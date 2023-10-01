@@ -90,6 +90,7 @@ typedef struct {
 	int length;
 	int gpio;
 	int clk;
+	int scale;
 } ledvu_struct_t;
 
 typedef struct {
