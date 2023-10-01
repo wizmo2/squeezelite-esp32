@@ -16,6 +16,8 @@
 #include "esp_console.h"
 #include "esp_vfs_dev.h"
 #include "driver/uart.h"
+#include "driver/usb_serial_jtag.h"
+#include "esp_vfs_usb_serial_jtag.h"
 #include "linenoise/linenoise.h"
 #include "argtable3/argtable3.h"
 #include "nvs.h" 
@@ -261,10 +263,12 @@ static ssize_t stdin_read(int fd, void* data, size_t size) {
 			xQueueReceive(uart_queue, &event, 0);
 	
 			if (event.type == UART_DATA) {
+#if defined (CONFIG_ESP_CONSOLE_UART_DEFAULT)
 				bytes = uart_read_bytes(CONFIG_ESP_CONSOLE_UART_NUM, data, size < event.size ? size : event.size, 0);
 				// we have to do our own line ending translation here 
 				for (int i = 0; i < bytes; i++) if (((char*)data)[i] == '\r') ((char*)data)[i] = '\n';
 				break;
+#endif
 			}	
 		} else if (xRingbufferCanRead(stdin_redir.handle, activated)) {
 			char *p = xRingbufferReceiveUpTo(stdin_redir.handle, &bytes, 0, size);
@@ -282,6 +286,7 @@ static ssize_t stdin_read(int fd, void* data, size_t size) {
 static int stdin_dummy(const char * path, int flags, int mode) {	return 0; }
 
 void initialize_console() {
+#if defined(CONFIG_ESP_CONSOLE_UART_DEFAULT) || defined(CONFIG_ESP_CONSOLE_UART_CUSTOM)
 	/* Minicom, screen, idf_monitor send CR when ENTER key is pressed (unused if we redirect stdin) */
 	esp_vfs_dev_uart_port_set_rx_line_endings(CONFIG_ESP_CONSOLE_UART_NUM, ESP_LINE_ENDINGS_CR);
 	/* Move the caret to the beginning of the next line on '\n' */
@@ -293,6 +298,11 @@ void initialize_console() {
 	const uart_config_t uart_config = { .baud_rate = CONFIG_ESP_CONSOLE_UART_BAUDRATE, 
 			.data_bits = UART_DATA_8_BITS,
 			.parity = UART_PARITY_DISABLE, .stop_bits = UART_STOP_BITS_1,
+#if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2
+        .source_clk = UART_SCLK_REF_TICK,
+#else
+        .source_clk = UART_SCLK_XTAL,
+#endif			
 	};
 	ESP_ERROR_CHECK(uart_param_config(CONFIG_ESP_CONSOLE_UART_NUM, &uart_config));
 
@@ -301,7 +311,18 @@ void initialize_console() {
 	
 	/* Tell VFS to use UART driver */
 	esp_vfs_dev_uart_use_driver(CONFIG_ESP_CONSOLE_UART_NUM);
-		
+#elif defined(CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG)
+    esp_vfs_dev_usb_serial_jtag_set_rx_line_endings(ESP_LINE_ENDINGS_CR);
+    esp_vfs_dev_usb_serial_jtag_set_tx_line_endings(ESP_LINE_ENDINGS_CRLF);
+    const usb_serial_jtag_driver_config_t jtag_config = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
+    usb_serial_jtag_driver_install(&jtag_config);
+
+    esp_vfs_usb_serial_jtag_use_driver();
+#else
+#error Unsupported console type
+#endif
+#if defined(CONFIG_ESP_CONSOLE_UART_DEFAULT)
+	/* TODO: TELNET AND REDIRECT NOT WORKING ON S3/USB_JTAG CONFIGURATION*/
 	/* re-direct stdin to our own driver so we can gather data from various sources */
 	stdin_redir.queue_set = xQueueCreateSet(2);
 	stdin_redir.handle = xRingbufferCreateStatic(sizeof(stdin_redir._buf), RINGBUF_TYPE_BYTEBUF, stdin_redir._buf, &stdin_redir._ringbuf);
@@ -318,7 +339,7 @@ void initialize_console() {
 
 	/* Disable buffering on stdin */
 	setvbuf(stdin, NULL, _IONBF, 0);
-
+#endif
 	/* Initialize the console */
 	esp_console_config_t console_config = { .max_cmdline_args = 28,
 			.max_cmdline_length = 600,

@@ -792,6 +792,7 @@ static int light_sleep(int argc, char **argv)
     if (io_count > 0) {
         ESP_ERROR_CHECK( esp_sleep_enable_gpio_wakeup() );
     }
+#if defined (CONFIG_ESP_CONSOLE_UART_DEFAULT)
     if (CONFIG_ESP_CONSOLE_UART_NUM <= UART_NUM_1) {
     	cmd_send_messaging(argv[0],MESSAGING_INFO,  "Enabling UART wakeup (press ENTER to exit light sleep)");
         ESP_ERROR_CHECK( uart_set_wakeup_threshold(CONFIG_ESP_CONSOLE_UART_NUM, 3) );
@@ -799,6 +800,7 @@ static int light_sleep(int argc, char **argv)
     }
     fflush(stdout);
     esp_rom_uart_tx_wait_idle(CONFIG_ESP_CONSOLE_UART_NUM);
+#endif
     esp_light_sleep_start();
     esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
     const char *cause_str;
