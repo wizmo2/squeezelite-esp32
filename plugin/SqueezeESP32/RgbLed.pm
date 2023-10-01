@@ -177,21 +177,21 @@ sub setLEDVisu {
 		$cprefs->set('led_brightness', $bright);
 	}
 
+	updateLED($client);
+
 	# display name
 	my $modes  = ledVisualizerModes; 
 	my $desc = $modes->[$visu]{'desc'};
 	my $name = '';
 	for (my $j = 0; $j < scalar @$desc; $j++) {
 		$name .= ' ' if ($j > 0);
-		$name .= string(@{$desc}[$j]) || @{$desc}[$j];
+		$name .= $client->string(@{$desc}[$j]) || @{$desc}[$j];
 	}
 
 	$client->showBriefly( {
 		'line1' => $client->string('PLUGIN_SQUEEZEESP32_LED_VISUALIZER'),
-		'line2' => $client->string($name),
+		'line2' => $name,
 	});
-	
-	updateLED($client);
 }
 
 sub onNotification {
@@ -256,7 +256,7 @@ sub setLedvuBrightMode {
 			if ($bright > 0 && $bright <= 255) {
 				$prefs->client($client)->set('led_brightness', $bright);
 				updateLED($client);
-			}
+							}
 		},
 		'valueRef' => $bright,
 	});
