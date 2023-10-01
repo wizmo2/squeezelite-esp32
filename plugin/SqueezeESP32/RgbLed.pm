@@ -28,6 +28,10 @@ sub init {
 	# register led visualizer comands to allow independant update and command line controls.
 	Slim::Control::Request::addDispatch([ 'dmx', '_data', '_xoff'], [1, 0, 0, \&sendDMX]);
 	Slim::Control::Request::addDispatch([ 'led_visual', '_mode', '_bright'], [1, 0, 0, \&setLEDVisu]);
+
+	# register buttons to add menu items 
+	Slim::Buttons::Common::addMode('squeezeesp32_mode', {}, \&setMainMode);
+	Slim::Buttons::Common::addMode('squeezeesp32_ledvu_bright', {}, \&setLedvuBrightMode);
 }
 
 my $VISUALIZER_NONE = 0;
@@ -172,6 +176,20 @@ sub setLEDVisu {
 	if ($bright >= 0 && $bright < 256) {
 		$cprefs->set('led_brightness', $bright);
 	}
+
+	# display name
+	my $modes  = ledVisualizerModes; 
+	my $desc = $modes->[$visu]{'desc'};
+	my $name = '';
+	for (my $j = 0; $j < scalar @$desc; $j++) {
+		$name .= ' ' if ($j > 0);
+		$name .= string(@{$desc}[$j]) || @{$desc}[$j];
+	}
+
+	$client->showBriefly( {
+		'line1' => $client->string('PLUGIN_SQUEEZEESP32_LED_VISUALIZER'),
+		'line2' => $client->string($name),
+	});
 	
 	updateLED($client);
 }
@@ -184,6 +202,64 @@ sub onNotification {
 		next unless $player->isa('Plugins::SqueezeESP32::Player');
 		updateLED($player) if $player->hasLED;
 	}
+}
+
+sub setMainMode {
+	my $client = shift;
+	my $method = shift;
+	if ($method eq 'pop') {
+		Slim::Buttons::Common::popMode($client);
+		$client->update();
+		return;
+	}
+	
+	Slim::Buttons::Common::pushModeLeft($client, 'INPUT.Choice', {
+		'listRef'         => [ 
+			{
+				name      => string('PLUGIN_SQUEEZEESP32_LED_VISUALIZER'),
+				onPlay   => sub { Slim::Control::Request::executeRequest($client, ['led_visual']); },
+			},
+			{
+				name      => string('PLUGIN_SQUEEZEESP32_LED_BRIGHTNESS'),
+				onPlay   => sub { Slim::Buttons::Common::pushModeLeft($client, 'squeezeesp32_ledvu_bright'); },
+			},
+		],
+		'header'         => string('PLUGIN_SQUEEZEESP32'),
+		'headerAddCount' => 1,
+		'overlayRef'      => sub { return (undef, shift->symbols('rightarrow')) },
+	});
+}
+
+sub setLedvuBrightMode {
+	my $client = shift;
+	my $method = shift;
+	if ($method eq 'pop') {
+		Slim::Buttons::Common::popMode($client);
+		$client->update();
+		return;
+	}
+
+	my $bright = $prefs->client($client)->get('led_brightness');
+
+	Slim::Control::Request::executeRequest($client, ['led_visual',1,$bright]);
+	Slim::Buttons::Common::pushMode($client, 'INPUT.Bar', {
+		'header'       => 'PLUGIN_SQUEEZEESP32_LED_BRIGHTNESS',
+		'stringHeader' => 1,
+		'headerValue'  => 'unscaled',
+		'min'          => 1,
+		'max'          => 255,
+		'increment'    => 1,
+		'onChange'     => sub {
+			my ($client, $value) = @_;
+			
+			$bright = $bright + $value;
+			if ($bright > 0 && $bright <= 255) {
+				$prefs->client($client)->set('led_brightness', $bright);
+				updateLED($client);
+			}
+		},
+		'valueRef' => $bright,
+	});
 }
 
 1;

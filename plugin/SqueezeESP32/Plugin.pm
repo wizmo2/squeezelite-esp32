@@ -64,6 +64,9 @@ sub initPlugin {
 	Slim::Control::Request::subscribe( sub { onNotification(@_) }, [ ['newmetadata'] ] );
 	Slim::Control::Request::subscribe( sub { onNotification(@_) }, [ ['playlist'], ['open', 'newsong'] ]);
 	Slim::Control::Request::subscribe( \&onStopClear, [ ['playlist'], ['stop', 'clear'] ]);
+
+	# Add menu item to extras
+	Slim::Buttons::Home::addSubMenu('PLUGINS', 'PLUGIN_SQUEEZEESP32',  { 'useMode'  => 'squeezeesp32_mode', });
 }
 
 sub onStopClear {
