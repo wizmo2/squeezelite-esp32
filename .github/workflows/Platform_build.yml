@@ -34,12 +34,13 @@ jobs:
       uses: einaregilsson/build-number@v3
       with:
         token: ${{secrets.github_token}}
+
     - name: Set build flags
       id: build_flags
       run: |
         git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
-        [ ${{github.event.inputs.ui_build}} ] && ui_build_option="--ui_build" || ui_build_option="" 
-        [ ${{github.event.inputs.release_build}} ] && release_build_option="--force" || release_build_option="" 
+        [ "${{github.event.inputs.ui_build}}" == "1" ] && ui_build_option="--ui_build" || ui_build_option="" 
+        [ "${{github.event.inputs.release_build}}" == "1" ] && release_build_option="--force" || release_build_option="" 
         echo "ui_build_option=$ui_build_option" >> $GITHUB_ENV
         echo "release_build_option=$release_build_option" >> $GITHUB_ENV
         echo "Dumping environment"
@@ -49,7 +50,7 @@ jobs:
         # --mock - to mock the compilation part - this is to be used for testing only
         # --force - to force a release build even if the last commit message doesn't contain the word "release"
         # --ui_build - to force a ui_build even if the last commit message doesn't contain "[ui-build]"
-        build_tools.py build_flags $ui_build_option $release_build_option 
+        build_tools.py build_flags $ui_build_option $release_build_option
     - name: Show Build Flags        
       run: |
           echo "Running with the following options" 
