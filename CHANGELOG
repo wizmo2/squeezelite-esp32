@@ -1,3 +1,6 @@
+2023-10-02
+ - update cspot
+ 
 2023-09-29
 - sleep mechanism
 - spotify can store credentials so that zeroconf is optional and players are always registered
