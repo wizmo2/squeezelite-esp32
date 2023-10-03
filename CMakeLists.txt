@@ -3,8 +3,13 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 set(PROJECT_VER $ENV{PROJECT_VER})
 add_definitions(-DMODEL_NAME=SqueezeESP32)
-add_definitions(-DNOCSPOT=Y)
+add_definitions(-DPURE=Y)
 add_definitions(-DDEPTH=32)
+
+if (DEFINED PURE)
+    message(STATUS "*** PURE IS ENABLED ***")
+    message(STATUS "All BT, AirPlay, and CSpot must be disabled in menuconfig")
+endif()
 
 if(NOT DEFINED DEPTH)
 	set(DEPTH "16")

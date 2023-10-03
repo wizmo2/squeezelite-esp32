@@ -1,13 +1,13 @@
 # for the forgetful, REQUIRES cannot use CONFIG_XXX due to parsing order
 if(IDF_TARGET STREQUAL "esp32")
-    set(target_requires "driver_bt")
+    set(bt_requires "driver_bt")
 endif()
 
-if (NOT DEFINED NOCSPOT)
+if (NOT DEFINED PURE)
 	set(cspot_required "spotify")
+	set(airplay_required "raop")
 else()
-	message(STATUS "Manually Disable Spotify")
-	unset(CONFIG_CSPOT_SINK)
+	unset(bt_requires)	
 endif()
 
 idf_component_register( SRC_DIRS . external ac101 tas57xx wm8978
@@ -26,7 +26,8 @@ idf_component_register( SRC_DIRS . external ac101 tas57xx wm8978
 									led_strip
 									_override
 									${cspot_required}
-						 			${target_requires}                                    
+									${airplay_required}
+									${bt_requires}                                    
 						EMBED_FILES vu_s.data arrow.data
 )
 

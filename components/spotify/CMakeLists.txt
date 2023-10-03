@@ -1,5 +1,6 @@
 # this must be set *before* idf_component_register
-if (DEFINED NOCSPOT)
+if (DEFINED PURE)
+	message(STATUS "*** PURE: Skipping spotify (cspot)")
 	return()
 endif()
 

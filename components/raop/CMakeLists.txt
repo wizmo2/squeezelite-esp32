@@ -1,3 +1,7 @@
+if (DEFINED PURE)
+    message(STATUS "*** PURE: Skipping airplay (roap)")
+    return()
+endif()
 
 idf_component_register(SRC_DIRS .    
 						INCLUDE_DIRS .   
