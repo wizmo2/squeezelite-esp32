@@ -1,5 +1,5 @@
 if (DEFINED PURE)
-    message(STATUS "*** PURE: Skipping airplay (roap)")
+    message(STATUS "*** PURE: Skipping airplay (raop) ***")
     return()
 endif()
 

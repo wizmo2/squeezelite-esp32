@@ -3,11 +3,11 @@ if(IDF_TARGET STREQUAL "esp32")
     set(bt_requires "driver_bt")
 endif()
 
-if (NOT DEFINED PURE)
+if(DEFINED PURE)
+	unset(bt_requires)	
+else()
 	set(cspot_required "spotify")
 	set(airplay_required "raop")
-else()
-	unset(bt_requires)	
 endif()
 
 idf_component_register( SRC_DIRS . external ac101 tas57xx wm8978
@@ -19,7 +19,6 @@ idf_component_register( SRC_DIRS . external ac101 tas57xx wm8978
 									esp-dsp
 						  			platform_config 
 						 			services 
-									raop   
 						 			display
 						 			tools
 						 			audio
