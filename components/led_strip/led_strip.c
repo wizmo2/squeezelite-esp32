@@ -61,7 +61,6 @@
 #define LED_STRIP_RMT_TICKS_BIT_0_LOW_APA106  14 // 1.36us +/- 150ns per datasheet
 
 #define LED_STRIP_APA102_MAX_BRIGHTNESS  31
-const uint8_t LED_STRIP_APA102_SEQUENCE[7] = { 2,1,0,6,5,4,3 }; // TODO: This is for TEMBED, add as custom nvs parameter
 
 // Function pointer for generating waveforms based on different LED drivers
 typedef void (*led_fill_rmt_items_fn)(struct led_color_t *led_strip_buf, rmt_item32_t *rmt_items, uint32_t led_strip_length);
@@ -277,12 +276,13 @@ static void apa102_write(struct led_strip_t* led_strip, struct led_color_t *colo
     //  send color data
     for(uint16_t i = 0; i < led_strip->led_strip_length; i++)
     {
-        struct led_color_t *color = (struct led_color_t *)&colors[LED_STRIP_APA102_SEQUENCE[i]];
+        struct led_color_t *color = (struct led_color_t *)&colors[(i < LED_STRIP_SEQ_MAX_SIZE) ? led_strip->seq[i] : i];
         apa102_transfer(dataPin,clockPin,0b11100000 | brightness);
         apa102_transfer(dataPin,clockPin,color->blue);
         apa102_transfer(dataPin,clockPin,color->green);
         apa102_transfer(dataPin,clockPin,color->red);
     }
+
     // start frame
     apa102_transfer(dataPin,clockPin,255);
     apa102_transfer(dataPin,clockPin,255);

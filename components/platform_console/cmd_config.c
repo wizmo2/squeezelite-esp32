@@ -117,6 +117,7 @@ static struct {
 	struct arg_int * length;
 	struct arg_int * gpio;
 	struct arg_int * clk;
+	struct arg_str * seq;
 	struct arg_int * scale;
 	struct arg_lit * clear;
 	struct arg_end * end;
@@ -696,7 +697,7 @@ static int do_cspot_config(int argc, char **argv){
 #endif
 
 static int do_ledvu_cmd(int argc, char **argv){
-	ledvu_struct_t ledvu={  .type = "WS2812", .gpio = -1, .length = 0, .clk = -1, .scale = 100};
+	ledvu_struct_t ledvu={  .type = "WS2812", .gpio = -1, .length = 0, .clk = -1, .seq="", .scale = 100};
 
 	if(is_ledvu_config_locked()) {
 		cmd_send_messaging(argv[0],MESSAGING_ERROR,"LED Strip Configuration is locked on this platform\n");

@@ -806,13 +806,14 @@ const rotary_struct_t * config_rotary_get() {
  */
 const ledvu_struct_t * config_ledvu_get() {
 
-	static ledvu_struct_t ledvu={ .type = "WS2812", .gpio = -1, .length = 0, .clk = -1, .scale= 100 };
+	static ledvu_struct_t ledvu={ .type = "WS2812", .gpio = -1, .length = 0, .clk = -1, .seq="", .scale= 100 };
 	char *config = config_alloc_get_default(NVS_TYPE_STR, "led_vu_config", NULL, 0);
 	if (config && *config) {
 		PARSE_PARAM_STR(config, "type", '=', ledvu.type, 15);
 		PARSE_PARAM(config, "gpio", '=', ledvu.gpio);
 		PARSE_PARAM(config, "clk", '=', ledvu.clk);
 		PARSE_PARAM(config, "length", '=', ledvu.length);
+		PARSE_PARAM_STR(config, "seq", '=', ledvu.seq, 10);
 		PARSE_PARAM(config, "scale", '=', ledvu.scale);
 		free(config);
 	}

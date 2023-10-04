@@ -120,6 +120,16 @@ void led_vu_init()
 
         led_strip_config.rgb_led_type = RGB_LED_TYPE_APA102;
         led_strip_config.clk = strip.clk;
+
+        // initialiate and poulate sequence for specific hardware layouts
+        char seq_str[LED_STRIP_SEQ_MAX_SIZE];
+        PARSE_PARAM_STR(config, "seq", '=', seq_str, 10);
+        bool eof = false;
+        for (uint8_t i = 0; i < LED_STRIP_SEQ_MAX_SIZE; i++) {
+            uint8_t c = (uint8_t)seq_str[i];
+            if (c < 48 || c > 57) eof = true;
+            led_strip_config.seq[i] = (eof) ? i : c - 48;
+        }
     } else {
         led_strip_config.rgb_led_type = RGB_LED_TYPE_WS2812;
         led_strip_config.rmt_channel = RMT_NEXT_TX_CHANNEL();

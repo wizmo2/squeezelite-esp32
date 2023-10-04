@@ -320,9 +320,9 @@ NB: For named configuration, GPIO affected to green and red LED cannot be change
 ### LED Strip
 One LED strip with up to 255 addressable LEDs can be configured to offer enhanced visualizations.  The VU Meter visualizer includes a battery status indicator (see Battery).  Currently only WS2812B and APA102 LEDs are supported.  Set the LED Strip hardware configuration, or the NVS led_vu_config syntax is 
 ```
-type=[WS2812|APA102],length=<n>,gpio=<dataPin>,clk=<clockPin>
+type=[WS2812|APA102],length=<n>,gpio=<dataPin>,[clk=<clockPin>][,seq=<seq>]
 ```
-where <n> is the number of LEDs in the strip (1..255).  The Clock pin is required for APA102 LEDs.  
+where <n> is the number of LEDs in the strip (1..255).  The Clock pin is required for APA102 LEDs.  For APA102 LEDs, the first 10 sequence can be defined (for example, `,seq=2106543`)  
 
 The latest LMS plugin update is required to set the visualizer mode and brightness (ESP32 settings page for the player).  The plugin adds additional LMS CLI commands.
 
