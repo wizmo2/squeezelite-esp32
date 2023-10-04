@@ -24,7 +24,9 @@
 #include "driver/gpio.h"
 #include "esp_log.h"
 
-#define TAG "led_strip"
+static const char *TAG = "led_strip";
+
+#define LED_STRIP_LOOP(N) for (uint8_t _i = 0; _i < N; _i++ )
 
 #define LED_STRIP_TASK_SIZE             (1024)
 #define LED_STRIP_TASK_PRIORITY         (configMAX_PRIORITIES - 1)
@@ -268,10 +270,7 @@ static void apa102_write(struct led_strip_t* led_strip, struct led_color_t *colo
     gpio_set_level(dataPin,0);
 
     // start frame
-    apa102_transfer(dataPin,clockPin,0);
-    apa102_transfer(dataPin,clockPin,0);
-    apa102_transfer(dataPin,clockPin,0);
-    apa102_transfer(dataPin,clockPin,0);
+    LED_STRIP_LOOP(4) { apa102_transfer(dataPin,clockPin,0); }
     
     //  send color data
     for(uint16_t i = 0; i < led_strip->led_strip_length; i++)
@@ -284,11 +283,8 @@ static void apa102_write(struct led_strip_t* led_strip, struct led_color_t *colo
     }
 
     // start frame
-    apa102_transfer(dataPin,clockPin,255);
-    apa102_transfer(dataPin,clockPin,255);
-    apa102_transfer(dataPin,clockPin,255);
-    apa102_transfer(dataPin,clockPin,255);
-
+    LED_STRIP_LOOP(4) { apa102_transfer(dataPin,clockPin,255); }
+    
     // reset pins
     gpio_set_level(clockPin,0);
     gpio_set_level(dataPin,0);

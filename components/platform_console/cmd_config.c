@@ -117,7 +117,6 @@ static struct {
 	struct arg_int * length;
 	struct arg_int * gpio;
 	struct arg_int * clk;
-	struct arg_str * seq;
 	struct arg_int * scale;
 	struct arg_lit * clear;
 	struct arg_end * end;
