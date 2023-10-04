@@ -380,7 +380,7 @@ void services_init(void) {
 	ESP_LOGI(TAG,"Configuring SPI mosi:%d miso:%d clk:%d host:%u dc:%d", spi_config->mosi_io_num, spi_config->miso_io_num, spi_config->sclk_io_num, spi_system_host, spi_system_dc_gpio);
 
 	if (spi_config->mosi_io_num != -1 && spi_config->sclk_io_num != -1) {
-#ifdef (IDF_VERSION_MAJOR EQUAL 4 AND IDF_VERSION_MINOR LESS 4)
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4, 4, 0)
 		spi_bus_initialize( spi_system_host, spi_config, 1 );
 #else
         spi_bus_initialize( spi_system_host, spi_config, SPI_DMA_CH_AUTO );
