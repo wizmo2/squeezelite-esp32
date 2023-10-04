@@ -44,7 +44,7 @@ pwm_system_t pwm_system = {
 		.max = (1 << LEDC_TIMER_13_BIT),
 };
 
-static EXT_RAM_ATTR struct {
+static EXT_RAM_ATTRXT_RAM_ATTR struct {
     uint64_t wake_gpio, wake_level;
     uint64_t rtc_gpio, rtc_level;
     uint32_t delay, spurious;
@@ -111,7 +111,7 @@ static void sleep_gpio_handler(void *id, button_event_e event, button_press_e mo
  *
  */
 static void sleep_timer(uint32_t now) {
-    static EXT_RAM_ATTR uint32_t last, first;
+EXT_RAM_ATTR   static EXT_RAM_ATTR uint32_t last, first;
 
     // first chain the calls to pseudo_idle function
     if (sleep_context.idle_chain) sleep_context.idle_chain(now);
@@ -380,7 +380,11 @@ void services_init(void) {
 	ESP_LOGI(TAG,"Configuring SPI mosi:%d miso:%d clk:%d host:%u dc:%d", spi_config->mosi_io_num, spi_config->miso_io_num, spi_config->sclk_io_num, spi_system_host, spi_system_dc_gpio);
 
 	if (spi_config->mosi_io_num != -1 && spi_config->sclk_io_num != -1) {
-		spi_bus_initialize( spi_system_host, spi_config, 3 );
+#ifdef (IDF_VERSION_MAJOR EQUAL 4 AND IDF_VERSION_MINOR LESS 4)
+		spi_bus_initialize( spi_system_host, spi_config, 1 );
+#else
+        spi_bus_initialize( spi_system_host, spi_config, SPI_DMA_CH_AUTO );
+#endif
 		if (spi_system_dc_gpio != -1) {
 			gpio_reset_pin(spi_system_dc_gpio);
 			gpio_set_direction( spi_system_dc_gpio, GPIO_MODE_OUTPUT );

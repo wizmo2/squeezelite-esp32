@@ -49,7 +49,9 @@ EXT_RAM_ATTR static struct {
     #if CONFIG_BT_ENABLED
  	struct arg_lit *btspeaker;
  	#endif
+    #if CONFIG_AIRPLAY_SINK
     struct arg_lit *airplay;
+    #endif
  	struct arg_str *telnet;
 
 #if WITH_TASKS_INFO    
@@ -656,8 +658,9 @@ static int do_set_services(int argc, char **argv)
 		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.");
 		return 1;
 	}
-
+    #if CONFIG_AIRPLAY_SINK
 	nerrors += enable_disable(f,"enable_airplay",set_services_args.airplay);
+    #endif
     #if CONFIG_BT_ENABLED
 	nerrors += enable_disable(f,"enable_bt_sink",set_services_args.btspeaker);
     #endif
@@ -705,7 +708,9 @@ cJSON * set_services_cb(){
     #if CONFIG_BT_ENABLED
 	console_set_bool_parameter(values,"enable_bt_sink",set_services_args.btspeaker);
     #endif
+    #if CONFIG_AIRPLAY_SINK
     console_set_bool_parameter(values,"enable_airplay",set_services_args.airplay);
+    #endif
     #if CONFIG_CSPOT_SINK	
     console_set_bool_parameter(values,"enable_cspot",set_services_args.cspot);
     #endif
@@ -731,7 +736,9 @@ cJSON * set_services_cb(){
 }
 
 static void register_set_services(){
+    #if CONFIG_AIRPLAY_SINK
 	set_services_args.airplay = arg_lit0(NULL, "AirPlay", "AirPlay");
+    #endif
     #if CONFIG_CSPOT_SINK	
     set_services_args.cspot = arg_lit0(NULL, "cspot", "Spotify (cspot)");
     #endif

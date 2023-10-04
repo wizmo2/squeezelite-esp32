@@ -1517,15 +1517,15 @@ void register_config_cmd(void){
 #ifdef CONFIG_CSPOT_SINK	
 	register_cspot_config();
 #endif	
+#ifdef CONFIG_IDF_TARGET_ESP32
 	register_bt_source_config();
+#endif
 	if(!is_dac_config_locked()){
 		register_i2s_config();
 	}
 	if(!is_spdif_config_locked()){
 		register_spdif_config();
 	}
-    register_ledvu_config();
-
     register_optional_cmd();    
 }
 
