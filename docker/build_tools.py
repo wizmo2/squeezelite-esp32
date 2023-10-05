@@ -681,7 +681,7 @@ def handle_build_flags(args):
     github_env.mock = 1 if args.mock else 0
     github_env.release_flag = 1 if args.mock or args.force or 'release' in commit_message.lower() else 0
     github_env.ui_build = 1 if args.mock or args.ui_build or '[ui-build]' in commit_message.lower(
-    ) or github_env.release_flag == 1 else 0
+    )  else 0
     write_github_env_file(github_env,os.environ.get('GITHUB_OUTPUT'))
 
 def write_version_number(file_path:str,env_details):

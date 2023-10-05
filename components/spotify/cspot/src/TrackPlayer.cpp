@@ -13,8 +13,10 @@
 #include "WrappedSemaphore.h"  // for WrappedSemaphore
 
 #ifdef BELL_VORBIS_FLOAT
-#define VORBIS_SEEK(file, position) (ov_time_seek(file, (double)position / 1000))
-#define VORBIS_READ(file, buffer, bufferSize, section) (ov_read(file, buffer, bufferSize, 0, 2, 1, section))
+#define VORBIS_SEEK(file, position) \
+  (ov_time_seek(file, (double)position / 1000))
+#define VORBIS_READ(file, buffer, bufferSize, section) \
+  (ov_read(file, buffer, bufferSize, 0, 2, 1, section))
 #else
 #define VORBIS_SEEK(file, position) (ov_time_seek(file, position))
 #define VORBIS_READ(file, buffer, bufferSize, section) \
@@ -68,6 +70,7 @@ TrackPlayer::TrackPlayer(std::shared_ptr<cspot::Context> ctx,
 
 TrackPlayer::~TrackPlayer() {
   isRunning = false;
+  resetState();
   std::scoped_lock lock(runningMutex);
 }
 
@@ -233,8 +236,8 @@ void TrackPlayer::runTask() {
                 if (!currentSongPlaying || pendingReset)
                   break;
 
-                written =
-                    dataCallback(pcmBuffer.data() + (ret - toWrite), toWrite, track->identifier);
+                written = dataCallback(pcmBuffer.data() + (ret - toWrite),
+                                       toWrite, track->identifier);
               }
               if (written == 0) {
                 BELL_SLEEP_MS(50);
