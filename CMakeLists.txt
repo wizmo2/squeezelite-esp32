@@ -6,7 +6,7 @@ add_definitions(-DMODEL_NAME=SqueezeESP32)
 add_definitions(-DPURE=Y)
 add_definitions(-DDEPTH=32)
 
-if (DEFINED PURE)
+if (DEFINED ${PURE})
     message(STATUS "*** PURE IS ENABLED ***")
     message(STATUS "All BT, AirPlay, and CSpot must be disabled in menuconfig")
 endif()
@@ -113,7 +113,7 @@ add_custom_target(_jtag_scripts  ALL
 					COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_SOURCE_DIR}/generate_debug_scripts.cmake"
 )
 
-if(CMAKE_HOST_UNIX)
+if(CMAKE_HOST_UNIX AND NOT DEFINED ${PURE})
   # Add custom target to set executable permissions before build for cspot component
     add_custom_target(set_cspot_permissions
         COMMAND ${CMAKE_COMMAND} -E echo "************************************************************************************************"

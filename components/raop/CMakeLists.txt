@@ -1,4 +1,4 @@
-if (DEFINED PURE)
+if (DEFINED ${PURE})
     message(STATUS "*** PURE: Skipping airplay (raop) ***")
     return()
 endif()

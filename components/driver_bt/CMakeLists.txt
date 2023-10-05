@@ -1,4 +1,4 @@
-if (DEFINED PURE)
+if (DEFINED ${PURE})
     message(STATUS "*** PURE: Skipping bluetooth")
     return()
 endif()
