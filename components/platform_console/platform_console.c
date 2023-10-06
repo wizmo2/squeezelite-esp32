@@ -204,7 +204,7 @@ int arg_parse_msg(int argc, char **argv, struct arg_hdr ** args){
 }
 void process_autoexec(){
 	int i=1;
-	char autoexec_name[21]={0};
+	char autoexec_name[24]={0};
 	char * autoexec_value=NULL;
 	uint8_t autoexec_flag=0;
 
@@ -218,9 +218,14 @@ void process_autoexec(){
 	if(str_flag !=NULL ){
 		autoexec_flag=atoi(str_flag);
 		ESP_LOGI(TAG,"autoexec is set to %s auto-process", autoexec_flag>0?"perform":"skip");
-		if(autoexec_flag == 1) {
+		if(autoexec_flag >= 1) {
 			do {
-				snprintf(autoexec_name,sizeof(autoexec_name)-1,"autoexec%u",i++);
+				if (autoexec_flag == 1) {
+					snprintf(autoexec_name,sizeof(autoexec_name)-1, "autoexec%u",i++);
+				}
+				else {
+					snprintf(autoexec_name,sizeof(autoexec_name)-1, "autoexec%u_%u",i++, autoexec_flag);
+				}
 				ESP_LOGD(TAG,"Getting command name %s", autoexec_name);
 				autoexec_value= config_alloc_get(NVS_TYPE_STR, autoexec_name);
 				if(autoexec_value!=NULL ){
@@ -410,8 +415,8 @@ void console_start() {
 	"\n");
 	if(!is_recovery_running){
 		printf("To automatically execute lines at startup:\n"
-				"\tSet NVS variable autoexec (U8) = 1 to enable, 0 to disable automatic execution.\n"
-				"\tSet NVS variable autoexec[1~9] (string)to a command that should be executed automatically\n");
+				"\tSet NVS variable autoexec (U8) = [1~N] to enable command sets, 0 to disable automatic execution.\n"
+				"\tSet NVS variable autoexec[1~9][_N] (string)to a command that should be executed automatically\n");
 	}
 	printf("\n\n");
 

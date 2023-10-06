@@ -151,3 +151,20 @@ PLUGIN_SQUEEZEESP32_EQUALIZER
 PLUGIN_SQUEEZEESP32_EQUALIZER_SAVE
 	DE	Bitte speichern Sie die Equalizer Einstellungen, falls das Gerät diese dauerhaft verwenden soll. Ansonsten werden sie beim nächsten Start zurückgesetzt.
 	EN	Don't forget to save the Equalizer settings if you want them to stick. Otherwise they'll be reset next time you restart the device.
+
+
+ANALOGOUTMODE_SUBOUT
+	CS	Alternative
+	DA	Alternativ
+	DE	Alternative
+	EN	Alternative
+	ES	Alternativa
+	FI	Alternativ
+	FR	Alternative
+	HE	Alternative
+	IT	Alternativa
+	NL	Alternatief
+	NO	Alternativ
+	PL	Alternative
+	RU	Alternative
+	SV	Alternative

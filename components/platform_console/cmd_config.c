@@ -145,6 +145,7 @@ static struct {
 } spdif_args;
 static struct {
     struct arg_str *jack_behavior;	
+	struct arg_str *output_set;
    	struct arg_int *loudness;
     struct arg_end *end;
 } audio_args;
@@ -453,7 +454,7 @@ static int do_audio_cmd(int argc, char **argv){
 		fclose(f);
 		return 1;
 	}
-    
+
     err = ESP_OK; // suppress any error code that might have happened in a previous step
 
 	if(audio_args.loudness->count>0){
@@ -480,10 +481,10 @@ static int do_audio_cmd(int argc, char **argv){
 
     if(audio_args.jack_behavior->count>0){
         err = ESP_OK; // suppress any error code that might have happened in a previous step
-        if(strcasecmp(audio_args.jack_behavior->sval[0],"Headphones")==0){
+        if(strcasecmp(audio_args.jack_behavior->sval[0],"Mute")==0){
             err = config_set_value(NVS_TYPE_STR, "jack_mutes_amp", "y");
         }
-        else if(strcasecmp(audio_args.jack_behavior->sval[0],"Subwoofer")==0){
+        else if(strcasecmp(audio_args.jack_behavior->sval[0],"Always On")==0){
             err = config_set_value(NVS_TYPE_STR, "jack_mutes_amp", "n");
         }
         else {
@@ -497,6 +498,27 @@ static int do_audio_cmd(int argc, char **argv){
         }
         else {
             fprintf(f,"Audio Jack Behavior changed to %s\n",audio_args.jack_behavior->sval[0]);
+        }        
+    }
+
+	if(audio_args.output_set->count>0){
+        err = ESP_OK; // suppress any error code that might have happened in a previous step
+        if(strcasecmp(audio_args.output_set->sval[0],"Off")==0){
+            err = config_set_value(NVS_TYPE_STR, "autoexec", "0");
+        }
+        else if(strcasecmp(audio_args.output_set->sval[0],"Alternative")==0){
+            err = config_set_value(NVS_TYPE_STR, "autoexec", "2");
+        }
+		else {
+            err = config_set_value(NVS_TYPE_STR, "autoexec", "1");
+        }
+
+        if(err!=ESP_OK){
+            nerrors++;
+            fprintf(f,"Error setting Output Set %s. %s\n",audio_args.output_set->sval[0], esp_err_to_name(err));
+        }
+        else {
+            fprintf(f,"Audio Output Set changed to %s\n",audio_args.output_set->sval[0]);
         }        
     }
 
@@ -994,11 +1016,14 @@ cJSON * ledvu_cb(){
 cJSON * audio_cb(){
 	cJSON * values = cJSON_CreateObject();
 	char * 	p = config_alloc_get_default(NVS_TYPE_STR, "jack_mutes_amp", "n", 0);
-    cJSON_AddStringToObject(values,"jack_behavior",(strcmp(p,"1") == 0 ||strcasecmp(p,"y") == 0)?"Headphones":"Subwoofer");
-    FREE_AND_NULL(p);
+    cJSON_AddStringToObject(values,"jack_behavior",(strcmp(p,"1") == 0 ||strcasecmp(p,"y") == 0)?"Mute":"Always On");
+    free(p);
     p = config_alloc_get_default(NVS_TYPE_STR, "loudness", "0", 0);
     cJSON_AddStringToObject(values,"loudness",p);
-    FREE_AND_NULL(p);     
+    free(p);     
+	p = config_alloc_get_default(NVS_TYPE_STR, "autoexec", "1", 0);
+    cJSON_AddStringToObject(values,"output_set",(strcmp(p,"0") == 0)?"Off":((strcmp(p,"2") == 0)?"Alternative":"Default"));
+    FREE_AND_NULL(p);
 	return values;
 }
 cJSON * bt_source_cb(){
@@ -1072,6 +1097,7 @@ static int do_squeezelite_cmd(int argc, char **argv)
 
 cJSON * squeezelite_cb(){
 	cJSON * values = cJSON_CreateObject();
+    //TODO:  Should send data from active command (but response is currently issued directly by webpack on autoexec1 only) 
 	char * nvs_config= config_alloc_get(NVS_TYPE_STR, "autoexec1");
 	char **argv = NULL;
 	char *buf = NULL;
@@ -1434,8 +1460,9 @@ void register_ledvu_config(void){
 }
 
 void register_audio_config(void){
-	audio_args.jack_behavior = arg_str0("j", "jack_behavior","Headphones|Subwoofer","On supported DAC, determines the audio jack behavior. Selecting headphones will cause the external amp to be muted on insert, while selecting Subwoofer will keep the amp active all the time.");
+	audio_args.jack_behavior = arg_str0("j", "jack_behavior","Mute|Always On","On supported hardware, determines the audio jack behavior on the amplifier mute control.");
     audio_args.loudness = arg_int0("l", "loudness","0-10","Sets the loudness level, from 0 to 10. 0 will disable the loudness completely.");	
+    audio_args.output_set = arg_str0("o", "output_set","Off|Default|Alternative","Specified the Audio Output Mode. Use Off to disable Squeezelite.  Default for the standard autoexec set, and Alternative for set 2.");
     audio_args.end = arg_end(6);
     audio_args.end = arg_end(6);
 	const esp_console_cmd_t cmd = {
