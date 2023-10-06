@@ -39,8 +39,8 @@ jobs:
       id: build_flags
       run: |
         git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
-        [ "${{github.event.inputs.ui_build}}" == "true" ] && ui_build_option="--ui_build" || ui_build_option="" 
-        [ "${{github.event.inputs.release_build}}" == "true" ] && release_build_option="--force" || release_build_option=""
+        [ ${{github.event.inputs.ui_build}} ] && ui_build_option="--ui_build" || ui_build_option="" 
+        [ ${{github.event.inputs.release_build}}  ] && release_build_option="--force" || release_build_option=""
         echo "ui_build_option=$ui_build_option" >> "$GITHUB_OUTPUT"
         echo "release_build_option=$release_build_option" >> "$GITHUB_OUTPUT"
         echo "Dumping environment"
