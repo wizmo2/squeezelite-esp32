@@ -380,7 +380,7 @@ void services_init(void) {
 	ESP_LOGI(TAG,"Configuring SPI mosi:%d miso:%d clk:%d host:%u dc:%d", spi_config->mosi_io_num, spi_config->miso_io_num, spi_config->sclk_io_num, spi_system_host, spi_system_dc_gpio);
 
 	if (spi_config->mosi_io_num != -1 && spi_config->sclk_io_num != -1) {
-		spi_bus_initialize( spi_system_host, spi_config, 1 );
+		spi_bus_initialize( spi_system_host, spi_config, SPI_DMA_CH_AUTO );
 		if (spi_system_dc_gpio != -1) {
 			gpio_reset_pin(spi_system_dc_gpio);
 			gpio_set_direction( spi_system_dc_gpio, GPIO_MODE_OUTPUT );

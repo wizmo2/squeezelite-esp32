@@ -477,7 +477,7 @@ static int do_spiconfig_cmd(int argc, char **argv){
 
 	if(!nerrors){
 		fprintf(f,"Configuring SPI data=%d clock=%d host=%u dc: %d\n", spi_config.mosi_io_num, spi_config.sclk_io_num, host, dc);
-		err=spi_bus_initialize( host, &spi_config, 1 );
+		err=spi_bus_initialize( host, &spi_config, SPI_DMA_CH_AUTO );
 		if(err!=ESP_OK){
 			if(err==ESP_ERR_INVALID_STATE){
 				// if user is changing the host number, we need to try freeing both hosts
@@ -485,7 +485,7 @@ static int do_spiconfig_cmd(int argc, char **argv){
 					fprintf(f,"SPI bus init failed. Please clear SPI configuration, restart the device and try again. %s\n", esp_err_to_name(err));
 					nerrors++;
 				}
-				else if((err=spi_bus_initialize( host, &spi_config, 1 ))!=ESP_OK){
+				else if((err=spi_bus_initialize( host, &spi_config, SPI_DMA_CH_AUTO ))!=ESP_OK){
 					fprintf(f,"Failed to initialize SPI Bus. %s\n", esp_err_to_name(err));
 					nerrors++;
 				}

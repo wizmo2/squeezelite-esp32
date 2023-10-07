@@ -229,7 +229,6 @@ void cspotPlayer::eventHandler(std::unique_ptr<cspot::SpircHandler::Event> event
     case cspot::SpircHandler::EventType::NEXT:
     case cspot::SpircHandler::EventType::PREV:
     case cspot::SpircHandler::EventType::FLUSH: {
-        // FLUSH is sent when there is no next, just clean everything
         cmdHandler(CSPOT_FLUSH);
         break;
     }
@@ -424,7 +423,7 @@ void cspotPlayer::runTask() {
                         CSPOT_LOG(info, "last track finished");
                         trackStatus = TRACK_INIT;
                         cmdHandler(CSPOT_STOP);
-                        spirc->setPause(true);
+                        spirc->notifyAudioEnded();
                     }
                 }
                 
@@ -461,6 +460,7 @@ void cspotPlayer::runTask() {
  */
 struct cspot_s* cspot_create(const char *name, httpd_handle_t server, int port, cspot_cmd_cb_t cmd_cb, cspot_data_cb_t data_cb) {
 	bell::setDefaultLogger();
+    bell::enableTimestampLogging(true);
     player = new cspotPlayer(name, server, port, cmd_cb, data_cb);
     player->startTask();
 	return (cspot_s*) player;
