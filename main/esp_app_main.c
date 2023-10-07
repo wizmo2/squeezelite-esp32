@@ -246,6 +246,7 @@ void register_default_nvs(){
 	register_default_with_mac("ap_ssid", CONFIG_DEFAULT_AP_SSID);
 	register_default_string_val("autoexec","1");
 	register_default_with_mac("autoexec1",CONFIG_DEFAULT_COMMAND_LINE " -n " DEFAULT_HOST_NAME);	
+	register_default_with_mac("autoexec1_2",CONFIG_DEFAULT_COMMAND_2_LINE " -n " DEFAULT_HOST_NAME);	
 
 	register_default_string_val("release_url", CONFIG_SQUEEZELITE_ESP32_RELEASE_URL);
 	register_default_string_val("ap_ip_address",CONFIG_DEFAULT_AP_IP);

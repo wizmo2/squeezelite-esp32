@@ -465,9 +465,16 @@ menu "Squeezelite-ESP32"
 				channel=<0..7>,scale=<ratio_to_4096>,atten=<adc_atten>,cells=<1..3>
 	endmenu	
 	
-	config DEFAULT_COMMAND_LINE
-        string "Default command line to execute"
-        default "squeezelite -o I2S -b 500:2000 -d all=info -C 30"
-        help
-            This is the command to run when starting the device
+	menu "Command sets"
+		config DEFAULT_COMMAND_LINE
+			string "Default command line to execute"
+			default "squeezelite -o I2S -b 500:2000 -d all=info -C 30"
+			help
+				This is the command to run when starting the device
+		config DEFAULT_COMMAND_2_LINE
+			string "Alternative command line to execute"
+			default "squeezelite -o spdif -b 500:2000 -d all=info -C 30"
+			help
+				This is the command to run when starting the device in set 2
+	endmenu
 endmenu

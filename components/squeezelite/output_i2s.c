@@ -97,6 +97,7 @@ extern struct outputstate output;
 extern struct buffer *streambuf;
 extern struct buffer *outputbuf;
 extern u8_t *silencebuf;
+extern void simple_restart();
 
 const struct adac_s *dac_set[] = { &dac_tas57xx, &dac_tas5713, &dac_ac101, &dac_wm8978, NULL };
 const struct adac_s *adac = &dac_external;
@@ -143,8 +144,8 @@ static bool handler(u8_t *data, int len){
 	
 	if (!strncmp((char*) data, "audo", 4)) {
 		struct audo_packet *pkt = (struct audo_packet*) data;
-		// 0 = headphone (internal speakers off)/jack mutes amp/anaolgue, 1 = sub out/digital,
-		// 2 = always on (internal speakers on)/no mute/anaologue, 3 = always off	
+		// 0 = headphone (internal speakers off)/jack mutes amp/default set, 1 = sub out/set 2,
+		// 2 = always on (internal speakers on)/no mute, 3 = always off
 
 		if (jack_mutes_amp != (pkt->config == 0)) {
 			jack_mutes_amp = pkt->config == 0;
@@ -162,8 +163,7 @@ static bool handler(u8_t *data, int len){
 				sub_output_enabled = pkt->config == 1;
 				config_set_value(NVS_TYPE_STR, "autoexec", sub_output_enabled ? "2" : "1");		
 				
-				vTaskDelay(750 / portTICK_PERIOD_MS);
-				esp_restart();
+				simple_restart();
 			}
 		}
 		LOG_INFO("got AUDO %02x", pkt->config);
