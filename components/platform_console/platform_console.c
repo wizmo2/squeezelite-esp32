@@ -326,14 +326,14 @@ void initialize_console() {
 #else
 #error Unsupported console type
 #endif
-#if defined(CONFIG_ESP_CONSOLE_UART_DEFAULT)
 	/* TODO: TELNET AND REDIRECT NOT WORKING ON S3/USB_JTAG CONFIGURATION*/
 	/* re-direct stdin to our own driver so we can gather data from various sources */
 	stdin_redir.queue_set = xQueueCreateSet(2);
 	stdin_redir.handle = xRingbufferCreateStatic(sizeof(stdin_redir._buf), RINGBUF_TYPE_BYTEBUF, stdin_redir._buf, &stdin_redir._ringbuf);
 	xRingbufferAddToQueueSetRead(stdin_redir.handle, stdin_redir.queue_set);
+#if defined(CONFIG_ESP_CONSOLE_UART_DEFAULT)
 	xQueueAddToSet(uart_queue, stdin_redir.queue_set);
-	
+#endif
 	esp_vfs_t vfs = { };
 	vfs.flags = ESP_VFS_FLAG_DEFAULT;
 	vfs.open = stdin_dummy;
@@ -344,7 +344,6 @@ void initialize_console() {
 
 	/* Disable buffering on stdin */
 	setvbuf(stdin, NULL, _IONBF, 0);
-#endif
 	/* Initialize the console */
 	esp_console_config_t console_config = { .max_cmdline_args = 28,
 			.max_cmdline_length = 600,

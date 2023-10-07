@@ -300,7 +300,12 @@ CONFIG_I2C_CONFIG=""
 #
 # end of Battery measure
 
+#
+# Command sets
+#
 CONFIG_DEFAULT_COMMAND_LINE="squeezelite -o I2S -b 500:2000 -d all=info -C 30 -W"
+CONFIG_DEFAULT_COMMAND_2_LINE="squeezelite -o spdif  -b 500:2000 -d all=info -C 30"
+# end of Command sets
 # end of Squeezelite-ESP32
 
 #

@@ -3,11 +3,14 @@ if(IDF_TARGET STREQUAL "esp32")
     set(bt_requires "driver_bt")
 endif()
 
-if(DEFINED PURE)
-	unset(bt_requires)	
-else()
+# runs prelink with no dfinition, then with definition.
+message(STATUS "*** Squeezelite: NOPURE is ${NOPURE} ***")
+if (DEFINED NOPURE)
+    message(STATUS "*** Squeezelite: PURE is NOT defined ***")
 	set(cspot_required "spotify")
 	set(airplay_required "raop")
+else()
+	message(STATUS "*** Squeezelite: PURE is defined ***")
 endif()
 
 idf_component_register( SRC_DIRS . external ac101 tas57xx wm8978
@@ -42,6 +45,7 @@ set_source_files_properties(wm8978/wm8978.c
 
 add_definitions(-DLINKALL -DLOOPBACK -DNO_FAAD -DEMBEDDED -DTREMOR_ONLY -DCUSTOM_VERSION=${BUILD_NUMBER})
 
+message(STATUS "*** Squeezelite: DEPTH is ${DEPTH} ***")
 if (${DEPTH} EQUAL "32")
 	add_definitions(-DBYTES_PER_FRAME=8)
 else()	
