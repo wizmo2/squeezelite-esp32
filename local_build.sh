@@ -8,7 +8,7 @@ then
 fi
 if [ -z "${BUILD_NUMBER}" ]
 then
-    export BUILD_NUMBER=$(date '+%Y.%m.%d')
+    export BUILD_NUMBER="1620"
     echo "BUILD_NUMBER is not set. Defaulting to ${BUILD_NUMBER}"
 fi
 if [ -z "$DEPTH" ]
@@ -24,8 +24,9 @@ fi
 
 if [ -z "$tag" ]
 then
-    app_name="${TARGET_BUILD_NAME}.${IDF_TARGET}.${DEPTH}" 
-    echo "${app_name}-v${BUILD_NUMBER}" >version.txt
+    app_name="squeezelite-${TARGET_BUILD_NAME}.${IDF_TARGET}.${DEPTH}" 
+    version=$(date '+%Y.%m.%d')
+    echo "${app_name}-v${version}" >version.txt
     echo "app_name is not set. Defaulting to ${app_name}"
 else
     echo "${tag}" >version.txt
@@ -39,8 +40,8 @@ echo "Generating size report"
 #idf.py size-components >build/size_components.txt
 ls -l build/*.bin >"build/size_squeezelite-${DEPTH}.txt"
 
-output_zip_file="squeezelite-${app_name}.zip"
-output_bin_file="squeezelite-${app_name}.bin"
+output_zip_file="${app_name}.zip"
+output_bin_file="${app_name}.bin"
 echo "Generating merged zip file. ${output_zip_file}"
 zip build/${output_zip_file} partitions*.csv components/ build/*.bin build/bootloader/bootloader.bin build/partition_table/partition-table.bin build/flash_project_args build/size_*.txt
 echo "Generating merged file. ${output_bin_file}"
