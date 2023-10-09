@@ -1,3 +1,6 @@
+2023-10.07
+ - catchup with official cspot
+ 
 2023-10-06
  - fix cspot PREV on first track, NEXT on last track and normal ending
  - use DMA_AUTO for SPI
