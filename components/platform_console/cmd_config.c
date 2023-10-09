@@ -144,8 +144,8 @@ static struct {
     struct arg_end *end;
 } spdif_args;
 static struct {
-    struct arg_str *jack_behavior;	
 	struct arg_str *output_set;
+    struct arg_str *jack_behavior;	
    	struct arg_int *loudness;
     struct arg_end *end;
 } audio_args;
