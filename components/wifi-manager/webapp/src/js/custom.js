@@ -923,10 +923,10 @@ window.saveAutoexec1 = function (apply) {
   };
   data.config = {
     autoexec1: { value: commandLine, type: 33 },
-    autoexec: {
-      value: $('#disable-squeezelite').prop('checked') ? '0' : '1',
-      type: 33,
-    },
+    // autoexec: {
+    //   value: $('#disable-squeezelite').prop('checked') ? '0' : '1',
+    //   type: 33,
+    // },
   };
 
   $.ajax({
@@ -1215,6 +1215,28 @@ $(document).ready(function () {
       $('a[href^="#tab-commands"]').hide();
     }
   });
+
+  $('#disable-squeezelite').on('click', function () {
+    // this.checked = this.checked ? 1 : 0;
+    // $('#disable-squeezelite').prop('checked')
+    if (this.checked) {
+      // Store the current value before overwriting it
+      const currentValue = $('#cmd_opt_s').val();
+      $('#cmd_opt_s').data('originalValue', currentValue);
+    
+      // Overwrite the value with '-disable'
+      $('#cmd_opt_s').val('-disable');
+    } else {
+      // Retrieve the original value
+      const originalValue = $('#cmd_opt_s').data('originalValue');
+    
+      // Restore the original value if it exists, otherwise set it to an empty string
+      $('#cmd_opt_s').val(originalValue ? originalValue : '');
+    }
+    
+  });
+
+  
 
   $('input#show-nvs').on('click', function () {
     this.checked = this.checked ? 1 : 0;
@@ -2199,13 +2221,7 @@ function getConfig() {
       .sort()
       .forEach(function (key) {
         let val = data[key].value;
-        if (key === 'autoexec') {
-          if (data.autoexec.value === '0') {
-            $('#disable-squeezelite')[0].checked = true;
-          } else {
-            $('#disable-squeezelite')[0].checked = false;
-          }
-        } else if (key === 'autoexec1') {
+       if (key === 'autoexec1') {
           /* call new function to parse the squeezelite options */
           processSqueezeliteCommandLine(val);
         } else if (key === 'host_name') {
@@ -2294,6 +2310,7 @@ function processSqueezeliteCommandLine(val) {
       commandBTSinkName= parsed.otherOptions.btname;
     }
     handleTemplateTypeRadio('bt');
+
   }
   Object.keys(parsed.options).forEach(function (key) {
     const option = parsed.options[key];
@@ -2312,6 +2329,17 @@ function processSqueezeliteCommandLine(val) {
       $('#resample_i').prop('checked', true);
     }
   }
+  if (parsed.options.hasOwnProperty('s')) {
+    // parse -u v[:i] and check the appropriate radio button with id #resample_v
+    if(parsed.options.s === '-disable'){
+      $('#disable-squeezelite')[0].checked = true;
+    }
+    else {
+      $('#disable-squeezelite')[0].checked = false;
+    }
+  }
+
+  
 
 
 }
