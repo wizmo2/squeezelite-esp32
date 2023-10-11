@@ -270,10 +270,12 @@ static ssize_t stdin_read(int fd, void* data, size_t size) {
 			if (event.type == UART_DATA) {
 #if defined (CONFIG_ESP_CONSOLE_UART_DEFAULT)
 				bytes = uart_read_bytes(CONFIG_ESP_CONSOLE_UART_NUM, data, size < event.size ? size : event.size, 0);
+#elif defined (CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG)
+				bytes = usb_serial_jtag_read_bytes(data, size < event.size ? size : event.size, 0);
+#endif
 				// we have to do our own line ending translation here 
 				for (int i = 0; i < bytes; i++) if (((char*)data)[i] == '\r') ((char*)data)[i] = '\n';
 				break;
-#endif
 			}	
 		} else if (xRingbufferCanRead(stdin_redir.handle, activated)) {
 			char *p = xRingbufferReceiveUpTo(stdin_redir.handle, &bytes, 0, size);
