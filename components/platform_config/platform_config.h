@@ -8,25 +8,30 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#define PARSE_WITH_FUNC 1
+#ifdef PARSE_WITH_FUNC
+#define PARSE_PARAM(S,P,C,V) config_parse_param_int(S,P,C,(int*)&V)
+#define PARSE_PARAM_STR(S,P,C,V,I) config_parse_param_str(S,P,C,V,I)
+#define PARSE_PARAM_FLOAT(S,P,C,V) config_parse_param_float(S,P,C,&V)
+#else
+#define PARSE_PARAM(S,P,C,V)   do {		                      	    			\
+ 	char *__p;																	\
+ 	if ((__p = strcasestr(S, P)) && (__p = strchr(__p, C))) V = atoi(__p+1); 	\
+ } while (0)
 
-#define PARSE_PARAM(S,P,C,V) do {												\
-	char *__p;																	\
-	if ((__p = strcasestr(S, P)) && (__p = strchr(__p, C))) V = atoi(__p+1); 	\
-} while (0)
+#define PARSE_PARAM_FLOAT(S,P,C,V) do {  							            \
+ 	char *__p;																	\
+ 	if ((__p = strcasestr(S, P)) && (__p = strchr(__p, C))) V = atof(__p+1); 	\
+ } while (0)
 
-#define PARSE_PARAM_FLOAT(S,P,C,V) do {												\
-	char *__p;																	\
-	if ((__p = strcasestr(S, P)) && (__p = strchr(__p, C))) V = atof(__p+1); 	\
-} while (0)
-
-#define PARSE_PARAM_STR(S,P,C,V,I) do {						\
-	char *__p;                                              \
-	if ((__p = strstr(S, P)) && (__p = strchr(__p, C))) {	\
-		while (*++__p == ' ');								\
-		sscanf(__p,"%" #I "[^,]", V);						\
-	}   													\
-} while (0)
-
+#define PARSE_PARAM_STR(S,P,C,V,I)  do {						                \
+ 	char *__p;                                                                  \
+ 	if ((__p = strstr(S, P)) && (__p = strchr(__p, C))) {                       \
+ 		while (*++__p == ' ');							                        \
+ 		sscanf(__p,"%" #I "[^,]", V);					                        \
+ 	}   												                        \
+ } while (0)
+#endif
 #define DECLARE_SET_DEFAULT(t) void config_set_default_## t (const char *key, t  value);
 #define DECLARE_GET_NUM(t) esp_err_t config_get_## t (const char *key, t *  value);
 #ifndef FREE_RESET
@@ -50,10 +55,14 @@ bool config_has_changes();
 void config_commit_to_nvs();
 void config_start_timer();
 void config_init();
+bool config_parse_param_int(const char * config,const char * param,  char  delimiter,int * value);
+bool config_parse_param_float(const char * config,const char * param,  char  delimiter,double * value);
+bool config_parse_param_str(const char *source, const char *param, char delimiter, char *value, size_t value_size);
 void * config_alloc_get_default(nvs_type_t type, const char *key, void * default_value, size_t blob_size);
 void * config_alloc_get_str(const char *key, char *lead, char *fallback);
 cJSON * config_alloc_get_cjson(const char *key);
 esp_err_t config_set_cjson_str_and_free(const char *key, cJSON *value);
+esp_err_t config_set_cjson(const char *key, cJSON *value, bool free_cjson);
 void config_get_uint16t_from_str(const char *key, uint16_t *value, uint16_t default_value);
 void config_delete_key(const char *key);
 void config_set_default(nvs_type_t type, const char *key, void * default_value, size_t blob_size);

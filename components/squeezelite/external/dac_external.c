@@ -14,6 +14,7 @@
 #include <driver/i2s.h>
 #include "driver/i2c.h"
 #include "esp_log.h"
+#include "gpio_exp.h"
 #include "cJSON.h"
 #include "platform_config.h"
 #include "adac.h"
@@ -123,9 +124,28 @@ bool i2c_json_execute(char *set) {
 	if (!json_set) return true;
 	
 	cJSON_ArrayForEach(item, json_set) {
-		cJSON *reg = cJSON_GetObjectItemCaseSensitive(item, "reg");
+        cJSON *action;
+        
+        // is this a delay
+        if ((action = cJSON_GetObjectItemCaseSensitive(item, "delay")) != NULL) {
+            vTaskDelay(pdMS_TO_TICKS(action->valueint));
+            ESP_LOGI(TAG, "DAC waiting %d ms", action->valueint);
+            continue;
+        }
+        
+        // is this a gpio toggle
+        if ((action = cJSON_GetObjectItemCaseSensitive(item, "gpio")) != NULL) {
+            cJSON *level = cJSON_GetObjectItemCaseSensitive(item, "level");
+            ESP_LOGI(TAG, "set GPIO %d at %d", action->valueint, level->valueint);
+            gpio_set_direction_x(action->valueint, GPIO_MODE_OUTPUT);
+            gpio_set_level_x(action->valueint, level->valueint);
+            continue;
+        }
+                    
+		action= cJSON_GetObjectItemCaseSensitive(item, "reg");
 		cJSON *val = cJSON_GetObjectItemCaseSensitive(item, "val");
 		
+        // this is gpio register setting or crap
 		if (cJSON_IsArray(val)) {
 			cJSON *value;			
 			uint8_t *data = malloc(cJSON_GetArraySize(val));
@@ -137,23 +157,23 @@ bool i2c_json_execute(char *set) {
 				data[count++] = value->valueint;		
 			}
 			
-			adac_write(i2c_addr, reg->valueint, data, count);
+			adac_write(i2c_addr, action->valueint, data, count);
 			free(data);			
 		} else {
 			cJSON *mode = cJSON_GetObjectItemCaseSensitive(item, "mode");
 
-			if (!reg || !val) continue;
+			if (!action || !val) continue;
 
 			if (!mode) {
-				adac_write_byte(i2c_addr, reg->valueint, val->valueint);
+				adac_write_byte(i2c_addr, action->valueint, val->valueint);
 			} else if (!strcasecmp(mode->valuestring, "or")) {
-				uint8_t data = adac_read_byte(i2c_addr,reg->valueint);
+				uint8_t data = adac_read_byte(i2c_addr, action->valueint);
 				data |= (uint8_t) val->valueint;
-				adac_write_byte(i2c_addr, reg->valueint, data);
+				adac_write_byte(i2c_addr, action->valueint, data);
 			} else if (!strcasecmp(mode->valuestring, "and")) {
-				uint8_t data = adac_read_byte(i2c_addr, reg->valueint);
+				uint8_t data = adac_read_byte(i2c_addr, action->valueint);
 				data &= (uint8_t) val->valueint;
-				adac_write_byte(i2c_addr, reg->valueint, data);
+				adac_write_byte(i2c_addr, action->valueint, data);
 			}
 		}
 	}

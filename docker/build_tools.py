@@ -142,6 +142,10 @@ parser_commits = subparsers.add_parser("list_commits",add_help=False,
                                     description="Commits list",
                                     help="Lists the last commits"
                                     )
+parser_changelog = subparsers.add_parser("changelog",add_help=False,
+                                    description="Change Log",
+                                    help="Shows the change log"
+                                    )                                    
 
 parser_dir = subparsers.add_parser("list_files",
                                    add_help=False,
@@ -610,7 +614,25 @@ class Releases():
 
     @classmethod
     def get_commit_list_descriptions(cls) -> str:
+        # return '<<~EOD\n### Revision Log\n'+Logger.NEWLINE_CHAR.join(cls.get_commit_list())+'\n~EOD'
         return '<<~EOD\n### Revision Log\n'+Logger.NEWLINE_CHAR.join(cls.get_commit_list())+'\n~EOD'
+    @classmethod
+    def get_changelog(cls) -> str:
+        # return '<<~EOD\n### Revision Log\n'+Logger.NEWLINE_CHAR.join(cls.get_commit_list())+'\n~EOD'
+        fname = os.path.abspath('CHANGELOG')
+        folder: str = os.path.abspath(os.path.dirname(fname))
+        print(f'Opening changelog file {fname} from {folder}')
+        try:
+            with open(fname) as f:
+                content = f.read()
+                Logger.debug(f'Change Log:\n{content}')
+                return f'<<~EOD\n{content}\n~EOD'
+        except Exception as ex:
+            Logger.error(
+                f"Unable to load change log file content. Content of {folder}:{Logger.NEWLINE_CHAR.join(get_file_list(folder))}")
+            raise
+
+        return f'<<~EOD\n### Revision Log\n\n~EOD'
 
     def update(self, *args, **kwargs):
         if args:
@@ -652,14 +674,24 @@ def parse_json(filename: str):
 
 
 def write_github_env_file(values,env_file):
-    print(f'Writing content to {env_file}...')
-    with open(env_file,  "w") as env_file:
-        for attr in [attr for attr in dir(values) if not attr.startswith('_')]:
-            line = f'{attr}{"=" if attr != "description" else ""}{getattr(values,attr)}'
+    env_file_stream = None
+    if env_file is not None:
+        print(f'Writing content to {env_file}...')
+        env_file_stream = open(env_file,  "w")
+    else:
+        print(f'Writing content to console...')
+        env_file_stream = sys.stdout
+    for attr in [attr for attr in dir(values) if not attr.startswith('_')]:
+        line = f'{attr}{"=" if attr != "description" else ""}{getattr(values,attr)}'
+        if env_file is not None:
             print(line)
-            env_file.write(f'{line}\n')
-            os.environ[attr] = str(getattr(values, attr))
-    print(f'Done writing to {env_file}!')
+        env_file_stream.write(f'{line}\n')
+        os.environ[attr] = str(getattr(values, attr))
+    if env_file is not None:
+        print(f'Done writing to {env_file}!')
+        env_file_stream.close()
+    else:
+        print(f'Done Writing content to console...')
 
 
 
@@ -673,15 +705,13 @@ def format_artifact_from_manifest(manif_json: AttributeDict):
 def format_artifact_name(base_name: str = '', args=AttributeDict(os.environ)):
     return f'{base_name}{args.branch_name}-{args.node}-{args.depth}-{args.major}{args.build}'
 
-
 def handle_build_flags(args):
     set_workdir(args)
     print('Setting global build flags')
     commit_message: str = Releases.get_last_commit_message()
     github_env.mock = 1 if args.mock else 0
     github_env.release_flag = 1 if args.mock or args.force or 'release' in commit_message.lower() else 0
-    github_env.ui_build = 1 if args.mock or args.ui_build or '[ui-build]' in commit_message.lower(
-    )  else 0
+    github_env.ui_build = 1 if args.mock or args.ui_build or '[ui-build]' in commit_message.lower()  else 0
     write_github_env_file(github_env,os.environ.get('GITHUB_OUTPUT'))
 
 def write_version_number(file_path:str,env_details):
@@ -725,10 +755,9 @@ def handle_environment(args):
     github_env.artifact_file_name = f"{github_env.artifact_prefix}.zip"
     github_env.artifact_bin_file_name = f"{github_env.artifact_prefix}.bin"
     github_env.PROJECT_VER = f'{args.node}-{ args.build }'
-    github_env.description = Releases.get_commit_list_descriptions()
+    github_env.description = Releases.get_changelog()
     write_github_env_file(github_env,args.env_file)
     write_version_number("version.txt",github_env)
-
 
 def handle_artifacts(args):
     set_workdir(args)
@@ -956,6 +985,9 @@ def handle_list_files(args):
 def handle_commits(args):
     set_workdir(args)
     print(Releases.get_commit_list_descriptions())
+def handle_changelog(args):
+    set_workdir(args)
+    print(Releases.get_changelog())
 
 
 parser_environment.set_defaults(func=handle_environment, cmd='environment')
@@ -965,7 +997,7 @@ parser_show.set_defaults(func=handle_show, cmd='show')
 parser_build_flags.set_defaults(func=handle_build_flags, cmd='build_flags')
 parser_dir.set_defaults(func=handle_list_files, cmd='list_files')
 parser_commits.set_defaults(func=handle_commits,cmd='list_commits')
-
+parser_changelog.set_defaults(func=handle_changelog,cmd='changelog')
 
 def main():
     exit_result_code = 0

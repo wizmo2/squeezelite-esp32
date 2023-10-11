@@ -74,6 +74,16 @@ menu "Squeezelite-ESP32"
 				select I2C_LOCKED		
 				select TARGET_LOCKED				
 		endchoice	
+		config WITH_CONFIG_UI
+			bool "Enable config UI"
+			default n
+			help
+				Enable configuring system options with the UI
+		config WITH_METRICS
+			bool "Enable Metrics"
+			default n
+			help
+				Enable capturing and reporting anonymous metrics
 		config RELEASE_API
 			string "Software update URL"
 			default "https://api.github.com/repos/sle118/squeezelite-esp32/releases"

@@ -39,10 +39,10 @@ jobs:
       id: build_flags
       run: |
         git config --global --add safe.directory /__w/squeezelite-esp32/squeezelite-esp32   
-        [ "${{github.event.inputs.ui_build}}" == "1" ] && ui_build_option="--ui_build" || ui_build_option="" 
-        [ "${{github.event.inputs.release_build}}" == "true" ] && release_build_option="--force" || release_build_option=""
-        echo "ui_build_option=$ui_build_option" >> $GITHUB_ENV
-        echo "release_build_option=$release_build_option" >> $GITHUB_ENV
+        [ ${{github.event.inputs.ui_build}} ] && ui_build_option="--ui_build" || ui_build_option="" 
+        [ ${{github.event.inputs.release_build}}  ] && release_build_option="--force" || release_build_option=""
+        echo "ui_build_option=$ui_build_option" >> "$GITHUB_OUTPUT"
+        echo "release_build_option=$release_build_option" >> "$GITHUB_OUTPUT"
         echo "Dumping environment"
         env
         . /opt/esp/python_env/idf4.3_py3.8_env/bin/activate
@@ -197,7 +197,7 @@ jobs:
         release_name: ${{ env.name }}
         body: ${{ env.description }}
         draft: false
-        prerelease: true
+        prerelease: false
     - name: Upload Release Asset - Squeezelite binary file
       if: ${{ needs.bootstrap.outputs.release_flag == 1 && needs.bootstrap.outputs.mock == 0 }}
       id: upload-release-asset 

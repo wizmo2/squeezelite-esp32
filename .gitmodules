@@ -8,3 +8,6 @@
 [submodule "components/wifi-manager/UML-State-Machine-in-C"]
 	path = components/wifi-manager/UML-State-Machine-in-C
 	url = https://github.com/kiishor/UML-State-Machine-in-C
+[submodule "components/wifi-manager/webapp/src/bootswatch"]
+	path = components/wifi-manager/webapp/src/bootswatch
+	url = https://github.com/thomaspark/bootswatch.git
