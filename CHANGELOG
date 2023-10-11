@@ -1,5 +1,6 @@
 2023-10-11
  - Reduce the size of binaries (Fixes https://github.com/sle118/squeezelite-esp32/issues/329)
+ - [WEB] Allow running without LMS with option "Audio/Disable Squeezelite"
 
 2023-10.07
  - catchup with official cspot
