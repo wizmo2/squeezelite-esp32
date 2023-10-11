@@ -9,6 +9,10 @@
  */
  
 #pragma once
+#include "cJSON.h"
+#include "time.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -69,6 +73,9 @@ BaseType_t xTaskCreateEXTRAM( TaskFunction_t pvTaskCode,
 void vTaskDeleteEXTRAM(TaskHandle_t xTask);                            
 
 extern const char unknown_string_placeholder[];
+
+time_t millis();
+void dump_json_content(const char* prefix, cJSON* json, int level);
 
 #ifdef __cplusplus
 }

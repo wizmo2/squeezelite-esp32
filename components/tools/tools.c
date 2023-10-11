@@ -24,6 +24,7 @@
 #error CONFIG_FREERTOS_THREAD_LOCAL_STORAGE_POINTERS must be at least 2
 #endif
 
+#include "cJSON.h"
 const static char TAG[] = "tools";
 
 /****************************************************************************************
@@ -318,11 +319,30 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt) {
 			return ESP_FAIL;
 		}
 		break;
+	}
 	default:
 		break;
-	}
+	
 	}
 
 	return ESP_OK;
 }
 
+ 
+time_t millis() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+}
+
+void dump_json_content(const char* prefix, cJSON* json, int level) {
+	if (!json) {
+		ESP_LOG_LEVEL(level,TAG, "%s: empty!", prefix);
+		return;
+	}
+	char* output = cJSON_Print(json);
+	if (output) {
+		ESP_LOG_LEVEL(level,TAG, "%s: \n%s", prefix, output);
+	}
+	FREE_AND_NULL(output);
+}

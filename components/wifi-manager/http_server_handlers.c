@@ -44,7 +44,7 @@ typedef struct session_context {
     char * sess_ip_address;
     u16_t port;
 } session_context_t;
-
+extern cJSON * get_gpio_list(bool refresh);
 
 union sockaddr_aligned {
 	struct sockaddr     sa;

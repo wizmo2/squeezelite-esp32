@@ -31,6 +31,9 @@
 #include "messaging.h"				  
 #include "platform_console.h"
 #include "tools.h"
+#if defined(CONFIG_WITH_METRICS)
+#include "Metrics.h"
+#endif
 
 #ifdef CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
 #pragma message("Runtime stats enabled")
@@ -73,24 +76,42 @@ static void register_set_services();
 static void register_tasks();
 #endif
 extern BaseType_t network_manager_task;
+FILE * system_open_memstream(const char * cmdname,char **buf,size_t *buf_size){
+	FILE *f = open_memstream(buf, buf_size);
+	if (f == NULL) {
+		cmd_send_messaging(cmdname,MESSAGING_ERROR,"Unable to open memory stream.");
+	}
+    return f;
+}
 void register_system()
 {
-    register_free();
+
     register_set_services();
+    register_setdevicename();
+    register_free();
     register_heap();
     register_dump_heap();
-    register_setdevicename();
     register_version();
     register_restart();
-    register_deep_sleep();
-    register_light_sleep();
     register_factory_boot();
     register_restart_ota();
 #if WITH_TASKS_INFO
     register_tasks();
 #endif
+#if CONFIG_WITH_CONFIG_UI
+    register_deep_sleep();
+    register_light_sleep();
+#endif
 }
-
+void simple_restart()
+{
+	log_send_messaging(MESSAGING_WARNING,"Rebooting.");
+	if(!wait_for_commit()){
+		log_send_messaging(MESSAGING_WARNING,"Unable to commit configuration. ");
+	}
+	vTaskDelay(750/ portTICK_PERIOD_MS);
+    esp_restart();
+}
 /* 'version' command */
 static int get_version(int argc, char **argv)
 {
@@ -128,36 +149,23 @@ esp_err_t guided_boot(esp_partition_subtype_t partition_subtype)
 {
     if(is_recovery_running){
         if(partition_subtype ==ESP_PARTITION_SUBTYPE_APP_FACTORY){
-            log_send_messaging(MESSAGING_WARNING,"RECOVERY application is already active");
-            if(!wait_for_commit()){
-                log_send_messaging(MESSAGING_WARNING,"Unable to commit configuration. ");
-            }
-            
-            vTaskDelay(750/ portTICK_PERIOD_MS);
-            esp_restart();
-            return ESP_OK;
+            // log_send_messaging(MESSAGING_WARNING,"RECOVERY application is already active");
+            simple_restart();
         }
     }
     else {
         if(partition_subtype !=ESP_PARTITION_SUBTYPE_APP_FACTORY){
-            log_send_messaging(MESSAGING_WARNING,"SQUEEZELITE application is already active");
-            if(!wait_for_commit()){
-                log_send_messaging(MESSAGING_WARNING,"Unable to commit configuration. ");
-            }
-            
-            vTaskDelay(750/ portTICK_PERIOD_MS);
-            esp_restart();
-            return ESP_OK;
+            // log_send_messaging(MESSAGING_WARNING,"SQUEEZELITE application is already active");
+            simple_restart();
         }
     }
 	esp_err_t err = ESP_OK;
-	bool bFound=false;
-    log_send_messaging(MESSAGING_INFO, "Looking for partition type %u",partition_subtype);
+    // log_send_messaging(MESSAGING_INFO, "Looking for partition type %u",partition_subtype);
     const esp_partition_t *partition;
 	esp_partition_iterator_t it = esp_partition_find(ESP_PARTITION_TYPE_APP, partition_subtype, NULL);
 
 	if(it == NULL){
-		log_send_messaging(MESSAGING_ERROR,"Reboot failed. Cannot iterate through partitions");
+		log_send_messaging(MESSAGING_ERROR,"Reboot failed. Partitions error");
 	}
 	else
 	{
@@ -166,14 +174,10 @@ esp_err_t guided_boot(esp_partition_subtype_t partition_subtype)
 		ESP_LOGD(TAG, "Releasing partition iterator");
 		esp_partition_iterator_release(it);
 		if(partition != NULL){
-			log_send_messaging(MESSAGING_INFO, "Found application partition %s sub type %u", partition->label,partition_subtype);
+			log_send_messaging(MESSAGING_INFO, "Rebooting to %s", partition->label);
 			err=esp_ota_set_boot_partition(partition);
 			if(err!=ESP_OK){
-				bFound=false;
 				log_send_messaging(MESSAGING_ERROR,"Unable to select partition for reboot: %s",esp_err_to_name(err));
-			}
-			else{
-                bFound=true;
 			}
 		}
 		else
@@ -183,13 +187,7 @@ esp_err_t guided_boot(esp_partition_subtype_t partition_subtype)
 		}
 		ESP_LOGD(TAG, "Yielding to other processes");
 		taskYIELD();
-		if(bFound) {
-			if(!wait_for_commit()){
-				log_send_messaging(MESSAGING_WARNING,"Unable to commit configuration changes. ");
-			}
-			vTaskDelay(750/ portTICK_PERIOD_MS);
-			esp_restart();
-		}
+        simple_restart();
 	}
 
 	return ESP_OK;
@@ -197,46 +195,31 @@ esp_err_t guided_boot(esp_partition_subtype_t partition_subtype)
 
 static int restart(int argc, char **argv)
 {
-	log_send_messaging(MESSAGING_WARNING, "\n\nPerforming a simple restart to the currently active partition.");
-	if(!wait_for_commit()){
-		cmd_send_messaging(argv[0],MESSAGING_WARNING,"Unable to commit configuration. ");
-	}
-    vTaskDelay(750/ portTICK_PERIOD_MS);
-    esp_restart();
+    simple_restart();
     return 0;
 }
 
-void simple_restart()
-{
-	log_send_messaging(MESSAGING_WARNING,"System reboot requested.");
-	if(!wait_for_commit()){
-		log_send_messaging(MESSAGING_WARNING,"Unable to commit configuration. ");
-	}
 
-											   
-	vTaskDelay(750/ portTICK_PERIOD_MS);
-    esp_restart();
-}
 
 esp_err_t guided_restart_ota(){
-	log_send_messaging(MESSAGING_WARNING,"System reboot to Application requested");
+	log_send_messaging(MESSAGING_WARNING,"Booting to Squeezelite");
     guided_boot(ESP_PARTITION_SUBTYPE_APP_OTA_0);
 	return ESP_FAIL; // return fail.  This should never return... we're rebooting!
 }
 esp_err_t guided_factory(){
-	log_send_messaging(MESSAGING_WARNING,"System reboot to recovery requested");
+	log_send_messaging(MESSAGING_WARNING,"Booting to recovery");
 	guided_boot(ESP_PARTITION_SUBTYPE_APP_FACTORY);
 	return ESP_FAIL; // return fail.  This should never return... we're rebooting!
 }
 static int restart_factory(int argc, char **argv)
 {
-	cmd_send_messaging(argv[0],MESSAGING_WARNING, "Executing guided boot into recovery");
+	cmd_send_messaging(argv[0],MESSAGING_WARNING, "Booting to Recovery");
 	guided_boot(ESP_PARTITION_SUBTYPE_APP_FACTORY);
 	return 0; // return fail.  This should never return... we're rebooting!
 }
 static int restart_ota(int argc, char **argv)
 {
-	cmd_send_messaging(argv[0],MESSAGING_WARNING, "Executing guided boot into ota app 0");
+	cmd_send_messaging(argv[0],MESSAGING_WARNING, "Booting to Squeezelite");
 	guided_boot(ESP_PARTITION_SUBTYPE_APP_OTA_0);
 	return 0; // return fail.  This should never return... we're rebooting!
 }
@@ -248,7 +231,9 @@ static void register_restart()
         .hint = NULL,
         .func = &restart,
     };
+#if CONFIG_WITH_CONFIG_UI    
     cmd_to_json(&cmd);
+#endif    
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 static void register_restart_ota()
@@ -259,7 +244,9 @@ static void register_restart_ota()
         .hint = NULL,
         .func = &restart_ota,
     };
+#if CONFIG_WITH_CONFIG_UI    
     cmd_to_json(&cmd);
+#endif
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
@@ -271,7 +258,9 @@ static void register_factory_boot()
         .hint = NULL,
         .func = &restart_factory,
     };
+#if CONFIG_WITH_CONFIG_UI    
     cmd_to_json(&cmd);
+#endif
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 /** 'free' command prints available heap memory */
@@ -287,11 +276,14 @@ static void register_free()
 {
     const esp_console_cmd_t cmd = {
         .command = "free",
-        .help = "Get the current size of free heap memory",
+        .help = "Get free heap memory",
         .hint = NULL,
         .func = &free_mem,
     };
+#if CONFIG_WITH_CONFIG_UI
     cmd_to_json(&cmd);
+#endif
+
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 static int dump_heap(int argc, char **argv)
@@ -303,16 +295,16 @@ static int dump_heap(int argc, char **argv)
 /* 'heap' command prints minumum heap size */
 static int heap_size(int argc, char **argv)
 {
-    ESP_LOGI(TAG,"Heap internal:%zu (min:%zu) (largest block:%zu)\nexternal:%zu (min:%zu) (largest block:%zd)\ndma :%zu (min:%zu) (largest block:%zd)",
-						heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
-						heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL),
-						heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
-                        heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
-						heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM),
-						heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM),
-                        heap_caps_get_free_size(MALLOC_CAP_DMA),
-						heap_caps_get_minimum_free_size(MALLOC_CAP_DMA),
-						heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
+    // ESP_LOGI(TAG,"Heap internal:%zu (min:%zu) (largest block:%zu)\nexternal:%zu (min:%zu) (largest block:%zd)\ndma :%zu (min:%zu) (largest block:%zd)",
+	// 					heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+	// 					heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL),
+	// 					heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+    //                     heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+	// 					heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM),
+	// 					heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM),
+    //                     heap_caps_get_free_size(MALLOC_CAP_DMA),
+	// 					heap_caps_get_minimum_free_size(MALLOC_CAP_DMA),
+	// 					heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
     cmd_send_messaging(argv[0],MESSAGING_INFO,"Heap internal:%zu (min:%zu) (largest block:%zu)\nexternal:%zu (min:%zu) (largest block:%zd)\ndma :%zu (min:%zu) (largest block:%zd)",
 						heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
 						heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL),
@@ -457,9 +449,8 @@ static int setdevicename(int argc, char **argv)
 
 	char *buf = NULL;
 	size_t buf_size = 0;
-	FILE *f = open_memstream(&buf, &buf_size);
+	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
 	if (f == NULL) {
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.");
 		return 1;
 	}
 	nerrors+=setnamevar("a2dp_dev_name", f, name);
@@ -488,11 +479,13 @@ static void register_heap()
 {
     const esp_console_cmd_t heap_cmd = {
         .command = "heap",
-        .help = "Get minimum size of free heap memory found during execution",
+        .help = "Get minimum size of free heap memory",
         .hint = NULL,
         .func = &heap_size,
     };
+#if CONFIG_WITH_CONFIG_UI
     cmd_to_json(&heap_cmd);
+#endif    
     ESP_ERROR_CHECK( esp_console_cmd_register(&heap_cmd) );
 
 }
@@ -521,6 +514,7 @@ static void register_setdevicename()
 			.func = &setdevicename,
 			.argtable = &name_args
 	};
+
 	cmd_to_json_with_cb(&set_name,&setdevicename_cb);
 	ESP_ERROR_CHECK(esp_console_cmd_register(&set_name));
 }
@@ -618,9 +612,7 @@ static void register_deep_sleep()
 
     const esp_console_cmd_t cmd = {
         .command = "deep_sleep",
-        .help = "Enter deep sleep mode. "
-        "Two wakeup modes are supported: timer and GPIO. "
-        "If no wakeup option is specified, will sleep indefinitely.",
+        .help = "Enter deep sleep mode. ",
         .hint = NULL,
         .func = &deep_sleep,
         .argtable = &deep_sleep_args
@@ -649,9 +641,8 @@ static int do_set_services(int argc, char **argv)
     }
 	char *buf = NULL;
 	size_t buf_size = 0;
-	FILE *f = open_memstream(&buf, &buf_size);
+	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
 	if (f == NULL) {
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.");
 		return 1;
 	}
 
@@ -674,7 +665,7 @@ static int do_set_services(int argc, char **argv)
         
         if(err!=ESP_OK){
             nerrors++;
-            fprintf(f,"Error setting telnet service to %s. %s\n",set_services_args.telnet->sval[0], esp_err_to_name(err));
+            fprintf(f,"Error setting telnet to %s. %s\n",set_services_args.telnet->sval[0], esp_err_to_name(err));
         }
         else {
             fprintf(f,"Telnet service changed to %s\n",set_services_args.telnet->sval[0]);
@@ -706,7 +697,6 @@ cJSON * set_services_cb(){
     #if WITH_TASKS_INFO        
     console_set_bool_parameter(values,"stats",set_services_args.stats);
     #endif
-
 	if ((p = config_alloc_get(NVS_TYPE_STR, "telnet_enable")) != NULL) {
         if(strcasestr("YX",p)!=NULL){
 		    cJSON_AddStringToObject(values,set_services_args.telnet->hdr.longopts,"Telnet Only");
@@ -717,7 +707,9 @@ cJSON * set_services_cb(){
         else {
             cJSON_AddStringToObject(values,set_services_args.telnet->hdr.longopts,"Disabled");
         }
-
+#if defined(CONFIG_WITH_METRICS)
+        metrics_add_feature_variant("telnet",p);
+#endif
 		FREE_AND_NULL(p);
 	}
 

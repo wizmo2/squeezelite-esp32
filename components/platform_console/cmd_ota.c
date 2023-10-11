@@ -62,7 +62,7 @@ static int perform_ota_update(int argc, char **argv)
 
     const esp_console_cmd_t cmd = {
         .command = "update",
-        .help = "Updates the application binary from the provided URL",
+        .help = "Update from URL",
         .hint = NULL,
         .func = &perform_ota_update,
         .argtable = &ota_args

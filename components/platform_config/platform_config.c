@@ -634,7 +634,7 @@ cJSON * config_alloc_get_cjson(const char *key){
 	}
 	return conf_json;
 }
-esp_err_t config_set_cjson_str_and_free(const char *key, cJSON *value){
+esp_err_t config_set_cjson(const char *key, cJSON *value, bool free_cjson){
 	char * value_str = cJSON_PrintUnformatted(value);
 	if(value_str==NULL){
 		ESP_LOGE(TAG, "Unable to print cJSON for key [%s]", key);
@@ -642,8 +642,13 @@ esp_err_t config_set_cjson_str_and_free(const char *key, cJSON *value){
 	}
 	esp_err_t err = config_set_value(NVS_TYPE_STR,key, value_str);
 	free(value_str);
-	cJSON_Delete(value);
+	if(free_cjson){
+		cJSON_Delete(value);
+	}
 	return err;
+}
+esp_err_t config_set_cjson_str_and_free(const char *key, cJSON *value){
+	return config_set_cjson(key, value, true);
 }
 void config_get_uint16t_from_str(const char *key, uint16_t *value, uint16_t default_value){
 	char * str_value = config_alloc_get(NVS_TYPE_STR, key);
@@ -786,6 +791,44 @@ cJSON* cjson_update_number(cJSON** root, const char* key, int value) {
 	}
     return *root;
 }
+bool config_parse_param_int(const char * config,const char * param, char delimiter,int * value){
+	const char *p;
+	if(!value){
+		return false;
+	}	
+	if ((p = strcasestr(config, param)) && (p = strchr(p, delimiter))) {
+		*value = atoi(p+1);
+		return true;
+	}
+	return false;
+}
+bool config_parse_param_float(const char * config,const char * param, char delimiter,double * value){
+	const  char *p;
+	if(!value){
+		return false;
+	}	
+	if ((p = strcasestr(config, param)) && (p = strchr(p, delimiter))) {
+		*value = atof(p+1);
+		return true;
+	}
+	return false;
+}
+bool config_parse_param_str(const char *source, const char *param, char delimiter, char *value, size_t value_size) {
+    char *p;
+    if ((p = strstr(source, param)) && (p = strchr(p, delimiter))) {
+        while (*++p == ' ');  // Skip spaces
+        // Read the value into the buffer, making sure not to overflow
+        snprintf(value, value_size, "%s", p);
+        char *end = strchr(value, ',');
+        if (end) {
+            *end = '\0';  // Null-terminate at the comma, if found
+        }
+        return true;
+    }
+    return false;
+}
+												
+
 IMPLEMENT_SET_DEFAULT(uint8_t,NVS_TYPE_U8);
 IMPLEMENT_SET_DEFAULT(int8_t,NVS_TYPE_I8);
 IMPLEMENT_SET_DEFAULT(uint16_t,NVS_TYPE_U16);

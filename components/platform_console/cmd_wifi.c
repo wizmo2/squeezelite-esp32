@@ -37,6 +37,9 @@ extern bool bypass_network_manager;
 #define JOIN_TIMEOUT_MS (10000)
 #include "platform_console.h"
 
+// To enable wifi configuration from the command line, uncomment the line below
+// define WIFI_CMDLINE 1
+
 
 extern EventGroupHandle_t network_event_group;
 extern const int CONNECTED_BIT;
@@ -53,13 +56,6 @@ static struct {
 
 // todo: implement access point config - cmd_to_json(&i2cdetect_cmd);
 
-
-///** Arguments used by 'join' function */
-//static struct {
-//    struct arg_int *autoconnect;
-//    struct arg_end *end;
-//} auto_connect_args;
-
 static void event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data)
 {
@@ -72,27 +68,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         xEventGroupSetBits(network_event_group, CONNECTED_BIT);
     }
 }
-//bool wait_for_wifi(){
-//
-//	bool connected=(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT)!=0;
-//
-//	if(!connected){
-//		ESP_LOGD(TAG,"Waiting for WiFi...");
-//	    connected = (xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT,
-//	                                   pdFALSE, pdTRUE, JOIN_TIMEOUT_MS / portTICK_PERIOD_MS)& CONNECTED_BIT)!=0;
-//	    if(!connected){
-//	    	ESP_LOGD(TAG,"wifi timeout.");
-//	    }
-//	    else
-//	    {
-//	    	ESP_LOGI(TAG,"WiFi Connected!");
-//	    }
-//	}
-//
-//
-//    return connected;
-//
-//}
+
 static void initialise_wifi(void)
 {
     static bool initialized = false;
@@ -204,8 +180,10 @@ void register_wifi_join()
 
 void register_wifi()
 {
+    #ifdef WIFI_CMDLINE
     register_wifi_join();
     if(bypass_network_manager){
     	initialise_wifi();
     }
+    #endif
 }

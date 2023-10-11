@@ -589,6 +589,7 @@ void register_nvs()
            .func = &list_entries,
            .argtable = &list_args
        };
+
     MEMTRACE_PRINT_DELTA_MESSAGE("registering list_entries_cmd");
     ESP_ERROR_CHECK(esp_console_cmd_register(&list_entries_cmd));
     MEMTRACE_PRINT_DELTA_MESSAGE("registering set_cmd");

@@ -3,9 +3,10 @@
 #include "application_name.h"
 #include "esp_err.h"
 #include "esp_app_format.h"
-
+#include "cJSON.h"
+#include "stdbool.h"
 extern esp_err_t process_recovery_ota(const char * bin_url, char * bin_buffer, uint32_t length);
-
+extern cJSON * gpio_list;
 const __attribute__((section(".rodata_desc"))) esp_app_desc_t esp_app_desc = {
     .magic_word = ESP_APP_DESC_MAGIC_WORD,
     .version = PROJECT_VER,
@@ -26,7 +27,12 @@ const __attribute__((section(".rodata_desc"))) esp_app_desc_t esp_app_desc = {
     .date = "",
 #endif
 };
-
+cJSON * get_gpio_list(bool refresh){
+    if(!gpio_list){
+         gpio_list = cJSON_CreateArray();
+    }
+    return gpio_list;
+}
 void register_optional_cmd(void) {
 }    
 

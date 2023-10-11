@@ -27,7 +27,9 @@
 #include "platform_config.h"
 #include "telnet.h" 
 #include "tools.h"
-
+#if defined(CONFIG_WITH_METRICS)
+#include "metrics.h"
+#endif
 #include "messaging.h"
 
 #include "config.h"
@@ -85,14 +87,22 @@ cJSON * get_cmd_list(){
 }
 void console_set_bool_parameter(cJSON * root,char * nvs_name, struct arg_lit *arg){
     char * p=NULL;
-    if(!root) {
+	bool enabled = false;
+	if(!root) {
         ESP_LOGE(TAG,"Invalid json parameter. Cannot set %s from %s",arg->hdr.longopts?arg->hdr.longopts:arg->hdr.glossary,nvs_name);
         return;
     }
     if ((p = config_alloc_get(NVS_TYPE_STR, nvs_name)) != NULL) {
-        cJSON_AddBoolToObject(root,arg->hdr.longopts,strcmp(p,"1") == 0 || strcasecmp(p,"y") == 0);
+		enabled = strcmp(p,"1") == 0 || strcasecmp(p,"y") == 0;
+		cJSON_AddBoolToObject(root,arg->hdr.longopts,enabled);
         FREE_AND_NULL(p);
     }
+#if defined(CONFIG_WITH_METRICS)	
+	if(enabled){
+		metrics_add_feature(nvs_name,"enabled");
+	}
+#endif
+	
 }
 struct arg_end *getParmsEnd(struct arg_hdr * * argtable){
 	if(!argtable) return NULL;
@@ -360,8 +370,6 @@ void console_start() {
 	register_system();
 	MEMTRACE_PRINT_DELTA_MESSAGE("Registering config commands");
 	register_config_cmd();
-	MEMTRACE_PRINT_DELTA_MESSAGE("Registering nvs commands");
-	register_nvs();
 	MEMTRACE_PRINT_DELTA_MESSAGE("Registering wifi commands");
 	register_wifi();
 

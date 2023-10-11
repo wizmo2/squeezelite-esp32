@@ -73,6 +73,7 @@ typedef struct {
 	gpio_with_level_t green;
 	gpio_with_level_t red;
 	gpio_with_level_t spkfault;	
+	gpio_with_level_t power;	
 } set_GPIO_struct_t;
 
 typedef struct {
@@ -117,7 +118,7 @@ bool 						is_spdif_config_locked();
 esp_err_t 					free_gpio_entry( gpio_entry_t ** gpio);
 gpio_entry_t * 				get_gpio_by_name(char * name,char * group, bool refresh);
 gpio_entry_t * 				get_gpio_by_no(int gpionum, bool refresh);
-cJSON * 					get_gpio_list(bool refresh);
+
 bool 						is_dac_config_locked();
 bool 						are_statistics_enabled();
 const rotary_struct_t * 	config_rotary_get();

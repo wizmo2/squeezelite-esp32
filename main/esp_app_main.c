@@ -47,6 +47,9 @@
 #include "accessors.h"
 #include "cmd_system.h"
 #include "tools.h"
+#if defined(CONFIG_WITH_METRICS)
+#include "Metrics.h"
+#endif
 
 const char unknown_string_placeholder[] = "unknown";
 const char null_string_placeholder[] = "null";
@@ -68,7 +71,68 @@ bool cold_boot=true;
 extern const char _ctype_[];
 const char* __ctype_ptr__ = _ctype_;
 #endif
+typedef struct {
+    const char *key;
+    const char *value;
+} DefaultStringVal;
+typedef struct {
+    const char *key;
+    unsigned int uint_value;
+    bool is_signed;
+} DefaultNumVal;
 
+const DefaultNumVal defaultNumVals[] = {
+    {"ota_erase_blk", OTA_FLASH_ERASE_BLOCK, 0},
+    {"ota_stack", OTA_STACK_SIZE, 0},
+    {"ota_prio", OTA_TASK_PRIOTITY, 1}
+};
+const DefaultStringVal defaultStringVals[] = {
+    {"equalizer", ""},
+    {"loudness", "0"},
+    {"actrls_config", ""},
+    {"lms_ctrls_raw", "n"},
+    {"rotary_config", CONFIG_ROTARY_ENCODER},
+    {"display_config", CONFIG_DISPLAY_CONFIG},
+    {"eth_config", CONFIG_ETH_CONFIG},
+    {"i2c_config", CONFIG_I2C_CONFIG},
+    {"spi_config", CONFIG_SPI_CONFIG},
+    {"set_GPIO", CONFIG_SET_GPIO},
+    {"sleep_config", ""},
+    {"led_brightness", ""},
+    {"spdif_config", ""},
+    {"dac_config", ""},
+    {"dac_controlset", ""},
+    {"jack_mutes_amp", "n"},
+    {"gpio_exp_config", CONFIG_GPIO_EXP_CONFIG},
+    {"bat_config", ""},
+    {"metadata_config", ""},
+    {"telnet_enable", ""},
+    {"telnet_buffer", "40000"},
+    {"telnet_block", "500"},
+    {"stats", "n"},
+    {"rel_api", CONFIG_RELEASE_API},
+    {"pollmx", "600"},
+    {"pollmin", "15"},
+    {"ethtmout", "8"},
+    {"dhcp_tmout", "8"},
+    {"target", CONFIG_TARGET},
+    {"led_vu_config", ""},
+#ifdef CONFIG_BT_SINK
+    {"bt_sink_pin", STR(CONFIG_BT_SINK_PIN)},
+    {"bt_sink_volume", "127"},
+    // Note: register_default_with_mac("bt_name", CONFIG_BT_NAME); is a special case
+    {"enable_bt_sink", STR(CONFIG_BT_SINK)},
+    {"a2dp_dev_name", CONFIG_A2DP_DEV_NAME},
+    {"a2dp_ctmt", STR(CONFIG_A2DP_CONNECT_TIMEOUT_MS)},
+    {"a2dp_ctrld", STR(CONFIG_A2DP_CONTROL_DELAY_MS)},
+    {"a2dp_sink_name", CONFIG_A2DP_SINK_NAME},
+	{"autoexec", "1"},
+#ifdef CONFIG_AIRPLAY_SINK
+	{"airplay_port", CONFIG_AIRPLAY_PORT},
+	{"enable_airplay", STR(CONFIG_AIRPLAY_SINK)}
+#endif
+#endif	
+};
 static bool bNetworkConnected=false;
 
 // as an exception _init function don't need include
@@ -80,7 +144,9 @@ extern void target_init(char *target);
 const char * str_or_unknown(const char * str) { return (str?str:unknown_string_placeholder); }
 const char * str_or_null(const char * str) { return (str?str:null_string_placeholder); }
 bool is_recovery_running;
-
+bool is_network_connected(){
+	return bNetworkConnected;
+}
 void cb_connection_got_ip(nm_state_t new_state, int sub_state){
 	const char *hostname;
 	static ip4_addr_t ip;
@@ -163,7 +229,7 @@ void set_log_level(char * tag, char * level){
 }
 
 #define DEFAULT_NAME_WITH_MAC(var,defval) char var[strlen(defval)+sizeof(macStr)]; strcpy(var,defval); strcat(var,macStr)
-void register_default_string_val(const char * key, char * value){
+void register_default_string_val(const char * key, const char * value){
 	char * existing =(char *)config_alloc_get(NVS_TYPE_STR,key );
 	ESP_LOGD(TAG,"Register default called with:  %s= %s",key,value );
 	if(!existing) {
@@ -175,7 +241,15 @@ void register_default_string_val(const char * key, char * value){
 	}
 	FREE_AND_NULL(existing);
 }
-
+void register_single_default_num_val(const DefaultNumVal *entry) {
+    char number_buffer[101] = {};
+    if (entry->is_signed) {
+        snprintf(number_buffer, sizeof(number_buffer) - 1, "%d", entry->uint_value);
+    } else {
+        snprintf(number_buffer, sizeof(number_buffer) - 1, "%u", entry->uint_value);
+    }
+    register_default_string_val(entry->key, number_buffer);
+}
 char * alloc_get_string_with_mac(const char * val) {
     uint8_t mac[6];
     char macStr[LOCAL_MAC_SIZE + 1];
@@ -188,7 +262,7 @@ char * alloc_get_string_with_mac(const char * val) {
 		strcat(fullvalue, macStr);
 	}
 	else {
-		ESP_LOGE(TAG,"Memory allocation failed when getting mac value for %s", val);
+		ESP_LOGE(TAG,"malloc failed for value %s", val);
 	}
 	return fullvalue;	
 	
@@ -200,7 +274,7 @@ void register_default_with_mac(const char* key,  char* defval) {
 		FREE_AND_NULL(fullvalue);
 	}
 	else {
-		ESP_LOGE(TAG,"Memory allocation failed when registering default value for %s", key);
+		ESP_LOGE(TAG,"malloc failed for value %s", key);
 	}
 }
 
@@ -227,70 +301,20 @@ void register_default_nvs(){
 	
 #ifdef CONFIG_AIRPLAY_SINK
 	register_default_with_mac("airplay_name", CONFIG_AIRPLAY_NAME);
-	register_default_string_val("airplay_port", CONFIG_AIRPLAY_PORT);
-	register_default_string_val( "enable_airplay", STR(CONFIG_AIRPLAY_SINK));
 #endif
-
 #ifdef CONFIG_BT_SINK
-	register_default_string_val( "bt_sink_pin", STR(CONFIG_BT_SINK_PIN));
-	register_default_string_val( "bt_sink_volume", "127");
 	register_default_with_mac("bt_name", CONFIG_BT_NAME);
-	register_default_string_val( "enable_bt_sink", STR(CONFIG_BT_SINK));
-	register_default_string_val("a2dp_dev_name", CONFIG_A2DP_DEV_NAME);
-	register_default_string_val("a2dp_ctmt", STR(CONFIG_A2DP_CONNECT_TIMEOUT_MS));
-	register_default_string_val("a2dp_ctrld", STR(CONFIG_A2DP_CONTROL_DELAY_MS));
-	register_default_string_val("a2dp_sink_name", CONFIG_A2DP_SINK_NAME);
 #endif
-	
 	register_default_with_mac("host_name", DEFAULT_HOST_NAME);
 	register_default_with_mac("ap_ssid", CONFIG_DEFAULT_AP_SSID);
-	register_default_string_val("autoexec","1");
 	register_default_with_mac("autoexec1",CONFIG_DEFAULT_COMMAND_LINE " -n " DEFAULT_HOST_NAME);	
+    for (int i = 0; i < sizeof(defaultStringVals) / sizeof(DefaultStringVal); ++i) {
+        register_default_string_val(defaultStringVals[i].key, defaultStringVals[i].value);
+    }
+	for (int i = 0; i < sizeof(defaultNumVals) / sizeof(DefaultNumVal); ++i) {
+        register_single_default_num_val(&defaultNumVals[i]);
+    }
 
-	register_default_string_val("release_url", CONFIG_SQUEEZELITE_ESP32_RELEASE_URL);
-	register_default_string_val("ap_ip_address",CONFIG_DEFAULT_AP_IP);
-	register_default_string_val("ap_ip_gateway",CONFIG_DEFAULT_AP_GATEWAY );
-	register_default_string_val("ap_ip_netmask",CONFIG_DEFAULT_AP_NETMASK);
-	register_default_string_val("ap_channel",STR(CONFIG_DEFAULT_AP_CHANNEL));
-	register_default_string_val("ap_pwd", CONFIG_DEFAULT_AP_PASSWORD);
-	register_default_string_val("bypass_wm", "0");
-	register_default_string_val("equalizer", "");
-    register_default_string_val("loudness", "0");
-	register_default_string_val("actrls_config", "");	
-	register_default_string_val("lms_ctrls_raw", "n");	
-	register_default_string_val("rotary_config", CONFIG_ROTARY_ENCODER);
-	char number_buffer[101] = {};
-	snprintf(number_buffer,sizeof(number_buffer)-1,"%u",OTA_FLASH_ERASE_BLOCK);
-	register_default_string_val( "ota_erase_blk", number_buffer);
-	snprintf(number_buffer,sizeof(number_buffer)-1,"%u",OTA_STACK_SIZE);
-	register_default_string_val( "ota_stack", number_buffer);
-	snprintf(number_buffer,sizeof(number_buffer)-1,"%d",OTA_TASK_PRIOTITY);
-	register_default_string_val( "ota_prio", number_buffer);
-	register_default_string_val( "display_config", CONFIG_DISPLAY_CONFIG);
-	register_default_string_val( "eth_config", CONFIG_ETH_CONFIG);
-	register_default_string_val( "i2c_config", CONFIG_I2C_CONFIG);
-	register_default_string_val( "spi_config", CONFIG_SPI_CONFIG);
-	register_default_string_val( "set_GPIO", CONFIG_SET_GPIO);
-	register_default_string_val( "sleep_config", "");    
-	register_default_string_val( "led_brightness", "");
-	register_default_string_val( "spdif_config", "");
-	register_default_string_val( "dac_config", "");
-	register_default_string_val( "dac_controlset", "");
-	register_default_string_val( "jack_mutes_amp", "n");
-	register_default_string_val("gpio_exp_config", CONFIG_GPIO_EXP_CONFIG);
-	register_default_string_val( "bat_config", "");
-	register_default_string_val( "metadata_config", "");
-	register_default_string_val( "telnet_enable", "");
-	register_default_string_val( "telnet_buffer", "40000");
-	register_default_string_val( "telnet_block", "500");
-	register_default_string_val( "stats", "n");
-	register_default_string_val( "rel_api", CONFIG_RELEASE_API);
-	register_default_string_val("pollmx","600");
-    register_default_string_val("pollmin","15");
-    register_default_string_val("ethtmout","8");
-    register_default_string_val("dhcp_tmout","8");
-	register_default_string_val("target", CONFIG_TARGET);
-    register_default_string_val("led_vu_config", "");
 	wait_for_commit();
 	ESP_LOGD(TAG,"Done setting default values in nvs.");
 }
@@ -303,7 +327,7 @@ uint32_t halSTORAGE_RebootCounterUpdate(int32_t xValue) {
 	}
 	RebootCounter = (xValue != 0) ? (RebootCounter + xValue) : 0;
 	RecoveryRebootCounter  = (xValue != 0) && is_recovery_running ? (RecoveryRebootCounter + xValue) : 0;
-	return (RebootCounter) ; 
+	return RebootCounter ; 
 	}
 
 void handle_ap_connect(nm_state_t new_state, int sub_state){
@@ -356,11 +380,17 @@ void app_main()
 		}	
 	}
 
+
 	char * fwurl = NULL;
 	MEMTRACE_PRINT_DELTA();
 	ESP_LOGI(TAG,"Starting app_main");
 	initialize_nvs();
 	MEMTRACE_PRINT_DELTA();
+#if defined(CONFIG_WITH_METRICS)
+	ESP_LOGI(TAG,"Setting up metrics.");
+	metrics_init();	
+	MEMTRACE_PRINT_DELTA();
+#endif
 	ESP_LOGI(TAG,"Setting up telnet.");
 	init_telnet(); // align on 32 bits boundaries
 	MEMTRACE_PRINT_DELTA();
@@ -371,7 +401,6 @@ void app_main()
 	network_event_group = xEventGroupCreate();
 	ESP_LOGD(TAG,"Clearing CONNECTED_BIT from wifi group");
 	xEventGroupClearBits(network_event_group, CONNECTED_BIT);
-
 	ESP_LOGI(TAG,"Registering default values");
 	register_default_nvs();
 	MEMTRACE_PRINT_DELTA();
@@ -399,7 +428,10 @@ void app_main()
 			led_vu_color_yellow(LED_VU_BRIGHT);
 		}
 	}
-
+	#if defined(CONFIG_WITH_METRICS)
+	metrics_event_boot(is_recovery_running?"recovery":"ota");
+	#endif
+	
 	ESP_LOGD(TAG,"Getting firmware OTA URL (if any)");
 	fwurl = process_ota_url();
 
@@ -457,6 +489,9 @@ void app_main()
 				taskYIELD();
 			}
 			ESP_LOGI(TAG,"Updating firmware from link: %s",fwurl);
+			#if defined(CONFIG_WITH_METRICS)
+			metrics_event("fw_update");
+			#endif
 			start_ota(fwurl, NULL, 0);
 		}
 		else {
