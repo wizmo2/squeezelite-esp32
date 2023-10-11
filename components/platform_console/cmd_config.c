@@ -1545,15 +1545,12 @@ void dummy_register_cmd(){
 	
 }
 void register_config_cmd(void){
-	if(!is_dac_config_locked()){
-	 	 register_known_templates_config();	
-	}
-
 #ifdef CONFIG_CSPOT_SINK	
 	register_cspot_config();
 #endif	
 #ifdef CONFIG_IDF_TARGET_ESP32
 	register_bt_source_config();
+#endif
 #if CONFIG_WITH_CONFIG_UI	
 	if(!is_dac_config_locked()){
 		register_i2s_config();
