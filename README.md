@@ -2,6 +2,9 @@
 # Squeezelite-esp32
 
 ## What is this?
+
+**The PURE build excludes Cspot, AirPlay, and BT (sink) modes.  NOTE: New generation ESP32S3 do not support BT output (source).** 
+
 Squeezelite-esp32 is an audio software suite made to run on espressif's esp32 and esp32-s3 wifi (b/g/n) and bluetooth chipsets. It offers the following capabilities
 
 - Stream your local music and connect to all major on-line music providers (Spotify, Deezer, Tidal, Qobuz) using [Logitech Media Server - a.k.a LMS](https://forums.slimdevices.com/) and enjoy multi-room audio synchronization. LMS can be extended by numerous plugins and can be controlled using a Web browser or dedicated applications (iPhone, Android). It can also send audio to UPnP, Sonos, ChromeCast and AirPlay speakers/devices.
