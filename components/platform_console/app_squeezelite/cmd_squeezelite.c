@@ -43,12 +43,25 @@ const __attribute__((section(".rodata_desc"))) esp_app_desc_t esp_app_desc = {
 extern void register_audio_config(void);
 extern void register_rotary_config(void);
 extern void register_ledvu_config(void);
-
+extern void register_nvs();
+extern cJSON * get_gpio_list_handler(bool refresh);
 void register_optional_cmd(void) {
+#if CONFIG_WITH_CONFIG_UI	
     register_rotary_config();
-	register_ledvu_config();
+#endif
     register_audio_config();
-}    
+	register_ledvu_config();
+	register_nvs();
+
+}
+cJSON * get_gpio_list(bool refresh){
+#if CONFIG_WITH_CONFIG_UI		
+	return get_gpio_list_handler(refresh);
+#else
+	return cJSON_CreateArray();
+#endif
+}
+
 
 extern int squeezelite_main(int argc, char **argv);
 

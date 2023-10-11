@@ -1,6 +1,7 @@
 [![Platform Build](https://github.com/sle118/squeezelite-esp32/actions/workflows/Platform_build.yml/badge.svg)](https://github.com/sle118/squeezelite-esp32/actions/workflows/Platform_build.yml)
 # Squeezelite-esp32
-
+## Forewords
+**More and more people seems to use this without a LMS server, just for BT, AirPlay or Spotify. It's fine but understand that squeezeliteESP32 is primarily a Logitech Media Server player and has been designed around that concept. All the others are add-ons stitched to it, so other modes have their shortcomings. So please make sure you read [this](#Additional-configuration-notes-from-the-Web-UI) before opening an issue**
 ## What is this?
 Squeezelite-esp32 is an audio software suite made to run on espressif's esp32 and esp32-s3 wifi (b/g/n) and bluetooth chipsets. It offers the following capabilities
 

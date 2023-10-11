@@ -47,6 +47,7 @@ cJSON * gpio_list=NULL;
 	#define STR(macro)  QUOTE(macro)
 #endif
 
+extern cJSON * get_gpio_list(bool refresh);
 bool are_statistics_enabled(){
 #if defined(CONFIG_FREERTOS_USE_TRACE_FACILITY) &&  defined (CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS)
 	return true;
@@ -592,7 +593,7 @@ const gpio_exp_config_t* config_gpio_exp_get(int index) {
 	PARSE_PARAM(item, "intr", '=', config.intr);
 	PARSE_PARAM(item, "base", '=', config.base);
 	PARSE_PARAM(item, "count", '=', config.count);
-	PARSE_PARAM_STR(item, "model", '=', config.model, 31);
+	PARSE_PARAM_STR(item, "model", '=', config.model, sizeof(config.model)-1);
 
 	if ((p = strcasestr(item, "port")) != NULL) {
 		char port[8] = "";
@@ -647,6 +648,12 @@ const set_GPIO_struct_t * get_gpio_struct(){
 #ifdef CONFIG_LED_RED_GPIO
 		gpio_struct.red.gpio = CONFIG_LED_RED_GPIO;
 #endif	
+#if  defined(CONFIG_POWER_GPIO) && CONFIG_POWER_GPIO != -1
+		gpio_struct.power.gpio = CONFIG_POWER_GPIO;
+#endif	
+#ifdef CONFIG_POWER_GPIO_LEVEL
+		gpio_struct.power.level = CONFIG_POWER_GPIO_LEVEL;
+#endif	
 	if(nvs_item){
 		HANDLE_GPIO_STRUCT_MEMBER(amp,false);
 #ifndef CONFIG_LED_LOCKED
@@ -658,6 +665,7 @@ const set_GPIO_struct_t * get_gpio_struct(){
 		HANDLE_GPIO_STRUCT_MEMBER(vcc,false);
 		HANDLE_GPIO_STRUCT_MEMBER(gnd,false);
 		HANDLE_GPIO_STRUCT_MEMBER(ir,false);
+		HANDLE_GPIO_STRUCT_MEMBER(power,false);
 		free(nvs_item);
 	}
 
@@ -823,6 +831,7 @@ cJSON * get_GPIO_nvs_list(cJSON * list) {
 	ADD_GPIO_STRUCT_MEMBER_TO_ARRAY(ilist,gpios,jack,"other");
 	ADD_GPIO_STRUCT_MEMBER_TO_ARRAY(ilist,gpios,green,"other");
 	ADD_GPIO_STRUCT_MEMBER_TO_ARRAY(ilist,gpios,red,"other");
+	ADD_GPIO_STRUCT_MEMBER_TO_ARRAY(ilist,gpios,power,"other");
 	ADD_GPIO_STRUCT_MEMBER_TO_ARRAY(ilist,gpios,spkfault,"other");
 	return ilist;
 }
@@ -1169,7 +1178,7 @@ cJSON * get_psram_gpio_list(cJSON * list){
 /****************************************************************************************
  *
  */
-cJSON * get_gpio_list(bool refresh) {
+cJSON * get_gpio_list_handler(bool refresh) {
 	gpio_num_t gpio_num;
 	if(gpio_list && !refresh){
 		return gpio_list;

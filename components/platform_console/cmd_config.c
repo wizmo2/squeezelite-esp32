@@ -20,7 +20,10 @@
 #include "tools.h"
 #include "cJSON.h"
 #include "cmd_i2ctools.h"
-
+#if defined(CONFIG_WITH_METRICS)
+#include "metrics.h"
+#endif
+#include "cmd_system.h"
 const char * desc_squeezelite ="Squeezelite Options";
 const char * desc_dac= "DAC Options";
 const char * desc_cspotc= "Spotify (cSpot) Options";
@@ -330,9 +333,8 @@ static int do_bt_source_cmd(int argc, char **argv){
 	char *buf = NULL;
 	size_t buf_size = 0;
 //	char value[100] ={0};
-	FILE *f = open_memstream(&buf, &buf_size);
+	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
 	if (f == NULL) {
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.\n");
 		return 1;
 	}
 	if(nerrors >0){
@@ -441,9 +443,8 @@ static int do_audio_cmd(int argc, char **argv){
 	int nerrors = arg_parse(argc, argv,(void **)&audio_args);
 	char *buf = NULL;
 	size_t buf_size = 0;
-	FILE *f = open_memstream(&buf, &buf_size);
+	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
 	if (f == NULL) {
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.\n");
 		return 1;
 	}
 	if(nerrors >0){
@@ -529,9 +530,8 @@ static int do_spdif_cmd(int argc, char **argv){
 
 	char *buf = NULL;
 	size_t buf_size = 0;
-	FILE *f = open_memstream(&buf, &buf_size);
+	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
 	if (f == NULL) {
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.\n");
 		return 1;
 	}
 	if(nerrors >0){
@@ -568,9 +568,8 @@ static int do_rotary_cmd(int argc, char **argv){
 
 	char *buf = NULL;
 	size_t buf_size = 0;
-	FILE *f = open_memstream(&buf, &buf_size);
+	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
 	if (f == NULL) {
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.\n");
 		return 1;
 	}
 	if(nerrors >0){
@@ -640,9 +639,8 @@ static int do_cspot_config(int argc, char **argv){
 
 	char *buf = NULL;
 	size_t buf_size = 0;
-	FILE *f = open_memstream(&buf, &buf_size);
+	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
 	if (f == NULL) {
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.");
 		return 1;
 	}
 
@@ -699,9 +697,8 @@ static int do_ledvu_cmd(int argc, char **argv){
 
 	char *buf = NULL;
 	size_t buf_size = 0;
-	FILE *f = open_memstream(&buf, &buf_size);
+	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
 	if (f == NULL) {
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.\n");
 		return 1;
 	}
 	if(nerrors >0){
@@ -759,10 +756,8 @@ static int do_i2s_cmd(int argc, char **argv)
 
 	char *buf = NULL;
 	size_t buf_size = 0;
-	FILE *f = open_memstream(&buf, &buf_size);
+	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
 	if (f == NULL) {
-		ESP_LOGE(TAG, "do_i2s_cmd: Failed to open memstream");
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.\n");
 		return 1;
 	}
 	if(nerrors >0){
@@ -873,7 +868,9 @@ cJSON * i2s_cb(){
 	cJSON * values = cJSON_CreateObject();
 
 	const i2s_platform_config_t * i2s_conf= 	config_dac_get( );
-	
+#if defined(CONFIG_WITH_METRICS)
+	metrics_add_feature("i2s",i2s_conf->pin.data_out_num>=0);
+#endif	
 	if(i2s_conf->pin.bck_io_num>0 ) {
 		cJSON_AddNumberToObject(values,i2s_args.clock->hdr.longopts,i2s_conf->pin.bck_io_num);
 	}
@@ -910,6 +907,11 @@ cJSON * i2s_cb(){
 cJSON * spdif_cb(){
 	cJSON * values = cJSON_CreateObject();
 	const i2s_platform_config_t * spdif_conf= 	config_spdif_get( );
+	if(spdif_conf->pin.data_out_num>=0) {
+#if defined(CONFIG_WITH_METRICS)		
+		metrics_add_feature("spdif","enabled");
+#endif
+	}
 	if(spdif_conf->pin.bck_io_num>0 ) {
 		cJSON_AddNumberToObject(values,"clock",spdif_conf->pin.bck_io_num);
 	}
@@ -928,7 +930,9 @@ cJSON * rotary_cb(){
 	bool raw_mode = p && (*p == '1' || *p == 'Y' || *p == 'y');
 	free(p);
 	const rotary_struct_t *rotary= config_rotary_get();
-	
+#if defined(CONFIG_WITH_METRICS)	
+	metrics_add_feature("rotary",GPIO_IS_VALID_GPIO(rotary->A ));
+#endif
 	if(GPIO_IS_VALID_GPIO(rotary->A ) && rotary->A>=0 && GPIO_IS_VALID_GPIO(rotary->B) && rotary->B>=0){
 		cJSON_AddNumberToObject(values,rotary_args.A->hdr.longopts,rotary->A);
 		cJSON_AddNumberToObject(values,rotary_args.B->hdr.longopts,rotary->B);
@@ -947,7 +951,11 @@ cJSON * rotary_cb(){
 cJSON * ledvu_cb(){
 	cJSON * values = cJSON_CreateObject();
 	const ledvu_struct_t *ledvu= config_ledvu_get();
-	
+	if(GPIO_IS_VALID_GPIO(ledvu->gpio )){
+#if defined(CONFIG_WITH_METRICS)
+		metrics_add_feature("led_vu","enabled");
+#endif
+	}
 	if(GPIO_IS_VALID_GPIO(ledvu->gpio) && ledvu->gpio>=0 && ledvu->length > 0){
 		cJSON_AddNumberToObject(values,"gpio",ledvu->gpio);
 		cJSON_AddNumberToObject(values,"length",ledvu->length);
@@ -965,8 +973,14 @@ cJSON * audio_cb(){
 	cJSON * values = cJSON_CreateObject();
 	char * 	p = config_alloc_get_default(NVS_TYPE_STR, "jack_mutes_amp", "n", 0);
     cJSON_AddStringToObject(values,"jack_behavior",(strcmp(p,"1") == 0 ||strcasecmp(p,"y") == 0)?"Headphones":"Subwoofer");
+#if defined(CONFIG_WITH_METRICS)
+	metrics_add_feature("jack_mute",atoi(p)>=0);
+#endif
     FREE_AND_NULL(p);
     p = config_alloc_get_default(NVS_TYPE_STR, "loudness", "0", 0);
+#if defined(CONFIG_WITH_METRICS)
+	metrics_add_feature("loudness",atoi(p)>=0);
+#endif
     cJSON_AddStringToObject(values,"loudness",p);
     FREE_AND_NULL(p);     
 	return values;
@@ -976,6 +990,9 @@ cJSON * bt_source_cb(){
 	char * 	p = config_alloc_get_default(NVS_TYPE_STR, "a2dp_sink_name", NULL, 0);
 	if(p){
 		cJSON_AddStringToObject(values,"sink_name",p);
+#if defined(CONFIG_WITH_METRICS)
+		metrics_add_feature("btsource",strlen(p)>0);		
+#endif
 	}
 	FREE_AND_NULL(p);    
 	// p = config_alloc_get_default(NVS_TYPE_STR, "a2dp_ctmt", NULL, 0);
@@ -1026,9 +1043,8 @@ static int do_squeezelite_cmd(int argc, char **argv)
 	int nerrors = arg_parse_msg(argc, argv,(struct arg_hdr ** )&squeezelite_args);
     char *buf = NULL;
 	size_t buf_size = 0;
-	FILE *f = open_memstream(&buf, &buf_size);
+	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
 	if (f == NULL) {
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.\n");
 		return 1;
 	}
 	fprintf(f,"Not yet implemented!");
@@ -1047,59 +1063,62 @@ cJSON * squeezelite_cb(){
 	char *buf = NULL;
 	size_t buf_size = 0;
     int nerrors=1;
-	FILE *f = open_memstream(&buf, &buf_size);
+	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
 	if (f == NULL) {
-		log_send_messaging(MESSAGING_ERROR,"Unable to parse squeezelite parameters");
+		return values;
+	}
+
+	if(nvs_config && strlen(nvs_config)>0){
+		ESP_LOGD(TAG,"Parsing command %s",nvs_config);
+		argv = (char **) calloc(22, sizeof(char *));
+		if (argv == NULL) {
+			FREE_AND_NULL(nvs_config);
+			fclose(f);
+			return values;
+		}
+		size_t argc = esp_console_split_argv(nvs_config, argv,22);
+		if (argc != 0) {
+			nerrors = arg_parse(argc, argv,(void **)&squeezelite_args);
+			ESP_LOGD(TAG,"Parsing completed");
+		}
+	}
+	if (nerrors == 0) {
+		get_str_parm_json(squeezelite_args.buffers, values);
+		get_str_parm_json(squeezelite_args.codecs, values);
+		get_lit_parm_json(squeezelite_args.header_format, values);
+		get_str_parm_json(squeezelite_args.log_level, values);
+		
+		// get_str_parm_json(squeezelite_args.log_level_all, values);
+		// get_str_parm_json(squeezelite_args.log_level_decode, values);
+		// get_str_parm_json(squeezelite_args.log_level_output, values);
+		// get_str_parm_json(squeezelite_args.log_level_slimproto, values);
+		// get_str_parm_json(squeezelite_args.log_level_stream, values);
+		get_str_parm_json(squeezelite_args.mac_addr, values);
+		get_str_parm_json(squeezelite_args.output_device, values);
+#if defined(CONFIG_WITH_METRICS)
+		if(squeezelite_args.output_device->sval[0]!=NULL && strlen(squeezelite_args.output_device->sval[0])>0){
+			metrics_add_feature_variant("output",squeezelite_args.output_device->sval[0]);
+		}
+#endif
+		get_str_parm_json(squeezelite_args.model_name, values);
+		get_str_parm_json(squeezelite_args.name, values);
+		get_int_parm_json(squeezelite_args.rate, values);
+		get_str_parm_json(squeezelite_args.rates, values);
+		get_str_parm_json(squeezelite_args.server, values);
+		get_int_parm_json(squeezelite_args.timeout, values);
+		char * p = cJSON_Print(values);
+		ESP_LOGD(TAG,"%s",p);
+		free(p);
 	}
 	else {
-
-		if(nvs_config && strlen(nvs_config)>0){
-			ESP_LOGD(TAG,"Parsing command %s",nvs_config);
-			argv = (char **) calloc(22, sizeof(char *));
-			if (argv == NULL) {
-				FREE_AND_NULL(nvs_config);
-				fclose(f);
-				return values;
-			}
-			size_t argc = esp_console_split_argv(nvs_config, argv,22);
-			if (argc != 0) {
-				nerrors = arg_parse(argc, argv,(void **)&squeezelite_args);
-				ESP_LOGD(TAG,"Parsing completed");
-			}
-		}
-		if (nerrors == 0) {
-			get_str_parm_json(squeezelite_args.buffers, values);
-			get_str_parm_json(squeezelite_args.codecs, values);
-			get_lit_parm_json(squeezelite_args.header_format, values);
-			get_str_parm_json(squeezelite_args.log_level, values);
-			
-			// get_str_parm_json(squeezelite_args.log_level_all, values);
-			// get_str_parm_json(squeezelite_args.log_level_decode, values);
-			// get_str_parm_json(squeezelite_args.log_level_output, values);
-			// get_str_parm_json(squeezelite_args.log_level_slimproto, values);
-			// get_str_parm_json(squeezelite_args.log_level_stream, values);
-			get_str_parm_json(squeezelite_args.mac_addr, values);
-			get_str_parm_json(squeezelite_args.output_device, values);
-			get_str_parm_json(squeezelite_args.model_name, values);
-			get_str_parm_json(squeezelite_args.name, values);
-			get_int_parm_json(squeezelite_args.rate, values);
-			get_str_parm_json(squeezelite_args.rates, values);
-			get_str_parm_json(squeezelite_args.server, values);
-			get_int_parm_json(squeezelite_args.timeout, values);
-			char * p = cJSON_Print(values);
-			ESP_LOGD(TAG,"%s",p);
-			free(p);
-		}
-		else {
-			arg_print_errors(f, squeezelite_args.end, desc_squeezelite);
-		}
-		fflush (f);
-		if(strlen(buf)>0){
-			log_send_messaging(nerrors?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
-		}
-		fclose(f);
-		FREE_AND_NULL(buf);
+		arg_print_errors(f, squeezelite_args.end, desc_squeezelite);
 	}
+	fflush (f);
+	if(strlen(buf)>0){
+		log_send_messaging(nerrors?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
+	}
+	fclose(f);
+	FREE_AND_NULL(buf);
 	FREE_AND_NULL(nvs_config);
 	FREE_AND_NULL(argv);
 	return values;
@@ -1212,9 +1231,8 @@ static int do_register_known_templates_config(int argc, char **argv){
 	char *buf = NULL;
 	size_t buf_size = 0;
 	cJSON * config_name =NULL;
-	FILE *f = open_memstream(&buf, &buf_size);
+	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
 	if (f == NULL) {
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.\n");
 		return 1;
 	}
 	if(nerrors >0){
@@ -1396,7 +1414,7 @@ void register_ledvu_config(void){
 
 void register_audio_config(void){
 	audio_args.jack_behavior = arg_str0("j", "jack_behavior","Headphones|Subwoofer","On supported DAC, determines the audio jack behavior. Selecting headphones will cause the external amp to be muted on insert, while selecting Subwoofer will keep the amp active all the time.");
-    audio_args.loudness = arg_int0("l", "loudness","0-10","Sets the loudness level, from 0 to 10. 0 will disable the loudness completely.");	
+    audio_args.loudness = arg_int0("l", "loudness","0-10","Sets a loudness level, from 0 to 10. 0 will disable the loudness completely. Note that LMS has priority over setting this value, so use it only when away from your server.");	
     audio_args.end = arg_end(6);
     audio_args.end = arg_end(6);
 	const esp_console_cmd_t cmd = {
@@ -1468,22 +1486,36 @@ static void register_squeezelite_config(void){
     cmd_to_json_with_cb(&cmd,&squeezelite_cb);
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
-
+void dummy_register_cmd(){
+	
+}
 void register_config_cmd(void){
 	if(!is_dac_config_locked()){
-	 	 register_known_templates_config();
-	
+	 	 register_known_templates_config();	
 	}
+
 #ifdef CONFIG_CSPOT_SINK	
 	register_cspot_config();
 #endif	
 	register_bt_source_config();
+#if CONFIG_WITH_CONFIG_UI	
 	if(!is_dac_config_locked()){
 		register_i2s_config();
+	}
+	else {
+#if defined(CONFIG_WITH_METRICS)
+		metrics_add_feature("i2s",true);
+#endif
 	}
 	if(!is_spdif_config_locked()){
 		register_spdif_config();
 	}
+	else {
+#if defined(CONFIG_WITH_METRICS)
+		metrics_add_feature("spdif",true);
+#endif
+	}
+#endif
     register_optional_cmd();    
 }
 
