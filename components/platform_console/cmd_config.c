@@ -1468,8 +1468,8 @@ void register_ledvu_config(void){
 }
 
 void register_audio_config(void){
-	audio_args.jack_behavior = arg_lit0("j", "jack_behavior", "On supported hardware, Select to mute the amplifier when headphones are inserted.");
-    audio_args.jack_behavior = arg_str0("j", "jack_behavior","Headphones|Subwoofer","On supported DAC, determines the audio jack behavior. Selecting headphones will cause the external amp to be muted on insert, while selecting Subwoofer will keep the amp active all the time.");
+	audio_args.output_set = arg_str0("o", "output_set","Off|Analogue|Digital|Bluetooth","Specified the Audio Output Mode. Use Off to disable Squeezelite.");
+    audio_args.jack_behavior = arg_lit0("j", "jack_behavior", "On supported hardware, Select to mute the amplifier when headphones are inserted.");
     audio_args.loudness = arg_int0("l", "loudness","0-10","Sets a loudness level, from 0 to 10. 0 will disable the loudness completely. Note that LMS has priority over setting this value, so use it only when away from your server.");	
     audio_args.end = arg_end(3);
 	const esp_console_cmd_t cmd = {
