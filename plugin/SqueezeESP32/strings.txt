@@ -154,17 +154,32 @@ PLUGIN_SQUEEZEESP32_EQUALIZER_SAVE
 
 
 ANALOGOUTMODE_SUBOUT
-	CS	Alternative
-	DA	Alternativ
-	DE	Alternative
-	EN	Alternative
-	ES	Alternativa
-	FI	Alternativ
-	FR	Alternative
-	HE	Alternative
-	IT	Alternativa
-	NL	Alternatief
-	NO	Alternativ
-	PL	Alternative
-	RU	Alternative
-	SV	Alternative
+	CS	Digital
+	DA	Digital
+	DE	Digital
+	EN	Digital
+	ES	Digital
+	FI	Digital
+	FR	Digital
+	HE	Digital
+	IT	Digital
+	NL	Digital
+	NO	Digital
+	PL	Digital
+	RU	Digital
+	SV	Digital
+
+ANALOGOUTMODE_ALWAYS_OFF
+	CS	Bluetooth
+	DA	Bluetooth
+	DE	Bluetooth
+	EN	Bluetooth
+	ES	Bluetooth
+	FI	Bluetooth
+	FR	Bluetooth
+	IT	Bluetooth
+	NL	Bluetooth
+	NO	Bluetooth
+	PL	Bluetooth
+	RU	Bluetooth
+	SV	Bluetooth

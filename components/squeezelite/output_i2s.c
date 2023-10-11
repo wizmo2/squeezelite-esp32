@@ -108,7 +108,7 @@ static uint32_t i2s_idle_since;
 static void (*pseudo_idle_chain)(uint32_t);
 static bool (*slimp_handler_chain)(u8_t *data, int len);
 static bool jack_mutes_amp;
-static bool sub_output_enabled;
+static u8_t output_mode;
 static bool running, isI2SStarted, ended;
 static i2s_config_t i2s_config;
 static u8_t *obuf;
@@ -146,7 +146,6 @@ static bool handler(u8_t *data, int len){
 		struct audo_packet *pkt = (struct audo_packet*) data;
 		// 0 = headphone (internal speakers off)/jack mutes amp/default set, 1 = sub out/set 2,
 		// 2 = always on (internal speakers on)/no mute, 3 = always off
-
 		if (jack_mutes_amp != (pkt->config == 0)) {
 			jack_mutes_amp = pkt->config == 0;
 			config_set_value(NVS_TYPE_STR, "jack_mutes_amp", jack_mutes_amp ? "y" : "n");		
@@ -159,9 +158,10 @@ static bool handler(u8_t *data, int len){
 				if (amp_control.gpio != -1) gpio_set_level_x(amp_control.gpio, amp_control.active);
 			}	
 
-			if (sub_output_enabled != (pkt->config == 1) || sub_output_enabled == (pkt->config == 0)) {
-				sub_output_enabled = pkt->config == 1;
-				config_set_value(NVS_TYPE_STR, "autoexec", sub_output_enabled ? "2" : "1");		
+			uint8_t mode=(pkt->config!=3)?pkt->config:2;
+			if (pkt->config != 2 && output_mode != mode) {
+				output_mode = mode;
+				config_set_value(NVS_TYPE_STR, "autoexec", output_mode==0?"0":(output_mode==1?"1":"2"));		
 				
 				simple_restart();
 			}
@@ -248,7 +248,7 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 	free(p);
 
 	p = config_alloc_get_default(NVS_TYPE_STR, "autoexec", "1", 0);
-	sub_output_enabled = (strcmp(p,"2") == 0);
+	output_mode = atoi(p);
 	free(p);
 	
 #if BYTES_PER_FRAME == 8

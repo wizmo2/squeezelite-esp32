@@ -467,14 +467,19 @@ menu "Squeezelite-ESP32"
 	
 	menu "Command sets"
 		config DEFAULT_COMMAND_LINE
-			string "Default command line to execute"
+			string "Command line to execute in Analogue mode"
 			default "squeezelite -o I2S -b 500:2000 -d all=info -C 30"
 			help
-				This is the command to run when starting the device
+				This is command to run when starting the device
 		config DEFAULT_COMMAND_2_LINE
-			string "Alternative command line to execute"
+			string "Command line to execute in Digital Mode"
 			default "squeezelite -o spdif -b 500:2000 -d all=info -C 30"
 			help
 				This is the command to run when starting the device in set 2
+		config DEFAULT_COMMAND_3_LINE
+			string "Command line to execute in Digital Mode"
+			default "squeezelite -o bt -b 500:2000 -d all=info -C 30 -Z 44100"
+			help
+				This is the command to run when starting the device in set 3
 	endmenu
 endmenu

@@ -145,12 +145,12 @@ static struct {
 } spdif_args;
 static struct {
 	struct arg_str *output_set;
-    struct arg_str *jack_behavior;	
+    struct arg_lit *jack_behavior;	
    	struct arg_int *loudness;
     struct arg_end *end;
 } audio_args;
 static struct {
-	struct arg_str * output_device; // "  -d <log>=<level>\tSet logging level, logs: all|slimproto|stream|decode|output|ir, level: info|debug|sdebug\n"
+		struct arg_str * output_device; // "  -d <log>=<level>\tSet logging level, logs: all|slimproto|stream|decode|output|ir, level: info|debug|sdebug\n"
 	struct arg_str * name;//			   "  -n <name>\t\tSet the player name\n"
 	struct arg_str * server; // -s <server>[:<port>]\tConnect to specified server, otherwise uses autodiscovery to find server\n"
 	struct arg_str * buffers;//			   "  -b <stream>:<output>\tSpecify internal Stream and Output buffer sizes in Kbytes\n"
@@ -479,26 +479,13 @@ static int do_audio_cmd(int argc, char **argv){
        }
     }
 
-    if(audio_args.jack_behavior->count>0){
-        err = ESP_OK; // suppress any error code that might have happened in a previous step
-        if(strcasecmp(audio_args.jack_behavior->sval[0],"Mute")==0){
-            err = config_set_value(NVS_TYPE_STR, "jack_mutes_amp", "y");
-        }
-        else if(strcasecmp(audio_args.jack_behavior->sval[0],"Always On")==0){
-            err = config_set_value(NVS_TYPE_STR, "jack_mutes_amp", "n");
-        }
-        else {
-            nerrors++;
-            fprintf(f,"Unknown Audio Jack Behavior %s.\n",audio_args.jack_behavior->sval[0]);
-        }
-
-        if(err!=ESP_OK){
-            nerrors++;
-            fprintf(f,"Error setting Audio Jack Behavior %s. %s\n",audio_args.jack_behavior->sval[0], esp_err_to_name(err));
-        }
-        else {
-            fprintf(f,"Audio Jack Behavior changed to %s\n",audio_args.jack_behavior->sval[0]);
-        }        
+    err = config_set_value(NVS_TYPE_STR, "jack_mutes_amp", audio_args.jack_behavior->count?"y":"n");
+	if(err!=ESP_OK){
+        nerrors++;
+        fprintf(f,"Error setting Audio Jack Behavior. %s\n", esp_err_to_name(err));
+    }
+    else {
+        fprintf(f,"Audio Jack Behavior changed to %s\n",(audio_args.jack_behavior->count)?"y":"n");
     }
 
 	if(audio_args.output_set->count>0){
@@ -506,11 +493,14 @@ static int do_audio_cmd(int argc, char **argv){
         if(strcasecmp(audio_args.output_set->sval[0],"Off")==0){
             err = config_set_value(NVS_TYPE_STR, "autoexec", "0");
         }
-        else if(strcasecmp(audio_args.output_set->sval[0],"Alternative")==0){
+		else if(strcasecmp(audio_args.output_set->sval[0],"Digital")==0){
             err = config_set_value(NVS_TYPE_STR, "autoexec", "2");
-        }
+        } 
+		else if(strcasecmp(audio_args.output_set->sval[0],"Bluetooth")==0){
+            err = config_set_value(NVS_TYPE_STR, "autoexec", "3");
+        } 
 		else {
-            err = config_set_value(NVS_TYPE_STR, "autoexec", "1");
+           err = config_set_value(NVS_TYPE_STR, "autoexec", "1");
         }
 
         if(err!=ESP_OK){
@@ -1016,13 +1006,13 @@ cJSON * ledvu_cb(){
 cJSON * audio_cb(){
 	cJSON * values = cJSON_CreateObject();
 	char * 	p = config_alloc_get_default(NVS_TYPE_STR, "jack_mutes_amp", "n", 0);
-    cJSON_AddStringToObject(values,"jack_behavior",(strcmp(p,"1") == 0 ||strcasecmp(p,"y") == 0)?"Mute":"Always On");
-    free(p);
+    cJSON_AddBoolToObject(values,"jack_behavior",(strcmp(p,"1") == 0 ||strcasecmp(p,"y") == 0));
+	free(p);
     p = config_alloc_get_default(NVS_TYPE_STR, "loudness", "0", 0);
     cJSON_AddStringToObject(values,"loudness",p);
     free(p);     
 	p = config_alloc_get_default(NVS_TYPE_STR, "autoexec", "1", 0);
-    cJSON_AddStringToObject(values,"output_set",(strcmp(p,"0") == 0)?"Off":((strcmp(p,"2") == 0)?"Alternative":"Default"));
+    cJSON_AddStringToObject(values,"output_set",(strcmp(p,"0") == 0)?"Off":((strcmp(p,"2") == 0)?"Digital":((strcmp(p,"3") == 0)?"Bluetooth":"Analogue")));
     FREE_AND_NULL(p);
 	return values;
 }
@@ -1460,12 +1450,11 @@ void register_ledvu_config(void){
 }
 
 void register_audio_config(void){
-	audio_args.jack_behavior = arg_str0("j", "jack_behavior","Mute|Always On","On supported hardware, determines the audio jack behavior on the amplifier mute control.");
+	audio_args.jack_behavior = arg_lit0("j", "jack_behavior", "On supported hardware, Select to mute the amplifier when headphones are inserted.");
     audio_args.loudness = arg_int0("l", "loudness","0-10","Sets the loudness level, from 0 to 10. 0 will disable the loudness completely.");	
-    audio_args.output_set = arg_str0("o", "output_set","Off|Default|Alternative","Specified the Audio Output Mode. Use Off to disable Squeezelite.  Default for the standard autoexec set, and Alternative for set 2.");
-    audio_args.end = arg_end(6);
-    audio_args.end = arg_end(6);
-	const esp_console_cmd_t cmd = {
+    audio_args.output_set = arg_str0("o", "output_set","Off|Analogue|Digital|Bluetooth","Specified the Audio Output Mode. Use Off to disable Squeezelite.");
+    audio_args.end = arg_end(3);
+    const esp_console_cmd_t cmd = {
         .command = CFG_TYPE_AUDIO("general"),
         .help = desc_audio,
         .hint = NULL,
@@ -1552,6 +1541,6 @@ void register_config_cmd(void){
 	if(!is_spdif_config_locked()){
 		register_spdif_config();
 	}
-    register_optional_cmd();    
+    register_optional_cmd();  
 }
 
