@@ -277,7 +277,7 @@ GPIO can be set to GND provide or Vcc at boot. This is convenient to power devic
 
 The `<amp>` parameter can use used to assign a GPIO that will be set to active level (default 1) when playback starts. It will be reset when squeezelite becomes idle. The idle timeout is set on the squeezelite command line through `-C <timeout>`
 
-The `<power>` parameter can use used to assign a GPIO that will be set to active level (default 1) when player is powered on and reset when powered off
+The `<power>` parameter can use used to assign a GPIO that will be set to active level (default 1) when player is powered on and reset when powered off (in LMS, does not apply to AirPlay, Spotify or BT).
 
 If you have an audio jack that supports insertion (use :0 or :1 to set the level when inserted), you can specify which GPIO it's connected to. Using the parameter jack_mutes_amp allows to mute the amp when headset (e.g.) is inserted.
 
