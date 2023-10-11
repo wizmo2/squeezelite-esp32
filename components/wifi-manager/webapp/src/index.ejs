@@ -99,10 +99,10 @@
 			<div class="tab-pane fade" id="tab-cfg-gen"></div>
 			<div class="tab-pane fade" id="tab-cfg-fw">
 
-				<div class="card text-white  mb-3">
+				<div class="card mb-3">
 					<div class="card-header">Software Updates</div>
 					<div class="card-body">
-						<table class="table table-hover table-striped table-dark">
+						<table class="table table-hover table-striped table-primary">
 							<thead>
 								<tr>
 									<th class="border-bottom-0 pb-0" scope="col">Version</th>
@@ -145,7 +145,7 @@
 							</div>
 
 							<div class="col-auto">
-								<button id="btn_reboot_recovery" class="btn-warning ota_element"
+								<button id="btn_reboot_recovery" class="btn btn-warning ota_element"
 									type="submit">Recovery</button>
 							</div>
 						</div>
@@ -171,7 +171,7 @@
 						</div>
 					</div>
 				</div>
-				<div class="card text-white mb-3">
+				<div class="card mb-3">
 					<div class="card-header">Local Firmware Upload</div>
 					<div class="card-body">
 						<div id="uploaddiv" class="form-group row ">
@@ -194,7 +194,7 @@
 
 
 			<div class="tab-pane fade" id="tab-nvs">
-				<table class="table table-hover">
+				<table class="table table-hover table-secondary">
 					<thead>
 						<tr>
 							<th scope="col">Key</th>
@@ -216,7 +216,7 @@
 			</div>
 
 			<div class="tab-pane fade" id="tab-cfg-audio">
-				<div class="card text-white  mb-3">
+				<div class="card mb-3">
 					<div class="card-header">Usage Templates</div>
 					<div class="card-body">
 							<fieldset class="form-group" id="output-tmpl">
@@ -356,7 +356,7 @@
 				</div>
 			</div>
 			<div class="tab-pane fade active show" id="tab-wifi">
-				<div class="card text-white  mb-3">
+				<div class="card mb-3">
 					<div class="card-header">WiFi Status</div>
 
 					<div class="card-body if_eth" style="display: none">
@@ -364,7 +364,7 @@
 						<p>WiFi is inactive while connected to a wired network.
 					</div>
 					<div class="card-body if_wifi" style="display: none">
-						<table class="table table-hover">
+						<table class="table table-hover table-secondary">
 							<thead>
 								<tr>
 									<th scope="col">Joined</th>
@@ -474,7 +474,7 @@
 				<div class="card border-primary mb-3">
 					<div class="card-header">Logs</div>
 					<div class="card-body">
-						<table class="table table-hover">
+						<table class="table table-hover table-secondary">
 							<thead>
 								<tr>
 									<th scope="col">Timestamp</th>
@@ -492,7 +492,7 @@
 				<div class="card border-primary mb-3" id="pins" style="display: none;">
 					<div class="card-header">Pin Assignments</div>
 					<div class="card-body">
-						<table class="table table-hover">
+						<table class="table table-hover table-secondary">
 							<thead>
 								<tr>
 									<th scope="col">Device</th>
@@ -508,7 +508,7 @@
 				<div class="card border-primary mb-3" style="visibility: collapse;" id="tasks_sect">
 					<div class="card-header">Tasks</div>
 					<div class="card-body">
-						<table class="table table-hover">
+						<table class="table table-hover table-secondary">
 							<!-- console.log(msg_time.toLocaleString() + '\tname' + '\tcpu' + '\tstate' + '\tminstk' + '\tbprio' + '\tcprio' + '\tnum'); -->
 							<thead>
 								<tr>
@@ -528,7 +528,7 @@
 			</div>
 			<!-- syslog -->
 			<div class="tab-pane fade " id="tab-credits">
-				<div class="card text-white  mb-3">
+				<div class="card mb-3">
 					<div class="card-header">Credits</div>
 					<div class="card-body">
 						<p><strong><a
@@ -555,7 +555,7 @@
 						</ul>
 					</div>
 				</div>
-				<div class="card text-white  mb-3">
+				<div class="card mb-3">
 					<div class="card-header">Extras/Overrides</div>
 					<div class="card-body">
 						<fieldset>
@@ -579,9 +579,9 @@
 	</main>
 	<footer>
 		<div class="fixed-bottom d-flex justify-content-between  border-top border-dark p-3 bg-primary">
-			<span class="text-center" id="foot-fw"></span><button class="btn-warning ota_element " id="reboot_nav"
+			<span class="text-center" id="foot-fw"></span><button class="btn btn-warning ota_element " id="reboot_nav"
 				type="submit" style="display: none;">Reboot</button>
-			<button class="btn-warning recovery_element" id="reboot_ota_nav" type="submit" style="display: none;">Exit
+			<button class="btn btn-warning recovery_element" id="reboot_ota_nav" type="submit" style="display: none;">Exit
 				Recovery</button><span class="text-center" id="foot-if"></span>
 		</div>
 

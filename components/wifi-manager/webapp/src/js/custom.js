@@ -1982,7 +1982,6 @@ window.runCommand = function (button, reboot) {
   if (cmdstring === 'cfg-hw-preset') return handleHWPreset(allfields, reboot);
   cmdstring += ' ';
   if (fields) {
-
     for (const field of allfields) {
       let qts = '';
       let opt = '';
@@ -2075,7 +2074,7 @@ function getCommands() {
         const isConfig = cmdParts[0] === 'cfg';
         const targetDiv = '#tab-' + cmdParts[0] + '-' + cmdParts[1];
         let innerhtml = '';
-        innerhtml += `<div class="card text-white mb-3"><div class="card-header">${command.help.encodeHTML().replace(/\n/g, '<br />')}</div><div class="card-body"><fieldset id="flds-${command.name}">`;
+        innerhtml += `<div class="card mb-3"><div class="card-header">${command.help.encodeHTML().replace(/\n/g, '<br />')}</div><div class="card-body"><fieldset id="flds-${command.name}">`;
         if (command.argtable) {
           command.argtable.forEach(function (arg) {
             let placeholder = arg.datatype || '';
@@ -2087,20 +2086,18 @@ function getCommands() {
             attributes += 'shortopts="' + arg.shortopts + '" ';
             attributes += 'checkbox=' + arg.checkbox + ' ';
             attributes += 'cmdname="' + command.name + '" ';
-            attributes +=
-              'id="' +
-              ctrlname +
-              '" name="' +
-              ctrlname +
-              '" hasvalue="' +
-              arg.hasvalue +
-              '"   ';
-            let extraclass = arg.mincount > 0 ? 'bg-success' : '';
+            attributes += 'id="' + ctrlname + '" name="' + ctrlname + '" ';
+            if (arg.longopts && arg.longopts.startsWith('_')){
+              attributes += "readonly ";
+            }
+            let extraclass = arg.mincount > 0 ? 'is-invalid' : '';
             if (arg.glossary === 'hidden') {
               attributes += ' style="visibility: hidden;"';
             }
             if (arg.checkbox) {
-              innerhtml += `<div class="form-check"><label class="form-check-label"><input type="checkbox" ${attributes} class="form-check-input ${extraclass}" value="" >${arg.glossary.encodeHTML()}</label>`;
+              innerhtml += `<div class="form-check"><label class="form-check-label"><input type="checkbox" ${attributes} class="form-check-input ${extraclass}" value="" >${arg.glossary.encodeHTML()}</label></div><div>`;
+            } else if (arg.remark) {
+              innerhtml += `<div class="form-group"><label for="${ctrlname}">${arg.glossary.encodeHTML()}</label>`;
             } else {
               innerhtml += `<div class="form-group" ><label for="${ctrlname}">${arg.glossary.encodeHTML()}</label>`;
               if (placeholder.includes('|')) {
@@ -2118,9 +2115,12 @@ function getCommands() {
               } else {
                 innerhtml += `<input type="text" class="form-control ${extraclass}" placeholder="${placeholder}" ${attributes}>`;
               }
-            }
+            }         
 
-            innerhtml += `${arg.checkbox ? '</div>' : ''}<small class="form-text text-muted">Previous value: ${arg.checkbox ? (curvalue ? 'Checked' : 'Unchecked') : (curvalue || '')}</small>${arg.checkbox ? '' : '</div>'}`;
+            if (!arg.remark) {
+              innerhtml += `<small class="form-text text-muted">Previous value: ${arg.checkbox ? (curvalue ? 'Checked' : 'Unchecked') : (curvalue || '')}</small>`;
+            }
+            innerhtml += `</div>`;
           });
         }
         innerhtml += `<div style="margin-top: 16px;">
@@ -2157,7 +2157,7 @@ function getCommands() {
           const ctrlValue = getLongOps(data, command.name, arg.longopts);
           if (arg.checkbox) {
             $(ctrlselector)[0].checked = ctrlValue;
-          } else {
+          } else if (!arg.remark) {
             if (ctrlValue !== undefined) {
               $(ctrlselector)
                 .val(ctrlValue)
@@ -2169,6 +2169,10 @@ function getCommands() {
             ) {
               $(ctrlselector)[0].value = '--';
             }
+          }
+          if (arg.mincount && arg.mincount > 0) {
+            $(ctrlselector).removeClass('is-invalid');
+            $(ctrlselector).addClass('is-valid');
           }
         });
       }
@@ -2200,7 +2204,7 @@ function getConfig() {
       .forEach(function (key) {
         let val = data[key].value;
         if (key === 'autoexec') {
-          if (data.autoexec.value === '0') {
+if (data.autoexec.value === '0') {
             $('#disable-squeezelite')[0].checked = true;
           } else {
             $('#disable-squeezelite')[0].checked = false;
