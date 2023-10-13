@@ -2225,9 +2225,8 @@ function getConfig() {
       .sort()
       .forEach(function (key) {
         let val = data[key].value;
-       if (key === 'autoexec1') {
-          /* call new function to parse the squeezelite options */
-          processSqueezeliteCommandLine(val);
+        if (key === 'autoexec') {
+
         } else if (key === 'host_name') {
           val = val.replaceAll('"', '');
           $('input#dhcp-name1').val(val);

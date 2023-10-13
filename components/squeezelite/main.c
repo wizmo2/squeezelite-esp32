@@ -84,6 +84,9 @@ static void usage(const char *argv0) {
 #if defined(GPIO) && defined(RPI)
 		   "  -G <Rpi GPIO#>:<H/L>\tSpecify the BCM GPIO# to use for Amp Power Relay and if the output should be Active High or Low\n"
 #endif
+#if !EMBEDDED
+		   "  -G <Y/N/X> \tSpecify external amp control.  Use 'Y' to tun om/off with jack insertion, 'X' for always-off\n"
+#endif
 		   "  -e <codec1>,<codec2>\tExplicitly exclude native support of one or more codecs; known codecs: " CODECS "\n"
 		   "  -f <logfile>\t\tWrite debug to logfile\n"
 #if IR

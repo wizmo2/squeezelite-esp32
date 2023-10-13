@@ -41,19 +41,23 @@ const __attribute__((section(".rodata_desc"))) esp_app_desc_t esp_app_desc = {
 #endif
 };
 
-extern void register_audio_config(void);
+#ifdef CONFIG_CSPOT_SINK	
+extern register_cspot_config(void);
+#endif	
+#ifdef CONFIG_IDF_TARGET_ESP32
+extern register_bt_source_config(void);
+#endif
 extern void register_rotary_config(void);
 extern void register_ledvu_config(void);
 extern void register_nvs();
 extern cJSON * get_gpio_list_handler(bool refresh);
+
 void register_optional_cmd(void) {
 #if CONFIG_WITH_CONFIG_UI	
     register_rotary_config();
-#endif
-    register_audio_config();
 	register_ledvu_config();
+#endif
 	register_nvs();
-
 }
 cJSON * get_gpio_list(bool refresh){
 #if CONFIG_WITH_CONFIG_UI		

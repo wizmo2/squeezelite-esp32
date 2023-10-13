@@ -35,7 +35,6 @@ const char * desc_rotary= "Rotary Control";
 const char * desc_ledvu= "Led Strip Options";
 
 extern const struct adac_s *dac_set[];
-extern void equalizer_set_loudness(uint8_t);
 extern void register_optional_cmd(void);
 
 #define CODECS_BASE "flac|pcm|mp3|ogg"
@@ -148,12 +147,11 @@ static struct {
 } spdif_args;
 static struct {
 	struct arg_str *output_set;
-    struct arg_lit *jack_behavior;	
-   	struct arg_int *loudness;
     struct arg_end *end;
 } audio_args;
 static struct {
-		struct arg_str * output_device; // "  -d <log>=<level>\tSet logging level, logs: all|slimproto|stream|decode|output|ir, level: info|debug|sdebug\n"
+	struct arg_str * _command_set; // callback for command set argument  
+	struct arg_str * output_device; // "  -d <log>=<level>\tSet logging level, logs: all|slimproto|stream|decode|output|ir, level: info|debug|sdebug\n"
 	struct arg_str * name;//			   "  -n <name>\t\tSet the player name\n"
 	struct arg_str * server; // -s <server>[:<port>]\tConnect to specified server, otherwise uses autodiscovery to find server\n"
 	struct arg_str * buffers;//			   "  -b <stream>:<output>\tSpecify internal Stream and Output buffer sizes in Kbytes\n"
@@ -187,6 +185,8 @@ static struct {
 	//			   "   \t\t\t b = basic linear interpolation, l = 13 taps, m = 21 taps, i = interpolate filter coefficients\n"
 	#endif
 	struct arg_int * rate;//			   "  -Z <rate>\t\tReport rate to server in helo as the maximum sample rate we can support\n"
+    struct arg_lit *amp_off;	//            -G for ESP32 [y/n/x] for ESP32, the format is 'y' for auto on/off with jack, 'n' for always on, 'x' for always off. default is always on.
+    struct arg_lit *jack_behavior; //	            NOTE: for check boxes -G used for 'x', -j used for auto on/off  
     struct arg_end *end;
 } squeezelite_args;
 
@@ -455,39 +455,6 @@ static int do_audio_cmd(int argc, char **argv){
 		fclose(f);
 		return 1;
 	}
-
-    err = ESP_OK; // suppress any error code that might have happened in a previous step
-
-	if(audio_args.loudness->count>0){
-		char p[4]={0};
-		int loudness_val = audio_args.loudness->ival[0];
-		if( loudness_val < 0 || loudness_val>10){
-			nerrors++;
-            fprintf(f,"Invalid loudness value %d. Valid values are between 0 and 10.\n",loudness_val);
-		}
-        // it's not necessary to store loudness in NVS as set_loudness does it, but it does not hurt
-		else {
-			itoa(loudness_val,p,10);
-			err = config_set_value(NVS_TYPE_STR, "loudness", p);
-		}
-        if(err!=ESP_OK){
-            nerrors++;
-            fprintf(f,"Error setting Loudness value %s. %s\n",p, esp_err_to_name(err));
-        }
-        else {
-            fprintf(f,"Loudness changed to %s\n",p);
-			equalizer_set_loudness(loudness_val);
-       }
-    }
-
-    err = config_set_value(NVS_TYPE_STR, "jack_mutes_amp", audio_args.jack_behavior->count?"y":"n");
-	if(err!=ESP_OK){
-        nerrors++;
-        fprintf(f,"Error setting Audio Jack Behavior. %s\n", esp_err_to_name(err));
-    }
-    else {
-        fprintf(f,"Audio Jack Behavior changed to %s\n",(audio_args.jack_behavior->count)?"y":"n");
-    }
 
 	if(audio_args.output_set->count>0){
         err = ESP_OK; // suppress any error code that might have happened in a previous step
@@ -1013,19 +980,7 @@ cJSON * ledvu_cb(){
 
 cJSON * audio_cb(){
 	cJSON * values = cJSON_CreateObject();
-	char * 	p = config_alloc_get_default(NVS_TYPE_STR, "jack_mutes_amp", "n", 0);
-    cJSON_AddBoolToObject(values,"jack_behavior",(strcmp(p,"1") == 0 ||strcasecmp(p,"y") == 0));
-#if defined(CONFIG_WITH_METRICS)
-	metrics_add_feature("jack_mute",atoi(p)>=0);
-#endif
-    FREE_AND_NULL(p);
-    p = config_alloc_get_default(NVS_TYPE_STR, "loudness", "0", 0);
-#if defined(CONFIG_WITH_METRICS)
-	metrics_add_feature("loudness",atoi(p)>=0);
-#endif
-    cJSON_AddStringToObject(values,"loudness",p);
-    free(p);     
-	p = config_alloc_get_default(NVS_TYPE_STR, "autoexec", "1", 0);
+	char * p = config_alloc_get_default(NVS_TYPE_STR, "autoexec", "1", 0);
     cJSON_AddStringToObject(values,"output_set",(strcmp(p,"0") == 0)?"Off":((strcmp(p,"2") == 0)?"Digital":((strcmp(p,"3") == 0)?"Bluetooth":"Analogue")));
     FREE_AND_NULL(p);
 	return values;
@@ -1082,18 +1037,91 @@ void get_int_parm_json(struct arg_int * parm, cJSON * entry){
 	}
 }
 
+int add_str_param_str(char **buf, struct arg_str *param) {
+	if (param->count > 0 && param->hdr.shortopts) {
+		asprintf(buf,"%s -%s %s", buf[0], param->hdr.shortopts, param->sval[0]);
+		return 0;
+	}		
+	return 1;
+}
+int add_lit_param_str(char **buf, struct arg_lit *param) {
+	if (param->count > 0 && param->hdr.shortopts) {
+		asprintf(buf,"%s -%s", buf[0], param->hdr.shortopts);
+		return 0;
+	}		
+	return 1;
+}
+int add_int_param_str(char **buf, struct arg_int *param) {
+	if (param->count > 0 && param->hdr.shortopts) {
+		asprintf(buf,"%s -%s %d", buf[0], param->hdr.shortopts, param->ival[0]);
+		return 0;
+	}		
+	return 1;
+}
+
 static int do_squeezelite_cmd(int argc, char **argv)
 {
 	esp_err_t err=ESP_OK;
-	int nerrors = arg_parse_msg(argc, argv,(struct arg_hdr ** )&squeezelite_args);
-    char *buf = NULL;
+	int nerrors = arg_parse(argc, argv,(void **)&squeezelite_args);
+	char *buf = NULL;
 	size_t buf_size = 0;
 	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
 	if (f == NULL) {
 		return 1;
 	}
-	fprintf(f,"Not yet implemented!");
-	nerrors+=1;
+
+	char *config_buffer = "squeezelite";
+	if(nerrors >0){
+		arg_print_errors(f,squeezelite_args.end,desc_squeezelite);
+	}
+	else
+	{
+		if (add_str_param_str(&config_buffer, squeezelite_args.output_device) > 0){
+			nerrors++;
+			cmd_send_messaging(argv[0],MESSAGING_ERROR,"Output device must be valid\n");
+		}
+		add_str_param_str(&config_buffer, squeezelite_args.name);
+		add_str_param_str(&config_buffer, squeezelite_args.server);
+		add_str_param_str(&config_buffer, squeezelite_args.buffers);
+		add_str_param_str(&config_buffer, squeezelite_args.codecs);
+		add_int_param_str(&config_buffer, squeezelite_args.timeout);
+		add_str_param_str(&config_buffer, squeezelite_args.log_level);
+		add_str_param_str(&config_buffer, squeezelite_args.mac_addr);
+		add_str_param_str(&config_buffer, squeezelite_args.model_name);
+		add_str_param_str(&config_buffer, squeezelite_args.rates);
+		add_lit_param_str(&config_buffer, squeezelite_args.header_format);
+	#if RESAMPLE || RESAMPLE16
+		add_str_param_str(&config_buffer, squeezelite_args.resample);
+		add_str_param_str(&config_buffer, squeezelite_args.resample_parms);
+	#endif
+		add_int_param_str(&config_buffer, squeezelite_args.rate);
+	}
+
+	if(!nerrors ){
+		cmd_send_messaging(argv[0],MESSAGING_INFO,"Updating %s configuration to %s", squeezelite_args._command_set->sval[0], config_buffer);
+		//err = config_set_value(NVS_TYPE_STR, squeezelite_args._command_set->sval[0], config_buffer);
+		if(err!=ESP_OK){
+        	cmd_send_messaging(argv[0],MESSAGING_ERROR,"Error setting squeezelite command. %s\n", esp_err_to_name(err));
+		}
+	} 
+	else {
+		err = ESP_ERR_NO_MEM;
+	}
+	FREE_AND_NULL(config_buffer);
+	
+	// TODO:  This should be stored as -G y or -G x in squeezelite value, 
+	//   but requires a better way to access the active command from nvs parameters
+	err = config_set_value(NVS_TYPE_STR, "jack_mutes_amp", squeezelite_args.amp_off->count?"x":(squeezelite_args.jack_behavior->count?"y":"n"));
+	if(err!=ESP_OK){
+        nerrors++;
+        cmd_send_messaging(argv[0],MESSAGING_ERROR,"Error setting Audio Jack Behavior. %s\n", esp_err_to_name(err));
+    }
+    else {
+        cmd_send_messaging(argv[0], MESSAGING_INFO,"Audio Jack Behavior changed to '%s'\n",squeezelite_args.amp_off->count?"x":(squeezelite_args.jack_behavior->count?"y":"n"));
+    }
+	if(!nerrors ){
+		fprintf(f,"Done.\n");
+	}
 	fflush (f);
 	cmd_send_messaging(argv[0],nerrors>0?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
 	fclose(f);
@@ -1103,72 +1131,95 @@ static int do_squeezelite_cmd(int argc, char **argv)
 
 cJSON * squeezelite_cb(){
 	cJSON * values = cJSON_CreateObject();
-    //TODO:  Should send data from active command (but response is currently issued directly by webpack on autoexec1 only) 
-	char * nvs_config= config_alloc_get(NVS_TYPE_STR, "autoexec1");
+    char autoexec_name[24]={0};
+	uint8_t autoexec_flag=0;
+
+	char * autoexec_value = config_alloc_get(NVS_TYPE_STR, "autoexec");
+	if(autoexec_value !=NULL) autoexec_flag = atoi(autoexec_value);
+	FREE_AND_NULL(autoexec_value);
+	if(autoexec_flag <= 1) {
+		snprintf(autoexec_name,sizeof(autoexec_name)-1, "autoexec1");
+	}
+	else {
+		snprintf(autoexec_name,sizeof(autoexec_name)-1, "autoexec1_%u",autoexec_flag);
+	}
+	char * nvs_config= config_alloc_get(NVS_TYPE_STR, autoexec_name);
 	char **argv = NULL;
 	char *buf = NULL;
 	size_t buf_size = 0;
     int nerrors=1;
-	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
+	FILE *f = open_memstream(&buf, &buf_size);
 	if (f == NULL) {
-		return values;
+		log_send_messaging(MESSAGING_ERROR,"Unable to parse squeezelite parameters");
 	}
+	else {
 
-	if(nvs_config && strlen(nvs_config)>0){
-		ESP_LOGD(TAG,"Parsing command %s",nvs_config);
-		argv = (char **) calloc(22, sizeof(char *));
-		if (argv == NULL) {
-			FREE_AND_NULL(nvs_config);
-			fclose(f);
-			return values;
+		if(nvs_config && strlen(nvs_config)>0){
+			ESP_LOGD(TAG,"Parsing command %s",nvs_config);
+			argv = (char **) calloc(22, sizeof(char *));
+			if (argv == NULL) {
+				FREE_AND_NULL(nvs_config);
+				fclose(f);
+				return values;
+			}
+			size_t argc = esp_console_split_argv(nvs_config, argv,22);
+			if (argc != 0) {
+				nerrors = arg_parse(argc, argv,(void **)&squeezelite_args);
+				ESP_LOGD(TAG,"Parsing completed");
+			}
 		}
-		size_t argc = esp_console_split_argv(nvs_config, argv,22);
-		if (argc != 0) {
-			nerrors = arg_parse(argc, argv,(void **)&squeezelite_args);
-			ESP_LOGD(TAG,"Parsing completed");
-		}
-	}
-	if (nerrors == 0) {
-		get_str_parm_json(squeezelite_args.buffers, values);
-		get_str_parm_json(squeezelite_args.codecs, values);
-		get_lit_parm_json(squeezelite_args.header_format, values);
-		get_str_parm_json(squeezelite_args.log_level, values);
-		
-		// get_str_parm_json(squeezelite_args.log_level_all, values);
-		// get_str_parm_json(squeezelite_args.log_level_decode, values);
-		// get_str_parm_json(squeezelite_args.log_level_output, values);
-		// get_str_parm_json(squeezelite_args.log_level_slimproto, values);
-		// get_str_parm_json(squeezelite_args.log_level_stream, values);
-		get_str_parm_json(squeezelite_args.mac_addr, values);
-		get_str_parm_json(squeezelite_args.output_device, values);
+		if (nerrors == 0) {
+			cJSON_AddStringToObject(values,"_command_set",autoexec_name);
+			get_str_parm_json(squeezelite_args.buffers, values);
+			get_str_parm_json(squeezelite_args.codecs, values);
+			get_lit_parm_json(squeezelite_args.header_format, values);
+			get_str_parm_json(squeezelite_args.log_level, values);
+			
+			// get_str_parm_json(squeezelite_args.log_level_all, values);
+			// get_str_parm_json(squeezelite_args.log_level_decode, values);
+			// get_str_parm_json(squeezelite_args.log_level_output, values);
+			// get_str_parm_json(squeezelite_args.log_level_slimproto, values);
+			// get_str_parm_json(squeezelite_args.log_level_stream, values);
+			get_str_parm_json(squeezelite_args.mac_addr, values);
+			get_str_parm_json(squeezelite_args.output_device, values);
 #if defined(CONFIG_WITH_METRICS)
 		if(squeezelite_args.output_device->sval[0]!=NULL && strlen(squeezelite_args.output_device->sval[0])>0){
 			metrics_add_feature_variant("output",squeezelite_args.output_device->sval[0]);
 		}
 #endif
-		get_str_parm_json(squeezelite_args.model_name, values);
-		get_str_parm_json(squeezelite_args.name, values);
-		get_int_parm_json(squeezelite_args.rate, values);
-		get_str_parm_json(squeezelite_args.rates, values);
-		get_str_parm_json(squeezelite_args.server, values);
-		get_int_parm_json(squeezelite_args.timeout, values);
-		char * p = cJSON_Print(values);
-		ESP_LOGD(TAG,"%s",p);
-		free(p);
+			get_str_parm_json(squeezelite_args.model_name, values);
+			get_str_parm_json(squeezelite_args.name, values);
+			get_int_parm_json(squeezelite_args.rate, values);
+			get_str_parm_json(squeezelite_args.rates, values);
+			get_str_parm_json(squeezelite_args.server, values);
+			get_int_parm_json(squeezelite_args.timeout, values);
+		#if RESAMPLE || RESAMPLE16
+			get_lit_parm_json(squeezelite_args.resample, values);
+			get_str_parm_json(squeezelite_args.resample_parms, values);
+		#endif
+			char * p = cJSON_Print(values);
+			ESP_LOGD(TAG,"%s",p);
+			free(p);
+			p = config_alloc_get_default(NVS_TYPE_STR, "jack_mutes_amp", "n", 0);
+    		cJSON_AddBoolToObject(values,"jack_behavior",(strcmp(p,"1") == 0 ||strcasecmp(p,"y") == 0));
+    		cJSON_AddBoolToObject(values,"amp_off",(strcasecmp(p,"x") == 0));
+    		FREE_AND_NULL(p);
+		}
+		else {
+			arg_print_errors(f, squeezelite_args.end, desc_squeezelite);
+		}
+		fflush (f);
+		if(strlen(buf)>0){
+			log_send_messaging(nerrors?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
+		}
+		fclose(f);
+		FREE_AND_NULL(buf);
 	}
-	else {
-		arg_print_errors(f, squeezelite_args.end, desc_squeezelite);
-	}
-	fflush (f);
-	if(strlen(buf)>0){
-		log_send_messaging(nerrors?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
-	}
-	fclose(f);
-	FREE_AND_NULL(buf);
 	FREE_AND_NULL(nvs_config);
 	FREE_AND_NULL(argv);
 	return values;
 }
+
 static char * get_log_level_options(const char * longname){
 	const char * template = "<%s=info|%s=debug|%s=sdebug>";
 	char * options = NULL;
@@ -1469,8 +1520,6 @@ void register_ledvu_config(void){
 
 void register_audio_config(void){
 	audio_args.output_set = arg_str0("o", "output_set","Off|Analogue|Digital|Bluetooth","Specified the Audio Output Mode. Use Off to disable Squeezelite.");
-    audio_args.jack_behavior = arg_lit0("j", "jack_behavior", "On supported hardware, Select to mute the amplifier when headphones are inserted.");
-    audio_args.loudness = arg_int0("l", "loudness","0-10","Sets a loudness level, from 0 to 10. 0 will disable the loudness completely. Note that LMS has priority over setting this value, so use it only when away from your server.");	
     audio_args.end = arg_end(3);
 	const esp_console_cmd_t cmd = {
         .command = CFG_TYPE_AUDIO("general"),
@@ -1483,7 +1532,7 @@ void register_audio_config(void){
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
 
-static void register_spdif_config(void){
+void register_spdif_config(void){
 	spdif_args.clear = arg_lit0(NULL, "clear", "Clear configuration");
     spdif_args.clock = arg_int1(NULL,"clock","<n>","Clock GPIO. e.g. 33");
     spdif_args.wordselect = arg_int1(NULL,"wordselect","<n>","Word Select GPIO. e.g. 25");
@@ -1500,7 +1549,8 @@ static void register_spdif_config(void){
     cmd_to_json_with_cb(&cmd,&spdif_cb);
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
-static void register_squeezelite_config(void){
+void register_squeezelite_config(void){
+	squeezelite_args._command_set = arg_str0(NULL,"_command_set","command","Command key (readonly)");
 	squeezelite_args.server = arg_str0("s","server","<server>[:<port>]","Connect to specified server, otherwise uses autodiscovery to find server");
 	squeezelite_args.buffers = arg_str0("b","buffers","<stream>:<output>","Internal Stream and Output buffer sizes in Kbytes");
 	squeezelite_args.codecs = arg_strn("c","codecs","+" CODECS "+",0,20,"Restrict codecs to those specified, otherwise load all available codecs; known codecs: " CODECS );
@@ -1511,25 +1561,26 @@ static void register_squeezelite_config(void){
 //	squeezelite_args.log_level_stream= arg_str0(NULL,"loglevel_stream",get_log_level_options("stream"),"Stream Logging Level");
 //	squeezelite_args.log_level_decode= arg_str0(NULL,"loglevel_decode",get_log_level_options("decode"),"Decode Logging Level");
 //	squeezelite_args.log_level_output= arg_str0(NULL,"loglevel_output",get_log_level_options("output"),"Output Logging Level");
-	#if IR
+#if IR
 	squeezelite_args.log_level_ir= arg_str0(NULL,"loglevel_ir",get_log_level_options("ir"),"IR Logging Level");
-	#endif
-
+#endif
 	squeezelite_args.output_device = arg_str0("o","output_device","<string>","Output device (BT, I2S or SPDIF)");
 	squeezelite_args.mac_addr = arg_str0("m","mac_addr","<string>","Mac address, format: ab:cd:ef:12:34:56.");
 	squeezelite_args.model_name = arg_str0("M", "modelname", "<string>","Set the squeezelite player model name sent to the server (default: " MODEL_NAME_STRING ")");
 	squeezelite_args.name = arg_str0("n","name","<string>","Player name, if different from the current host name. Name can alternatively be assigned from the system/device name configuration.");
 	squeezelite_args.header_format = arg_lit0("W","header_format","Read wave and aiff format from header, ignore server parameters");
 	squeezelite_args.rates = arg_str0("r","rates","<rates>[:<delay>]", "Sample rates supported, allows output to be off when squeezelite is started; rates = <maxrate>|<minrate>-<maxrate>|<rate1>,<rate2>,<rate3>; delay = optional delay switching rates in ms\n");
-	#if RESAMPLE
+#if RESAMPLE
 	squeezelite_args.resample = arg_lit0("R","resample","Activate Resample");
 	squeezelite_args.resample_parms = arg_str0("u","resample_parms","<recipe>:<flags>:<attenuation>:<precision>:<passband_end>:<stopband_start>:<phase_response>","Resample, params");
-	#endif
-	#if RESAMPLE16
+#endif
+#if RESAMPLE16
 	squeezelite_args.resample = arg_lit0("R","resample","Activate Resample");
 	squeezelite_args.resample_parms = arg_str0("u","resample_parms","(b|l|m)[:i]","Resample, params. b = basic linear interpolation, l = 13 taps, m = 21 taps, i = interpolate filter coefficients");
-	#endif
+#endif
 	squeezelite_args.rate = arg_int0("Z","max_rate", "<n>", "Report rate to server in helo as the maximum sample rate we can support");
+    squeezelite_args.amp_off = arg_lit0("G", "amp_off", "Disable Amplifier. Select to turn off the amplifier. (supported hardware only)");
+	squeezelite_args.jack_behavior = arg_lit0("j", "jack_behavior", "Jack Behavior.  Select to mute the amplifier when headphones are inserted. (supported hardware only)");
 	squeezelite_args.end = arg_end(6);
     const esp_console_cmd_t cmd = {
         .command = CFG_TYPE_AUDIO("squeezelite"),
@@ -1569,6 +1620,8 @@ void register_config_cmd(void){
 #endif
 	}
 #endif
-    register_optional_cmd();    
+    register_optional_cmd();   
+    register_audio_config();
+	register_squeezelite_config();
 }
 
