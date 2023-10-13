@@ -200,6 +200,8 @@ Where `<command>` is one of init, poweron, poweroff, speakeron, speakeroff, head
 
 This is standard JSON notation, so if you are not familiar with it, Google is your best friend. Be aware that the '...' means you can have as many entries as you want, it's not part of the syntax. Every section is optional, but it does not make sense to set i2c in the 'dac_config' parameter and not setting anything here. The parameter 'mode' allows to *or* the register with the value or to *and* it. Don't set 'mode' if you simply want to write. The 'val parameter can be an array [v1, v2,...] to write a series of bytes in a single i2c burst (in that case 'mode' is ignored). **Note that all values must be decimal**. You can use a validator like [this](https://jsonlint.com) to verify your syntax
 
+The 'power' command is used when powering on/off the DAC after the idle period (see -C option of squeezelite) and the 'speaker/headset' commands are sent when switching between speakers and headsets (see headset jack detection).
+
 NB: For named configurations ((SqueezeAMP, Muse ... all except I2S), all this is ignored. For know codecs, the built-in sequences can be overwritten using dac_controlset
 
 **Please note that you can not use the same GPIO or port as the I2C.**
@@ -278,7 +280,7 @@ GPIO can be set to GND provide or Vcc at boot. This is convenient to power devic
 
 The `<amp>` parameter can use used to assign a GPIO that will be set to active level (default 1) when playback starts. It will be reset when squeezelite becomes idle. The idle timeout is set on the squeezelite command line through `-C <timeout>`
 
-The `<power>` parameter can use used to assign a GPIO that will be set to active level (default 1) when player is powered on and reset when powered off
+The `<power>` parameter can use used to assign a GPIO that will be set to active level (default 1) when player is powered on and reset when powered off (in LMS, does not apply to AirPlay, Spotify or BT).
 
 If you have an audio jack that supports insertion (use :0 or :1 to set the level when inserted), you can specify which GPIO it's connected to. Using the parameter jack_mutes_amp allows to mute the amp when headset (e.g.) is inserted.
 

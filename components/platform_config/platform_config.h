@@ -8,7 +8,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define PARSE_WITH_FUNC 1
+
 #ifdef PARSE_WITH_FUNC
 #define PARSE_PARAM(S,P,C,V) config_parse_param_int(S,P,C,(int*)&V)
 #define PARSE_PARAM_STR(S,P,C,V,I) config_parse_param_str(S,P,C,V,I)
