@@ -86,7 +86,7 @@ u16_t	get_plugged(void);		// must provide or define as 0x0
 u16_t	get_battery(void);		// must provide 12 bits data or define as 0x0 (exact meaning is device-dependant)
 
 // set name 
-void set_name(char *name);		// can be defined as an empty macro
+void set_name(char *name, char*cmd_set);		// can be defined as an empty macro
 
 // to be defined to nothing if you don't want to support these
 extern struct visu_export_s {

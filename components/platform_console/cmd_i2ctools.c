@@ -1163,7 +1163,7 @@ void register_spiconfig(void) {
 #endif
 void register_i2c_config(void) {
 #ifndef CONFIG_I2C_LOCKED
-    i2cconfig_args.rem = arg_rem("rem", "I2c bus for general accessories.  NOTE:  Cannot share GPIO pins or port with DAC!");
+    i2cconfig_args.rem = arg_rem("rem", "I2c bus for general accessories\r\nWARNING:  Cannot share GPIO pins or port with DAC!");
     i2cconfig_args.port = arg_int0("p", "port", "0|1", "Port (use '1' for SqueezeAMP)");
     i2cconfig_args.freq = arg_int0("f", "speed", "int", "Frequency (Hz) [default: 400000");
     i2cconfig_args.sda = arg_int1("d", "sda", "<n>", "SDA GPIO pin (e.g. 19)");

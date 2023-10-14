@@ -488,7 +488,9 @@ static void process_setd(u8_t *pkt, int len) {
 			// confirm change to server
 			sendSETDName(setd->data);
 #if EMBEDDED
-			set_name(player_name);
+			set_name(player_name, "autoexec1");
+			set_name(player_name, "autoexec1_2");
+			set_name(player_name, "autoexec1_3");
 #endif			
 			// write name to name_file if -N option set
 			if (name_file) {

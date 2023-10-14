@@ -130,8 +130,8 @@ u16_t get_battery(void) {
 	return (u16_t) (battery_value_svc() * 128) & 0x0fff;
 }	 
 
-void set_name(char *name) {
-	char *cmd = config_alloc_get(NVS_TYPE_STR, "autoexec1");
+void set_name(char *name, char * cmd_set) {
+	char *cmd = config_alloc_get(NVS_TYPE_STR, cmd_set);
 	char *p, *q;
 	
 	if (!cmd) return;
@@ -148,7 +148,7 @@ void set_name(char *name) {
 	}
 
 	asprintf(&q, "%s -n \"%s\"", cmd, name);
-    config_set_value(NVS_TYPE_STR, "autoexec1", q);
+    config_set_value(NVS_TYPE_STR, cmd_set, q);
 	
 	free(q);
 	free(cmd);

@@ -368,8 +368,8 @@ int set_cspot_player_name(FILE * f,const char * name){
     cJSON_Delete(cspot_config);
     return ret;
 }
-int set_squeezelite_player_name(FILE * f,const char * name){
-	char * nvs_config= config_alloc_get(NVS_TYPE_STR, "autoexec1");
+int set_squeezelite_player_name(FILE * f,const char * name, char * cmd_set){
+	char * nvs_config= config_alloc_get(NVS_TYPE_STR, cmd_set);
 	char **argv = NULL;
     esp_err_t err=ESP_OK;
     int nerrors=0;
@@ -421,7 +421,7 @@ int set_squeezelite_player_name(FILE * f,const char * name){
             strcat(newCommandLine,name);
         }
         fprintf(f,"Squeezelite player name changed to %s\n",newCommandLine);
-        if((err=config_set_value(NVS_TYPE_STR, "autoexec1",newCommandLine))!=ESP_OK){
+        if((err=config_set_value(NVS_TYPE_STR,cmd_set,newCommandLine))!=ESP_OK){
             nerrors++;
             fprintf(f,"Failed updating squeezelite command. %s", esp_err_to_name(err));
         }
@@ -434,6 +434,9 @@ int set_squeezelite_player_name(FILE * f,const char * name){
 	return nerrors;
 	
 }
+/*
+Sets all configurable names 
+*/
 static int setdevicename(int argc, char **argv)
 {
 	char * name = NULL;
@@ -462,7 +465,9 @@ static int setdevicename(int argc, char **argv)
 	nerrors+=setnamevar("ap_ssid", f, name);
 	nerrors+=setnamevar("bt_name", f, name);
 	nerrors+=setnamevar("host_name", f, name);
-    nerrors+=set_squeezelite_player_name(f, name);
+    nerrors+=set_squeezelite_player_name(f, name, "autoexec1");
+    nerrors+=set_squeezelite_player_name(f, name, "autoexec1_2");
+    nerrors+=set_squeezelite_player_name(f, name, "autoexec1_3");
     nerrors+=set_cspot_player_name(f, name);
 	if(nerrors==0){
 		fprintf(f,"Device name changed to %s\n",name);

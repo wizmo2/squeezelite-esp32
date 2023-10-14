@@ -363,12 +363,12 @@ static int do_bt_source_cmd(int argc, char **argv){
         else {
             fprintf(f,"Bluetooth audio device name changed to %s\n",bt_source_args.sink_name->sval[0]);
         }        
-		char * squeezelite_cmd = config_alloc_get_default(NVS_TYPE_STR, "autoexec1", NULL, 0);
+		char * squeezelite_cmd = config_alloc_get_default(NVS_TYPE_STR, "autoexec1_3", NULL, 0);
 		if( squeezelite_cmd && strstr(squeezelite_cmd," -o ") ){
 			char * new_cmd = strip_bt_name(squeezelite_cmd);
 			if(strcmp(new_cmd,squeezelite_cmd)!=0){
 				fprintf(f,"Replacing old squeezelite command [%s] with [%s].\n",squeezelite_cmd,new_cmd);
-				config_set_value(NVS_TYPE_STR, "autoexec1", new_cmd);
+				config_set_value(NVS_TYPE_STR, "autoexec1_3", new_cmd);
 				if(err!=ESP_OK){
 					nerrors++;
 					fprintf(f,"Error updating squeezelite command line options . %s\n", esp_err_to_name(err));
@@ -1057,7 +1057,7 @@ static int do_squeezelite_cmd(int argc, char **argv)
 
 	if(!nerrors ){
 		cmd_send_messaging(argv[0],MESSAGING_INFO,"Updating %s configuration to %s", squeezelite_args._command_set->sval[0], config_buffer);
-		//err = config_set_value(NVS_TYPE_STR, squeezelite_args._command_set->sval[0], config_buffer);
+		err = config_set_value(NVS_TYPE_STR, squeezelite_args._command_set->sval[0], config_buffer);
 		if(err!=ESP_OK){
         	cmd_send_messaging(argv[0],MESSAGING_ERROR,"Error setting squeezelite command. %s\n", esp_err_to_name(err));
 		}
