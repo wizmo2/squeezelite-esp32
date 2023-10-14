@@ -1,4 +1,6 @@
-if (DEFINED PURE)
+message(STATUS, "driver_bt: PURE:${PURE} NOPURE${NOPURE}")
+#if (DEFINED PURE)
+if (NOT DEFINED NOPURE)
     message(STATUS "*** PURE: Skipping bluetooth")
     return()
 endif()

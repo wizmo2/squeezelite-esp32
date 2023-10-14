@@ -1,5 +1,7 @@
 # this must be set *before* idf_component_register
-if (DEFINED PURE)
+message(STATUS, "spotify: PURE:${PURE} NOPURE${NOPURE}")
+#if (DEFINED PURE)
+if (NOT DEFINED NOPURE)
 	message(STATUS "*** PURE: Skipping spotify (cspot) ***")
 	return()
 endif()

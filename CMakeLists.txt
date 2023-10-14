@@ -3,13 +3,12 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 set(PROJECT_VER $ENV{PROJECT_VER})
 add_definitions(-DMODEL_NAME=SqueezeESP32)
-#add_definitions(-DNOPURE=Y) # THIS DOESNT SEEM TO DO ANYHTING!
 #set(NOPURE Y) # This may work (but maybe not!)
 #set(DEPTH 32) # Thies does work (?is it a number vrs string?)
-
+message(STATUS, "main: PURE:${PURE} NOPURE${NOPURE}")
 if (NOT DEFINED NOPURE)
     message(STATUS "*** PURE IS ENABLED ***")
-    set(PURE)
+    set(PURE "Y")
     message(STATUS "All BT, AirPlay, and CSpot must be disabled in menuconfig")
 endif()
 

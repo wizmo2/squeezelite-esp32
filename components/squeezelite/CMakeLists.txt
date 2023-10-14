@@ -3,8 +3,8 @@ if(IDF_TARGET STREQUAL "esp32")
     set(bt_requires "driver_bt")
 endif()
 
-# runs prelink with no dfinition, then with definition.
-message(STATUS "*** Squeezelite: NOPURE is ${NOPURE} ***")
+message(STATUS, "squeezelite: PURE:${PURE} NOPURE${NOPURE}")
+# runs prelink with no d3finition, then with definition.
 if (NOT DEFINED PURE)
     message(STATUS "*** Squeezelite: PURE is NOT defined ***")
 	set(cspot_required "spotify")
