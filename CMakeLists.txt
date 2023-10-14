@@ -9,6 +9,7 @@ add_definitions(-DMODEL_NAME=SqueezeESP32)
 
 if (NOT DEFINED NOPURE)
     message(STATUS "*** PURE IS ENABLED ***")
+    set(PURE)
     message(STATUS "All BT, AirPlay, and CSpot must be disabled in menuconfig")
 endif()
 

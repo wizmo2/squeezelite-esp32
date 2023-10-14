@@ -158,8 +158,6 @@ CONFIG_LOGGING_DECODE="info"
 CONFIG_LOGGING_OUTPUT="info"
 # end of Logging
 
-CONFIG_MUTE_GPIO_LEVEL=0
-
 #
 # Target
 #
@@ -171,82 +169,64 @@ CONFIG_WITH_CONFIG_UI=y
 # CONFIG_WITH_METRICS is not set
 CONFIG_RELEASE_API="https://api.github.com/repos/sle118/squeezelite-esp32/releases"
 CONFIG_SQUEEZELITE_ESP32_RELEASE_URL="https://github.com/sle118/squeezelite-esp32/releases"
-CONFIG_PROJECT_NAME="Squeezelite-ESP32"
+CONFIG_PROJECT_NAME="SqueezeESP32"
 CONFIG_FW_PLATFORM_NAME="ESP32"
 
 #
-# Target Configuration
+# Factory Configuration
 #
-CONFIG_DAC_CONFIG=""
-CONFIG_SPDIF_CONFIG=""
-CONFIG_GPIO_EXP_CONFIG=""
-CONFIG_SPI_CONFIG=""
-CONFIG_DISPLAY_CONFIG=""
-CONFIG_LED_VU_CONFIG=""
-CONFIG_ROTARY_ENCODER=""
-CONFIG_ETH_CONFIG=""
+CONFIG_DAC_LOCKED=y
+CONFIG_DAC_CONFIG="model=I2S,bck=7,ws=5,do=6"
 CONFIG_DAC_CONTROLSET=""
+CONFIG_DAC_I2S_NUM=0
+CONFIG_SPDIF_LOCKED=y
+CONFIG_SPDIF_CONFIG="bck=7,ws=5,do=17"
+CONFIG_DISPLAY_LOCKED=y
+CONFIG_DISPLAY_CONFIG="SPI,width=320,height=170,cs=10,reset=9,back=15,speed=8000000,mode=0,driver=ST7789:x=35,VFlip,rotate"
+# CONFIG_I2C_LOCKED is not set
+CONFIG_I2C_CONFIG=""
+CONFIG_SPI_LOCKED=y
+CONFIG_SPI_CONFIG="data=11,clk=12,dc=13,host=2"
+CONFIG_LED_VU_LOCKED=y
+CONFIG_LED_VU_CONFIG="type=APA102,length=7,gpio=42,clk=45,seq=2106543"
+CONFIG_ROTARY_ENCODER_LOCKED=y
+CONFIG_ROTARY_ENCODER="A=1,B=2,SW=0,knobonly"
+CONFIG_GPIO_EXP_CONFIG=""
+CONFIG_ETH_CONFIG=""
 CONFIG_AUDIO_CONTROLS=""
-CONFIG_BAT_CONFIG=""
+CONFIG_BAT_CONFIG="channel=3,scale=6.5,cells=1,atten=3"
 CONFIG_TARGET=""
+
+#
+# Factory GPIO Configuration
+#
 CONFIG_AMP_GPIO=-1
-CONFIG_POWER_GPIO=-1
+CONFIG_AMP_GPIO_LEVEL=1
 CONFIG_JACK_GPIO=-1
-CONFIG_SPKFAULT_GPIO=-1
-CONFIG_BAT_CHANNEL=-1
+CONFIG_JACK_GPIO_LEVEL=0
 CONFIG_LED_GREEN_GPIO=-1
+CONFIG_LED_GREEN_GPIO_LEVEL=1
 CONFIG_LED_RED_GPIO=-1
-CONFIG_SET_GPIO=""
-# end of Target Configuration
-# end of Target
-
-#
-# Audio settings
-#
-
-#
-# DAC settings
-#
-
-#
-# I2S settings
-#
-CONFIG_I2S_NUM=0
-CONFIG_I2S_BCK_IO=-1
-CONFIG_I2S_WS_IO=-1
-CONFIG_I2S_DO_IO=-1
-CONFIG_I2S_DI_IO=-1
-CONFIG_I2S_MCK_IO=-1
-# end of I2S settings
-
-#
-# I2C settings
-#
-CONFIG_I2C_SDA=-1
-CONFIG_I2C_SCL=-1
-# end of I2C settings
-
+CONFIG_LED_RED_GPIO_LEVEL=1
 CONFIG_MUTE_GPIO=-1
-# end of DAC settings
+CONFIG_MUTE_GPIO_LEVEL=0
+CONFIG_POWER_GPIO=-1
+CONFIG_POWER_GPIO_LEVEL=1
+CONFIG_SPKFAULT_GPIO=-1
+CONFIG_SPKFAULT_GPIO_LEVEL=0
+CONFIG_SET_GPIO="46=vcc,16=ir"
+# end of Factory GPIO Configuration
+# end of Factory Configuration
 
 #
-# SPDIF settings
-#
-CONFIG_SDIF_NUM=0
-CONFIG_SPDIF_BCK_IO=-1
-CONFIG_SPDIF_WS_IO=-1
-CONFIG_SPDIF_DO_IO=-1
-# end of SPDIF settings
-
-#
-# A2DP settings
+# Factory A2DP settings
 #
 CONFIG_A2DP_SINK_NAME="SMSL BT4.2"
 CONFIG_A2DP_DEV_NAME="Squeezelite"
 CONFIG_A2DP_CONTROL_DELAY_MS=500
 CONFIG_A2DP_CONNECT_TIMEOUT_MS=1000
-# end of A2DP settings
-# end of Audio settings
+# end of Factory A2DP settings
+# end of Target
 
 #
 # Audio Input
@@ -255,52 +235,6 @@ CONFIG_A2DP_CONNECT_TIMEOUT_MS=1000
 # CONFIG_AIRPLAY_SINK is not set
 # CONFIG_CSPOT_SINK is not set
 # end of Audio Input
-
-#
-# Controls
-#
-# end of Controls
-
-#
-# Display Screen
-#
-# end of Display Screen
-
-#
-# Various I/O
-#
-CONFIG_I2C_CONFIG=""
-# end of Various I/O
-
-#
-# LED configuration
-#
-# end of LED configuration
-
-#
-# Audio JACK
-#
-# end of Audio JACK
-
-#
-# External amplifier control
-#
-# end of External amplifier control
-
-#
-# Power on/off status
-#
-# end of Power on/off status
-
-#
-# Speaker Fault
-#
-# end of Speaker Fault
-
-#
-# Battery measure
-#
-# end of Battery measure
 
 #
 # Command sets

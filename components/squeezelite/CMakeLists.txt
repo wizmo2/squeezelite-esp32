@@ -5,7 +5,7 @@ endif()
 
 # runs prelink with no dfinition, then with definition.
 message(STATUS "*** Squeezelite: NOPURE is ${NOPURE} ***")
-if (DEFINED NOPURE)
+if (NOT DEFINED PURE)
     message(STATUS "*** Squeezelite: PURE is NOT defined ***")
 	set(cspot_required "spotify")
 	set(airplay_required "raop")

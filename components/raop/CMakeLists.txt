@@ -1,4 +1,4 @@
-if (NOT DEFINED NOPURE)
+if (DEFINED PURE)
     message(STATUS "*** PURE: Skipping airplay (raop) ***")
     return()
 endif()
