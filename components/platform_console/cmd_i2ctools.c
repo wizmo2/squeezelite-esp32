@@ -32,6 +32,7 @@
 #define ACK_CHECK_DIS 0x0           /*!< I2C master will not check ack from slave */
 #define ACK_VAL 0x0                 /*!< I2C ack value */
 #define NACK_VAL 0x1                /*!< I2C nack value */
+
 extern int spi_system_host;
 extern int spi_system_dc_gpio;
 extern int is_output_gpio(struct arg_int* gpio, FILE* f, int* gpio_out, bool mandatory);
@@ -66,42 +67,48 @@ static struct {
     struct arg_int* size;
     struct arg_end* end;
 } i2cdump_args;
-
 static struct {
+#ifndef CONFIG_I2C_LOCKED
+    struct arg_rem* rem;
     struct arg_int* port;
     struct arg_int* freq;
     struct arg_int* sda;
     struct arg_int* scl;
+#endif
     struct arg_lit* clear;
     struct arg_end* end;
 } i2cconfig_args;
 #if CONFIG_WITH_CONFIG_UI
 static struct {
+#ifndef CONFIG_SPI_LOCKED
     struct arg_int* data;
     struct arg_int* miso;
     struct arg_int* clk;
     struct arg_int* dc;
     struct arg_int* host;
+#endif
     struct arg_lit* clear;
     struct arg_end* end;
 } spiconfig_args;
 static struct {
+#ifndef CONFIG_DISPLAY_LOCKED
     struct arg_str* type;
     struct arg_str* driver;
     struct arg_int* depth;
-    struct arg_int* address;
     struct arg_int* width;
     struct arg_int* height;
+    struct arg_int* back;
+    struct arg_int* reset;
+    struct arg_int* address;
+    struct arg_int* speed;
+    struct arg_int* cs;
+    struct arg_int* mode;
+    struct arg_lit* invert;
+#endif
     struct arg_lit* rotate;
     struct arg_lit* hflip;
     struct arg_lit* vflip;
-    struct arg_int* speed;
-    struct arg_int* cs;
-    struct arg_int* back;
-    struct arg_int* reset;
     struct arg_lit* clear;
-    struct arg_lit* invert;
-    struct arg_int* mode;
     struct arg_end* end;
 } i2cdisp_args;
 #endif
@@ -315,7 +322,7 @@ static esp_err_t i2c_master_driver_initialize(const char* cmdname, i2c_config_t*
 static int do_i2c_set_display(int argc, char** argv) {
     bool bHasi2cConfig = false, bHasSpiConfig = false;
     int nerrors = arg_parse_msg(argc, argv, (struct arg_hdr**)&i2cdisp_args);
-    display_config_t config = {.back = -1, .CS_pin = -1, .RST_pin = -1, .depth = 0};
+    display_config_t config = config_display_get()[0];
     char* nvs_item = config_alloc_get(NVS_TYPE_STR, "i2c_config");
     if (nvs_item && strlen(nvs_item) > 0) {
         bHasi2cConfig = true;
@@ -331,7 +338,7 @@ static int do_i2c_set_display(int argc, char** argv) {
     /* Check "--clear" option */
     if (i2cdisp_args.clear->count) {
         cmd_send_messaging(argv[0], MESSAGING_WARNING, "Display config cleared");
-        config_set_value(NVS_TYPE_STR, "display_config", "");
+        config_set_value(NVS_TYPE_STR, "display_config", CONFIG_DISPLAY_CONFIG);
         return 0;
     }
     char* buf = NULL;
@@ -346,6 +353,7 @@ static int do_i2c_set_display(int argc, char** argv) {
         fclose(f);
         return 1;
     }
+#ifndef CONFIG_DISPLAY_LOCKED
     /* Check "--type" option */
     if (i2cdisp_args.type->count) {
         if (strcasecmp(i2c_name_type, i2cdisp_args.type->sval[0]) == 0) {
@@ -416,10 +424,11 @@ static int do_i2c_set_display(int argc, char** argv) {
         fprintf(f, "Invalid display type %s\n", config.type);
         nerrors++;
     }
+    config.invert = i2cdisp_args.invert->count > 0;
+#endif
     config.rotate = i2cdisp_args.rotate->count > 0;
     config.hflip = i2cdisp_args.hflip->count > 0;
     config.vflip = i2cdisp_args.vflip->count > 0;
-    config.invert = i2cdisp_args.invert->count > 0;
 
     if (nerrors == 0) {
         fprintf(f, "Saving display configuration\n");
@@ -448,14 +457,13 @@ static int do_spiconfig_cmd(int argc, char** argv) {
     int dc = -1, host = 0;
     esp_err_t err = ESP_OK;
     int nerrors = arg_parse_msg(argc, argv, (struct arg_hdr**)&spiconfig_args);
-
     /* Check "--clear" option */
     if (spiconfig_args.clear->count) {
         cmd_send_messaging(argv[0], MESSAGING_WARNING, "SPI config cleared.\n");
-        config_set_value(NVS_TYPE_STR, "spi_config", "");
+        config_set_value(NVS_TYPE_STR, "spi_config", CONFIG_SPI_CONFIG);
         return 0;
     }
-
+#ifndef CONFIG_SPI_LOCKED
     char* buf = NULL;
     size_t buf_size = 0;
     FILE* f = open_memstream(&buf, &buf_size);
@@ -512,6 +520,7 @@ static int do_spiconfig_cmd(int argc, char** argv) {
     cmd_send_messaging(argv[0], nerrors > 0 ? MESSAGING_ERROR : MESSAGING_INFO, "%s", buf);
     fclose(f);
     FREE_AND_NULL(buf);
+#endif
     return nerrors;
 }
 #endif
@@ -524,15 +533,14 @@ static int do_i2cconfig_cmd(int argc, char** argv) {
         .scl_io_num = 18,
         .scl_pullup_en = GPIO_PULLUP_ENABLE,
         .master.clk_speed = 100000};
-
     int nerrors = arg_parse_msg(argc, argv, (struct arg_hdr**)&i2cconfig_args);
     /* Check "--clear" option */
     if (i2cconfig_args.clear->count) {
         cmd_send_messaging(argv[0], MESSAGING_WARNING, "i2c config cleared\n");
-        config_set_value(NVS_TYPE_STR, "i2c_config", "");
+        config_set_value(NVS_TYPE_STR, "i2c_config", CONFIG_I2C_CONFIG);
         return 0;
     }
-
+#ifndef CONFIG_I2C_LOCKED
     char* buf = NULL;
     size_t buf_size = 0;
     FILE* f = open_memstream(&buf, &buf_size);
@@ -597,7 +605,7 @@ static int do_i2cconfig_cmd(int argc, char** argv) {
     cmd_send_messaging(argv[0], nerrors > 0 ? MESSAGING_ERROR : MESSAGING_INFO, "%s", buf);
     fclose(f);
     FREE_AND_NULL(buf);
-
+#endif
     return nerrors;
 }
 
@@ -1005,27 +1013,28 @@ cJSON* i2c_set_display_cb() {
 }
 
 #if CONFIG_WITH_CONFIG_UI
-static void register_i2c_set_display() {
+void register_i2c_set_display() {
     char* supported_drivers = display_get_supported_drivers();
-
+#ifndef CONFIG_DISPLAY_LOCKED
     i2cdisp_args.width = arg_int1("w", "width", "<n>", "Width");
     i2cdisp_args.height = arg_int1("h", "height", "<n>", "Height");
-    i2cdisp_args.address = arg_int0("a", "address", "<n>", "I2C address (default 60)");
-    i2cdisp_args.reset = arg_int0(NULL, "reset", "<n>", "Reset GPIO");
-    i2cdisp_args.hflip = arg_lit0(NULL, "hf", "Flip horizontally");
-    i2cdisp_args.vflip = arg_lit0(NULL, "vf", "Flip vertically");
+    i2cdisp_args.address = arg_int0("a", "address", "<n>", "I2C Address [default: 60]");
+    i2cdisp_args.reset = arg_int0(NULL, "reset", "<n>", "Reset GPIO pin");
     i2cdisp_args.driver =
         arg_str0("d", "driver", supported_drivers ? supported_drivers : "<string>", "Driver");
-    i2cdisp_args.cs = arg_int0("b", "cs", "<n>", "SPI Only. CS GPIO (for SPI displays)");
+    i2cdisp_args.cs = arg_int0("b", "cs", "<n>", "SPI CS GPIO pin");
     i2cdisp_args.speed = arg_int0("s", "speed", "<n>",
-        "SPI Only. Bus Speed (Default 8000000). SPI interface can work up to 26MHz~40MHz");
-    i2cdisp_args.back = arg_int0("b", "back", "<n>", "Backlight GPIO (if applicable)");
+        "SPI Bus Speed [default: 8000000]. (SPI interface can work up to ~40MHz)");
+    i2cdisp_args.back = arg_int0("b", "back", "<n>", "Backlight GPIO pin (if applicable)");
     i2cdisp_args.depth = arg_int0("p", "depth", "-1|1|4", "Bit Depth (only for SSD1326 displays)");
-    i2cdisp_args.type = arg_str0("t", "type", "<I2C|SPI>", "Interface (default I2C)");
-    i2cdisp_args.rotate = arg_lit0("r", "rotate", "Rotate 180 degrees");
+    i2cdisp_args.type = arg_str0("t", "type", "<I2C|SPI>", "Interface type (default I2C)");
     i2cdisp_args.invert = arg_lit0("i", "invert", "Invert colors");
-    i2cdisp_args.clear = arg_lit0(NULL, "clear", "clear configuration and return");
-    i2cdisp_args.mode = arg_int0("m", "mode", "<n>", "SPI Only. Transaction Line Mode (Default 0)");
+    i2cdisp_args.mode = arg_int0("m", "mode", "<n>", "SPI Transaction Line Mode (Default 0)");
+#endif
+    i2cdisp_args.rotate = arg_lit0("r", "rotate", "Rotate 180 degrees");
+    i2cdisp_args.hflip = arg_lit0(NULL, "hf", "Flip horizontally");
+    i2cdisp_args.vflip = arg_lit0(NULL, "vf", "Flip vertically");
+    i2cdisp_args.clear = arg_lit0(NULL, "clear", "Clear configuration (factory)");
     i2cdisp_args.end = arg_end(8);
     const esp_console_cmd_t i2c_set_display = {.command = CFG_TYPE_HW("display"),
         .help = desc_display,
@@ -1035,8 +1044,8 @@ static void register_i2c_set_display() {
     cmd_to_json_with_cb(&i2c_set_display, &i2c_set_display_cb);
     ESP_ERROR_CHECK(esp_console_cmd_register(&i2c_set_display));
 }
-#endif
-static void register_i2cdectect(void) {
+
+void register_i2cdectect(void) {
     const esp_console_cmd_t i2cdetect_cmd = {.command = "i2cdetect",
         .help = "Scan I2C bus for devices",
         .hint = NULL,
@@ -1046,7 +1055,7 @@ static void register_i2cdectect(void) {
     ESP_ERROR_CHECK(esp_console_cmd_register(&i2cdetect_cmd));
 }
 
-static void register_i2cget(void) {
+void register_i2cget(void) {
     i2cget_args.chip_address =
         arg_int1("c", "chip", "<chip_addr>", "Specify the address of the chip on that bus");
     i2cget_args.register_address = arg_int0(
@@ -1063,8 +1072,7 @@ static void register_i2cget(void) {
     ESP_ERROR_CHECK(esp_console_cmd_register(&i2cget_cmd));
 }
 
-#if CONFIG_WITH_CONFIG_UI
-static void register_i2cset(void) {
+void register_i2cset(void) {
     i2cset_args.chip_address =
         arg_int1("c", "chip", "<chip_addr>", "Specify the address of the chip on that bus");
     i2cset_args.register_address = arg_int0(
@@ -1082,8 +1090,8 @@ static void register_i2cset(void) {
     cmd_to_json(&i2cset_cmd);
     ESP_ERROR_CHECK(esp_console_cmd_register(&i2cset_cmd));
 }
-#endif
-static void register_i2cdump(void) {
+
+void register_i2cdump(void) {
     i2cdump_args.chip_address =
         arg_int1("c", "chip", "<chip_addr>", "Specify the address of the chip on that bus");
     i2cdump_args.size = arg_int0("s", "size", "<size>", "Specify the size of each read");
@@ -1096,6 +1104,7 @@ static void register_i2cdump(void) {
     cmd_to_json(&i2cdump_cmd);
     ESP_ERROR_CHECK(esp_console_cmd_register(&i2cdump_cmd));
 }
+#endif
 
 cJSON* i2config_cb() {
     cJSON* values = cJSON_CreateObject();
@@ -1133,13 +1142,15 @@ cJSON* spiconfig_cb() {
     return values;
 }
 #if CONFIG_WITH_CONFIG_UI
-static void register_spiconfig(void) {
-    spiconfig_args.clear = arg_lit0(NULL, "clear", "Clear configuration");
-    spiconfig_args.clk = arg_int0("k", "clk", "<n>", "Clock GPIO");
-    spiconfig_args.data = arg_int0("d", "data", "<n>", "Data OUT GPIO");
+void register_spiconfig(void) {
+#ifndef CONFIG_SPI_LOCKED
+    spiconfig_args.clk = arg_int1("k", "clk", "<n>", "Clock GPIO");
+    spiconfig_args.data = arg_int1("d", "data", "<n>", "Data OUT GPIO");
     spiconfig_args.miso = arg_int0("d", "miso", "<n>", "Data IN GPIO");
     spiconfig_args.dc = arg_int0("c", "dc", "<n>", "DC GPIO");
-    spiconfig_args.host = arg_int0("h", "host", "1|2", "SPI Host Number");
+    spiconfig_args.host = arg_int1("h", "host", "1|2", "SPI Host Number");
+#endif
+    spiconfig_args.clear = arg_lit0(NULL, "clear", "Clear configuration (factory)");
     spiconfig_args.end = arg_end(4);
     const esp_console_cmd_t spiconfig_cmd = {.command = CFG_TYPE_HW("spi"),
         .help = desc_spiconfig,
@@ -1150,12 +1161,15 @@ static void register_spiconfig(void) {
     ESP_ERROR_CHECK(esp_console_cmd_register(&spiconfig_cmd));
 }
 #endif
-static void register_i2cconfig(void) {
-    i2cconfig_args.clear = arg_lit0(NULL, "clear", "Clear configuration");
-    i2cconfig_args.port = arg_int0("p", "port", "0|1", "Port");
-    i2cconfig_args.freq = arg_int0("f", "speed", "int", "Frequency (Hz) e.g. 100000");
-    i2cconfig_args.sda = arg_int0("d", "sda", "<n>", "SDA GPIO. e.g. 19");
-    i2cconfig_args.scl = arg_int0("c", "scl", "<n>", "SCL GPIO. e.g. 18");
+void register_i2c_config(void) {
+#ifndef CONFIG_I2C_LOCKED
+    i2cconfig_args.rem = arg_rem("rem", "I2c bus for general accessories.  NOTE:  Cannot share GPIO pins or port with DAC!");
+    i2cconfig_args.port = arg_int0("p", "port", "0|1", "Port (use '1' for SqueezeAMP)");
+    i2cconfig_args.freq = arg_int0("f", "speed", "int", "Frequency (Hz) [default: 400000");
+    i2cconfig_args.sda = arg_int1("d", "sda", "<n>", "SDA GPIO pin (e.g. 19)");
+    i2cconfig_args.scl = arg_int1("c", "scl", "<n>", "SCL GPIO pin {e.g. 18)");
+#endif
+    i2cconfig_args.clear = arg_lit0(NULL, "clear", "Clear configuration (factory)");
     i2cconfig_args.end = arg_end(4);
     const esp_console_cmd_t i2cconfig_cmd = {.command = CFG_TYPE_HW("i2c"),
         .help = desc_i2c,
@@ -1167,15 +1181,4 @@ static void register_i2cconfig(void) {
 }
 
 void register_i2ctools(void) {
-    register_i2cconfig();
-#if CONFIG_WITH_CONFIG_UI
-    register_spiconfig();
-#endif
-    register_i2cdectect();
-    register_i2cget();
-#if CONFIG_WITH_CONFIG_UI
-    register_i2cset();
-    register_i2cdump();
-    register_i2c_set_display();
-#endif
 }

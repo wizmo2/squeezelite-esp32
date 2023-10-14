@@ -26,23 +26,6 @@ menu "Squeezelite-ESP32"
 			help
 				Set logging level info|debug|sdebug
 	endmenu
-	config AMP_LOCKED
-		bool
-	config JACK_LOCKED
-		bool
-	config BAT_LOCKED
-		bool
-	config I2C_LOCKED
-		bool
-	config SPDIF_LOCKED
-		bool
-	config LED_LOCKED
-		bool
-	config SPKFAULT_LOCKED
-		bool
-	config MUTE_GPIO_LEVEL
-		int
-		default 0
 	config TARGET_LOCKED
 		bool
 		default n
@@ -101,183 +84,219 @@ menu "Squeezelite-ESP32"
 			default "SqueezeAMP" if SQUEEZEAMP
 			default "Squeezelite-TWATCH" if TWATCH2020
 			default "Muse" if MUSE
-			default "Squeezelite-ESP32"
+			default "SqueezeESP32"
 		config FW_PLATFORM_NAME
 			string
 			default "SqueezeAmp" if SQUEEZEAMP
 			default "TWATCH" if TWATCH2020
 			default "Muse" if MUSE
 			default "ESP32"
-		# AGGREGATES - begin
-		# these parameters are "aggregates"	that take precedence. They must have a default value
-		menu "Target Configuration"
+		menu "Factory Configuration"
+			config DAC_LOCKED
+				bool "DAC UI disabled"
+				default n
 			config DAC_CONFIG
 				string "dac_config"
 				default "model=TAS57xx,bck=33,ws=25,do=32,sda=27,scl=26,mute=14:0" if SQUEEZEAMP
 				default "model=I2S,bck=26,ws=25,do=33,i2c=53,sda=21,scl=22" if TWATCH2020
 				default "model=I2S,bck=5,ws=25,do=26,di=35,i2c=16,sda=18,scl=23,mck" if MUSE
 				default ""
-			config SPDIF_CONFIG
-				string "spidf_config"
-				default "bck=33,ws=25,do=15" if SQUEEZEAMP
-				default	""
-			config GPIO_EXP_CONFIG		
-				string "gpio_exp_config"
-				default	""
-			config SPI_CONFIG
-				string "spi_config"
-				default "dc=27,data=19,clk=18" if TWATCH2020	
-				default "mosi=15,miso=2,clk=14"	if MUSE
-				default	""          
-			config DISPLAY_CONFIG
-				string "display_config"
-				default "SPI,driver=ST7789,width=240,height=240,cs=5,back=12,speed=16000000,HFlip,VFlip" if TWATCH2020
-				default ""
-			config LED_VU_CONFIG
-				string "led_vu_config"
-				default ""
-			config ROTARY_ENCODER
-				string "rotary_config"
-				default ""
-			config ETH_CONFIG
-				string "eth_config"
-				default ""
-			# AGGREGATES - end		
 			config DAC_CONTROLSET
 				string "dac_control_set"
 				default "{ \"init\": [ {\"reg\":41, \"val\":128}, {\"reg\":18, \"val\":255} ], \"poweron\": [ {\"reg\":18, \"val\":64, \"mode\":\"or\"} ], \"poweroff\": [ {\"reg\":18, \"val\":191, \"mode\":\"and\"} ] }" if TWATCH2020
 				default "{\"init\":[ {\"reg\":0,\"val\":128}, {\"reg\":0,\"val\":0}, {\"reg\":25,\"val\":4}, {\"reg\":1,\"val\":80}, {\"reg\":2,\"val\":0},	{\"reg\":8,\"val\":0}, {\"reg\":4,\"val\":192},	{\"reg\":0,\"val\":18}, {\"reg\":1,\"val\":0}, {\"reg\":23,\"val\":24}, {\"reg\":24,\"val\":2}, {\"reg\":38,\"val\":9}, {\"reg\":39,\"val\":144}, {\"reg\":42,\"val\":144}, {\"reg\":43,\"val\":128}, {\"reg\":45,\"val\":128}, {\"reg\":27,\"val\":0}, {\"reg\":26,\"val\":0}, {\"reg\":2,\"val\":240}, {\"reg\":2,\"val\":0},	{\"reg\":29,\"val\":28}, {\"reg\":4,\"val\":48}, {\"reg\":25,\"val\":0}, {\"reg\":46,\"val\":33}, {\"reg\":47,\"val\":33} ]}" if MUSE
-				default ""		
+				default ""	
+			config DAC_I2S_NUM
+				int "I2S channel (0 or 1)"
+				default 0
+				help
+					I2S dma channel to use.
+	
+
+			config SPDIF_LOCKED
+				bool "SPDIF UI disabled"
+				default n
+			config SPDIF_CONFIG
+				string "spdif_config"
+				default "bck=33,ws=25,do=15" if SQUEEZEAMP
+				default	""
+
+			config DISPLAY_LOCKED
+				bool "Display UI limited"
+				default n
+			config DISPLAY_CONFIG
+				string "display_config"
+				default "SPI,driver=ST7789,width=240,height=240,cs=5,back=12,speed=16000000,HFlip,VFlip" if TWATCH2020
+			config I2C_LOCKED
+				bool "I2C UI disabled"
+			config I2C_CONFIG
+				string "i2c_config"
+				default ""
+				help
+					Set parameters of shared I2C interface
+					sda=<gpio>,scl=<gpio>[,speed=<num>][,port=<0|1>]
+			config SPI_LOCKED
+				bool "SPI UI disabled"
+				default n
+			config SPI_CONFIG
+				string "spi_config"
+				default "dc=27,data=19,clk=18" if TWATCH2020	
+				default "mosi=15,miso=2,clk=14"	if MUSE
+				default	""  
+				help
+					Set parameters of shared SPI interface
+					data=<gpio>,clk=<gpio>[,d/c=<num>][,host=<0|1|2>]       
+
+			config LED_VU_LOCKED
+				bool "Led Visualizer UI limited"
+				default n
+			config LED_VU_CONFIG
+				string "led_vu_config"
+				default ""
+				help
+					Set parameters for LED strip settings, leave empty for no screen
+					type=[WS2812|APA102],length=<n>,gpio=<gpio>[,clk=<gpio>]
+
+			config ROTARY_ENCODER_LOCKED
+				bool "Rotary Encoder UI limited"
+				default n
+			config ROTARY_ENCODER
+				string "rotary_config"
+				default ""
+				help
+					Set GPIO for rotary encoder (quadrature phase). See README on SqueezeESP32 project's GitHub for more details
+					A=<gpio>,B=<gpio>[,SW=gpio>[[,knobonly[=<ms>]|[,volume][,longpress]]			
+
+			config GPIO_EXP_CONFIG		
+				string "gpio_exp_config"
+				default	""
+				help
+					Set parameters of GPIO extender
+					model=<model>[,addr=<addr>][,base=<100..N>][,count=<0..32>][,intr=<gpio>][,port=dac|system]	
+
+			config ETH_CONFIG
+				string "eth_config"
+				default ""
+
 			config AUDIO_CONTROLS
 				string "audio_control_set"
 				default "[{\"gpio\":32, \"pull\":true, \"long_press\":1000, \"normal\":{\"pressed\":\"ACTRLS_VOLDOWN\"}, \"longpress\":{\"pressed\":\"ACTRLS_PREV\"}}, {\"gpio\":19, \"pull\":true, \"long_press\":1000, \"normal\":{\"pressed\":\"ACTRLS_VOLUP\"}, \"longpress\":{\"pressed\":\"ACTRLS_NEXT\"}}, {\"gpio\":12, \"pull\":true, \"long_press\":1000, \"normal\":{\"pressed\":\"ACTRLS_TOGGLE\"},\"longpress\":{\"pressed\":\"ACTRLS_POWER\"}}]" if MUSE
 				default ""
+				help
+					Configuration of buttons (see README for syntax)
+
+			config BAT_LOCKED
+				bool 
 			config BAT_CONFIG
 				string "bat_config"
 				default "channel=7,scale=20.24,atten=0" if SQUEEZEAMP
 				default "channel=5,scale=7.00,atten=3,cells=1" if MUSE
 				default ""			
+				help
+					Sets parameters for battery voltage measure
+					channel=<0..7>,scale=<ratio_to_4096>,atten=<adc_atten>,cells=<1..3>
+
 			config TARGET
 				string "target"
 				default "muse" if MUSE
-				default ""			
-			config AMP_GPIO		
-				int "set_GPIO_amp"
-				default 21 if MUSE
-				default -1
-			config POWER_GPIO		
-				int "set_GPIO_power"
-				default -1			
-			config JACK_GPIO
-				int "set_GPIO_jack"
-				default 34 if SQUEEZEAMP || MUSE
-				default -1			
-			config SPKFAULT_GPIO
-				int "set_GPIO_spkfault"
-				default 2 if SQUEEZEAMP
-				default -1			
-			config BAT_CHANNEL
-				int "battery_channel"
-				default 7 if SQUEEZEAMP
-				default -1
-			config LED_GREEN_GPIO
-				int "set_GPIO_green"
-				default 12 if SQUEEZEAMP
-				default -1
-			config LED_RED_GPIO
-				int "set_GPIO_red"
-				default 13 if SQUEEZEAMP
-				default -1
-			config SET_GPIO
-				string "set_GPIO"
-				default "0=ir" if SQUEEZEAMP
-				default "" if TWATCH2020
-		endmenu
-	endmenu
+				default ""		
+				
+			menu "Factory GPIO Configuration"	
 
-	menu "Audio settings"
-		menu "DAC settings"
-			visible if BASIC_I2C_BT
-			menu "I2S settings"
-				config I2S_NUM
-					int "I2S channel (0 or 1)"
+				config AMP_LOCKED
+					bool
+				config AMP_GPIO		
+					int "set_GPIO_amp"
+					default 21 if MUSE
+					default -1
+					help
+						GPIO to switch on/off external amplifier. Set to -1 for no amplifier. 
+				config AMP_GPIO_LEVEL
+					int "Active level(0/1)"
+					default 1
+
+				config JACK_LOCKED
+					bool
+				config JACK_GPIO
+					int "set_GPIO_jack"
+					default 34 if SQUEEZEAMP || MUSE
+					default -1			
+					help
+						GPIO to detect speaker jack insertion. Set to -1 for no detection.
+				config JACK_GPIO_LEVEL
+					int "Level when inserted (0/1)"
 					default 0
-					help
-						I2S dma channel to use.
-				config I2S_BCK_IO
-					int "I2S Bit clock GPIO number"
-					default -1
-					help
-						I2S Bit Clock gpio pin to use.
-				config I2S_WS_IO
-					int "I2S Word Select GPIO number"
-					default -1
-					help
-						I2S Word Select gpio pin to use.
-				config I2S_DO_IO
-					int "I2S Data Output GPIO number"
-					default -1
-					help
-						I2S data output gpio pin to use.
-				config I2S_DI_IO
-					int "I2S Data Input GPIO number"
-					default -1
-					help
-						I2S data input gpio pin to use (not used mostly, leave it to -1).
-				config I2S_MCK_IO
-					int "I2S Master Clock GPIO number"
-					default -1
-					help
-						I2S data output gpio pin to use (not used mostly, leave it to -1).
-			endmenu
-			menu "I2C settings"
-				config I2C_SDA
-					int "I2C SDA GPIO number for DAC control"
-					default -1
-					help
-						I2C data gpio pin to use with DAC (not used mostly, leave it to -1).
-				config I2C_SCL
-					int "I2C SCL GPIO number for DAC control"
-					default -1
-					help
-						I2C clock gpio pin to use with DAC (not used mostly, leave it to -1).
-			endmenu
-			config MUTE_GPIO
-				int "GPIO for muting DAC"
-				default -1
-				help
-					GPIO used to mute DAC (not used mostly, leave it to -1).
-			config MUTE_GPIO_LEVEL
-				int "Mute GPIO active level"
-				depends on MUTE_GPIO != -1
-				default 1
-		endmenu
 
-		menu "SPDIF settings"
-			visible if BASIC_I2C_BT
-		    config SDIF_NUM
-		        int "I2S channel for SDPIF (0 or 1)"
-		        default 0
-		        help
-		            I2S dma channel to use.
-		    config SPDIF_BCK_IO
-		        int "SDPIF Bit clock GPIO number"
-				default I2S_BCK_IO
-		        help
-		            Must be set as SPDIF re-uses I2S but only needs DO (recommendation: set it to I2S Bit clock value)
-		    config SPDIF_WS_IO
-		        int "SPDIF Word Select GPIO number"
-				default I2S_WS_IO
-		        help
-		            Must be set as SPDIF re-uses I2S but only needs DO (recommendation: set it to I2S Word select value)
-		    config SPDIF_DO_IO
-		        int "SPDIF Data I/O GPIO number"
-		        default -1
-				help
-		            I2S data output IO use to simulate SPDIF
-		endmenu
+				config LED_LOCKED
+					bool
+				config LED_GREEN_GPIO
+					int "set_GPIO_green"
+					default 12 if SQUEEZEAMP
+					default -1
+					help
+						Set to -1 for no LED
+				config LED_GREEN_GPIO_LEVEL
+					int "Green led ON level"
+					default 1
+				config LED_RED_GPIO
+					int "set_GPIO_red"
+					default 13 if SQUEEZEAMP
+					default -1
+					help
+						Set to -1 for no LED
+				config LED_RED_GPIO_LEVEL
+					int "Red led ON level"
+					default 0 if SQUEEZEAMP
+					default 1
+	
+				config MUTE_GPIO
+					int "GPIO for muting DAC"
+					default -1
+					help
+						GPIO used to mute DAC (not used mostly, leave it to -1).
+				config MUTE_GPIO_LEVEL
+					int "Mute GPIO active level"
+					default 1
 
-		menu "A2DP settings"
+				config POWER_GPIO		
+					int "set_GPIO_power"
+					default -1		
+					help
+						GPIO that is switched when LMS turns player one. Set to -1 to disable
+				config POWER_GPIO_LEVEL
+					int "Power active level(0/1)"
+					default 1						
+
+				config SPKFAULT_LOCKED
+					bool
+				config SPKFAULT_GPIO
+					int "set_GPIO_spkfault"
+					default 2 if SQUEEZEAMP
+					default -1			
+					help
+						GPIO to detect speaker fault condition. Set to -1 for no detection.
+				config SPKFAULT_GPIO_LEVEL
+					int "Level when fault (0/1)"
+					default 0
+
+				config SET_GPIO
+					string "set_GPIO"
+					default "0=ir" if SQUEEZEAMP
+					default "" if TWATCH2020
+					help
+						Set parameters of shared GPIO with special values.
+						<gpio_1>=Vcc|GND|amp[:0|1]|jack[:0|1][ir][spkfault[:0|1][,<gpio_n>=Vcc|GND|amp[:0|1]|jack[:0|1]]
+						'amp'  => GPIO that is set when playback starts
+						'jack' => GPIO used for audio jack detection
+						'green', 'red' => GPIO for status LED
+						'spkfault' => GPIO used for speaker fault detection
+						'ir' => GPIO used for Infrared Receiver
+						[:0|1] means set the active value for that GPIO can be low or high
+
+			endmenu
+		endmenu
+	
+		menu "Factory A2DP settings"
 		    config A2DP_SINK_NAME
 		        string "Name of Bluetooth A2DP device"
 		        default "SMSL BT4.2"
@@ -302,8 +321,10 @@ menu "Squeezelite-ESP32"
 	endmenu
 
 	menu "Audio Input"
+		visible if !PURE
 		config BT_SINK
 			bool "Bluetooth receiver"
+			default n if PURE
 			default y
 			help
 				Enable bluetooth sink (Note that you obviously can't at the same time be a Bluetooth receiver and transmitter)
@@ -319,6 +340,7 @@ menu "Squeezelite-ESP32"
 		        default 1234
 		config AIRPLAY_SINK
 			bool "AirPlay receiver"
+			default n if PURE
 			default y
 		config AIRPLAY_NAME
 			depends on AIRPLAY_SINK
@@ -334,147 +356,12 @@ menu "Squeezelite-ESP32"
 				AirPlay service listening port
 		config CSPOT_SINK
 			bool "Spotify (cspot) receiver"
+			default n if PURE
 			default y
 			help
 				Enable Spotify connect using CSpot		
 	endmenu
-	
-	menu "Controls"
-		depends on !MUSE
-		config AUDIO_CONTROLS
-			string "Audio buttons set (JSON)"
-			help
-				Configuration of buttons (see README for syntax)
-	endmenu	
-
-	menu "Display Screen"
-		depends on !TWATCH2020
-		config DISPLAY_CONFIG
-			string "Screen configuraton"
-			help
-				Set parameters for display screen, leave empty for no screen
-				I2C,driver=<model>,width=<pixels>,height=<pixels>[address=<i2c_address>][,HFlip][,VFlip][,rotate]
-				SPI,driver=<model>,width=<pixels>,height=<pixels>,cs=<gpio>[,HFlip][,VFlip][,rotate]
-	endmenu
-
-	menu "Various I/O"
-		visible if !TWATCH2020
-		config I2C_CONFIG
-			string "I2C system configuration"
-			default ""
-			help
-				Set parameters of shared I2C interface
-				sda=<gpio>,scl=<gpio>[,speed=<num>][,port=<0|1>]
-		config SPI_CONFIG
-			string "SPI system configuration"
-			help
-				Set parameters of shared SPI interface
-				data=<gpio>,clk=<gpio>[,d/c=<num>][,host=<0|1|2>]
-		config SET_GPIO
-			string "Special GPIO configuration"
-			help
-				Set parameters of shared GPIO with special values.
-				<gpio_1>=Vcc|GND|amp[:0|1]|jack[:0|1][ir][spkfault[:0|1][,<gpio_n>=Vcc|GND|amp[:0|1]|jack[:0|1]]
-				'amp'  => GPIO that is set when playback starts
-				'jack' => GPIO used for audio jack detection
-				'green', 'red' => GPIO for status LED
-				'spkfault' => GPIO used for speaker fault detection
-				'ir' => GPIO used for Infrared Receiver
-				[:0|1] means set the active value for that GPIO can be low or high
-		config ROTARY_ENCODER
-			string "Rotary Encoder configuration"
-			default ""
-			help
-				Set GPIO for rotary encoder (quadrature phase). See README on SqueezeESP32 project's GitHub for more details
-				A=<gpio>,B=<gpio>[,SW=gpio>[[,knobonly[=<ms>]|[,volume][,longpress]]			
-		config LED_VU_CONFIG
-			string "LED strip configuraton"
-			help
-				Set parameters for LED strip settings, leave empty for no screen
-				type=[WS2812|APA102],length=<n>,gpio=<gpio>[,clk=<gpio>]
-		config GPIO_EXP_CONFIG
-			string "GPIO expander configuration"
-			help
-				Set parameters of GPIO extender
-				model=<model>[,addr=<addr>][,base=<100..N>][,count=<0..32>][,intr=<gpio>][,port=dac|system]				
-	endmenu
-	
-	menu "LED configuration"
-		visible if !SQUEEZEAMP && !TWATCH2020 && !MUSE
-		config LED_GREEN_GPIO
-			int "Green led GPIO"
-			help
-				Set to -1 for no LED
-		config LED_GREEN_GPIO_LEVEL
-			int "Green led ON level"
-			depends on LED_GREEN_GPIO != -1
-		config LED_RED_GPIO				
-			int "Red led GPIO"
-			help
-				Set to -1 for no LED
-		config LED_RED_GPIO_LEVEL
-			int "Red led ON level"
-			depends on LED_RED_GPIO != -1
-			default 0 if SQUEEZEAMP
-			default 1
-	endmenu
-	
-    menu "Audio JACK"	
-		visible if !TARGET_LOCKED
-		config JACK_GPIO		
-			int "Jack insertion GPIO"
-			help
-				GPIO to detect speaker jack insertion. Set to -1 for no detection.
-		config JACK_GPIO_LEVEL
-			depends on JACK_GPIO != -1
-			int "Level when inserted (0/1)"
-			default 0
-	endmenu	
-	
-	menu "External amplifier control"	
-		visible if !AMP_LOCKED
-		config AMP_GPIO		
-			int "Amplifier GPIO"
-			help
-				GPIO to switch on/off external amplifier. Set to -1 for no amplifier. 
-		config AMP_GPIO_LEVEL
-			depends on AMP_GPIO != -1
-			int "Active level(0/1)"
-			default 1
-	endmenu	
-	
-	menu "Power on/off status"	
-		config POWER_GPIO
-			int "Power on/off GPIO"
-			help
-				GPIO that is switched when LMS turns player one. Set to -1 to disable
-		config POWER_GPIO_LEVEL
-			depends on POWER_GPIO != -1
-			int "Active level(0/1)"
-			default 1
-	endmenu	
-	
-	menu "Speaker Fault"	
-		visible if !TARGET_LOCKED
-		config SPKFAULT_GPIO		
-			int "Speaker fault GPIO"
-			help
-				GPIO to detect speaker fault condition. Set to -1 for no detection.
-		config SPKFAULT_GPIO_LEVEL
-			depends on SPKFAULT_GPIO != -1
-			int "Level when fault (0/1)"
-			default 0
-	endmenu
-	
-	menu "Battery measure"
-		visible if !TARGET_LOCKED
-		config BAT_CONFIG
-			string "Battery acquisition configuration"
-			help
-				Sets parameters for battery voltage measure
-				channel=<0..7>,scale=<ratio_to_4096>,atten=<adc_atten>,cells=<1..3>
-	endmenu	
-	
+			
 	menu "Command sets"
 		config DEFAULT_COMMAND_LINE
 			string "Command line to execute in Analogue mode"
@@ -487,7 +374,7 @@ menu "Squeezelite-ESP32"
 			help
 				This is the command to run when starting the device in set 2
 		config DEFAULT_COMMAND_3_LINE
-			string "Command line to execute in Digital Mode"
+			string "Command line to execute in Bluetooth Mode"
 			default "squeezelite -o bt -b 500:2000 -d all=info -C 30 -Z 44100"
 			help
 				This is the command to run when starting the device in set 3

@@ -42,23 +42,51 @@ const __attribute__((section(".rodata_desc"))) esp_app_desc_t esp_app_desc = {
 };
 
 #ifdef CONFIG_CSPOT_SINK	
-extern register_cspot_config(void);
+extern void register_cspot_config();
 #endif	
 #ifdef CONFIG_IDF_TARGET_ESP32
-extern register_bt_source_config(void);
+extern void register_bt_source_config();
 #endif
+extern void register_i2s_config(void);
+extern void register_squeezelite_config(void);
 extern void register_rotary_config(void);
 extern void register_ledvu_config(void);
-extern void register_nvs();
+extern void register_spdif_config(void);
+extern void register_nvs(void);
+extern void register_i2c_set_display(void);
+extern void register_i2c_config(void);
+extern void register_spiconfig(void);
+extern void register_i2cdectect(void);
+extern void register_i2cget(void);
+extern void register_i2cset(void);
+extern void register_i2cdump(void);
+
 extern cJSON * get_gpio_list_handler(bool refresh);
 
 void register_optional_cmd(void) {
 #if CONFIG_WITH_CONFIG_UI	
+	register_i2s_config();
+	register_spdif_config();
+    register_i2c_set_display();
+	register_spiconfig();
     register_rotary_config();
 	register_ledvu_config();
+#ifdef CONFIG_CSPOT_SINK	
+	register_cspot_config();
+#endif	
+#ifdef CONFIG_IDF_TARGET_ESP32
+	register_bt_source_config();
 #endif
+    register_i2c_config();
+    register_i2cdectect();
+    register_i2cget();
+    register_i2cset();
+    register_i2cdump();
+#endif
+	register_squeezelite_config();
 	register_nvs();
 }
+
 cJSON * get_gpio_list(bool refresh){
 #if CONFIG_WITH_CONFIG_UI		
 	return get_gpio_list_handler(refresh);

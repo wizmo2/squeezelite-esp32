@@ -55,100 +55,6 @@ bool are_statistics_enabled(){
 	return false;
 }
 
-
-/****************************************************************************************
- * 
- */
-static char * config_spdif_get_string(){
-	return config_alloc_get_str("spdif_config", CONFIG_SPDIF_CONFIG, "bck=" STR(CONFIG_SPDIF_BCK_IO)
-											  ",ws=" STR(CONFIG_SPDIF_WS_IO) ",do=" STR(CONFIG_SPDIF_DO_IO));
-}
-
-/****************************************************************************************
- * 
- */
-static char * get_dac_config_string(){
-	return config_alloc_get_str("dac_config", CONFIG_DAC_CONFIG, "model=i2s,bck=" STR(CONFIG_I2S_BCK_IO)
-											",ws=" STR(CONFIG_I2S_WS_IO) ",do=" STR(CONFIG_I2S_DO_IO)
-											",sda=" STR(CONFIG_I2C_SDA) ",scl=" STR(CONFIG_I2C_SCL)
-											",mute=" STR(CONFIG_MUTE_GPIO));
-}
-
-/****************************************************************************************
- * 
- */
-bool is_dac_config_locked(){
-#if ( defined CONFIG_DAC_CONFIG )
-	if(strlen(CONFIG_DAC_CONFIG) > 0){
-		return true;
-	}
-#endif
-#if defined(CONFIG_I2S_BCK_IO) && CONFIG_I2S_BCK_IO>0		
-	return true;
-#endif
-	return false;
-}
-
-/****************************************************************************************
- * 
- */
-bool is_spdif_config_locked(){
-#if ( defined CONFIG_SPDIF_CONFIG )
-	if(strlen(CONFIG_SPDIF_CONFIG) > 0){
-		return true;
-	}
-#endif
-#if defined(CONFIG_SPDIF_BCK_IO) && CONFIG_SPDIF_BCK_IO>0		
-	return true;
-#endif
-	return false;
-}
-
-bool is_ledvu_config_locked(){
-#if ( defined CONFIG_LED_VU_CONFIG )
-	if(strlen(CONFIG_LED_VU_CONFIG) > 0){
-		return true;
-	}
-#endif
-	return false;
-}
-
-bool is_display_config_locked(){
-#if ( defined CONFIG_DISPLAY_CONFIG )
-	if(strlen(CONFIG_DISPLAY_CONFIG) > 0){
-		return true;
-	}
-#endif
-	return false;
-}
-
-bool is_rotary_config_locked(){
-#if ( defined CONFIG_ROTARY_ENCODER )
-	if(strlen(CONFIG_ROTARY_ENCODER) > 0){
-		return true;
-	}
-#endif
-	return false;
-}
-
-bool is_spi_config_locked(){
-#if ( defined CONFIG_SPI_CONFIG )
-	if(strlen(CONFIG_SPI_CONFIG) > 0){
-		return true;
-	}
-#endif
-	return false;
-}
-
-bool is_i2c_config_locked(){
-#if ( defined CONFIG_I2C_CONFIG )
-	if(strlen(CONFIG_I2C_CONFIG) > 0){
-		return true;
-	}
-#endif
-	return false;
-}
-
 /****************************************************************************************
  * Set pin from config string
  */
@@ -249,7 +155,7 @@ const eth_config_t * config_eth_get_from_str(char* config ){
  * Get spdif config structure 
  */
 const i2s_platform_config_t * config_spdif_get( ){
-	char * spdif_config = config_spdif_get_string();
+	char * spdif_config = config_alloc_get_str("spdif_config", NULL, CONFIG_SPDIF_CONFIG);
 	static EXT_RAM_ATTR i2s_platform_config_t i2s_dac_config;
 	memcpy(&i2s_dac_config, config_i2s_get_from_str(spdif_config), sizeof(i2s_dac_config));
 	free(spdif_config);
@@ -260,7 +166,7 @@ const i2s_platform_config_t * config_spdif_get( ){
  * Get dac config structure 
  */
 const i2s_platform_config_t * config_dac_get(){
-	char * spdif_config = get_dac_config_string();
+	char * spdif_config = config_alloc_get_str("dac_config", NULL, CONFIG_DAC_CONFIG);
 	static EXT_RAM_ATTR i2s_platform_config_t i2s_dac_config;
 	memcpy(&i2s_dac_config, config_i2s_get_from_str(spdif_config), sizeof(i2s_dac_config));
 	free(spdif_config);
@@ -592,7 +498,7 @@ const i2c_config_t * config_i2c_get(int * i2c_port) {
 
 	i2c.master.clk_speed = i2c_system_speed;
 	
-	nvs_item = config_alloc_get(NVS_TYPE_STR, "i2c_config");
+	nvs_item = config_alloc_get_default(NVS_TYPE_STR, "i2c_config", NULL, CONFIG_I2C_CONFIG);
 	if (nvs_item) {
 		PARSE_PARAM(nvs_item, "scl", '=', i2c.scl_io_num);
 		PARSE_PARAM(nvs_item, "sda", '=', i2c.sda_io_num);
@@ -745,7 +651,7 @@ const spi_bus_config_t * config_spi_get(spi_host_device_t * spi_host) {
         .quadhd_io_num = -1
     };
 		
-	nvs_item = config_alloc_get_str("spi_config", CONFIG_SPI_CONFIG, NULL);
+	nvs_item = config_alloc_get_str("spi_config", NULL, CONFIG_SPI_CONFIG);
 	if (nvs_item) {
 		PARSE_PARAM(nvs_item, "data", '=', spi.mosi_io_num);
 		PARSE_PARAM(nvs_item, "mosi", '=', spi.mosi_io_num);
@@ -785,7 +691,7 @@ void parse_set_GPIO(void (*cb)(int gpio, char *value)) {
 const rotary_struct_t * config_rotary_get() {
 
 	static rotary_struct_t rotary={  .A = -1, .B = -1, .SW = -1, .longpress = false, .knobonly=false,.timer=0,.volume_lock=false};
-	char *config = config_alloc_get_default(NVS_TYPE_STR, "rotary_config", NULL, 0);
+	char *config = config_alloc_get_default(NVS_TYPE_STR, "rotary_config", NULL, CONFIG_ROTARY_ENCODER);
 	if (config && *config) {
 		char *p;
 
@@ -885,7 +791,12 @@ cJSON * get_GPIO_nvs_list(cJSON * list) {
 /****************************************************************************************
  *
  */
-cJSON * get_DAC_GPIO(cJSON * list, bool fixed){
+cJSON * get_DAC_GPIO(cJSON * list){
+#ifdef CONFIG_DAC_LOCKED
+    bool fixed = true;
+#else
+    bool fixed = false;
+#endif
 	cJSON * llist = list;
 	if(!llist){
 		llist = cJSON_CreateArray();
@@ -909,27 +820,37 @@ cJSON * get_DAC_GPIO(cJSON * list, bool fixed){
 /****************************************************************************************
  *
  */
-cJSON * get_Display_GPIO(cJSON * list, bool fixed){
+cJSON * get_Display_GPIO(cJSON * list){
+#ifdef CONFIG_DISPLAY_LOCKED
+	bool fixed = true;
+#else
+	bool fixed = false;
+#endif
 	cJSON * llist = list;
 	if(!llist){
 		llist = cJSON_CreateArray();
 	}	
 	const display_config_t * config= config_display_get();
-	if(config->back >=0){
-		cJSON_AddItemToArray(llist,get_gpio_entry("backlight","display",config->back,fixed));
-	}
+if(config->back >=0){
+	cJSON_AddItemToArray(llist,get_gpio_entry("backlight","display",config->back,fixed));
+}
 	if(config->CS_pin >=0){
-		cJSON_AddItemToArray(llist,get_gpio_entry("CS","display",config->CS_pin,fixed));
-	}	
+	cJSON_AddItemToArray(llist,get_gpio_entry("CS","display",config->CS_pin,fixed));
+}	
 	if(config->RST_pin >=0){
-		cJSON_AddItemToArray(llist,get_gpio_entry("reset","display",config->RST_pin,fixed));
-	}
+	cJSON_AddItemToArray(llist,get_gpio_entry("reset","display",config->RST_pin,fixed));
+}
 	return llist;
 }
 /****************************************************************************************
  *
  */
-cJSON * get_I2C_GPIO(cJSON * list, bool fixed){
+cJSON * get_I2C_GPIO(cJSON * list){
+#ifdef CONFIG_I2C_LOCKED
+	bool fixed = true;
+#else
+	bool fixed = false;
+#endif
 	cJSON * llist = list;
 	if(!llist){
 		llist = cJSON_CreateArray();
@@ -946,7 +867,12 @@ cJSON * get_I2C_GPIO(cJSON * list, bool fixed){
 /****************************************************************************************
  *
  */
-cJSON * get_SPI_GPIO(cJSON * list, bool fixed){
+cJSON * get_SPI_GPIO(cJSON * list){
+#if CONFIG_SPI_LOCKED
+	bool fixed = true;
+#else
+	bool fixed = false;
+#endif
 	cJSON * llist = list;
 	if(!llist){
 		llist = cJSON_CreateArray();
@@ -1011,9 +937,14 @@ cJSON * get_eth_GPIO(cJSON * list){
 /****************************************************************************************
  *
  */
-cJSON * get_SPDIF_GPIO(cJSON * list, bool fixed){
+cJSON * get_SPDIF_GPIO(cJSON * list){
+#ifdef CONFIG_SPDIF_LOCKED
+	bool fixed = true;
+#else
+	bool fixed = false;
+#endif
 	cJSON * llist = list?list:cJSON_CreateArray();
-	char * spdif_config = config_spdif_get_string();
+	char * spdif_config = config_alloc_get_str("spdif_config", NULL, CONFIG_SPDIF_CONFIG);
 	if(spdif_config){
 		llist = add_gpio_for_name(llist,spdif_config,"bck", "spdif", fixed);
 		llist = add_gpio_for_name(llist,spdif_config,"ws",  "spdif", fixed);
@@ -1026,9 +957,13 @@ cJSON * get_SPDIF_GPIO(cJSON * list, bool fixed){
 /****************************************************************************************
  *
  */
-cJSON * get_Rotary_GPIO(cJSON * list, bool fixed){
+cJSON * get_Rotary_GPIO(cJSON * list){
 	cJSON * llist = list?list:cJSON_CreateArray();
-
+#ifdef CONFIG_ROTARY_ENCODER_LOCKED
+	bool fixed = true;
+#else
+	bool fixed = false;
+#endif
 	const rotary_struct_t *rotary= config_rotary_get();
 	add_gpio_for_value(llist,"A",rotary->A, "rotary", fixed);
 	add_gpio_for_value(llist,"B",rotary->B, "rotary", fixed);
@@ -1039,9 +974,13 @@ cJSON * get_Rotary_GPIO(cJSON * list, bool fixed){
 /****************************************************************************************
  *
  */
-cJSON * get_ledvu_GPIO(cJSON * list, bool fixed){
+cJSON * get_ledvu_GPIO(cJSON * list){
 	cJSON * llist = list?list:cJSON_CreateArray();
-
+#ifdef CONFIG_LED_VU_LOCKED
+	bool fixed = true;
+#else
+	bool fixed = false;
+#endif
 	const ledvu_struct_t *ledvu= config_ledvu_get();
 	add_gpio_for_value(llist,"gpio",ledvu->gpio, "led_vu", fixed);
 	if (ledvu->clk >= 0)
@@ -1253,13 +1192,13 @@ cJSON * get_gpio_list_handler(bool refresh) {
 		free(bat_config);
 	}
 	gpio_list=get_GPIO_nvs_list(gpio_list);
-	gpio_list=get_SPDIF_GPIO(gpio_list,is_spdif_config_locked());
-	gpio_list=get_Rotary_GPIO(gpio_list,is_rotary_config_locked());
-	gpio_list=get_Display_GPIO(gpio_list,is_display_config_locked());
-	gpio_list=get_SPI_GPIO(gpio_list,is_spi_config_locked());
-	gpio_list=get_I2C_GPIO(gpio_list,is_i2c_config_locked());
-	gpio_list=get_DAC_GPIO(gpio_list,is_dac_config_locked());
-	gpio_list=get_ledvu_GPIO(gpio_list,is_ledvu_config_locked());
+	gpio_list=get_SPDIF_GPIO(gpio_list);
+	gpio_list=get_Rotary_GPIO(gpio_list);
+	gpio_list=get_Display_GPIO(gpio_list);
+	gpio_list=get_SPI_GPIO(gpio_list);
+	gpio_list=get_I2C_GPIO(gpio_list);
+	gpio_list=get_DAC_GPIO(gpio_list);
+	gpio_list=get_ledvu_GPIO(gpio_list);
 	gpio_list=get_psram_gpio_list(gpio_list);
 	gpio_list=get_eth_GPIO(gpio_list);
 	return gpio_list;

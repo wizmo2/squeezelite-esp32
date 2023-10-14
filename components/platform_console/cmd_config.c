@@ -67,10 +67,10 @@ extern void register_optional_cmd(void);
 #define MODEL_NAME_STRING STR(MODEL_NAME)
 #endif
 
-
 #define CODECS CODECS_BASE CODECS_AAC CODECS_FF CODECS_DSD CODECS_MP3
 #define NOT_OUTPUT "has input capabilities only"
 #define NOT_GPIO "is not a GPIO"
+
 typedef enum {
     SEARCHING_FOR_BT,
     SEARCHING_FOR_NAME,
@@ -83,6 +83,7 @@ static const char *TAG = "cmd_config";
 extern struct arg_end *getParmsEnd(struct arg_hdr * * argtable);
 //bck=<gpio>,ws=<gpio>,do=<gpio>[,mute=<gpio>[:0|1][,model=TAS57xx|TAS5713|AC101|WM8978|I2S][,sda=<gpio>,scl=gpio[,i2c=<addr>]]
 static struct {
+#ifndef CONFIG_DAC_LOCKED
 	struct arg_str *model_name;
     struct arg_int *clock;
     struct arg_int *wordselect;
@@ -92,6 +93,7 @@ static struct {
     struct arg_int *dac_sda;
     struct arg_int *dac_scl;
     struct arg_int *dac_i2c;
+#endif
 	struct arg_lit *clear;
     struct arg_end *end;
 } i2s_args;
@@ -100,25 +102,29 @@ static struct {
     struct arg_end *end;
 } known_model_args;
 static struct {
+#ifndef CONFIG_ROTARY_ENCODER_LOCKED
 	struct arg_rem * rem;
 	struct arg_int * A;
 	struct arg_int * B;
 	struct arg_int * SW;
+#endif
 	struct arg_lit * volume_lock;
 	struct arg_lit * longpress;
 	struct arg_lit * knobonly;
 	struct arg_int * timer;
-	struct arg_lit * clear;
 	struct arg_lit * raw_mode;
+	struct arg_lit * clear;
 	struct arg_end * end;
 } rotary_args;
 //config_rotary_get
 
 static struct {
+#ifndef CONFIG_LED_VU_LOCKED
 	struct arg_str * type;
 	struct arg_int * length;
 	struct arg_int * gpio;
 	struct arg_int * clk;
+#endif
 	struct arg_int * scale;
 	struct arg_lit * clear;
 	struct arg_end * end;
@@ -139,9 +145,11 @@ static struct {
 	struct arg_end *end;
 } cspot_args;
 static struct {
+#ifndef CONFIG_SPDIF_LOCKED
     struct arg_int *clock;
     struct arg_int *wordselect;
     struct arg_int *data;
+#endif
 	struct arg_lit *clear;	
     struct arg_end *end;
 } spdif_args;
@@ -497,17 +505,14 @@ static int do_spdif_cmd(int argc, char **argv){
 		.mute_gpio = -1,
 		.mute_level = -1
 	};
-	if(is_spdif_config_locked()){
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,"SPDIF Configuration is locked on this platform\n");
-		return 1;
-	}
 	esp_err_t err=ESP_OK;
 	int nerrors = arg_parse(argc, argv,(void **)&spdif_args);
 	if (spdif_args.clear->count) {
 		cmd_send_messaging(argv[0],MESSAGING_WARNING,"SPDIF config cleared\n");
-		config_set_value(NVS_TYPE_STR, "spdif_config", "");
+		config_set_value(NVS_TYPE_STR, "spdif_config", CONFIG_SPDIF_CONFIG);
 		return 0;
 	}
+#ifndef CONFIG_SPDIF_LOCKED
 
 	char *buf = NULL;
 	size_t buf_size = 0;
@@ -534,25 +539,19 @@ static int do_spdif_cmd(int argc, char **argv){
 	cmd_send_messaging(argv[0],nerrors>0?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
 	fclose(f);
 	FREE_AND_NULL(buf);
+#endif
 	return (nerrors==0 && err==ESP_OK)?0:1;
 }
 
 static int do_rotary_cmd(int argc, char **argv){
-	rotary_struct_t rotary={  .A = -1, .B = -1, .SW = -1, .longpress = 0, .knobonly=0,.volume_lock=false};
-	
-	if(is_rotary_config_locked()) {
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Rotary Encoder Configuration is locked on this platform\n");
-		return 1;
-	}
-	
+	rotary_struct_t rotary=config_rotary_get()[0];
 	esp_err_t err=ESP_OK;
 	int nerrors = arg_parse(argc, argv,(void **)&rotary_args);
 	if (rotary_args.clear->count) {
 		cmd_send_messaging(argv[0],MESSAGING_WARNING,"rotary config cleared\n");
-		config_set_value(NVS_TYPE_STR, "rotary_config", "");
+		config_set_value(NVS_TYPE_STR, "rotary_config", CONFIG_ROTARY_ENCODER);
 		return 0;
 	}
-
 	char *buf = NULL;
 	size_t buf_size = 0;
 	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
@@ -564,11 +563,11 @@ static int do_rotary_cmd(int argc, char **argv){
 		fclose(f);
 		return 1;
 	}
+#ifndef CONFIG_ROTARY_ENCODER_LOCKED
 	nerrors+=is_gpio(rotary_args.A, f, &rotary.A, true,false);
 	nerrors+=is_gpio(rotary_args.B, f, &rotary.B, true,false);
 	nerrors+=is_gpio(rotary_args.SW, f, &rotary.SW,false,false);
-
-
+#endif
 	if(rotary_args.knobonly->count>0 && (rotary_args.volume_lock->count>0 || rotary_args.longpress->count>0)){
 		fprintf(f,"error: Cannot use volume lock or longpress option when knob only option selected\n");
 		nerrors++;
@@ -673,21 +672,15 @@ static int do_cspot_config(int argc, char **argv){
 #endif
 
 static int do_ledvu_cmd(int argc, char **argv){
-	ledvu_struct_t ledvu={  .type = "WS2812", .gpio = -1, .length = 0, .clk = -1, .seq="", .scale = 100};
-
-	if(is_ledvu_config_locked()) {
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,"LED Strip Configuration is locked on this platform\n");
-		return 1;
-	}
-
+	ledvu_struct_t ledvu=config_ledvu_get()[0];
 	esp_err_t err=ESP_OK;
 	int nerrors = arg_parse(argc, argv,(void **)&ledvu_args);
 	if (ledvu_args.clear->count) {
 		cmd_send_messaging(argv[0],MESSAGING_WARNING,"ledvu config cleared\n");
-		config_set_value(NVS_TYPE_STR, "led_vu_config", "");
+		config_set_value(NVS_TYPE_STR, "led_vu_config", CONFIG_LED_VU_CONFIG);
 		return 0;
 	}
-	
+
 	char *buf = NULL;
 	size_t buf_size = 0;
 	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
@@ -700,6 +693,7 @@ static int do_ledvu_cmd(int argc, char **argv){
 	}
 	else
 	{
+#ifndef CONFIG_LED_VU_LOCKED
 		if (ledvu_args.type->count > 0) {
 			strncpy(ledvu.type,ledvu_args.type->sval[0],sizeof(ledvu.type));
 			ledvu.type[sizeof(ledvu.type) - 1] = '\0';
@@ -718,7 +712,8 @@ static int do_ledvu_cmd(int argc, char **argv){
 			cmd_send_messaging(argv[0],MESSAGING_ERROR,"Strip length must be greater than 0 and no more than 255.\n");
 			nerrors++;
 		}
-		nerrors+=is_output_gpio(ledvu_args.scale, f, &ledvu.scale, true);
+#endif
+		ledvu.scale = ledvu_args.scale->count>0?ledvu_args.scale->ival[0]:0;
 	}
 
 	if(!nerrors ){
@@ -744,10 +739,6 @@ static int do_i2s_cmd(int argc, char **argv)
 		.mute_gpio = -1,
 		.mute_level = -1
 	};
-	if(is_dac_config_locked()){
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,"DAC Configuration is locked on this platform\n");
-		return 1;
-	}
 
 	ESP_LOGD(TAG,"Processing i2s command %s with %d parameters",argv[0],argc);
 
@@ -755,10 +746,10 @@ static int do_i2s_cmd(int argc, char **argv)
 	int nerrors = arg_parse(argc, argv,(void **)&i2s_args);
 	if (i2s_args.clear->count) {
 		cmd_send_messaging(argv[0],MESSAGING_WARNING,"DAC config cleared\n");
-		config_set_value(NVS_TYPE_STR, "dac_config", "");
+		config_set_value(NVS_TYPE_STR, "dac_config", CONFIG_DAC_CONFIG);
 		return 0;
 	}
-
+#ifndef CONFIG_DAC_LOCKED
 	char *buf = NULL;
 	size_t buf_size = 0;
 	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
@@ -802,28 +793,10 @@ static int do_i2s_cmd(int argc, char **argv)
 	cmd_send_messaging(argv[0],nerrors>0?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
 	fclose(f);
 	FREE_AND_NULL(buf);
-
+#endif
 	return (nerrors==0 && err==ESP_OK)?0:1;
 }
 
-cJSON * example_cb(){
-	cJSON * values = cJSON_CreateObject();
-//	int i2c_port;
-//	const i2c_config_t * i2c= config_i2c_get(&i2c_port);
-//	if(i2c->scl_io_num>0) {
-//		cJSON_AddNumberToObject(values,"scl",i2c->scl_io_num);
-//	}
-//	if(i2c->sda_io_num>0) {
-//		cJSON_AddNumberToObject(values,"sda",i2c->sda_io_num);
-//	}
-//	if(i2c->master.clk_speed>0) {
-//		cJSON_AddNumberToObject(values,"freq",i2c->master.clk_speed);
-//	}
-//	if(i2c_port>0) {
-//		cJSON_AddNumberToObject(values,"port",i2c_port);
-//	}
-	return values;
-}
 
 cJSON * known_model_cb(){
 	cJSON * values = cJSON_CreateObject();
@@ -871,62 +844,45 @@ cJSON * cspot_cb(){
 #endif
 cJSON * i2s_cb(){
 	cJSON * values = cJSON_CreateObject();
-
-	const i2s_platform_config_t * i2s_conf= 	config_dac_get( );
+#ifndef CONFIG_DAC_LOCKED
+	const i2s_platform_config_t * i2s_conf=config_dac_get();
 #if defined(CONFIG_WITH_METRICS)
 	metrics_add_feature("i2s",i2s_conf->pin.data_out_num>=0);
 #endif	
-	if(i2s_conf->pin.bck_io_num>0 ) {
-		cJSON_AddNumberToObject(values,i2s_args.clock->hdr.longopts,i2s_conf->pin.bck_io_num);
-	}
-	if(i2s_conf->pin.ws_io_num>=0 ) {
-		cJSON_AddNumberToObject(values,i2s_args.wordselect->hdr.longopts,i2s_conf->pin.ws_io_num);
-	}
+	cJSON_AddNumberToObject(values,i2s_args.clock->hdr.longopts,i2s_conf->pin.bck_io_num);
+	cJSON_AddNumberToObject(values,i2s_args.wordselect->hdr.longopts,i2s_conf->pin.ws_io_num);
 	if(i2s_conf->pin.data_out_num>=0 ) {
 		cJSON_AddNumberToObject(values,i2s_args.data->hdr.longopts,i2s_conf->pin.data_out_num);
-	}
-	if(i2s_conf->sda>=0 ) {
 		cJSON_AddNumberToObject(values,i2s_args.dac_sda->hdr.longopts,i2s_conf->sda);
-	}
-	if(i2s_conf->scl>=0 ) {
 		cJSON_AddNumberToObject(values,i2s_args.dac_scl->hdr.longopts,i2s_conf->scl);
-	}	
-	if(i2s_conf->i2c_addr>=0 ) {
 		cJSON_AddNumberToObject(values,i2s_args.dac_i2c->hdr.longopts,i2s_conf->i2c_addr);
 	}		
 	if(i2s_conf->mute_gpio>=0 ) {
 		cJSON_AddNumberToObject(values,i2s_args.mute_gpio->hdr.longopts,i2s_conf->mute_gpio);
-	}		
-	if(i2s_conf->mute_level>=0 ) {
 		cJSON_AddBoolToObject(values,i2s_args.mute_level->hdr.longopts,i2s_conf->mute_level>0);
-	}		
+	}
 	if(strlen(i2s_conf->model)>0){
 		cJSON_AddStringToObject(values,i2s_args.model_name->hdr.longopts,i2s_conf->model);
 	}
 	else {
 		cJSON_AddStringToObject(values,i2s_args.model_name->hdr.longopts,"I2S");
 	}
-	
+#endif
 	return values;
 }
 cJSON * spdif_cb(){
 	cJSON * values = cJSON_CreateObject();
+#ifndef CONFIG_SPDIF_LOCKED
 	const i2s_platform_config_t * spdif_conf= 	config_spdif_get( );
 	if(spdif_conf->pin.data_out_num>=0) {
 #if defined(CONFIG_WITH_METRICS)		
 		metrics_add_feature("spdif","enabled");
 #endif
 	}
-	if(spdif_conf->pin.bck_io_num>0 ) {
-		cJSON_AddNumberToObject(values,"clock",spdif_conf->pin.bck_io_num);
-	}
-	if(spdif_conf->pin.ws_io_num>=0 ) {
-		cJSON_AddNumberToObject(values,"wordselect",spdif_conf->pin.ws_io_num);
-	}
-	if(spdif_conf->pin.data_out_num>=0 ) {
-		cJSON_AddNumberToObject(values,"data",spdif_conf->pin.data_out_num);
-	}
-		
+	cJSON_AddNumberToObject(values,"clock",spdif_conf->pin.bck_io_num);
+	cJSON_AddNumberToObject(values,"wordselect",spdif_conf->pin.ws_io_num);
+	cJSON_AddNumberToObject(values,"data",spdif_conf->pin.data_out_num);
+#endif		
 	return values;
 }
 cJSON * rotary_cb(){
@@ -938,18 +894,20 @@ cJSON * rotary_cb(){
 #if defined(CONFIG_WITH_METRICS)	
 	metrics_add_feature("rotary",GPIO_IS_VALID_GPIO(rotary->A ));
 #endif
+#ifndef CONFIG_ROTARY_ENCODER_LOCKED
 	if(GPIO_IS_VALID_GPIO(rotary->A ) && rotary->A>=0 && GPIO_IS_VALID_GPIO(rotary->B) && rotary->B>=0){
 		cJSON_AddNumberToObject(values,rotary_args.A->hdr.longopts,rotary->A);
 		cJSON_AddNumberToObject(values,rotary_args.B->hdr.longopts,rotary->B);
 		if(GPIO_IS_VALID_GPIO(rotary->SW ) && rotary->SW>=0 ){
 			cJSON_AddNumberToObject(values,rotary_args.SW->hdr.longopts,rotary->SW);
 		}
-		cJSON_AddBoolToObject(values,rotary_args.volume_lock->hdr.longopts,rotary->volume_lock);
-		cJSON_AddBoolToObject(values,rotary_args.longpress->hdr.longopts,rotary->longpress);
-		cJSON_AddBoolToObject(values,rotary_args.knobonly->hdr.longopts,rotary->knobonly);
-		cJSON_AddNumberToObject(values,rotary_args.timer->hdr.longopts,rotary->timer);
-		cJSON_AddNumberToObject(values,rotary_args.raw_mode->hdr.longopts,raw_mode);
 	}
+#endif
+	cJSON_AddBoolToObject(values,rotary_args.volume_lock->hdr.longopts,rotary->volume_lock);
+	cJSON_AddBoolToObject(values,rotary_args.longpress->hdr.longopts,rotary->longpress);
+	cJSON_AddBoolToObject(values,rotary_args.knobonly->hdr.longopts,rotary->knobonly);
+	cJSON_AddNumberToObject(values,rotary_args.timer->hdr.longopts,rotary->timer);
+	cJSON_AddNumberToObject(values,rotary_args.raw_mode->hdr.longopts,raw_mode);
 	return values;
 }
 
@@ -1417,16 +1375,18 @@ void register_cspot_config(){
 }
 #endif
 void register_i2s_config(void){
-	i2s_args.model_name = arg_str0(NULL,"model_name",STR_OR_BLANK(get_dac_list()),"DAC Model Name");
-	i2s_args.clear = arg_lit0(NULL, "clear", "Clear configuration");
-    i2s_args.clock = arg_int0(NULL,"clock","<n>","Clock GPIO. e.g. 33");
-    i2s_args.wordselect = arg_int0(NULL,"wordselect","<n>","Word Select GPIO. e.g. 25");
-    i2s_args.data = arg_int0(NULL,"data","<n>","Data GPIO. e.g. 32");
-    i2s_args.mute_gpio = arg_int0(NULL,"mute_gpio", "<n>", "Mute GPIO. e.g. 14");
-	i2s_args.mute_level = arg_lit0(NULL,"mute_level","Mute GPIO level. Checked=HIGH, Unchecked=LOW");
-    i2s_args.dac_sda = arg_int0(NULL,"dac_sda", "<n>", "SDA GPIO. e.g. 27");
-    i2s_args.dac_scl = arg_int0(NULL,"dac_scl", "<n>", "SCL GPIO. e.g. 26");
-    i2s_args.dac_i2c = arg_int0(NULL,"dac_i2c", "<n>", "I2C device address. e.g. 106");
+#ifndef CONFIG_DAC_LOCKED
+	i2s_args.model_name = arg_str0(NULL,"model_name",STR_OR_BLANK(get_dac_list()),"DAC Model Name [default: I2S]");
+    i2s_args.clock = arg_int1(NULL,"clock","<n>","Clock GPIO pin (e.g. 33)");
+    i2s_args.wordselect = arg_int1(NULL,"wordselect","<n>","Word Select GPIO pin (e.g. 25)");
+    i2s_args.data = arg_int1(NULL,"data","<n>","Data GPIO pin (e.g. 32)");
+    i2s_args.mute_gpio = arg_int0(NULL,"mute_gpio", "<n>", "Mute GPIO pin (e.g. 14)");
+	i2s_args.mute_level = arg_lit0(NULL,"mute_level","Mute GPIO level (checked=HIGH, unchecked=LOW)");
+    i2s_args.dac_sda = arg_int0(NULL,"dac_sda", "<n>", "I2C SDA GPIO pin (e.g. 27)");
+    i2s_args.dac_scl = arg_int0(NULL,"dac_scl", "<n>", "I2C SCL GPIO pin (e.g. 26)");
+    i2s_args.dac_i2c = arg_int0(NULL,"dac_i2c", "<n>", "I2C device address pin (e.g. 106)");
+#endif
+	i2s_args.clear = arg_lit0(NULL, "clear", "Clear configuration (factory)");
     i2s_args.end = arg_end(6);
 
 	 const esp_console_cmd_t cmd = {
@@ -1442,8 +1402,8 @@ void register_i2s_config(void){
 
 void register_bt_source_config(void){
 	#if CONFIG_BT_ENABLED
-	bt_source_args.sink_name= arg_str1("n","sink_name", "name","Bluetooth audio device name. This applies when output mode is Bluetooth");
-	bt_source_args.pin_code= arg_str1("p","pin_code", "pin","Bluetooth security/pin code. Usually 0000. This applies when output mode is Bluetooth");
+	bt_source_args.sink_name= arg_str1("n","sink_name", "name","Bluetooth audio device name. (BT Out)");
+	bt_source_args.pin_code= arg_str1("p","pin_code", "pin","Bluetooth security/pin code. (BT Out, typically 0000)");
 //	bt_source_args.control_delay= arg_dbl0("d","control_delay","seconds","Control response delay, in seconds. This determines the response time of the system Bluetooth events. The default value should work for the majority of cases and changing this could lead to instabilities.");
 //	bt_source_args.connect_timeout_delay= arg_dbl0("t","connect_timeout_delay","seconds","Connection timeout. Determines the maximum amount of time, in seconds, that the system will wait when connecting to a bluetooth device. Beyond this delay, a new connect attempt will be made.");
 	bt_source_args.end= arg_end(1);
@@ -1460,19 +1420,18 @@ void register_bt_source_config(void){
 }
 
 void register_rotary_config(void){
-	if (is_rotary_config_locked()){
-		return;
-	}
+#ifndef CONFIG_ROTARY_ENCODER_LOCKED
 	rotary_args.rem = arg_rem("remark","One rotary encoder is supported, quadrature shift with press. Such encoders usually have 2 pins for encoders (A and B), and common C that must be set to ground and an optional SW pin for press. A, B and SW must be pulled up, so automatic pull-up is provided by ESP32, but you can add your own resistors. A bit of filtering on A and B (~470nF) helps for debouncing which is not made by software.\r\nEncoder is normally hard-coded to respectively knob left, right and push on LMS and to volume down/up/play toggle on BT and AirPlay.");
-	rotary_args.A = arg_int1(NULL,"A","gpio","A/DT gpio");
-	rotary_args.B = arg_int1(NULL,"B","gpio","B/CLK gpio");
-	rotary_args.SW = arg_int0(NULL,"SW","gpio","Switch gpio");
+	rotary_args.A = arg_int1(NULL,"A","gpio","A/DT GPIO pin");
+	rotary_args.B = arg_int1(NULL,"B","gpio","B/CLK GPIO pin");
+	rotary_args.SW = arg_int0(NULL,"SW","gpio","Switch GPIO pin");
+#endif
 	rotary_args.knobonly = arg_lit0(NULL,"knobonly","Single knob full navigation. Left, Right and Press is navigation, with Press always going to lower submenu item. Longpress is 'Play', Double press is 'Back', a quick left-right movement on the encoder is 'Pause'");
 	rotary_args.timer = arg_int0(NULL,"timer","ms","The speed of double click (or left-right) when knob only option is enabled. Be aware that the longer you set double click speed, the less responsive the interface will be. ");
 	rotary_args.volume_lock = arg_lit0(NULL,"volume_lock", "Force Volume down/up/play toggle all the time (even in LMS). ");
 	rotary_args.longpress = arg_lit0(NULL,"longpress","Enable alternate mode mode on long-press. In that mode, left is previous, right is next and press is toggle. Every long press on SW alternates between modes (the main mode actual behavior depends on 'volume').");
-	rotary_args.clear = arg_lit0(NULL, "clear", "Clear configuration");
 	rotary_args.raw_mode = arg_lit0(NULL, "raw_mode", "Send button events as raw values to LMS. No remapping is possible when this is enabled");
+	rotary_args.clear = arg_lit0(NULL, "clear", "Clear configuration (factory)");
 	rotary_args.end = arg_end(3);
 	const esp_console_cmd_t cmd = {
         .command = CFG_TYPE_HW("rotary"),
@@ -1486,15 +1445,14 @@ void register_rotary_config(void){
 }
 
 void register_ledvu_config(void){
-	if (is_ledvu_config_locked()){
-		return;
-	}
+#ifndef CONFIG_LED_VU_LOCKED
 	ledvu_args.type = arg_str0(NULL,"type","WS2812|APA102","Led type (supports one rgb strip to display built in effects and allow remote control through 'dmx' messaging)");
 	ledvu_args.length = arg_int1(NULL,"length","<1..255>","Strip length (1-255 supported)");
-	ledvu_args.gpio = arg_int1(NULL,"gpio","<n>","Data pin");
-	ledvu_args.clk = arg_int0(NULL,"clk","<n>","Clock pin (APA102 only)");
+	ledvu_args.gpio = arg_int1(NULL,"gpio","<n>","Data GPIO pin");
+	ledvu_args.clk = arg_int0(NULL,"clk","<n>","Clock GPIO pin (APA102 only)");
+#endif
 	ledvu_args.scale = arg_int0(NULL,"scale","<n>","Gain scale (precent)");
-	ledvu_args.clear = arg_lit0(NULL, "clear", "Clear configuration");
+	ledvu_args.clear = arg_lit0(NULL, "clear", "Clear configuration (factory)");
 	ledvu_args.end = arg_end(4);
 
 	const esp_console_cmd_t cmd = {
@@ -1509,7 +1467,7 @@ void register_ledvu_config(void){
 }
 
 void register_audio_config(void){
-	audio_args.output_set = arg_str0("o", "output_set","Off|Analogue|Digital|Bluetooth","Specified the Audio Output Mode. Use Off to disable Squeezelite.");
+	audio_args.output_set = arg_str0("o", "output_set","Off|Analogue|Digital|Bluetooth","Specified the Audio Output Mode (use 'Off' to disable Squeezelite)");
     audio_args.end = arg_end(3);
 	const esp_console_cmd_t cmd = {
         .command = CFG_TYPE_AUDIO("general"),
@@ -1523,10 +1481,12 @@ void register_audio_config(void){
 }
 
 void register_spdif_config(void){
-	spdif_args.clear = arg_lit0(NULL, "clear", "Clear configuration");
-    spdif_args.clock = arg_int1(NULL,"clock","<n>","Clock GPIO. e.g. 33");
-    spdif_args.wordselect = arg_int1(NULL,"wordselect","<n>","Word Select GPIO. e.g. 25");
-    spdif_args.data = arg_int1(NULL,"data","<n>","Data GPIO. e.g. 32");
+#ifndef CONFIG_SPDIF_LOCKED
+    spdif_args.clock = arg_int1(NULL,"clock","<n>","Clock GPIO pin (e.g. 33)");
+    spdif_args.wordselect = arg_int1(NULL,"wordselect","<n>","Word Select GPIO pin (e.g. 25)");
+    spdif_args.data = arg_int1(NULL,"data","<n>","Data GPIO pin (e.g. 32)");
+#endif
+	spdif_args.clear = arg_lit0(NULL, "clear", "Clear configuration (factory)");
     spdif_args.end = arg_end(6);
 
 	 const esp_console_cmd_t cmd = {
@@ -1586,32 +1546,7 @@ void dummy_register_cmd(){
 	
 }
 void register_config_cmd(void){
-#ifdef CONFIG_CSPOT_SINK	
-	register_cspot_config();
-#endif	
-#ifdef CONFIG_IDF_TARGET_ESP32
-	register_bt_source_config();
-#endif
-#if CONFIG_WITH_CONFIG_UI	
-	if(!is_dac_config_locked()){
-		register_i2s_config();
-	}
-	else {
-#if defined(CONFIG_WITH_METRICS)
-		metrics_add_feature("i2s",true);
-#endif
-	}
-	if(!is_spdif_config_locked()){
-		register_spdif_config();
-	}
-	else {
-#if defined(CONFIG_WITH_METRICS)
-		metrics_add_feature("spdif",true);
-#endif
-	}
-#endif
-    register_optional_cmd();   
-    register_audio_config();
-	register_squeezelite_config();
+	register_audio_config();
+    register_optional_cmd();    
 }
 

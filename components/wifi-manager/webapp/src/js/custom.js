@@ -2184,6 +2184,10 @@ function getCommands() {
               $(ctrlselector)
                 .val(ctrlValue)
                 .trigger('change');
+                if (arg.mincount && arg.mincount > 0) {
+                  $(ctrlselector).removeClass('is-invalid');
+                  $(ctrlselector).addClass('is-valid');
+                }
             }
             if (
               $(ctrlselector)[0].value.length === 0 &&
@@ -2191,10 +2195,6 @@ function getCommands() {
             ) {
               $(ctrlselector)[0].value = '--';
             }
-          }
-          if (arg.mincount && arg.mincount > 0) {
-            $(ctrlselector).removeClass('is-invalid');
-            $(ctrlselector).addClass('is-valid');
           }
         });
       }

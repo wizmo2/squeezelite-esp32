@@ -78,7 +78,7 @@ static void battery_svc(float value, int cells) {
  */
 void led_vu_init()
 {
-    char* config = config_alloc_get_str("led_vu_config", NULL, CONFIG_LED_VU_CONFIG);
+    char* config = config_alloc_get_str("led_vu_config", NULL, (char *)CONFIG_LED_VU_CONFIG);
 
     PARSE_PARAM(config, "length",'=', strip.length);
     PARSE_PARAM(config, "gpio",'=', strip.gpio);

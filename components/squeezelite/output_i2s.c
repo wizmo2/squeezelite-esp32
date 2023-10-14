@@ -270,13 +270,9 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 	running = true;
 
 	// get SPDIF configuration from NVS or compile
-	char *spdif_config = config_alloc_get_str("spdif_config", CONFIG_SPDIF_CONFIG, "bck=" STR(CONFIG_SPDIF_BCK_IO) 
-											  ",ws=" STR(CONFIG_SPDIF_WS_IO) ",do=" STR(CONFIG_SPDIF_DO_IO));
+	char *spdif_config = config_alloc_get_str("spdif_config", NULL, CONFIG_SPDIF_CONFIG);
 											  
-	char *dac_config = config_alloc_get_str("dac_config", CONFIG_DAC_CONFIG, "model=i2s,bck=" STR(CONFIG_I2S_BCK_IO) 
-											",ws=" STR(CONFIG_I2S_WS_IO) ",do=" STR(CONFIG_I2S_DO_IO) ",mck=" STR(CONFIG_I2S_MCK_IO)
-											",sda=" STR(CONFIG_I2C_SDA) ",scl=" STR(CONFIG_I2C_SCL)
-											",mute=" STR(CONFIG_MUTE_GPIO));	
+	char *dac_config = config_alloc_get_str("dac_config", NULL, CONFIG_DAC_CONFIG);	
 
     i2s_pin_config_t i2s_dac_pin, i2s_spdif_pin;											
 	set_i2s_pin(spdif_config, &i2s_spdif_pin);										
@@ -327,8 +323,8 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 		// silence DAC output if sharing the same ws/bck
 		if (i2s_dac_pin.ws_io_num == i2s_spdif_pin.ws_io_num && i2s_dac_pin.bck_io_num == i2s_spdif_pin.bck_io_num)	silent_do = i2s_dac_pin.data_out_num;		
 		
-		res = i2s_driver_install(CONFIG_I2S_NUM, &i2s_config, 0, NULL);
-		res |= i2s_set_pin(CONFIG_I2S_NUM, &i2s_spdif_pin);
+		res = i2s_driver_install(CONFIG_DAC_I2S_NUM, &i2s_config, 0, NULL);
+		res |= i2s_set_pin(CONFIG_DAC_I2S_NUM, &i2s_spdif_pin);
 		LOG_INFO("SPDIF using I2S bck:%d, ws:%d, do:%d", i2s_spdif_pin.bck_io_num, i2s_spdif_pin.ws_io_num, i2s_spdif_pin.data_out_num);
 	} else {
 		i2s_config.sample_rate = output.current_sample_rate;
@@ -362,13 +358,13 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 
         if (mck_io_num == GPIO_NUM_0) {
             PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0_CLK_OUT1);
-            WRITE_PERI_REG(PIN_CTRL, CONFIG_I2S_NUM == I2S_NUM_0 ? 0xFFF0 : 0xFFFF);
+            WRITE_PERI_REG(PIN_CTRL, CONFIG_DAC_I2S_NUM == I2S_NUM_0 ? 0xFFF0 : 0xFFFF);
         } else if (mck_io_num == GPIO_NUM_1) {
             PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0TXD_U, FUNC_U0TXD_CLK_OUT3);
-            WRITE_PERI_REG(PIN_CTRL, CONFIG_I2S_NUM == I2S_NUM_0 ? 0xF0F0 : 0xF0FF);
+            WRITE_PERI_REG(PIN_CTRL, CONFIG_DAC_I2S_NUM == I2S_NUM_0 ? 0xF0F0 : 0xF0FF);
         } else if (mck_io_num == GPIO_NUM_2) {
             PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0RXD_U, FUNC_U0RXD_CLK_OUT2);
-            WRITE_PERI_REG(PIN_CTRL, CONFIG_I2S_NUM == I2S_NUM_0 ? 0xFF00 : 0xFF0F);
+            WRITE_PERI_REG(PIN_CTRL, CONFIG_DAC_I2S_NUM == I2S_NUM_0 ? 0xFF00 : 0xFF0F);
         } else {
             LOG_WARN("invalid MCK gpio %d", mck_io_num);
         }
@@ -377,8 +373,8 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
         LOG_INFO("configuring MCLK on GPIO %d", i2s_dac_pin.mck_io_num);
 #endif    
        
-		res |= i2s_driver_install(CONFIG_I2S_NUM, &i2s_config, 0, NULL);
-		res |= i2s_set_pin(CONFIG_I2S_NUM, &i2s_dac_pin);
+		res |= i2s_driver_install(CONFIG_DAC_I2S_NUM, &i2s_config, 0, NULL);
+		res |= i2s_set_pin(CONFIG_DAC_I2S_NUM, &i2s_dac_pin);
         	
 		if (res == ESP_OK && mute_control.gpio >= 0) {
 			gpio_pad_select_gpio(mute_control.gpio);
@@ -409,8 +405,8 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 			spdif.enabled ? "S/PDIF" : "normal", 
 			i2s_config.sample_rate, i2s_config.bits_per_sample, i2s_config.dma_buf_len, i2s_config.dma_buf_count);
 	
-	i2s_stop(CONFIG_I2S_NUM);
-	i2s_zero_dma_buffer(CONFIG_I2S_NUM);
+	i2s_stop(CONFIG_DAC_I2S_NUM);
+	i2s_zero_dma_buffer(CONFIG_DAC_I2S_NUM);
 	isI2SStarted=false;
     
     equalizer_set_samplerate(output.current_sample_rate);
@@ -467,7 +463,7 @@ void output_close_i2s(void) {
 	
 	while (!ended) vTaskDelay(20 / portTICK_PERIOD_MS);
 	
-	i2s_driver_uninstall(CONFIG_I2S_NUM);
+	i2s_driver_uninstall(CONFIG_DAC_I2S_NUM);
 	free(obuf);
 	
 	equalizer_close();
@@ -552,7 +548,7 @@ static void output_thread_i2s(void *arg) {
 			UNLOCK;
 			if (isI2SStarted) {
 				isI2SStarted = false;
-				i2s_stop(CONFIG_I2S_NUM);
+				i2s_stop(CONFIG_DAC_I2S_NUM);
 				adac->power(ADAC_STANDBY);
 			}
 			usleep(100000);
@@ -597,8 +593,8 @@ static void output_thread_i2s(void *arg) {
 		if (!isI2SStarted ) {
 			isI2SStarted = true;
 			LOG_INFO("Restarting I2S.");
-			i2s_zero_dma_buffer(CONFIG_I2S_NUM);
-			i2s_start(CONFIG_I2S_NUM);
+			i2s_zero_dma_buffer(CONFIG_DAC_I2S_NUM);
+			i2s_start(CONFIG_DAC_I2S_NUM);
 			adac->power(ADAC_ON);	
             if (spdif.enabled) spdif_convert(NULL, 0, NULL);
 		} 
@@ -614,8 +610,8 @@ static void output_thread_i2s(void *arg) {
 			*/		
 			}	
 			i2s_config.sample_rate = output.current_sample_rate;
-			i2s_set_sample_rates(CONFIG_I2S_NUM, spdif.enabled ? i2s_config.sample_rate * 2 : i2s_config.sample_rate);
-			i2s_zero_dma_buffer(CONFIG_I2S_NUM);
+			i2s_set_sample_rates(CONFIG_DAC_I2S_NUM, spdif.enabled ? i2s_config.sample_rate * 2 : i2s_config.sample_rate);
+			i2s_zero_dma_buffer(CONFIG_DAC_I2S_NUM);
 
             equalizer_set_samplerate(output.current_sample_rate);
 		}
@@ -631,16 +627,16 @@ static void output_thread_i2s(void *arg) {
 			while (count < oframes) {
 				size_t chunk = min(SPDIF_BLOCK, oframes - count);
                 spdif_convert((ISAMPLE_T*) obuf + count * 2, chunk, (u32_t*) spdif.buf);              
-				i2s_write(CONFIG_I2S_NUM, spdif.buf, chunk * 16, &obytes, portMAX_DELAY);
+				i2s_write(CONFIG_DAC_I2S_NUM, spdif.buf, chunk * 16, &obytes, portMAX_DELAY);
 				bytes += obytes / (16 / BYTES_PER_FRAME);
 				count += chunk;
 			}
 #if BYTES_PER_FRAME == 4		
 		} else if (i2s_config.bits_per_sample == 32) {  
-			i2s_write_expand(CONFIG_I2S_NUM, obuf, oframes * BYTES_PER_FRAME, 16, 32, &bytes, portMAX_DELAY);
+			i2s_write_expand(CONFIG_DAC_I2S_NUM, obuf, oframes * BYTES_PER_FRAME, 16, 32, &bytes, portMAX_DELAY);
 #endif			
 		} else {
-			i2s_write(CONFIG_I2S_NUM, obuf, oframes * BYTES_PER_FRAME, &bytes, portMAX_DELAY);
+			i2s_write(CONFIG_DAC_I2S_NUM, obuf, oframes * BYTES_PER_FRAME, &bytes, portMAX_DELAY);
 		}
 
 		fullness = gettime_ms();

@@ -65,7 +65,7 @@ static bool init(char *config, int i2c_port_num, i2s_config_t *i2s_config, bool 
 	
 	ESP_LOGI(TAG, "DAC on I2C @%d", i2c_addr);
 	
-	p = config_alloc_get_str("dac_controlset", CONFIG_DAC_CONTROLSET, NULL);
+	p = config_alloc_get_str("dac_controlset", NULL, CONFIG_DAC_CONTROLSET);
 
 	if ((!p || !*p) && (p = strcasestr(config, "model")) != NULL) {
 		char model[32] = "";

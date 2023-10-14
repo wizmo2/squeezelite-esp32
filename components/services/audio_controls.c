@@ -132,7 +132,7 @@ static void set_ir_gpio(int gpio, char *value) {
  */
 esp_err_t actrls_init(const char *profile_name) {
 	esp_err_t err = ESP_OK;
-	char *config = config_alloc_get_default(NVS_TYPE_STR, "rotary_config", NULL, 0);
+	char *config = config_alloc_get_default(NVS_TYPE_STR, "rotary_config", NULL, CONFIG_ROTARY_ENCODER);
 	
 	if (config && *config) {
 		char *p;
