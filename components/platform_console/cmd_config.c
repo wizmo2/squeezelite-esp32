@@ -185,7 +185,8 @@ static struct {
 	//			   "   \t\t\t b = basic linear interpolation, l = 13 taps, m = 21 taps, i = interpolate filter coefficients\n"
 	#endif
 	struct arg_int * rate;//			   "  -Z <rate>\t\tReport rate to server in helo as the maximum sample rate we can support\n"
-    struct arg_lit *jack_behavior;	
+    struct arg_lit *amp_off;	//            -G for ESP32 [y/n/x] for ESP32, the format is 'y' for auto on/off with jack, 'n' for always on, 'x' for always off. default is always on.
+    struct arg_lit *jack_behavior; //	            NOTE: for check boxes -G used for 'x', -j used for auto on/off	
     struct arg_end *end;
 } squeezelite_args;
 
@@ -1064,28 +1065,69 @@ static int do_squeezelite_cmd(int argc, char **argv)
 	int nerrors = arg_parse(argc, argv,(void **)&squeezelite_args);
 	char *buf = NULL;
 	size_t buf_size = 0;
-	FILE *f = open_memstream(&buf, &buf_size);
+	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
 	if (f == NULL) {
-		cmd_send_messaging(argv[0],MESSAGING_ERROR,"Unable to open memory stream.\n");
-		return 1;
+				return 1;
 	}
-	/*err = config_set_value(NVS_TYPE_STR, "jack_mutes_amp", audio_args.jack_behavior->count?"y":"n");
+	
+	char *config_buffer = "squeezelite";
+	if(nerrors >0){
+		arg_print_errors(f,squeezelite_args.end,desc_squeezelite);
+	}
+	else
+	{
+		if (add_str_param_str(&config_buffer, squeezelite_args.output_device) > 0){
+			nerrors++;
+			cmd_send_messaging(argv[0],MESSAGING_ERROR,"Output device must be valid\n");
+		}
+		add_str_param_str(&config_buffer, squeezelite_args.name);
+		add_str_param_str(&config_buffer, squeezelite_args.server);
+		add_str_param_str(&config_buffer, squeezelite_args.buffers);
+		add_str_param_str(&config_buffer, squeezelite_args.codecs);
+		add_int_param_str(&config_buffer, squeezelite_args.timeout);
+		add_str_param_str(&config_buffer, squeezelite_args.log_level);
+		add_str_param_str(&config_buffer, squeezelite_args.mac_addr);
+		add_str_param_str(&config_buffer, squeezelite_args.model_name);
+		add_str_param_str(&config_buffer, squeezelite_args.rates);
+		add_lit_param_str(&config_buffer, squeezelite_args.header_format);
+	#if RESAMPLE || RESAMPLE16
+		add_str_param_str(&config_buffer, squeezelite_args.resample);
+		add_str_param_str(&config_buffer, squeezelite_args.resample_parms);
+	#endif
+		add_int_param_str(&config_buffer, squeezelite_args.rate);
+	}
+
+	if(!nerrors ){
+		cmd_send_messaging(argv[0],MESSAGING_INFO,"Updating %s configuration to %s", squeezelite_args._command_set->sval[0], config_buffer);
+		//err = config_set_value(NVS_TYPE_STR, squeezelite_args._command_set->sval[0], config_buffer);
+		if(err!=ESP_OK){
+        	cmd_send_messaging(argv[0],MESSAGING_ERROR,"Error setting squeezelite command. %s\n", esp_err_to_name(err));
+		}
+	} 
+	else {
+		err = ESP_ERR_NO_MEM;
+	}
+	FREE_AND_NULL(config_buffer);
+	
+	// TODO:  This should be stored as -G y or -G x in squeezelite value, 
+	//   but requires a better way to access the active command from nvs parameters
+	err = config_set_value(NVS_TYPE_STR, "jack_mutes_amp", squeezelite_args.amp_off->count?"x":(squeezelite_args.jack_behavior->count?"y":"n"));
 	if(err!=ESP_OK){
         nerrors++;
-        fprintf(f,"Error setting Audio Jack Behavior. %s\n", esp_err_to_name(err));
+        cmd_send_messaging(argv[0],MESSAGING_ERROR,"Error setting Audio Jack Behavior. %s\n", esp_err_to_name(err));
     }
     else {
-        fprintf(f,"Audio Jack Behavior changed to %s\n",(audio_args.jack_behavior->count)?"y":"n");
-    }*/
-	fprintf(f,"Not yet implemented!");
-	nerrors+=1;
+        cmd_send_messaging(argv[0], MESSAGING_INFO,"Audio Jack Behavior changed to '%s'\n",squeezelite_args.amp_off->count?"x":(squeezelite_args.jack_behavior->count?"y":"n"));
+    }
+	if(!nerrors ){
+	fprintf(f,"Done.\n");
+	}
 	fflush (f);
 	cmd_send_messaging(argv[0],nerrors>0?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
 	fclose(f);
 	FREE_AND_NULL(buf);
 	return (nerrors==0 && err==ESP_OK)?0:1;
 }
-
 
 cJSON * squeezelite_cb(){
 	cJSON * values = cJSON_CreateObject();
@@ -1527,7 +1569,8 @@ void register_squeezelite_config(void){
 	squeezelite_args.resample_parms = arg_str0("u","resample_parms","(b|l|m)[:i]","Resample, params. b = basic linear interpolation, l = 13 taps, m = 21 taps, i = interpolate filter coefficients");
 #endif
 	squeezelite_args.rate = arg_int0("Z","max_rate", "<n>", "Report rate to server in helo as the maximum sample rate we can support");
-    squeezelite_args.jack_behavior = arg_lit0("j", "jack_behavior", "On supported hardware, Select to mute the amplifier when headphones are inserted.");
+    squeezelite_args.amp_off = arg_lit0("G", "amp_off", "Disable Amplifier. Select to turn off the amplifier. (supported hardware only)");
+	squeezelite_args.jack_behavior = arg_lit0("j", "jack_behavior", "Jack Behavior.  Select to mute the amplifier when headphones are inserted. (supported hardware only)");
 	squeezelite_args.end = arg_end(6);
     const esp_console_cmd_t cmd = {
         .command = CFG_TYPE_AUDIO("squeezelite"),
