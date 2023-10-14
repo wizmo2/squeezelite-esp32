@@ -28,29 +28,7 @@ Object.assign(Date.prototype, {
     return this.toLocaleString(undefined, opt);
   },
 });
-function get_control_option_value(obj) {
-  let ctrl,id,val,opt;
-  let radio = false;
-  let checked = false;
-  if (typeof (obj) === 'string') {
-    id = obj;
-    ctrl = $(`#${id}`);
-  } else {
-    id = $(obj).attr('id');
-    ctrl = $(obj);
-  }
-  if(ctrl.attr('type') === 'checkbox'){
-    opt = $(obj).checked?id.replace('cmd_opt_', ''):'';
-    val = true;
-  }
-  else {
-    opt = id.replace('cmd_opt_', '');
-    val = $(obj).val();
-    val = `${val.includes(" ") ? '"' : ''}${val}${val.includes(" ") ? '"' : ''}`;
-  }
 
-  return { opt, val };
-}
 function handleNVSVisible() {
   let nvs_previous_checked = isEnabled(Cookies.get("show-nvs"));
   $('input#show-nvs')[0].checked = nvs_previous_checked;
@@ -59,18 +37,6 @@ function handleNVSVisible() {
   } else {
     $('*[href*="-nvs"]').hide();
   }
-}
-function concatenateOptions(options) {
-  let commandLine = ' ';
-  for (const [option, value] of Object.entries(options)) {
-    if (option !== 'n' && option !== 'o') {
-      commandLine += `-${option} `;
-      if (value !== true) {
-        commandLine += `${value} `;
-      }
-    }
-  }
-  return commandLine;
 }
 
 function isEnabled(val) {
@@ -288,8 +254,6 @@ let flashState = {
     return true === (this._state != this.UPLOADING && (this.statusText !== '' || this.statusPercent >= 0));
   },
 
-
-
   toString: function () {
     let keys = Object.keys(this);
     return keys.find(x => this[x] === this._state);
@@ -489,83 +453,6 @@ window.handleReboot = function (link) {
   }
 }
 
-function parseSqueezeliteCommandLine(commandLine) {
-  const options = {};
-  let output, name;
-  let otherValues = '';
-
-  const argRegex = /("[^"]+"|'[^']+'|\S+)/g;
-  const args = commandLine.match(argRegex);
-
-  let i = 0;
-
-  while (i < args.length) {
-    const arg = args[i];
-
-    if (arg.startsWith('-')) {
-      const option = arg.slice(1);
-
-      if (option === '') {
-        otherValues += args.slice(i).join(' ');
-        break;
-      }
-
-      let value = true;
-
-      if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
-        value = args[i + 1].replace(/"/g, '').replace(/'/g, '');
-        i++;
-      }
-
-      options[option] = value;
-    } else {
-      otherValues += arg + ' ';
-    }
-
-    i++;
-  }
-
-  otherValues = otherValues.trim();
-  output = getOutput(options);
-  name = getName(options);
-  let otherOptions={btname:null,n:null};
-  // assign o and n options to otheroptions if present
-  if (options.o && output.toUpperCase() === 'BT') {
-    let temp = parseSqueezeliteCommandLine(options.o);
-    if(temp.name) {
-      otherOptions.btname = temp.name;
-    }
-    delete options.o;
-  }
-  if (options.n) {
-    otherOptions['n'] = options.n;
-    delete options.n;
-  }
-  return { name, output, options, otherValues,otherOptions };  
-}
-
-function getOutput(options) {
-  let output;
-  if (options.o){
-    output = options.o.replace(/"/g, '').replace(/'/g, '');
-    /* set output as the first alphanumerical word in the command line */
-    if (output.indexOf(' ') > 0) {
-      output = output.substring(0, output.indexOf(' '));
-    }
-  }
-  return output;
-}
-
-function getName(options) {
-  let name;
-  /* if n option present, assign to name variable */
-  if (options.n){
-    name = options.n.replace(/"/g, '').replace(/'/g, '');
-  }
-  return name;
-}
-
-
 function isConnected() {
   return ConnectedTo.hasOwnProperty('ip') && ConnectedTo.ip != '0.0.0.0' && ConnectedTo.ip != '';
 }
@@ -588,27 +475,6 @@ function handlebtstate(data) {
 
   $('#o_type').attr('title', tt);
   $('#o_bt').html(isConnected() ? icon.label : icon.text);
-}
-function handleTemplateTypeRadio(outtype) {
-  $('#o_type').children('span').css({ display: 'none' });
-  let changed = false;
-  if (outtype === 'bt') {
-    changed = output !== 'bt' && output !== '';
-    output = 'bt';
-  } else if (outtype === 'spdif') {
-    changed = output !== 'spdif' && output !== '';
-    output = 'spdif';
-  } else {
-    changed = output !== 'i2s' && output !== '';
-    output = 'i2s';
-  }
-  $('#' + output).prop('checked', true);
-  $('#o_' + output).css({ display: 'inline' });
-  if (changed) {
-    Object.keys(commandDefaults[output]).forEach(function (key) {
-      $(`#cmd_opt_${key}`).val(commandDefaults[output][key]);
-    });
-  }
 }
 
 function handleExceptionResponse(xhr, _ajaxOptions, thrownError) {
@@ -657,15 +523,6 @@ let releaseURL =
 let recovery = false;
 let messagesHeld = false;
 let commandBTSinkName = '';
-const commandHeader = 'squeezelite ';
-const commandDefaults = {
-  i2s: { b: "500:2000", C: "30", W: "", Z: "96000", o: "I2S" },
-  spdif: { b: "500:2000", C: "30", W: "", Z: "48000", o: "SPDIF" },
-  bt: { b: "500:2000", C: "30", W: "", Z: "44100", o: "BT" },
-};
-let validOptions = {
-  codecs: ['flac', 'pcm', 'mp3', 'ogg', 'aac', 'wma', 'alac', 'dsd', 'mad', 'mpg']
-};
 
 //let blockFlashButton = false;
 let apList = null;
@@ -675,7 +532,6 @@ let messagecount = 0;
 let messageseverity = 'MESSAGING_INFO';
 let SystemConfig = {};
 let LastCommandsState = null;
-var output = '';
 let hostName = '';
 let versionName = 'Squeezelite-ESP32';
 let prevmessage = '';
@@ -887,84 +743,7 @@ function delayReboot(duration, cmdname, ota = 'reboot') {
       });
     });
 }
-// eslint-disable-next-line no-unused-vars
-window.saveAutoexec1 = function (apply) {
-  showCmdMessage('cfg-audio-tmpl', 'MESSAGING_INFO', 'Saving.\n', false);
-  let commandLine = `${commandHeader} -o ${output} `;
-  $('.sqcmd').each(function () {
-    let { opt, val } = get_control_option_value($(this));
-    if ((opt && opt.length>0 ) && typeof(val) == 'boolean' || val.length > 0) {
-      const optStr=opt===':'?opt:(` -${opt} `);
-      val = typeof(val) == 'boolean'?'':val;
-      commandLine += `${optStr} ${val}`;
-    }
-  });
-  const resample=$('#cmd_opt_R input[name=resample]:checked');
-  if (resample.length>0 && resample.attr('suffix')!=='') {
-    commandLine += resample.attr('suffix');
-    // now check resample_i option and if checked, add suffix to command line
-    if ($('#resample_i').is(":checked") && resample.attr('aint') =='true')  {
-          commandLine += $('#resample_i').attr('suffix');
-    }
-}
 
-    
-  if (output === 'bt') {
-    showCmdMessage(
-      'cfg-audio-tmpl',
-      'MESSAGING_INFO',
-      'Remember to configure the Bluetooth audio device name.\n',
-      true
-    );
-  }
-  commandLine += concatenateOptions(options);
-  const data = {
-    timestamp: Date.now(),
-  };
-  data.config = {
-    autoexec1: { value: commandLine, type: 33 },
-    // autoexec: {
-    //   value: $('#disable-squeezelite').prop('checked') ? '0' : '1',
-    //   type: 33,
-    // },
-  };
-
-  $.ajax({
-    url: '/config.json',
-    dataType: 'text',
-    method: 'POST',
-    cache: false,
-    contentType: 'application/json; charset=utf-8',
-    data: JSON.stringify(data),
-    error: handleExceptionResponse,
-    complete: function (response) {
-      if (
-        response.responseText &&
-        JSON.parse(response.responseText).result === 'OK'
-      ) {
-        showCmdMessage('cfg-audio-tmpl', 'MESSAGING_INFO', 'Done.\n', true);
-        if (apply) {
-          delayReboot(1500, 'cfg-audio-tmpl');
-        }
-      } else if (JSON.parse(response.responseText).result) {
-        showCmdMessage(
-          'cfg-audio-tmpl',
-          'MESSAGING_WARNING',
-          JSON.parse(response.responseText).Result + '\n',
-          true
-        );
-      } else {
-        showCmdMessage(
-          'cfg-audio-tmpl',
-          'MESSAGING_ERROR',
-          response.statusText + '\n'
-        );
-      }
-      console.log(response.responseText);
-    },
-  });
-  console.log('sent data:', JSON.stringify(data));
-}
 window.handleDisconnect = function () {
   $.ajax({
     url: '/connect.json',
@@ -1008,30 +787,6 @@ window.handleConnect = function () {
   // now we can re-set the intervals regardless of result
 
 }
-function renderError(opt,error){
-  const fieldname = `cmd_opt_${opt}`;
-  let errorFieldName=`${fieldname}-error`;
-  let errorField=$(`#${errorFieldName}`);
-  let field=$(`#${fieldname}`);
-  
-  if (!errorField || errorField.length ==0) {
-    field.after(`<div id="${errorFieldName}" class="invalid-feedback"></div>`);
-    errorField=$(`#${errorFieldName}`);
-  }
-  if(error.length ==0){
-      errorField.hide();
-      field.removeClass('is-invalid');
-      field.addClass('is-valid');
-      errorField.text('');
-  }
-  else {     
-      errorField.show();
-      errorField.text(error);
-      field.removeClass('is-valid');
-      field.addClass('is-invalid');
-  }
-  return errorField;
-}
 $(document).ready(function () {
   $('.material-icons').each(function (_index, entry) {
     entry.attributes['icon'] = entry.textContent;
@@ -1060,43 +815,6 @@ $(document).ready(function () {
 
   });
   setTimeout(refreshAP, 1500);
-  /* add validation for cmd_opt_c, which accepts a comma separated list. 
-    getting known codecs from validOptions.codecs array
-    use bootstrap classes to highlight the error with an overlay message */
-  $('#options input').on('input', function () {
-    const { opt, val } = get_control_option_value(this);
-    if (opt === 'c' || opt === 'e') {
-      const fieldname = `cmd_opt_${opt}_codec-error`;
-      
-      const values = val.split(',').map(function (item) {
-        return item.trim();
-      });
-      /* get a list of invalid codecs */
-      const invalid = values.filter(function (item) {
-        return !validOptions.codecs.includes(item);
-      });
-      renderError(opt,invalid.length > 0 ? `Invalid codec(s) ${invalid.join(', ')}` : '');
-    }
-    /* add validation for cmd_opt_m, which accepts a mac_address */
-    if (opt === 'm') {
-      const mac_regex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
-      renderError(opt,mac_regex.test(val) ? '' : 'Invalid MAC address');
-    }
-    if (opt === 'r') {
-        const rateRegex =  /^(\d+\.?\d*|\.\d+)-(\d+\.?\d*|\.\d+)$|^(\d+\.?\d*)$|^(\d+\.?\d*,)+\d+\.?\d*$/;
-        renderError(opt,rateRegex.test(val)?'':`Invalid rate(s) ${val}. Acceptable format: <maxrate>|<minrate>-<maxrate>|<rate1>,<rate2>,<rate3>`);
-    }
-
-
-
-  }
-
-
-  );
-
-
-
-
 
   $('#WifiConnectDialog')[0].addEventListener('shown.bs.modal', function (event) {
     $("*[class*='connecting']").hide();
@@ -1118,7 +836,6 @@ $(document).ready(function () {
         }
       }
     }
-
 
     if (ConnectingToSSID.Action !== ConnectingToActions.STS) {
       $('.connecting-init').show();
@@ -1216,28 +933,7 @@ $(document).ready(function () {
     }
   });
 
-  $('#disable-squeezelite').on('click', function () {
-    // this.checked = this.checked ? 1 : 0;
-    // $('#disable-squeezelite').prop('checked')
-    if (this.checked) {
-      // Store the current value before overwriting it
-      const currentValue = $('#cmd_opt_s').val();
-      $('#cmd_opt_s').data('originalValue', currentValue);
-    
-      // Overwrite the value with '-disable'
-      $('#cmd_opt_s').val('-disable');
-    } else {
-      // Retrieve the original value
-      const originalValue = $('#cmd_opt_s').data('originalValue');
-    
-      // Restore the original value if it exists, otherwise set it to an empty string
-      $('#cmd_opt_s').val(originalValue ? originalValue : '');
-    }
-    
-  });
-
   
-
   $('input#show-nvs').on('click', function () {
     this.checked = this.checked ? 1 : 0;
     Cookies.set("show-nvs", this.checked ? 'Y' : 'N');
@@ -1251,12 +947,6 @@ $(document).ready(function () {
   });
   $('#btn_flash').on('click', function () {
     hFlash();
-  });
-  $('#save-autoexec1').on('click', function () {
-    saveAutoexec1(false);
-  });
-  $('#commit-autoexec1').on('click', function () {
-    saveAutoexec1(true);
   });
   $('#btn_disconnect').on('click', function () {
     ConnectedTo = {};
@@ -1312,9 +1002,6 @@ $(document).ready(function () {
       flashState.StartOTA();
     }
 
-  });
-  $('[name=output-tmpl]').on('click', function () {
-    handleTemplateTypeRadio(this.id);
   });
 
   $('#chkUpdates').on('click', function () {
@@ -1510,7 +1197,6 @@ window.setURL = function (button) {
 
   $('#fwurl').val(url);
 }
-
 
 function rssiToIcon(rssi) {
   if (rssi >= -55) {
@@ -1881,7 +1567,6 @@ function handleNetworkStatus(data) {
 }
 
 
-
 function batteryToIcon(voltage) {
   /* Assuming Li-ion 18650s as a power source, 3.9V per cell, or above is treated
   as full charge (>75% of capacity).  3.4V is empty. The gauge is loosely
@@ -2119,7 +1804,7 @@ function getCommands() {
             if (arg.checkbox) {
               innerhtml += `<div class="form-check"><label class="form-check-label"><input type="checkbox" ${attributes} class="form-check-input ${extraclass}" value="" >${arg.glossary.encodeHTML()}</label></div><div>`;
             } else if (arg.remark) {
-              innerhtml += `<div class="form-group"><label for="${ctrlname}">${arg.glossary.encodeHTML()}</label>`;
+              innerhtml += `<div class="form-group"><label>${arg.glossary.encodeHTML()}</label>`;
             } else {
               innerhtml += `<div class="form-group" ><label for="${ctrlname}">${arg.glossary.encodeHTML()}</label>`;
               if (placeholder.includes('|')) {
@@ -2269,7 +1954,6 @@ function getConfig() {
         $('input#' + key).val(data[key].value);
       });
     if(commandBTSinkName.length > 0) {
-      // persist the sink name found in the autoexec1 command line
       $('#cfg-audio-bt_source-sink_name').val(commandBTSinkName);
     }
     $('tbody#nvsTable').append(
@@ -2300,51 +1984,6 @@ function getConfig() {
   }).fail(function (xhr, ajaxOptions, thrownError) {
     handleExceptionResponse(xhr, ajaxOptions, thrownError);
   });
-}
-
-function processSqueezeliteCommandLine(val) {
-  const parsed = parseSqueezeliteCommandLine(val);
-  if (parsed.output.toUpperCase().startsWith('I2S')) {
-    handleTemplateTypeRadio('i2s');
-  } else if (parsed.output.toUpperCase().startsWith('SPDIF')) {
-    handleTemplateTypeRadio('spdif');
-  } else if (parsed.output.toUpperCase().startsWith('BT')) {
-    if(parsed.otherOptions.btname){ 
-      commandBTSinkName= parsed.otherOptions.btname;
-    }
-    handleTemplateTypeRadio('bt');
-
-  }
-  Object.keys(parsed.options).forEach(function (key) {
-    const option = parsed.options[key];
-    if (!$(`#cmd_opt_${key}`).hasOwnProperty('checked')) {
-      $(`#cmd_opt_${key}`).val(option);
-    } else {
-      $(`#cmd_opt_${key}`)[0].checked = option;
-    }
-  });
-  if (parsed.options.hasOwnProperty('u')) {
-    // parse -u v[:i] and check the appropriate radio button with id #resample_v
-    const [resampleValue, resampleInterpolation] = parsed.options.u.split(':');
-    $(`#resample_${resampleValue}`).prop('checked', true);
-    // if resampleinterpolation is set, check  resample_i checkbox
-    if (resampleInterpolation) {
-      $('#resample_i').prop('checked', true);
-    }
-  }
-  if (parsed.options.hasOwnProperty('s')) {
-    // parse -u v[:i] and check the appropriate radio button with id #resample_v
-    if(parsed.options.s === '-disable'){
-      $('#disable-squeezelite')[0].checked = true;
-    }
-    else {
-      $('#disable-squeezelite')[0].checked = false;
-    }
-  }
-
-  
-
-
 }
 
 function showLocalMessage(message, severity) {
