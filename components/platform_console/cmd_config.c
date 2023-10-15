@@ -1019,7 +1019,7 @@ int add_int_param_str(char **buf, struct arg_int *param) {
 
 static int do_squeezelite_cmd(int argc, char **argv)
 {
-	esp_err_t err=ESP_OK;
+esp_err_t err=ESP_OK;
 	int nerrors = arg_parse(argc, argv,(void **)&squeezelite_args);
 	char *buf = NULL;
 	size_t buf_size = 0;
@@ -1067,7 +1067,7 @@ static int do_squeezelite_cmd(int argc, char **argv)
 	}
 	FREE_AND_NULL(config_buffer);
 	
-	// TODO:  This should be stored as -G y or -G x in squeezelite value, 
+// TODO:  This should be stored as -G y or -G x in squeezelite value, 
 	//   but requires a better way to access the active command from nvs parameters
 	err = config_set_value(NVS_TYPE_STR, "jack_mutes_amp", squeezelite_args.amp_off->count?"x":(squeezelite_args.jack_behavior->count?"y":"n"));
 	if(err!=ESP_OK){
@@ -1132,12 +1132,6 @@ cJSON * squeezelite_cb(){
 			get_str_parm_json(squeezelite_args.codecs, values);
 			get_lit_parm_json(squeezelite_args.header_format, values);
 			get_str_parm_json(squeezelite_args.log_level, values);
-			
-			// get_str_parm_json(squeezelite_args.log_level_all, values);
-			// get_str_parm_json(squeezelite_args.log_level_decode, values);
-			// get_str_parm_json(squeezelite_args.log_level_output, values);
-			// get_str_parm_json(squeezelite_args.log_level_slimproto, values);
-			// get_str_parm_json(squeezelite_args.log_level_stream, values);
 			get_str_parm_json(squeezelite_args.mac_addr, values);
 			get_str_parm_json(squeezelite_args.output_device, values);
 			get_str_parm_json(squeezelite_args.model_name, values);
@@ -1156,7 +1150,7 @@ cJSON * squeezelite_cb(){
 		else {
 			arg_print_errors(f, squeezelite_args.end, desc_squeezelite);
 		}
-		fflush (f);
+		fflush(f);
 		if(strlen(buf)>0){
 			log_send_messaging(nerrors?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
 		}
@@ -1502,19 +1496,14 @@ void register_spdif_config(void){
 void register_squeezelite_config(void){
 	squeezelite_args._command_set = arg_str0(NULL,"_command_set","command","Command key (readonly)");
 	squeezelite_args.server = arg_str0("s","server","<server>[:<port>]","Connect to specified server, otherwise uses autodiscovery to find server");
-	squeezelite_args.buffers = arg_str0("b","buffers","<stream>:<output>","Internal Stream and Output buffer sizes in Kbytes");
+	squeezelite_args.buffers = arg_str0("b","buffers","<stream>:<output>","Internal Stream and Output buffer sizes in Kbytes, format: 500:2000");
 	squeezelite_args.codecs = arg_strn("c","codecs","+" CODECS "+",0,20,"Restrict codecs to those specified, otherwise load all available codecs; known codecs: " CODECS );
 	squeezelite_args.timeout = arg_int0("C","timeout","<n>","Close output device when idle after timeout seconds, default is to keep it open while player is 'on");
 	squeezelite_args.log_level = arg_str0("d","loglevel","log=level","Set logging level, logs: all|slimproto|stream|decode|output|ir, level: info|debug|sdebug"); // "  -d <log>=<level>\tSet logging level, logs: all|slimproto|stream|decode|output|ir, level: info|debug|sdebug\n"
-//	squeezelite_args.log_level_all = arg_str0(NULL,"all",get_log_level_options("all"),"Overall Logging Level");
-//	squeezelite_args.log_level_slimproto = arg_str0(NULL,"loglevel_slimproto",get_log_level_options("slimproto"),"Slimproto Logging Level");
-//	squeezelite_args.log_level_stream= arg_str0(NULL,"loglevel_stream",get_log_level_options("stream"),"Stream Logging Level");
-//	squeezelite_args.log_level_decode= arg_str0(NULL,"loglevel_decode",get_log_level_options("decode"),"Decode Logging Level");
-//	squeezelite_args.log_level_output= arg_str0(NULL,"loglevel_output",get_log_level_options("output"),"Output Logging Level");
 #if IR
 	squeezelite_args.log_level_ir= arg_str0(NULL,"loglevel_ir",get_log_level_options("ir"),"IR Logging Level");
 #endif
-	squeezelite_args.output_device = arg_str0("o","output_device","<string>","Output device (BT, I2S or SPDIF)");
+	squeezelite_args.output_device = arg_str0("o","output_device","I2S|SPDIF|BT","Output device");
 	squeezelite_args.mac_addr = arg_str0("m","mac_addr","<string>","Mac address, format: ab:cd:ef:12:34:56.");
 	squeezelite_args.model_name = arg_str0("M", "modelname", "<string>","Set the squeezelite player model name sent to the server (default: " MODEL_NAME_STRING ")");
 	squeezelite_args.name = arg_str0("n","name","<string>","Player name, if different from the current host name. Name can alternatively be assigned from the system/device name configuration.");

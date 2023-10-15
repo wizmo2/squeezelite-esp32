@@ -1910,9 +1910,7 @@ function getConfig() {
       .sort()
       .forEach(function (key) {
         let val = data[key].value;
-        if (key === 'autoexec') {
-
-        } else if (key === 'host_name') {
+        if (key === 'host_name') {
           val = val.replaceAll('"', '');
           $('input#dhcp-name1').val(val);
           $('input#dhcp-name2').val(val);
