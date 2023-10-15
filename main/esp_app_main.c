@@ -127,11 +127,14 @@ const DefaultStringVal defaultStringVals[] = {
     {"a2dp_ctrld", STR(CONFIG_A2DP_CONTROL_DELAY_MS)},
     {"a2dp_sink_name", CONFIG_A2DP_SINK_NAME},
 	{"autoexec", "1"},
+#endif
 #ifdef CONFIG_AIRPLAY_SINK
 	{"airplay_port", CONFIG_AIRPLAY_PORT},
-	{"enable_airplay", STR(CONFIG_AIRPLAY_SINK)}
+	{"enable_airplay", STR(CONFIG_AIRPLAY_SINK)},
 #endif
-#endif	
+	{"autoexec1",CONFIG_DEFAULT_COMMAND_LINE},
+	{"autoexec1_2",CONFIG_DEFAULT_COMMAND_2_LINE},	
+	{"autoexec1_3",CONFIG_DEFAULT_COMMAND_3_LINE}
 };
 static bool bNetworkConnected=false;
 
@@ -306,9 +309,6 @@ void register_default_nvs(){
 #endif
 	register_default_with_mac("host_name", DEFAULT_HOST_NAME);
 	register_default_with_mac("ap_ssid", CONFIG_DEFAULT_AP_SSID);
-	register_default_with_mac("autoexec1",CONFIG_DEFAULT_COMMAND_LINE);	
-	register_default_with_mac("autoexec1_2",CONFIG_DEFAULT_COMMAND_2_LINE);	
-	register_default_with_mac("autoexec1_3",CONFIG_DEFAULT_COMMAND_3_LINE);	
 for (int i = 0; i < sizeof(defaultStringVals) / sizeof(DefaultStringVal); ++i) {
         register_default_string_val(defaultStringVals[i].key, defaultStringVals[i].value);
     }

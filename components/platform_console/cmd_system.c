@@ -31,6 +31,7 @@
 #include "messaging.h"				  
 #include "platform_console.h"
 #include "tools.h"
+#include "nvs_utilities.h"
 #if defined(CONFIG_WITH_METRICS)
 #include "Metrics.h"
 #endif
@@ -42,6 +43,7 @@
 #pragma message("Runtime stats disabled")
 #endif
 EXT_RAM_ATTR static struct {
+    struct arg_rem *rem;
 	struct arg_str *name;
 	struct arg_end *end;
 } name_args;
@@ -215,8 +217,22 @@ esp_err_t guided_factory(){
 	guided_boot(ESP_PARTITION_SUBTYPE_APP_FACTORY);
 	return ESP_FAIL; // return fail.  This should never return... we're rebooting!
 }
+static struct {
+    struct arg_lit *clear;
+    struct arg_end *end;
+} restart_args;
+
 static int restart_factory(int argc, char **argv)
 {
+    int nerrors = arg_parse_msg(argc, argv,(struct arg_hdr **)&restart_args);
+    if (nerrors != 0) {
+        return 1;
+    }
+    if (restart_args.clear->count) {
+	    cmd_send_messaging(argv[0],MESSAGING_WARNING, "CLEARING ALL SETTINGS");
+        erase_settings_partition();
+    }
+
 	cmd_send_messaging(argv[0],MESSAGING_WARNING, "Booting to Recovery");
 	guided_boot(ESP_PARTITION_SUBTYPE_APP_FACTORY);
 	return 0; // return fail.  This should never return... we're rebooting!
@@ -256,11 +272,15 @@ static void register_restart_ota()
 
 static void register_factory_boot()
 {
+   	restart_args.clear = arg_lit0(NULL,"clear","Clear all configurations (WARNING: THIS WILL RESET THE DEVICE TO FACTORY SETTINGS!)");
+	restart_args.end = arg_end(1);
+
     const esp_console_cmd_t cmd = {
         .command = "recovery",
         .help = "Reboot system to Recovery",
         .hint = NULL,
         .func = &restart_factory,
+        .argtable = &restart_args,
     };
 #if CONFIG_WITH_CONFIG_UI    
     cmd_to_json(&cmd);
@@ -514,8 +534,9 @@ static void register_dump_heap()
 static void register_setdevicename()
 {
 	char * default_host_name = config_alloc_get_str("host_name",NULL,"Squeezelite");
-	name_args.name = arg_str0("n", "name", default_host_name, "New Name");
-	name_args.end = arg_end(8);
+	name_args.rem = arg_rem("rem", "Changing the device name updates the host, ap, and player names (plus the airplay, bluetooth and cspot names if enabled)");
+    name_args.name = arg_str0("n", "name", default_host_name, "New Name");
+	name_args.end = arg_end(2);
 	const esp_console_cmd_t set_name= {
 	 		.command = CFG_TYPE_SYST("name"),
 			.help="Device Name",
@@ -742,9 +763,9 @@ static void register_set_services(){
     #if CONFIG_BT_ENABLED
 	set_services_args.btspeaker = arg_lit0(NULL, "BT_Speaker", "Bluetooth Speaker");
 	#endif
-    set_services_args.telnet= arg_str0("t", "telnet","Disabled|Telnet Only|Telnet and Serial","Telnet server. Use only for troubleshooting");
+    set_services_args.telnet= arg_str0("t", "telnet","Disabled|Telnet Only|Telnet and Serial","Telnet server (use only for troubleshooting)");
 #if WITH_TASKS_INFO    
-	set_services_args.stats= arg_lit0(NULL, "stats", "System Statistics. Use only for troubleshooting");
+	set_services_args.stats= arg_lit0(NULL, "stats", "System Statistics (use only for troubleshooting)");
 #endif    
     set_services_args.end=arg_end(2);
 	const esp_console_cmd_t cmd = {

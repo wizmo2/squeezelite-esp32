@@ -46,7 +46,7 @@ void init_network_status() {
     ESP_LOGD(TAG, "init_network_status.  Creating status json structure");
     ip_info_cjson = network_status_clear_ip_info_json(&ip_info_cjson);
     ESP_LOGD(TAG, "Getting release url ");
-    char* release_url = (char*)config_alloc_get_default(NVS_TYPE_STR, "release_url", QUOTE(CONFIG_SQUEEZELITE_ESP32_RELEASE_URL), 0);
+    char* release_url = (char*)config_alloc_get_default(NVS_TYPE_STR, "release_url", CONFIG_SQUEEZELITE_ESP32_RELEASE_URL, 0);
     if (release_url == NULL) {
         ESP_LOGE(TAG, "Unable to retrieve the release url from nvs");
     } else {
