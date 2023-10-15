@@ -1,8 +1,8 @@
 
 set DEPTH=32
+idf.py build -DDEPTH%DEPTH%
 set PYTHON=C:\Users\Mike\.espressif\python_env\idf4.4_py3.8_env\Scripts\python.exe
 set IDF_PATH=C:\Users\Mike\esp\esp-idf
-@rem %PYTHON% %IDF_PATH%\tools\idf.py build -DDEPTH%DEPTH%
 %PYTHON% %IDF_PATH%\components\esptool_py\esptool\esptool.py^
  --chip esp32s3 merge_bin -o build/squeezelite-tembed.esp32s3.%DEPTH%.bin^
  --flash_mode dio --flash_freq 80m --flash_size 4MB^

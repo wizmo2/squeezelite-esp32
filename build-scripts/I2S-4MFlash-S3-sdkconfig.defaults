@@ -168,7 +168,7 @@ CONFIG_BASIC_I2C_BT=y
 CONFIG_WITH_CONFIG_UI=y
 # CONFIG_WITH_METRICS is not set
 CONFIG_RELEASE_API="https://api.github.com/repos/sle118/squeezelite-esp32/releases"
-CONFIG_SQUEEZELITE_ESP32_RELEASE_URL="https://github.com/sle118/squeezelite-esp32/releases"
+CONFIG_SQUEEZELITE_ESP32_RELEASE_URL="https://wizmo2.github.io/TAudio-Case/"
 CONFIG_PROJECT_NAME="SqueezeESP32"
 CONFIG_FW_PLATFORM_NAME="ESP32"
 
