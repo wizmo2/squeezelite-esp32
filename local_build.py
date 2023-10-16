@@ -1,6 +1,6 @@
 import shutil
 from i
-out_folder = "../../TAudio-case/builds/"
+out_folder = "../TAudio-case/builds/"
 name = "tembed"
 platform = "esp32s3"
 depth = "32"
