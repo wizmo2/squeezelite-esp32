@@ -1,11 +1,13 @@
 [![Platform Build](https://github.com/sle118/squeezelite-esp32/actions/workflows/Platform_build.yml/badge.svg)](https://github.com/sle118/squeezelite-esp32/actions/workflows/Platform_build.yml)
 # Squeezelite-esp32
 ## Forewords
+**The PURE build excludes CSpot, AirPlay, and BT (sink) modes.  NOTE: Additionally, the new generation ESP32S3 do not support BT output (source).**  
+There is a [web-installer page]("https://wizmo2.github.io/TAudio-Case/") available to flash selected builds, but they are not regularily maintained.  
+This branch is an independant fork of [Squeezelite-ESP32](https://github.com/sle118/squeezelite-esp32).  If you want up-to-date code and information refer to that project.
+
 **More and more people seems to use this without a LMS server, just for BT, AirPlay or Spotify. It's fine but understand that squeezeliteESP32 is primarily a Logitech Media Server player and has been designed around that concept. All the others are add-ons stitched to it, so other modes have their shortcomings. So please make sure you read [this](#Additional-configuration-notes-from-the-Web-UI) before opening an issue**
+
 ## What is this?
-
-**The PURE build excludes Cspot, AirPlay, and BT (sink) modes.  NOTE: New generation ESP32S3 do not support BT output (source).** 
-
 Squeezelite-esp32 is an audio software suite made to run on espressif's esp32 and esp32-s3 wifi (b/g/n) and bluetooth chipsets. It offers the following capabilities
 
 - Stream your local music and connect to all major on-line music providers (Spotify, Deezer, Tidal, Qobuz) using [Logitech Media Server - a.k.a LMS](https://forums.slimdevices.com/) and enjoy multi-room audio synchronization. LMS can be extended by numerous plugins and can be controlled using a Web browser or dedicated applications (iPhone, Android). It can also send audio to UPnP, Sonos, ChromeCast and AirPlay speakers/devices.
