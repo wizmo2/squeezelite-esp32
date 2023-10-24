@@ -53,6 +53,7 @@ private:
     std::atomic<states> state;
     std::string credentials;
     bool zeroConf;
+    std::atomic<bool> flushed = false, notify = true;
         
     int startOffset, volume = 0, bitrate = 160;
     httpd_handle_t serverHandle;
@@ -60,6 +61,7 @@ private:
     cspot_cmd_cb_t cmdHandler;
     cspot_data_cb_t dataHandler;
     std::string lastTrackId;
+    cspot::TrackInfo trackInfo;
 
     std::shared_ptr<cspot::LoginBlob> blob;
     std::unique_ptr<cspot::SpircHandler> spirc;
@@ -206,11 +208,13 @@ void cspotPlayer::eventHandler(std::unique_ptr<cspot::SpircHandler::Event> event
         trackStatus = TRACK_INIT;
         // memorize position for when track's beginning will be detected
         startOffset = std::get<int>(event->data);
+        notify = !flushed;
+        flushed = false;
         // Spotify servers do not send volume at connection
         spirc->setRemoteVolume(volume);
 
         cmdHandler(CSPOT_START, 44100);
-        CSPOT_LOG(info, "(re)start playing");
+        CSPOT_LOG(info, "(re)start playing at %d", startOffset);
         break;
     }
     case cspot::SpircHandler::EventType::PLAY_PAUSE: {
@@ -219,16 +223,14 @@ void cspotPlayer::eventHandler(std::unique_ptr<cspot::SpircHandler::Event> event
         break;
     }
     case cspot::SpircHandler::EventType::TRACK_INFO: {
-        auto trackInfo = std::get<cspot::TrackInfo>(event->data);
-        cmdHandler(CSPOT_TRACK_INFO, trackInfo.duration, startOffset, trackInfo.artist.c_str(),
-                       trackInfo.album.c_str(), trackInfo.name.c_str(), trackInfo.imageUrl.c_str());
-        spirc->updatePositionMs(startOffset);
-        startOffset = 0;
+        trackInfo = std::get<cspot::TrackInfo>(event->data);
         break;
     }
+    case cspot::SpircHandler::EventType::FLUSH: 
+        flushed = true;
+        __attribute__ ((fallthrough));        
     case cspot::SpircHandler::EventType::NEXT:
-    case cspot::SpircHandler::EventType::PREV:
-    case cspot::SpircHandler::EventType::FLUSH: {
+    case cspot::SpircHandler::EventType::PREV: {
         cmdHandler(CSPOT_FLUSH);
         break;
     }
@@ -411,8 +413,13 @@ void cspotPlayer::runTask() {
                     uint32_t started;
                     cmdHandler(CSPOT_QUERY_STARTED, &started);
                     if (started) {
-                        CSPOT_LOG(info, "next track's audio has reached DAC");
-                        spirc->notifyAudioReachedPlayback();
+                        CSPOT_LOG(info, "next track's audio has reached DAC (offset %d)", startOffset);
+                        if (notify) spirc->notifyAudioReachedPlayback();
+                        else notify = true;
+                        cmdHandler(CSPOT_TRACK_INFO, trackInfo.duration, startOffset, trackInfo.artist.c_str(),
+                                    trackInfo.album.c_str(), trackInfo.name.c_str(), trackInfo.imageUrl.c_str());
+                        spirc->updatePositionMs(startOffset);
+                        startOffset = 0;
                         trackStatus = TRACK_STREAM;
                     }
                 } else if (trackStatus == TRACK_END) {
