@@ -1,6 +1,6 @@
 
 set PROJECT_NAME=tembed
-#rem set PROJECT_NAME=pure
+@rem set PROJECT_NAME=pure
 set DEPTH=32
 idf.py build -DDEPTH%DEPTH%
 set PYTHON=C:\Users\Mike\.espressif\python_env\idf4.4_py3.8_env\Scripts\python.exe
