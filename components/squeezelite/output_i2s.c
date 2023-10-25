@@ -754,7 +754,7 @@ static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst) {
     
     // we assume frame == 0 as well...
     if (!src) {
-        count =  192;
+        count = 0;
         vu = VUCP24[0];
     }
     
@@ -767,7 +767,7 @@ static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst) {
 
         if (!count--) {            
 			*dst++ = (vu << 24) | (PREAMBLE_B << 16) | 0xCCCC;
-			count = 192;
+			count = 191;
 		} else {
 			*dst++ = (vu << 24) | (PREAMBLE_M << 16) | 0xCCCC;
 		}
@@ -781,7 +781,7 @@ static void IRAM_ATTR spdif_convert(ISAMPLE_T *src, size_t frames, u32_t *dst) {
 
         if (!count--) {
 			*dst++ = (vu << 24) | (PREAMBLE_B << 16) | aux;
-			count = 192;
+			count = 191;
 		} else {
 			*dst++ = (vu << 24) | (PREAMBLE_M << 16) | aux;
 		}

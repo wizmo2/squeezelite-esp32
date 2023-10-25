@@ -204,6 +204,8 @@ This is standard JSON notation, so if you are not familiar with it, Google is yo
 
 The 'power' command is used when powering on/off the DAC after the idle period (see -C option of squeezelite) and the 'speaker/headset' commands are sent when switching between speakers and headsets (see headset jack detection).
 
+The 'power' command is used when powering on/off the DAC after the idle period (see -C option of squeezelite) and the 'speaker/headset' commands are sent when switching between speakers and headsets (see headset jack detection).
+
 NB: For named configurations ((SqueezeAMP, Muse ... all except I2S), all this is ignored. For know codecs, the built-in sequences can be overwritten using dac_controlset
 
 **Please note that you can not use the same GPIO or port as the I2C.**
