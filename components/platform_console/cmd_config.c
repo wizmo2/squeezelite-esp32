@@ -1495,7 +1495,7 @@ void register_spdif_config(void){
 }
 void register_squeezelite_config(void){
 	squeezelite_args._command_set = arg_str0(NULL,"_command_set","command","Command key (readonly)");
-	squeezelite_args.server = arg_str0("s","server","<server>[:<port>]","Connect to specified server, otherwise uses autodiscovery to find server");
+	squeezelite_args.server = arg_str0("s","server","<server>[:<port>]","Connect to specified server, otherwise uses autodiscovery to find server (use '-disable' to allow external apps without LMS)");
 	squeezelite_args.buffers = arg_str0("b","buffers","<stream>:<output>","Internal Stream and Output buffer sizes in Kbytes, format: 500:2000");
 	squeezelite_args.codecs = arg_strn("c","codecs","+" CODECS "+",0,20,"Restrict codecs to those specified, otherwise load all available codecs; known codecs: " CODECS );
 	squeezelite_args.timeout = arg_int0("C","timeout","<n>","Close output device when idle after timeout seconds, default is to keep it open while player is 'on");
