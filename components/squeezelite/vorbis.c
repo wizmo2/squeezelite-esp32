@@ -396,7 +396,6 @@ static decode_state vorbis_decode(void) {
 }
 
 static void vorbis_open(u8_t size, u8_t rate, u8_t chan, u8_t endianness) {
-    LOG_INFO("OPENING CODEC");
 	if (v->opened) {
 		OV(&go, block_clear, &v->block);
 		OV(&go, info_clear, &v->info);
@@ -413,8 +412,6 @@ static void vorbis_open(u8_t size, u8_t rate, u8_t chan, u8_t endianness) {
 }
 
 static void vorbis_close() {
-    return;
-    LOG_INFO("CLOSING CODEC");
 	if (v->opened) {
 		OV(&go, block_clear, &v->block);
 		OV(&go, info_clear, &v->info);
