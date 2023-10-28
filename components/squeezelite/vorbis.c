@@ -72,6 +72,13 @@ static struct vorbis {
 	// vorbis symbols to be dynamically loaded - from either vorbisfile or vorbisidec (tremor) version of library
 	vorbis_info *(* ov_info)(OggVorbis_File *vf, int link);
 	int (* ov_clear)(OggVorbis_File *vf);
+	void (* ov_info_init)(vorbis_info* vi);
+	void (* ov_info_clear)(vorbis_info* vi);
+    void (* ov_comment_init)(vorbis_comment* vc);
+    void (* ov_comment_clear(vorbis_comment *vc);
+	int (* ov_block_init)(vorbis_dsp_state* v, vorbis_block* vb);
+	int (* ov_block_clear)(vorbis_block* vb);
+	void (* ov_vorbis_dsp_clear)(vorbis_dsp_state* v);    
 	long (* ov_read)(OggVorbis_File *vf, char *buffer, int length, int bigendianp, int word, int sgned, int *bitstream);
 	long (* ov_read_tremor)(OggVorbis_File *vf, char *buffer, int length, int *bitstream);
 	int (* ov_open_callbacks)(void *datasource, OggVorbis_File *vf, const char *initial, long ibytes, ov_callbacks callbacks);
@@ -397,29 +404,31 @@ static decode_state vorbis_decode(void) {
 
 static void vorbis_open(u8_t size, u8_t rate, u8_t chan, u8_t endianness) {
 	if (v->opened) {
-		OV(&go, block_clear, &v->block);
-		OV(&go, info_clear, &v->info);
-		OV(&go, dsp_clear, &v->decoder);
+		OV(&gv, block_clear, &v->block);
+		OV(&gv, dsp_clear, &v->decoder);
+		OV(&gv, info_clear, &v->info);        
 	}
     
     v->opened = false;
 	v->status = OGG_SYNC;
     v->overflow = 0;
-    
-    OG(&gu, sync_clear, &v->sync);
-    OG(&gu, stream_clear, &v->state);
-    OG(&gu, stream_init, &v->state, -1);
+
+    OG(&go, stream_clear, &v->state);  
+    OG(&go, sync_clear, &v->sync);
+    OG(&go, stream_init, &v->state, -1);    
 }
 
 static void vorbis_close() {
 	if (v->opened) {
-		OV(&go, block_clear, &v->block);
-		OV(&go, info_clear, &v->info);
-		OV(&go, dsp_clear, &v->decoder);
+		OV(&gv, block_clear, &v->block);
+		OV(&gv, dsp_clear, &v->decoder);
+        // info must be last otherwise there is memory leak (where is it said... nowhere)
+		OV(&gv, info_clear, &v->info);
+        // we don' t have comments to free
 	}
     
     v->opened = false;
-    
+
 	OG(&go, stream_clear, &v->state);
 	OG(&go, sync_clear, &v->sync);
 }
@@ -466,6 +475,11 @@ static bool load_vorbis() {
 	v_handle.ov_read = dlsym(handle, "ov_read");
 	v_handle.ov_info = dlsym(handle, "ov_info");
 	v_handle.ov_clear = dlsym(handle, "ov_clear");
+	v.handle.ov_info_clear = dlsym(gv.handle, "vorbis_info_clear");
+	v.handle.ov_comment_init = dlsym(gv.handle, "vorbis_comment_init");
+    v.handle.ov_comment_clear = dlsym(gv.handle, "vorbis_comment_clear");
+    v.handle.ov_block_init = dlsym(gv.handle, "vorbis_block_init");    
+	v.handle.ov_block_clear = dlsym(gv.handle, "vorbis_block_clear");    
 	v_handle.ov_open_callbacks = dlsym(handle, "ov_open_callbacks");
 	
 	if ((err = dlerror()) != NULL) {
