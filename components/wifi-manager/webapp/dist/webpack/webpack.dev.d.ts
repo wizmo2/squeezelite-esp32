@@ -1,4 +1,4 @@
-declare const PORT: 9100;
+declare const PORT: 5000;
 import HtmlWebPackPlugin = require("html-webpack-plugin");
 export namespace entry {
     const test: string;
