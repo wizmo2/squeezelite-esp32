@@ -538,7 +538,7 @@ bool config_set_group_bit(int bit_num,bool flag){
 	return result;
 }
 
-void config_set_default(nvs_type_t type, const char *key, void * default_value, size_t blob_size) {
+void config_set_default(nvs_type_t type, const char *key, const void * default_value, size_t blob_size) {
 	if(!config_lock(LOCK_MAX_WAIT/portTICK_PERIOD_MS)){
 		ESP_LOGE(TAG, "Unable to lock config");
 		return;
