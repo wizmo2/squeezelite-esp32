@@ -6,7 +6,7 @@ const HtmlWebPackPlugin = require('html-webpack-plugin');
 const { Command } = require('commander');
 let  cmdLines= { };
 var { parseArgsStringToArgv } = require('string-argv');
-const PORT = 9100;
+const PORT = 5000;
 
 const data = {
     messages: require("../mock/messages.json"),
@@ -159,7 +159,7 @@ module.exports ={
         open: true,
         compress: true,
         port: PORT, 
-        host: '127.0.0.1',//your ip address
+        host: '0.0.0.0',
         allowedHosts: "all",
         headers: {'Access-Control-Allow-Origin': '*',    'Accept-Encoding': 'identity'},
     client: {

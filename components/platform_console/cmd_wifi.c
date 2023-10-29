@@ -204,8 +204,10 @@ void register_wifi_join()
 
 void register_wifi()
 {
+ #ifdef WIFI_CMDLINE
     register_wifi_join();
     if(bypass_network_manager){
     	initialise_wifi();
     }
+#endif
 }

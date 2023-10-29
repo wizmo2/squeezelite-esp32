@@ -1,5 +1,5 @@
 
-@import "~bootswatch/dist/darkly/variables";
+// @import "~bootswatch/dist/darkly/variables"; -- remove darkly until bootswatch color is resolved
 @import "utils/variables";
 @import "~bootstrap/scss/bootstrap";
 // @import "~bootstrap/scss/functions";
@@ -38,5 +38,5 @@
 
 // // Utilities
 // @import "~bootstrap/scss/utilities/api";
-@import "~bootswatch/dist/darkly/bootswatch";
+// @import "~bootswatch/dist/darkly/bootswatch"; -- remove darkly until bootswatch color is resolved
 @import "utils/style";     

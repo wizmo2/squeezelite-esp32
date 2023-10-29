@@ -17,6 +17,7 @@ void register_system();
 esp_err_t guided_factory();
 esp_err_t guided_restart_ota();
 void simple_restart();
+FILE * system_open_memstream(const char * cmdname,char **buf,size_t *buf_size);
 
 #ifdef __cplusplus
 }

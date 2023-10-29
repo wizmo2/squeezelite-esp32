@@ -2097,7 +2097,7 @@ function getCommands() {
         const isConfig = cmdParts[0] === 'cfg';
         const targetDiv = '#tab-' + cmdParts[0] + '-' + cmdParts[1];
         let innerhtml = '';
-        innerhtml += `<div class="card text-white mb-3"><div class="card-header">${command.help.encodeHTML().replace(/\n/g, '<br />')}</div><div class="card-body"><fieldset id="flds-${command.name}">`;
+        innerhtml += `<div class="card mb-3"><div class="card-header">${command.help.encodeHTML().replace(/\n/g, '<br />')}</div><div class="card-body"><fieldset id="flds-${command.name}">`;
         if (command.argtable) {
           command.argtable.forEach(function (arg) {
             let placeholder = arg.datatype || '';
