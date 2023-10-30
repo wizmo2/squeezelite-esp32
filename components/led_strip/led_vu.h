@@ -21,6 +21,7 @@
 extern struct led_strip_t* led_display;
 
 uint16_t led_vu_string_length();
+uint16_t led_vu_scale();
 void led_vu_progress_bar(int pct, int bright);
 void led_vu_display(int vu_l, int vu_r, int bright, bool comet);
 void led_vu_spin_dial(int gain, int rate, int speed, bool comet);
