@@ -1295,7 +1295,7 @@ static void ledv_handler( u8_t *data, int len) {
 		
 		LOG_INFO("LED Visualizer mode %u with bars:%u max:%u style:%d gain:%u", led_visu.mode, led_visu.n, led_visu.max, led_visu.style, led_visu.gain);
 	} else {
-	led_vu_clear();
+		led_vu_clear();
 	
 		LOG_INFO("Stopping led visualizer");
 	}	
