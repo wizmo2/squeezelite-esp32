@@ -115,7 +115,7 @@ static struct {
     struct arg_str *type;
     struct arg_int *length;
     struct arg_int *gpio;
-	struct arg_int * scale;
+    struct arg_int * scale;
     struct arg_lit *clear;
     struct arg_end *end;
 } ledvu_args;
@@ -686,7 +686,7 @@ static int do_ledvu_cmd(int argc, char **argv) {
     } else {
         ledvu.length = ledvu_args.length->count > 0 ? ledvu_args.length->ival[0] : 0;
     }
-	ledvu.scale = ledvu_args.scale->count>0?ledvu_args.scale->ival[0]:ledvu.scale;
+    ledvu.scale = ledvu_args.scale->count>0?ledvu_args.scale->ival[0]:ledvu.scale;
 
 
     if (!nerrors) {
@@ -1318,7 +1318,7 @@ void register_ledvu_config(void) {
     ledvu_args.type = arg_str1(NULL, "type", "<none>|WS2812", "Led type (supports one rgb strip to display built in effects and allow remote control through 'dmx' messaging)");
     ledvu_args.length = arg_int1(NULL, "length", "<1..255>", "Strip length (1-255 supported)");
     ledvu_args.gpio = arg_int1(NULL, "gpio", "gpio", "Data pin");
-	ledvu_args.scale = arg_int0(NULL,"scale","<n>","Gain scale (precent)");
+    ledvu_args.scale = arg_int0(NULL,"scale","<n>","Gain scale (precent)");
     ledvu_args.clear = arg_lit0(NULL, "clear", "Clear configuration");
     ledvu_args.end = arg_end(4);
 
