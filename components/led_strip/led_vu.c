@@ -24,6 +24,7 @@
 #include "monitor.h"
 #include "led_strip.h"
 #include "platform_config.h"
+#include "services.h"
 #include "led_vu.h"
 
 static const char *TAG = "led_vu";
@@ -70,6 +71,8 @@ static void battery_svc(float value, int cells) {
 
 	if (battery_handler_chain) battery_handler_chain(value, cells);
 }
+
+static void led_vu_sleep(void) { led_vu_clear(led_display); }
 
 /****************************************************************************************
  * Initialize the led vu strip if configured.
@@ -130,6 +133,8 @@ void led_vu_init()
 
     // reserver max memory for remote management systems
     rmt_set_mem_block_num(led_strip_config.rmt_channel, 7);
+
+    services_sleep_setsuspend(led_vu_sleep);
 
     led_vu_clear(led_display);
 
