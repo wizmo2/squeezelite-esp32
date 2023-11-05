@@ -72,7 +72,13 @@ static void battery_svc(float value, int cells) {
 	if (battery_handler_chain) battery_handler_chain(value, cells);
 }
 
-static void led_vu_sleep(void) { led_vu_clear(led_display); }
+/****************************************************************************************
+ * Suspend.
+ * 
+ */
+static void led_vu_sleep(void) {
+    led_vu_clear(led_display); 
+}
 
 /****************************************************************************************
  * Initialize the led vu strip if configured.
