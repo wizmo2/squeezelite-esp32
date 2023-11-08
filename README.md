@@ -193,7 +193,7 @@ So far, TAS57xx, TAS5713, AC101, WM8978 and ES8388 are recognized models where t
   <command>: [ {"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"}, ... {{"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"} ],
   ... }
 ```
-Where `<command>` is one of init, poweron, poweroff, speakeron, speakeroff, headseton, headsetoff and `<key>` can be reg, val, delay, gpio (see below)
+Where `<command>` is one of init, poweron, poweroff, speakeron, speakeroff, headseton, headsetoff and `<key>` can be reg, delay or gpio (see below)
 
 This is standard JSON notation, so if you are not familiar with it, Google is your best friend. Be aware that the '...' means you can have as many entries as you want, it's not part of the syntax. Every section is optional, but it does not make sense to set i2c in the 'dac_config' parameter and not setting anything here. The parameter 'mode' allows to *or* the register with the value or to *and* it. Don't set 'mode' if you simply want to write. The 'val parameter can be an array [v1, v2,...] to write a serie of bytes in a single i2c burst (in that case 'mode' is ignored). **Note that all values must be decimal**. You can use a validator like [this](https://jsonlint.com) to verify your syntax
 
