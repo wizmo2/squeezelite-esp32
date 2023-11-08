@@ -216,7 +216,7 @@ static EXT_RAM_ATTR struct {
 
 static EXT_RAM_ATTR struct {
 	int mode;
-	int n, style, max;
+	int n, style, max, gain;
 	u16_t config;
 	struct bar_s bars[MAX_BARS] ;
 } led_visu;
@@ -1089,10 +1089,10 @@ static void displayer_update(void) {
 	if (led_display && led_visu.mode) {
 		// run built in visualizer effects
 		if (led_visu.mode == VISU_VUMETER) {
-			vu_scale(led_visu.bars, led_visu.max, meters.levels);
+			vu_scale(led_visu.bars, led_visu.gain, meters.levels);
 			led_vu_display(led_visu.bars[0].current, led_visu.bars[1].current, led_visu.max, led_visu.style);
 		} else if (led_visu.mode == VISU_SPECTRUM) { 
-			spectrum_scale(led_visu.n, led_visu.bars, led_visu.max, meters.samples);
+			spectrum_scale(led_visu.n, led_visu.bars, led_visu.gain, meters.samples);
 			uint8_t* p = (uint8_t*) led_data;
 			for (int i = 0; i < led_visu.n; i++) {
 				*p = led_visu.bars[i].current;
@@ -1100,7 +1100,7 @@ static void displayer_update(void) {
 			}
 			led_vu_spectrum(led_data, led_visu.max, led_visu.n, led_visu.style);
 		} else if (led_visu.mode == VISU_WAVEFORM) {
-			spectrum_scale(led_visu.n, led_visu.bars, led_visu.max, meters.samples);
+			spectrum_scale(led_visu.n, led_visu.bars, led_visu.gain, meters.samples);
 			led_vu_spin_dial(
 				led_visu.bars[led_visu.n-2].current,
 				led_visu.bars[(led_visu.n/2)+1].current * 50 / led_visu.max,
@@ -1277,8 +1277,8 @@ static void ledv_handler( u8_t *data, int len) {
 	led_visu.mode = pkt->which;
 	led_visu.style = pkt->style;
 	led_visu.max = pkt->bright;
+	led_visu.gain = led_visu.max * led_vu_scale() / 100; 
 
-	led_vu_clear();
 	if (led_visu.mode) {
 		if (led_visu.mode == VISU_SPECTRUM) {
 			led_visu.n = (led_visu.config < MAX_BARS) ? led_visu.config : MAX_BARS;
@@ -1293,8 +1293,10 @@ static void ledv_handler( u8_t *data, int len) {
 		// reset bars maximum
 		for (int i = led_visu.n; --i >= 0;) led_visu.bars[i].max = 0;
 		
-		LOG_INFO("LED Visualizer mode %u with bars:%u max:%u style:%d", led_visu.mode, led_visu.n, led_visu.max, led_visu.style);
+		LOG_INFO("LED Visualizer mode %u with bars:%u max:%u style:%d gain:%u", led_visu.mode, led_visu.n, led_visu.max, led_visu.style, led_visu.gain);
 	} else {
+		led_vu_clear();
+	
 		LOG_INFO("Stopping led visualizer");
 	}	
 	

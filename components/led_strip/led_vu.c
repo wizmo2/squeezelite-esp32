@@ -24,6 +24,7 @@
 #include "monitor.h"
 #include "led_strip.h"
 #include "platform_config.h"
+#include "services.h"
 #include "led_vu.h"
 
 static const char *TAG = "led_vu";
@@ -55,6 +56,7 @@ static EXT_RAM_ATTR struct {
     int vu_start_l;
     int vu_start_r;
     int vu_status;
+    int vu_scale;
 } strip;
 
 static int led_addr(int pos ) {
@@ -71,30 +73,30 @@ static void battery_svc(float value, int cells) {
 }
 
 /****************************************************************************************
+ * Suspend.
+ * 
+ */
+static void led_vu_sleep(void) {
+    led_vu_clear(led_display); 
+}
+
+/****************************************************************************************
  * Initialize the led vu strip if configured.
  * 
  */
 void led_vu_init()
 {
-    char* p;
     char* config = config_alloc_get_str("led_vu_config", NULL, "N/A");
 
-    // Initialize led VU strip 
-    char* drivername = strcasestr(config, "WS2812");
-
-    if ((p = strcasestr(config, "length")) != NULL) {
-        strip.length = atoi(strchr(p, '=') + 1);
-    } // else 0
-    if ((p = strcasestr(config, "gpio")) != NULL) {
-        strip.gpio = atoi(strchr(p, '=') + 1);
-    } else {
-        strip.gpio = LED_VU_DEFAULT_GPIO;
-    }
+    PARSE_PARAM(config, "length",'=', strip.length);
+    PARSE_PARAM(config, "gpio",'=', strip.gpio);
     // check for valid configuration
-    if (!drivername || !strip.gpio) {
+    if (!strip.gpio) {
         ESP_LOGI(TAG, "led_vu configuration invalid");
         goto done;
     }
+    strip.vu_scale = 100;
+    PARSE_PARAM(config, "scale",'=',strip.vu_scale);
 
     battery_handler_chain = battery_handler_svc;
     battery_handler_svc = battery_svc;
@@ -114,7 +116,7 @@ void led_vu_init()
         strip.vu_start_r = strip.vu_length + 1;
         strip.vu_status = strip.vu_length;
     }
-    ESP_LOGI(TAG, "vu meter using length:%d left:%d right:%d status:%d", strip.vu_length, strip.vu_start_l, strip.vu_start_r, strip.vu_status);
+    ESP_LOGI(TAG, "vu meter using length:%d left:%d right:%d status:%d scale:%d", strip.vu_length, strip.vu_start_l, strip.vu_start_r, strip.vu_status, strip.vu_scale);
 
     // create driver configuration
     led_strip_config.rgb_led_type = RGB_LED_TYPE_WS2812;
@@ -138,6 +140,8 @@ void led_vu_init()
     // reserver max memory for remote management systems
     rmt_set_mem_block_num(led_strip_config.rmt_channel, 7);
 
+    services_sleep_setsuspend(led_vu_sleep);
+
     led_vu_clear(led_display);
 
     done:
@@ -155,6 +159,14 @@ inline bool inRange(double x, double y, double z) {
 uint16_t led_vu_string_length() {
     if (!led_display) return 0;
     return (uint16_t)strip.length;
+}
+
+/****************************************************************************************
+ * Returns a user defined scale (percent)
+ */
+uint16_t led_vu_scale() {
+    if (!led_display) return 0;
+    return (uint16_t)strip.vu_scale;
 }
 
 /****************************************************************************************

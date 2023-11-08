@@ -293,11 +293,8 @@ bool led_strip_init(struct led_strip_t *led_strip)
     static EXT_RAM_ATTR StackType_t xStack[LED_STRIP_TASK_SIZE] __attribute__ ((aligned (4)));
 
     if ((led_strip == NULL) ||
-        (led_strip->rmt_channel >= RMT_CHANNEL_MAX) ||
-        (led_strip->gpio > GPIO_NUM_33) || 
         (led_strip->led_strip_working == NULL) ||
         (led_strip->led_strip_showing == NULL) ||
-        (led_strip->led_strip_length == 0) ||
         (led_strip->access_semaphore == NULL)) {
         return false;
     }
