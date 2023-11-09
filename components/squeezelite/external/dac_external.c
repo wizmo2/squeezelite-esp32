@@ -61,7 +61,6 @@ static bool init(char *config, int i2c_port_num, i2s_config_t *i2s_config, bool 
 	char *p;	
 	
 	i2c_addr = adac_init(config, i2c_port_num);
-	if (!i2c_addr) return true;
 	
 	ESP_LOGI(TAG, "DAC on I2C @%d", i2c_addr);
 	

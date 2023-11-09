@@ -1,3 +1,6 @@
+2023-11-08
+ - execute dac_controlset even whne there is no i2s (for gpio)
+ 
 2023-11-07
  - led-vu gain + misc fixes
  - bump plugin version to 0.600
