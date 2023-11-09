@@ -1,3 +1,6 @@
+2023-11-09
+ - force gpio_pad_select_gpio in dac_controlset in case somebody uses UART gpio's (or other pre-programmed)
+ 
 2023-11-08
  - execute dac_controlset even whne there is no i2s (for gpio)
  

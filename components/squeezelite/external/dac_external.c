@@ -136,6 +136,7 @@ bool i2c_json_execute(char *set) {
         if ((action = cJSON_GetObjectItemCaseSensitive(item, "gpio")) != NULL) {
             cJSON *level = cJSON_GetObjectItemCaseSensitive(item, "level");
             ESP_LOGI(TAG, "set GPIO %d at %d", action->valueint, level->valueint);
+            if (action->valueint < GPIO_NUM_MAX) gpio_pad_select_gpio(action->valueint);
             gpio_set_direction_x(action->valueint, GPIO_MODE_OUTPUT);
             gpio_set_level_x(action->valueint, level->valueint);
             continue;
