@@ -1,3 +1,26 @@
+2023-11-09
+ - force gpio_pad_select_gpio in dac_controlset in case somebody uses UART gpio's (or other pre-programmed)
+ 
+2023-11-08
+ - execute dac_controlset even whne there is no i2s (for gpio)
+ 
+2023-11-07
+ - led-vu gain + misc fixes
+ - bump plugin version to 0.600
+ 
+2023-11-03
+ - don't reboot when external decoder is connected even with a LMS server
+ 
+2023-10-28
+ - fix recovery size (remove bootstrap)
+ - improve NVS initialization structure
+
+2023-10-27
+ - fix vorbis (and opus) memory leak
+ 
+2023-10-25
+ - fix vorbis codec close
+
 2023-10-23
  - fix Spotify track insertion
  - [WEB] Allow running without LMS with option "Audio/Disable Squeezelite"

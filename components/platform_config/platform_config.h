@@ -65,7 +65,7 @@ esp_err_t config_set_cjson_str_and_free(const char *key, cJSON *value);
 esp_err_t config_set_cjson(const char *key, cJSON *value, bool free_cjson);
 void config_get_uint16t_from_str(const char *key, uint16_t *value, uint16_t default_value);
 void config_delete_key(const char *key);
-void config_set_default(nvs_type_t type, const char *key, void * default_value, size_t blob_size);
+void config_set_default(nvs_type_t type, const char *key, const void * default_value, size_t blob_size);
 void * config_alloc_get(nvs_type_t nvs_type, const char *key) ;
 bool wait_for_commit();
 char * config_alloc_get_json(bool bFormatted);

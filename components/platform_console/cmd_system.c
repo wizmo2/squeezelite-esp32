@@ -73,8 +73,10 @@ static void register_heap();
 static void register_dump_heap();
 static void register_version();
 static void register_restart();
+#if CONFIG_WITH_CONFIG_UI
 static void register_deep_sleep();
 static void register_light_sleep();
+#endif
 static void register_factory_boot();
 static void register_restart_ota();
 static void register_set_services();
@@ -92,8 +94,8 @@ FILE * system_open_memstream(const char * cmdname,char **buf,size_t *buf_size){
 void register_system()
 {
 
-    register_set_services();
     register_setdevicename();
+    register_set_services();
     register_free();
     register_heap();
     register_dump_heap();
@@ -585,7 +587,7 @@ static void register_tasks()
 
 
 /** 'deep_sleep' command puts the chip into deep sleep mode */
-
+#if CONFIG_WITH_CONFIG_UI
 static struct {
     struct arg_int *wakeup_time;
     struct arg_int *wakeup_gpio_num;
@@ -649,6 +651,8 @@ static void register_deep_sleep()
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
+#endif
+
 static int enable_disable(FILE * f,char * nvs_name, struct arg_lit *arg){
 	esp_err_t err = config_set_value(NVS_TYPE_STR, nvs_name, arg->count>0?"Y":"N");
 	const char * name = arg->hdr.longopts?arg->hdr.longopts:arg->hdr.glossary;
@@ -744,9 +748,6 @@ cJSON * set_services_cb(){
         else {
             cJSON_AddStringToObject(values,set_services_args.telnet->hdr.longopts,"Disabled");
         }
-#if defined(CONFIG_WITH_METRICS)
-        metrics_add_feature_variant("telnet",p);
-#endif
 		FREE_AND_NULL(p);
 	}
 
@@ -778,6 +779,8 @@ static void register_set_services(){
 	cmd_to_json_with_cb(&cmd,&set_services_cb);
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
+
+#if CONFIG_WITH_CONFIG_UI
 static struct {
     struct arg_int *wakeup_time;
     struct arg_int *wakeup_gpio_num;
@@ -871,4 +874,4 @@ static void register_light_sleep()
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
-
+#endif

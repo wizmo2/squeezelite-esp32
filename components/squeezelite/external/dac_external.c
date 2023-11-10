@@ -61,7 +61,6 @@ static bool init(char *config, int i2c_port_num, i2s_config_t *i2s_config, bool 
 	char *p;	
 	
 	i2c_addr = adac_init(config, i2c_port_num);
-	if (!i2c_addr) return true;
 	
 	ESP_LOGI(TAG, "DAC on I2C @%d", i2c_addr);
 	
@@ -137,6 +136,7 @@ bool i2c_json_execute(char *set) {
         if ((action = cJSON_GetObjectItemCaseSensitive(item, "gpio")) != NULL) {
             cJSON *level = cJSON_GetObjectItemCaseSensitive(item, "level");
             ESP_LOGI(TAG, "set GPIO %d at %d", action->valueint, level->valueint);
+            if (action->valueint < GPIO_NUM_MAX) gpio_pad_select_gpio(action->valueint);
             gpio_set_direction_x(action->valueint, GPIO_MODE_OUTPUT);
             gpio_set_level_x(action->valueint, level->valueint);
             continue;

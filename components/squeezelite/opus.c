@@ -186,7 +186,7 @@ static int read_opus_header(void) {
 		switch (u->status) {
 		case OGG_SYNC:
 			u->status = OGG_ID_HEADER;
-			OG(&gu, stream_init, &u->state, OG(&gu, page_serialno, &u->page));
+            OG(&gu, stream_reset_serialno, &u->state, OG(&gu, page_serialno, &u->page));
             fetch = false;
 			break;
 		case OGG_ID_HEADER:
@@ -359,10 +359,10 @@ static void opus_open(u8_t size, u8_t rate, u8_t chan, u8_t endianness) {
     
     u->status = OGG_SYNC;
 	u->overframes = 0;
-	
-	OG(&gu, sync_clear, &u->sync);
-    OG(&gu, stream_clear, &u->state);
-	OG(&gu, stream_init, &u->state, -1);
+
+    OG(&go, stream_clear, &u->state);	
+    OG(&go, sync_clear, &u->sync);
+    OG(&go, stream_init, &u->state, -1);    
 }
 
 static void opus_close(void) {  
@@ -372,8 +372,8 @@ static void opus_close(void) {
 	free(u->overbuf);
     u->overbuf = NULL;
     
-	OG(&gu, stream_clear, &u->state);
-	OG(&gu, sync_clear, &u->sync);
+    OG(&go, stream_clear, &u->state);
+    OG(&go, sync_clear, &u->sync);
 }
 
 static bool load_opus(void) {
@@ -394,7 +394,7 @@ static bool load_opus(void) {
 	}
 	
 	g_handle->ogg_stream_clear = dlsym(g_handle->handle, "ogg_stream_clear");
-	g_handle->.ogg_stream_reset = dlsym(g_handle->handle, "ogg_stream_reset");
+	g_handle->ogg_stream_reset = dlsym(g_handle->handle, "ogg_stream_reset");
 	g_handle->ogg_stream_eos = dlsym(g_handle->handle, "ogg_stream_eos");
 	g_handle->ogg_stream_reset_serialno = dlsym(g_handle->handle, "ogg_stream_reset_serialno");
 	g_handle->ogg_sync_clear = dlsym(g_handle->handle, "ogg_sync_clear");

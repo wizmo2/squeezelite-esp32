@@ -297,7 +297,6 @@ void register_default_nvs(){
 		else {
 			register_default_string_val("cspot_config", "");
 		}
-		
 	}	
 #endif
 	
@@ -309,7 +308,7 @@ void register_default_nvs(){
 #endif
 	register_default_with_mac("host_name", DEFAULT_HOST_NAME);
 	register_default_with_mac("ap_ssid", CONFIG_DEFAULT_AP_SSID);
-for (int i = 0; i < sizeof(defaultStringVals) / sizeof(DefaultStringVal); ++i) {
+	for (int i = 0; i < sizeof(defaultStringVals) / sizeof(DefaultStringVal); ++i) {
         register_default_string_val(defaultStringVals[i].key, defaultStringVals[i].value);
     }
 	for (int i = 0; i < sizeof(defaultNumVals) / sizeof(DefaultNumVal); ++i) {

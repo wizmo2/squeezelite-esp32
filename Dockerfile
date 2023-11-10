@@ -25,7 +25,11 @@ ENV GCC_TOOLS_BASE=/opt/esp/tools/xtensa-esp32-elf/esp-2021r2-patch3-8.4.0/xtens
 # pushd components/wifi-manager/webapp/ && npm install && npm run-script build && popd
 #
 # to run the docker with netwotrk port published on the host:
+# (windows)
 # docker run --rm -p 5000:5000/tcp -v %cd%:/project -w /project -it sle118/squeezelite-esp32-idfv435
+# (linux)
+# docker run --rm -p 5000:5000/tcp -v `pwd`:/project -w /project -it sle118/squeezelite-esp32-idfv435
+
 
 ARG IDF_CLONE_URL=https://github.com/espressif/esp-idf.git
 ARG IDF_CLONE_BRANCH_OR_TAG=master

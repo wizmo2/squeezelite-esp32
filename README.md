@@ -194,15 +194,19 @@ if "model" is not set or is not recognized, then default "I2S" is used. The opti
 
 So far, TAS57xx, TAS5713, AC101, WM8978 and ES8388 are recognized models where the proper init sequence/volume/power controls are sent. For other codecs that might require an I2C commands, please use the parameter "dac_controlset" that allows definition of simple commands to be sent over i2c for init, power, speaker and headset on and off using a JSON syntax:
 ```json
-{ <command>: [ {"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"}, ... {{"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"} ],
-  <command>: [ {"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"}, ... {{"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"} ],
+{ <command>: [ <item1>, <item2>, ... <item3> ],
+  <command>: [ <item1>, <item2>, ... <item3> ],
   ... }
 ```
-Where `<command>` is one of init, poweron, poweroff, speakeron, speakeroff, headseton, headsetoff
+Where `<command>` is one of init, poweron, poweroff, speakeron, speakeroff, headseton, headsetoff (it **must** be an array even for a single item). Item is any of the following elements
+```
+{"reg":<register>,"val":<value>,"mode":<nothing>|"or"|"and"}
+{"gpio":<gpio>,"level":0|1}
+{"delay":<ms>}
+```
+This is standard JSON notation, so if you are not familiar with it, Google is your best friend. Be aware that the '...' means you can have as many entries as you want, it's not part of the syntax. Every section is optional, but it does not make sense to set i2c in the 'dac_config' parameter and not setting anything here. 
 
-This is standard JSON notation, so if you are not familiar with it, Google is your best friend. Be aware that the '...' means you can have as many entries as you want, it's not part of the syntax. Every section is optional, but it does not make sense to set i2c in the 'dac_config' parameter and not setting anything here. The parameter 'mode' allows to *or* the register with the value or to *and* it. Don't set 'mode' if you simply want to write. The 'val parameter can be an array [v1, v2,...] to write a series of bytes in a single i2c burst (in that case 'mode' is ignored). **Note that all values must be decimal**. You can use a validator like [this](https://jsonlint.com) to verify your syntax
-
-The 'power' command is used when powering on/off the DAC after the idle period (see -C option of squeezelite) and the 'speaker/headset' commands are sent when switching between speakers and headsets (see headset jack detection).
+The `reg` key allow to write registers on i2c bus. The parameter `mode` allows to *or* the register with the value or to *and* it. Don't set `mode` if you simply want to write. The `val` parameter can be an array [v1, v2,...] to write a serie of bytes in a single i2c burst (in that case 'mode' is ignored). **Note that all values must be decimal**. You can use a validator like [this](https://jsonlint.com) to verify your syntax. The `gpio` key is simply to set a gpio as part of DAC action and `delay` allows a pause between elements.
 
 The 'power' command is used when powering on/off the DAC after the idle period (see -C option of squeezelite) and the 'speaker/headset' commands are sent when switching between speakers and headsets (see headset jack detection).
 
