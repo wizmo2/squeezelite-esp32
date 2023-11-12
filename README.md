@@ -3,7 +3,7 @@
 ## Forewords
 This branch is an independant fork of [Squeezelite-ESP32](https://github.com/sle118/squeezelite-esp32).  If you want up-to-date code and information refer to that project.
 **The PURE build excludes CSpot, AirPlay, and BT (sink) modes.  NOTE: Additionally, the new generation ESP32S3 do not support BT output (source).**  
-See the [Setup Guide](docs/setup.md) for specif instructions.  There is a [web-installer page](https://wizmo2.github.io/TAudio-Case/) available to flash selected builds, but they are not regularily maintained.  
+There is a [web-installer page](https://wizmo2.github.io/TAudio-Case/) available to flash selected builds, but they are not regularily maintained.  
 
 **More and more people seems to use this without a LMS server, just for BT, AirPlay or Spotify. It's fine but understand that squeezeliteESP32 is primarily a Logitech Media Server player and has been designed around that concept. All the others are add-ons stitched to it, so other modes have their shortcomings. So please make sure you read [this](#Additional-configuration-notes-from-the-Web-UI) before opening an issue**
 
