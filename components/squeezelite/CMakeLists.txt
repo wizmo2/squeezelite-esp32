@@ -29,7 +29,8 @@ idf_component_register( SRC_DIRS . external ac101 tas57xx wm8978
 									_override
 									${cspot_required}
 									${airplay_required}
-									${bt_requires}                                    
+									${bt_requires}  
+									adc                                  
 						EMBED_FILES vu_s.data arrow.data
 )
 

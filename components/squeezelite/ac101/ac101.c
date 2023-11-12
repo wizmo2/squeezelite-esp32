@@ -37,7 +37,6 @@ static const char TAG[] = "AC101";
 
 #define SPKOUT_EN ((1 << 9) | (1 << 11) | (1 << 7) | (1 << 5))
 #define EAROUT_EN ((1 << 11) | (1 << 12) | (1 << 13))
-#define BIN(a,b,c,d)	0b##a##b##c##d
 
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 #define max(a,b) (((a) > (b)) ? (a) : (b))

@@ -60,6 +60,7 @@ extern void register_i2cdectect(void);
 extern void register_i2cget(void);
 extern void register_i2cset(void);
 extern void register_i2cdump(void);
+extern void register_adc_config(void);
 
 extern cJSON * get_gpio_list_handler(bool refresh);
 
@@ -72,10 +73,13 @@ void register_optional_cmd(void) {
     register_rotary_config();
 	register_ledvu_config();
 #ifdef CONFIG_CSPOT_SINK	
-	register_cspot_config();
+	/?register_cspot_config();
 #endif	
 #ifdef CONFIG_IDF_TARGET_ESP32
 	register_bt_source_config();
+#endif
+#ifdef CONFIG_ADC_SINK
+	register_adc_config();
 #endif
     register_i2c_config();
     register_i2cdectect();

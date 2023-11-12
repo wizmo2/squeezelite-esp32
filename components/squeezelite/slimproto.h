@@ -184,6 +184,11 @@ struct audo_packet {
 	u8_t  config;
 };
 
+struct audp_packet {
+	char  opcode[4];
+	u8_t  config;
+};
+
 #ifndef SUN
 #pragma pack(pop)
 #else

@@ -57,6 +57,9 @@ EXT_RAM_ATTR static struct {
     #if CONFIG_AIRPLAY_SINK
     struct arg_lit *airplay;
     #endif
+    #if CONFIG_ADC_SINK
+    struct arg_lit *adc;
+    #endif
  	struct arg_str *telnet;
 
 #if WITH_TASKS_INFO    
@@ -688,6 +691,9 @@ static int do_set_services(int argc, char **argv)
     #if CONFIG_CSPOT_SINK	
     nerrors += enable_disable(f,"enable_cspot",set_services_args.cspot);
     #endif    
+    #if CONFIG_ADC_SINK
+	nerrors += enable_disable(f,"enable_adc",set_services_args.adc);
+    #endif
 
     if(set_services_args.telnet->count>0){
         if(strcasecmp(set_services_args.telnet->sval[0],"Disabled") == 0){
@@ -735,6 +741,9 @@ cJSON * set_services_cb(){
     #if CONFIG_CSPOT_SINK	
     console_set_bool_parameter(values,"enable_cspot",set_services_args.cspot);
     #endif
+    #if CONFIG_ADC_SINK
+    console_set_bool_parameter(values,"enable_adc",set_services_args.adc);
+    #endif
     #if WITH_TASKS_INFO        
     console_set_bool_parameter(values,"stats",set_services_args.stats);
     #endif
@@ -764,6 +773,9 @@ static void register_set_services(){
     #if CONFIG_BT_ENABLED
 	set_services_args.btspeaker = arg_lit0(NULL, "BT_Speaker", "Bluetooth Speaker");
 	#endif
+    #if CONFIG_ADC_SINK
+	set_services_args.adc = arg_lit0(NULL, "adc", "ADC (Line-in / Microphone)");
+    #endif
     set_services_args.telnet= arg_str0("t", "telnet","Disabled|Telnet Only|Telnet and Serial","Telnet server (use only for troubleshooting)");
 #if WITH_TASKS_INFO    
 	set_services_args.stats= arg_lit0(NULL, "stats", "System Statistics (use only for troubleshooting)");

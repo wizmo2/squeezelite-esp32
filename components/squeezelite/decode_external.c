@@ -16,6 +16,7 @@
 #endif
 #include "platform_config.h"
 #include "squeezelite.h"
+#include "slimproto.h"
 
 
 #if CONFIG_BT_SINK
@@ -47,6 +48,12 @@ static EXT_RAM_ATTR struct {
 } raop_sync;
 #endif
 
+#if CONFIG_ADC_SINK
+#include "adc_sink.h"
+static bool enable_adc;
+#endif
+
+
 static enum { SINK_RUNNING, SINK_ABORT, SINK_DISCARD } sink_state;
 
 #define LOCK_O   mutex_lock(outputbuf->mutex)
@@ -54,7 +61,7 @@ static enum { SINK_RUNNING, SINK_ABORT, SINK_DISCARD } sink_state;
 #define LOCK_D   mutex_lock(decode.mutex);
 #define UNLOCK_D mutex_unlock(decode.mutex);
 
-enum { DECODE_BT = 1, DECODE_RAOP, DECODE_CSPOT };
+enum { DECODE_BT = 1, DECODE_RAOP, DECODE_CSPOT, DECODE_ADC };
 
 extern struct outputstate output;
 extern struct decodestate decode;
@@ -274,7 +281,6 @@ static bool raop_sink_cmd_handler(raop_event_t event, va_list args)
 				raop_sync.win = SYNC_WIN_SLOW;
 				LOG_INFO("switching to slow sync mode %u", raop_sync.win);
 			}	
-
 			break;
 		}
 		case RAOP_SETUP: {
@@ -443,6 +449,99 @@ static bool cspot_cmd_handler(cspot_event_t cmd, va_list args)
 #endif
 
 /****************************************************************************************
+ * adc sink data handler
+ */
+#if CONFIG_ADC_SINK
+static uint32_t adc_data_handler(const uint8_t *data, uint32_t len) {
+    return sink_data_handler(data, len, 0);
+}
+
+/****************************************************************************************
+ * adc sink command handler
+ */
+static bool adc_cmd_handler(adc_event_t cmd, va_list args) 
+{
+	LOG_SDEBUG("ADC cmd begin: extern %d - output %d, frames %d, threshold: %d, state %d", output.external, output.current_sample_rate, output.frames_played, output.threshold, output.state);
+
+	// don't LOCK_O as there is always a chance that LMS takes control later anyway
+	if (cmd != ADC_SETUP && output.external != DECODE_ADC && output.state > OUTPUT_STOPPED) {
+		LOG_WARN("Cannot use %s while other apps are controlling player %d", "ADC", output.external);
+		return false;
+	}
+
+	LOCK_D;
+	//if (cmd != ADC_GAIN) LOCK_O; disabled as it stops here using ac101 tests 
+
+	switch(cmd) {
+	case ADC_SETUP:
+		LOG_INFO("ADC Setup");
+		output.state = OUTPUT_STOPPED;
+		output.current_sample_rate = output.next_sample_rate = va_arg(args, u32_t);
+		output.external = DECODE_ADC;
+		output.frames_played = 0;
+        // in 1/10 of seconds
+        output.threshold = 25;
+        sink_state = SINK_ABORT;
+		_buf_flush(outputbuf);
+		if (decode.state != DECODE_STOPPED) decode.state = DECODE_ERROR;
+		break;
+	case ADC_CLOSE:
+		LOG_INFO("ADC Close");
+		_buf_flush(outputbuf);
+		sink_state = SINK_ABORT;
+		output.external = 0;
+		output.state = OUTPUT_STOPPED;
+		output.stop_time = gettime_ms();
+		break;
+	case ADC_PLAY:
+		LOG_INFO("ADC Play");
+		sink_state = SINK_RUNNING;			
+		output.state = OUTPUT_RUNNING;
+		output.external = DECODE_ADC;
+		break;
+	case ADC_STOP:
+		LOG_INFO("ADC Stop");
+		output.state = OUTPUT_STOPPED;
+		output.stop_time = gettime_ms();
+		break;
+	default:
+		LOG_INFO("ADC unknown: event:%d", cmd);
+		break;
+	}
+	
+	//if (cmd != ADC_GAIN) UNLOCK_O;
+	UNLOCK_D;
+	
+	LOG_SDEBUG("ADC cmd end: extern %d - output %d, frames %d, threshold: %d, state %d", output.external, output.current_sample_rate, output.frames_played, output.threshold, output.state);
+	
+	return true;
+}
+
+
+static bool (*slimp_handler_chain)(u8_t *data, int len);
+
+static bool adc_slimp_handler(u8_t *data, int len){
+	bool res = true;
+
+	if (!strncmp((char*) data, "audp", 4)) {
+		struct audp_packet *pkt = (struct audp_packet*) data;
+		// 0 = start? 
+		adc_linein_start(output.current_sample_rate);
+		LOG_INFO("got AUDP %02x", pkt->config);
+		LOG_SDEBUG("ADC audp: output %d, frames %d, threshold: %d, state %d external %d", output.current_sample_rate, output.frames_played, output.threshold, output.state, output.external);
+	} else {
+		res = false;
+	}
+
+	// chain protocol handlers (bitwise or is fine)
+	if (*slimp_handler_chain) res |= (*slimp_handler_chain)(data, len);
+	
+	return res;
+}
+#endif
+
+
+/****************************************************************************************
  * We provide the generic codec register option
  */
 void register_external(void) {
@@ -479,6 +578,20 @@ void register_external(void) {
 		}	
 	}	
 #endif	
+
+#if CONFIG_ADC_SINK
+	if ((p = config_alloc_get(NVS_TYPE_STR, "enable_adc")) != NULL) {
+		enable_adc = strcmp(p,"1") == 0 || strcasecmp(p,"y") == 0;
+		free(p);
+		if (enable_adc){
+			adc_sink_init(adc_cmd_handler, adc_data_handler);
+			LOG_INFO("Initializing ADC sink");
+				
+			slimp_handler_chain = slimp_handler;
+			slimp_handler = adc_slimp_handler;
+		}	
+	}	
+#endif
 }
 
 void deregister_external(void) {
@@ -501,6 +614,13 @@ void deregister_external(void) {
 		cspot_sink_deinit();
 	}
 #endif
+
+#if CONFIG_ADC_SINK
+	if (enable_adc){
+		LOG_INFO("Stopping ADC sink");		
+		adc_sink_deinit();
+	}
+#endif
 }
 
 void decode_restore(int external) {
@@ -518,6 +638,11 @@ void decode_restore(int external) {
 #if CONFIG_CSPOT_SINK
 	case DECODE_CSPOT:
 		cspot_disconnect();
+		break;
+#endif			
+#if CONFIG_ADC_SINK
+	case DECODE_ADC:
+		adc_disconnect();
 		break;
 #endif			
 	}

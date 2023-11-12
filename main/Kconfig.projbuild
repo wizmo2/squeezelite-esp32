@@ -67,6 +67,16 @@ menu "Squeezelite-ESP32"
 
 		menu "Factory Configuration"
 
+			config ADC_CONFIG
+				string "adc_config"
+				default ""
+				help
+					Configuration of adc linein/microphone stream	
+			config ADC_LOCKED
+				bool "ADC is Locked"
+				depends on ADC_CONFIG != ""
+				default y
+
 			config AUDIO_CONTROLS
 				string "audio_control_set"
 				default "[{\"gpio\":32, \"pull\":true, \"long_press\":1000, \"normal\":{\"pressed\":\"ACTRLS_VOLDOWN\"}, \"longpress\":{\"pressed\":\"ACTRLS_PREV\"}}, {\"gpio\":19, \"pull\":true, \"long_press\":1000, \"normal\":{\"pressed\":\"ACTRLS_VOLUP\"}, \"longpress\":{\"pressed\":\"ACTRLS_NEXT\"}}, {\"gpio\":12, \"pull\":true, \"long_press\":1000, \"normal\":{\"pressed\":\"ACTRLS_TOGGLE\"},\"longpress\":{\"pressed\":\"ACTRLS_POWER\"}}]" if MUSE
@@ -345,6 +355,11 @@ menu "Squeezelite-ESP32"
 			default y
 			help
 				Enable Spotify connect using CSpot		
+		config ADC_SINK
+			bool "ADC receiver"
+			default y
+			help
+				Enable Microphone or Line in test		
 	endmenu
 			
 	menu "Command Sets"

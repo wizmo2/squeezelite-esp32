@@ -26,6 +26,7 @@
 #include "cmd_system.h"
 const char * desc_squeezelite ="Squeezelite Options";
 const char * desc_dac= "DAC Options";
+const char * desc_adc= "ADC Options";
 const char * desc_cspotc= "Spotify (cSpot) Options";
 const char * desc_preset= "Preset Options";
 const char * desc_spdif= "SPDIF Options";
@@ -97,6 +98,25 @@ static struct {
 	struct arg_lit *clear;
     struct arg_end *end;
 } i2s_args;
+#if CONFIG_ADC_SINK
+static struct {
+#ifndef CONFIG_ADC_LOCKED
+	struct arg_str *model_name;
+    struct arg_int *clock;
+    struct arg_int *wordselect;
+    struct arg_int *data;
+	struct arg_int *mclk;
+    struct arg_int *dac_sda;
+    struct arg_int *dac_scl;
+    struct arg_int *dac_i2c;
+#endif
+    struct arg_int *rate;
+	struct arg_str *host;
+    struct arg_int *port;
+	struct arg_lit *clear;
+    struct arg_end *end;
+} adc_args;
+#endif
 static struct {
 	struct arg_str *model_config;
     struct arg_end *end;
@@ -521,10 +541,11 @@ static int do_spdif_cmd(int argc, char **argv){
 		return 1;
 	}
 	if(nerrors >0){
-		arg_print_errors(f,spdif_args.end,desc_dac);
+		arg_print_errors(f,spdif_args.end,desc_spdif);
 		fclose(f);
 		return 1;
 	}
+	i2s_dac_pin.pin.data_in_num = -1;
 	nerrors+=is_output_gpio(spdif_args.clock, f, &i2s_dac_pin.pin.bck_io_num, true);
 	nerrors+=is_output_gpio(spdif_args.wordselect, f, &i2s_dac_pin.pin.ws_io_num, true);
 	nerrors+=is_output_gpio(spdif_args.data, f, &i2s_dac_pin.pin.data_out_num, true);
@@ -763,6 +784,7 @@ static int do_i2s_cmd(int argc, char **argv)
 	else {
 		strncpy(i2s_dac_pin.model,i2s_args.model_name->sval[0],sizeof(i2s_dac_pin.model));
 		i2s_dac_pin.model[sizeof(i2s_dac_pin.model) - 1] = '\0';
+		i2s_dac_pin.pin.data_in_num = -1;
 		nerrors += is_output_gpio(i2s_args.clock, f, &i2s_dac_pin.pin.bck_io_num, true);
 		nerrors += is_output_gpio(i2s_args.wordselect, f, &i2s_dac_pin.pin.ws_io_num, true);
 		nerrors += is_output_gpio(i2s_args.data, f, &i2s_dac_pin.pin.data_out_num, true);
@@ -796,7 +818,85 @@ static int do_i2s_cmd(int argc, char **argv)
 #endif
 	return (nerrors==0 && err==ESP_OK)?0:1;
 }
+#if CONFIG_ADC_SINK
+static int do_adc_cmd(int argc, char **argv)
+{
+	i2s_platform_config_t i2s_dac_pin = {
+		.i2c_addr = -1,
+		.sda= -1,
+		.scl = -1,
+		.mute_gpio = -1,
+		.mute_level = -1
+	};
+	adcout_struct_t adcout;
 
+	ESP_LOGD(TAG,"Processing adc command %s with %d parameters",argv[0],argc);
+
+	esp_err_t err=ESP_OK;
+	int nerrors = arg_parse(argc, argv,(void **)&adc_args);
+	if (adc_args.clear->count) {
+		cmd_send_messaging(argv[0],MESSAGING_WARNING,"ADC config cleared\n");
+		config_set_value(NVS_TYPE_STR, "adc_config", CONFIG_ADC_CONFIG);
+		return 0;
+	}
+	char *buf = NULL;
+	size_t buf_size = 0;
+	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
+	if (f == NULL) {
+		return 1;
+	}
+	if(nerrors >0){
+		ESP_LOGE(TAG,"do_adc_cmd: %d errors parsing arguments",nerrors);
+		arg_print_errors(f,adc_args.end,desc_adc);
+	}
+	else {
+#ifndef CONFIG_ADC_LOCKED
+		strncpy(i2s_dac_pin.model,adc_args.model_name->sval[0],sizeof(i2s_dac_pin.model));
+		i2s_dac_pin.model[sizeof(i2s_dac_pin.model) - 1] = '\0';
+		i2s_dac_pin.pin.data_out_num = -1;
+		nerrors += is_output_gpio(adc_args.clock, f, &i2s_dac_pin.pin.bck_io_num, true);
+		nerrors += is_output_gpio(adc_args.wordselect, f, &i2s_dac_pin.pin.ws_io_num, true);
+		nerrors += is_output_gpio(adc_args.data, f, &i2s_dac_pin.pin.data_in_num, true);
+		nerrors += is_output_gpio(adc_args.mclk, f, &i2s_dac_pin.pin.mck_io_num, true);
+		
+		if (adc_args.dac_sda->count > 0 && adc_args.dac_sda->ival[0] >= 0) {
+			// if SDA specified, then SDA and SCL are both mandatory
+			nerrors += is_output_gpio(adc_args.dac_sda, f, &i2s_dac_pin.sda, false);
+			nerrors += is_output_gpio(adc_args.dac_scl, f, &i2s_dac_pin.scl, false);
+		}
+		if (adc_args.dac_sda->count == 0 && adc_args.dac_i2c->count > 0) {
+			fprintf(f, "warning: ignoring adc address, since dac i2c gpios config is incomplete\n");
+		} else if (adc_args.dac_i2c->count > 0) {
+			i2s_dac_pin.i2c_addr = adc_args.dac_i2c->ival[0];
+		}
+		if (!nerrors) {
+			fprintf(f, "Storing adc i2s parameters.\n");
+			nerrors += (config_i2s_set(&i2s_dac_pin, "adc_config") != ESP_OK);
+		}
+#endif
+		if (adc_args.rate->count > 0) {
+			adcout.rate= adc_args.rate->ival[0];
+		} 
+		strncpy(adcout.host,adc_args.host->sval[0],sizeof(adcout.host));
+		adcout.host[sizeof(adcout.host) - 1] = '\0';
+		if (adc_args.port->count > 0) {
+			adcout.port = adc_args.port->ival[0];
+		}
+		if (!nerrors) {
+			fprintf(f, "Storing adc stream parameters.\n");
+			nerrors += (config_adcout_set(&adcout) != ESP_OK);
+		}
+	}
+	if(!nerrors ){
+		fprintf(f,"Done.\n");
+	}
+	fflush (f);
+	cmd_send_messaging(argv[0],nerrors>0?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
+	fclose(f);
+	FREE_AND_NULL(buf);
+	return (nerrors==0 && err==ESP_OK)?0:1;
+}
+#endif
 
 cJSON * known_model_cb(){
 	cJSON * values = cJSON_CreateObject();
@@ -870,6 +970,40 @@ cJSON * i2s_cb(){
 #endif
 	return values;
 }
+#if CONFIG_ADC_SINK
+cJSON * adc_cb(){
+	cJSON * values = cJSON_CreateObject();
+	const adcout_struct_t *adcout=config_adcout_get();
+#ifndef CONFIG_ADC_LOCKED
+	const i2s_platform_config_t *i2s_conf=config_adc_get();
+	cJSON_AddNumberToObject(values,adc_args.clock->hdr.longopts,i2s_conf->pin.bck_io_num);
+	cJSON_AddNumberToObject(values,adc_args.wordselect->hdr.longopts,i2s_conf->pin.ws_io_num);
+	cJSON_AddNumberToObject(values,adc_args.data->hdr.longopts,i2s_conf->pin.data_in_num);
+	if(i2s_conf->pin.mck_io_num>=0 ) {
+		cJSON_AddNumberToObject(values,adc_args.mclk->hdr.longopts,i2s_conf->pin.mck_io_num);
+	}
+	if(i2s_conf->sda>=0 ) {
+		cJSON_AddNumberToObject(values,adc_args.dac_sda->hdr.longopts,i2s_conf->sda);
+		cJSON_AddNumberToObject(values,adc_args.dac_scl->hdr.longopts,i2s_conf->scl);
+		cJSON_AddNumberToObject(values,adc_args.dac_i2c->hdr.longopts,i2s_conf->i2c_addr);
+	}		
+	if(strlen(i2s_conf->model)>0){
+		cJSON_AddStringToObject(values,adc_args.model_name->hdr.longopts,i2s_conf->model);
+	}
+	else {
+		cJSON_AddStringToObject(values,adc_args.model_name->hdr.longopts,"I2S");
+	}
+#endif
+	cJSON_AddNumberToObject(values,adc_args.rate->hdr.longopts,adcout->rate);
+	cJSON_AddNumberToObject(values,adc_args.port->hdr.longopts,adcout->port);
+	if(strlen(adcout->host)>0){
+		cJSON_AddStringToObject(values,adc_args.host->hdr.longopts,adcout->host);
+	}
+
+	return values;
+}
+#endif
+
 cJSON * spdif_cb(){
 	cJSON * values = cJSON_CreateObject();
 #ifndef CONFIG_SPDIF_LOCKED
@@ -1175,7 +1309,7 @@ static char * get_log_level_options(const char * longname){
 
 // loop through dac_set and concatenate model name separated with |
 static char * get_dac_list(){
-	const char * EXTRA_MODEL_NAMES = "ES8388|I2S";
+	const char * EXTRA_MODEL_NAMES = "ES8388|ES7210|I2S";
 	char * dac_list=NULL;
 	size_t total_len=0;
 	for(int i=0;dac_set[i];i++){
@@ -1393,7 +1527,35 @@ void register_i2s_config(void){
     cmd_to_json_with_cb(&cmd,&i2s_cb);
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
+#if CONFIG_ADC_SINK
+void register_adc_config(void){
+#ifndef CONFIG_ADC_LOCKED
+	adc_args.model_name = arg_str0(NULL,"model_name",STR_OR_BLANK(get_dac_list()),"DAC Model Name [default: I2S]");
+    adc_args.clock = arg_int1(NULL,"clock","<n>","Clock GPIO pin (e.g. 33)");
+    adc_args.wordselect = arg_int1(NULL,"wordselect","<n>","Word Select GPIO pin (e.g. 25)");
+    adc_args.data = arg_int1(NULL,"data","<n>","Data In GPIO pin (e.g. 32)");
+	adc_args.mclk = arg_int0(NULL,"mclk","<n>","Master Clock GPIO pin (if required)");
+    adc_args.dac_sda = arg_int0(NULL,"dac_sda", "<n>", "I2C SDA GPIO pin (e.g. 27)");
+    adc_args.dac_scl = arg_int0(NULL,"dac_scl", "<n>", "I2C SCL GPIO pin (e.g. 26)");
+    adc_args.dac_i2c = arg_int0(NULL,"dac_i2c", "<n>", "I2C device address pin (e.g. 106)");
+#endif
+    adc_args.rate = arg_int0(NULL,"rate","<Hz>","Sample Rate of output stream (use 16000 for Rhasspy)");
+	adc_args.host = arg_str0(NULL,"host","<ip>","Output stream destination address (use 0.0.0.0 for multi-cast)");
+    adc_args.port = arg_int0(NULL,"port","<n>","Output stream port number");
+	adc_args.clear = arg_lit0(NULL, "clear", "Clear configuration (factory)");
+    adc_args.end = arg_end(6);
 
+	 const esp_console_cmd_t cmd = {
+        .command = CFG_TYPE_HW("adc"),
+        .help = desc_adc,
+        .hint = NULL,
+        .func = &do_adc_cmd,
+        .argtable = &adc_args
+    };
+    cmd_to_json_with_cb(&cmd,&adc_cb);
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
+}
+#endif
 void register_bt_source_config(void){
 	#if CONFIG_BT_ENABLED
 	bt_source_args.sink_name= arg_str1("n","sink_name", "name","Bluetooth audio device name. (BT Out)");

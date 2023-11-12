@@ -225,6 +225,9 @@ static void set_i2s_pin(char *config, i2s_pin_config_t *pin_config) {
 	PARSE_PARAM(config, "bck", '=', pin_config->bck_io_num);
 	PARSE_PARAM(config, "ws", '=', pin_config->ws_io_num);
 	PARSE_PARAM(config, "do", '=', pin_config->data_out_num);
+#if CONFIG_ADC_SINK
+	PARSE_PARAM(config, "di", '=', pin_config->data_in_num);
+#endif
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
     pin_config->mck_io_num = strcasestr(config, "mck") ? 0 : -1;
     PARSE_PARAM(config, "mck", '=', pin_config->mck_io_num);   
@@ -327,6 +330,9 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 		res |= i2s_set_pin(CONFIG_DAC_I2S_NUM, &i2s_spdif_pin);
 		LOG_INFO("SPDIF using I2S bck:%d, ws:%d, do:%d", i2s_spdif_pin.bck_io_num, i2s_spdif_pin.ws_io_num, i2s_spdif_pin.data_out_num);
 	} else {
+#if CONFIG_ADC_SINK
+		i2s_config.mode |= I2S_MODE_RX;
+#endif
 		i2s_config.sample_rate = output.current_sample_rate;
 		i2s_config.bits_per_sample = BYTES_PER_FRAME * 8 / 2;
 		// Counted in frames (but i2s allocates a buffer <= 4092 bytes)

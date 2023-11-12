@@ -447,7 +447,7 @@ static void process_aude(u8_t *pkt, int len) {
 #endif    
 
 	LOCK_O;
-	if (!aude->enable_spdif && output.state != OUTPUT_OFF) {
+	if (!aude->enable_spdif && output.state != OUTPUT_OFF && !output.external) {
 		output.state = OUTPUT_OFF;
 	}
 	if (aude->enable_spdif && output.state == OUTPUT_OFF && !output.idle_to) {

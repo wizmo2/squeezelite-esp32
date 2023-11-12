@@ -94,7 +94,13 @@ typedef struct {
 	char seq[10];
 	int scale;
 } ledvu_struct_t;
-
+#if CONFIG_ADC_SINK
+typedef struct {
+	int rate;
+	char host[32];
+	int port;
+} adcout_struct_t;
+#endif
 typedef struct {
 	bool fixed;
 	char * name;
@@ -126,3 +132,8 @@ const rotary_struct_t * 	config_rotary_get();
 esp_err_t 					config_rotary_set(rotary_struct_t * rotary);
 const ledvu_struct_t * 		config_ledvu_get();
 esp_err_t 					config_ledvu_set(ledvu_struct_t * ledvu);
+#if CONFIG_ADC_SINK
+const i2s_platform_config_t * 	config_adc_get( );
+const adcout_struct_t * 		config_adcout_get();
+esp_err_t 					config_adcout_set(adcout_struct_t * adcout);
+#endif

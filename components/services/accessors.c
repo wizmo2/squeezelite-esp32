@@ -63,6 +63,9 @@ static void set_i2s_pin(char *config, i2s_pin_config_t *pin_config) {
 	PARSE_PARAM(config, "bck", '=', pin_config->bck_io_num);
 	PARSE_PARAM(config, "ws", '=', pin_config->ws_io_num);
 	PARSE_PARAM(config, "do", '=', pin_config->data_out_num);
+#if CONFIG_ADC_SINK
+	PARSE_PARAM(config, "di", '=', pin_config->data_in_num);
+#endif 
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
     pin_config->mck_io_num = strcasestr(config, "mck") ? 0 : -1;
     PARSE_PARAM(config, "mck", '=', pin_config->mck_io_num);   
@@ -172,6 +175,18 @@ const i2s_platform_config_t * config_dac_get(){
 	free(spdif_config);
 	return &i2s_dac_config;
 }
+#if CONFIG_ADC_SINK
+/****************************************************************************************
+ * Get adc config structure 
+ */
+const i2s_platform_config_t * config_adc_get( ){
+	char * adc_config = config_alloc_get_str("adc_config", NULL, CONFIG_SPDIF_CONFIG);
+	static EXT_RAM_ATTR i2s_platform_config_t i2s_dac_config;
+	memcpy(&i2s_dac_config, config_i2s_get_from_str(adc_config), sizeof(i2s_dac_config));
+	free(adc_config);
+	return &i2s_dac_config;
+}
+#endif
 
 /****************************************************************************************
  * Get ethernet config structure 
@@ -294,7 +309,26 @@ esp_err_t config_ledvu_set(ledvu_struct_t * config){
 	FREE_AND_NULL(config_buffer);
 	return err;	
 }
-
+#if CONFIG_ADC_SINK
+esp_err_t config_adcout_set(adcout_struct_t * adcout){
+	int buffer_size=512;
+	esp_err_t err=ESP_OK;
+	char * config_buffer=malloc_init_external(buffer_size);
+	if(config_buffer)  {
+		snprintf(config_buffer,buffer_size,"rate=%u,host=%s,port=%u",adcout->rate, adcout->host, adcout->port);
+		log_send_messaging(MESSAGING_INFO,"Updating adc output configuration to %s",config_buffer);
+		err = config_set_value(NVS_TYPE_STR, "adc_stream", config_buffer);
+		if(err!=ESP_OK){
+			log_send_messaging(MESSAGING_ERROR,"Error: %s",esp_err_to_name(err));
+		}
+	} 
+	else {
+		err = ESP_ERR_NO_MEM;
+	}
+	FREE_AND_NULL(config_buffer);
+	return err;	
+}
+#endif
 /****************************************************************************************
  * 
  */
@@ -360,7 +394,21 @@ esp_err_t config_i2s_set(const i2s_platform_config_t * config, const char * nvs_
 	char * config_buffer=malloc_init_external(buffer_size);
 	char * config_buffer2=malloc_init_external(buffer_size);
 	if(config_buffer && config_buffer2)  {
-		snprintf(config_buffer,buffer_size,"model=%s,bck=%u,ws=%u,do=%u",config->model,config->pin.bck_io_num,config->pin.ws_io_num,config->pin.data_out_num);
+		snprintf(config_buffer,buffer_size,"model=%s,bck=%u,ws=%u",config->model,config->pin.bck_io_num,config->pin.ws_io_num);
+		if(config->pin.data_out_num>=0){
+			snprintf(config_buffer2,buffer_size,"%s,do=%u",config_buffer,config->pin.data_out_num);
+			strcpy(config_buffer,config_buffer2);
+		}
+		if(config->pin.data_in_num>=0){
+			snprintf(config_buffer2,buffer_size,"%s,di=%u",config_buffer,config->pin.data_in_num);
+			strcpy(config_buffer,config_buffer2);
+		}
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0) 		
+		if(config->pin.mck_io_num>=0){
+			snprintf(config_buffer2,buffer_size,"%s,mck=%u",config_buffer,config->pin.mck_io_num);
+			strcpy(config_buffer,config_buffer2);
+		}
+#endif		
 		if(config->mute_gpio>=0){
 			snprintf(config_buffer2,buffer_size,"%s,mute=%u:%u",config_buffer,config->mute_gpio,config->mute_level);
 			strcpy(config_buffer,config_buffer2);
@@ -733,7 +781,23 @@ const ledvu_struct_t * config_ledvu_get() {
 	}
 	return &ledvu;
 }
+#if CONFIG_ADC_SINK
+/****************************************************************************************
+ * 
+ */
+const adcout_struct_t * config_adcout_get() {
 
+	static adcout_struct_t adcout={ .rate = 16000, .host = "", .port=0 };
+	char *config = config_alloc_get_default(NVS_TYPE_STR, "adc_stream", NULL, 0);
+	if (config && *config) {
+		PARSE_PARAM(config, "rate", '=', adcout.rate);
+		PARSE_PARAM_STR(config, "host", '=', adcout.host, 32);
+		PARSE_PARAM(config, "port", '=', adcout.port);
+		free(config);
+	}
+	return &adcout;
+}
+#endif
 /****************************************************************************************
  *
  */
@@ -793,7 +857,7 @@ cJSON * get_GPIO_nvs_list(cJSON * list) {
  */
 cJSON * get_DAC_GPIO(cJSON * list){
 #ifdef CONFIG_DAC_LOCKED
-    bool fixed = true;
+    bool fixed = CONFIG_DAC_LOCKED;
 #else
     bool fixed = false;
 #endif
@@ -816,13 +880,46 @@ cJSON * get_DAC_GPIO(cJSON * list){
 	}
 	return llist;
 }
+#if CONFIG_ADC_SINK
+/****************************************************************************************
+ *
+ */
+cJSON * get_ADC_GPIO(cJSON * list){
+#ifdef CONFIG_ADC_LOCKED
+    bool fixed = CONFIG_ADC_LOCKED;
+#else
+    bool fixed = false;
+#endif
+	cJSON * llist = list;
+	if(!llist){
+		llist = cJSON_CreateArray();
+	}	
+	const i2s_platform_config_t * i2s_config= config_adc_get();
+	if(i2s_config->pin.bck_io_num>=0){
+		cJSON_AddItemToArray(llist,get_gpio_entry("bck","adc",i2s_config->pin.bck_io_num,fixed));
+		cJSON_AddItemToArray(llist,get_gpio_entry("ws","adc",i2s_config->pin.ws_io_num,fixed));
+		cJSON_AddItemToArray(llist,get_gpio_entry("di","adc",i2s_config->pin.data_in_num,fixed));
+		if(i2s_config->pin.mck_io_num>=0){
+			cJSON_AddItemToArray(llist,get_gpio_entry("mck","adc",i2s_config->pin.mck_io_num,fixed));
+		}
+		if(i2s_config->sda>=0){
+			cJSON_AddItemToArray(llist,get_gpio_entry("sda","adc",i2s_config->sda,fixed));
+			cJSON_AddItemToArray(llist,get_gpio_entry("scl","adc",i2s_config->scl,fixed));
+		}
+		if(i2s_config->mute_gpio>=0){
+			cJSON_AddItemToArray(llist,get_gpio_entry("mute","adc",i2s_config->mute_gpio,fixed));
+		}
+	}
+	return llist;
+}
+#endif
 
 /****************************************************************************************
  *
  */
 cJSON * get_Display_GPIO(cJSON * list){
 #ifdef CONFIG_DISPLAY_LOCKED
-	bool fixed = true;
+	bool fixed = CONFIG_DISPLAY_LOCKED;
 #else
 	bool fixed = false;
 #endif
@@ -847,7 +944,7 @@ if(config->back >=0){
  */
 cJSON * get_I2C_GPIO(cJSON * list){
 #ifdef CONFIG_I2C_LOCKED
-	bool fixed = true;
+	bool fixed = CONFIG_I2C_LOCKED;
 #else
 	bool fixed = false;
 #endif
@@ -869,7 +966,7 @@ cJSON * get_I2C_GPIO(cJSON * list){
  */
 cJSON * get_SPI_GPIO(cJSON * list){
 #if CONFIG_SPI_LOCKED
-	bool fixed = true;
+	bool fixed = CONFIG_SPI_LOCKED;
 #else
 	bool fixed = false;
 #endif
@@ -939,7 +1036,7 @@ cJSON * get_eth_GPIO(cJSON * list){
  */
 cJSON * get_SPDIF_GPIO(cJSON * list){
 #ifdef CONFIG_SPDIF_LOCKED
-	bool fixed = true;
+	bool fixed = CONFIG_SPDIF_LOCKED;
 #else
 	bool fixed = false;
 #endif
@@ -960,7 +1057,7 @@ cJSON * get_SPDIF_GPIO(cJSON * list){
 cJSON * get_Rotary_GPIO(cJSON * list){
 	cJSON * llist = list?list:cJSON_CreateArray();
 #ifdef CONFIG_ROTARY_ENCODER_LOCKED
-	bool fixed = true;
+	bool fixed = CONFIG_ROTARY_ENCODER_LOCKED;
 #else
 	bool fixed = false;
 #endif
@@ -977,7 +1074,7 @@ cJSON * get_Rotary_GPIO(cJSON * list){
 cJSON * get_ledvu_GPIO(cJSON * list){
 	cJSON * llist = list?list:cJSON_CreateArray();
 #ifdef CONFIG_LED_VU_LOCKED
-	bool fixed = true;
+	bool fixed = CONFIG_LED_VU_LOCKED;
 #else
 	bool fixed = false;
 #endif
@@ -1198,6 +1295,7 @@ cJSON * get_gpio_list_handler(bool refresh) {
 	gpio_list=get_SPI_GPIO(gpio_list);
 	gpio_list=get_I2C_GPIO(gpio_list);
 	gpio_list=get_DAC_GPIO(gpio_list);
+	gpio_list=get_ADC_GPIO(gpio_list);
 	gpio_list=get_ledvu_GPIO(gpio_list);
 	gpio_list=get_psram_gpio_list(gpio_list);
 	gpio_list=get_eth_GPIO(gpio_list);
