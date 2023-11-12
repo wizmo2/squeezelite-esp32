@@ -8,7 +8,7 @@ _NOTE The OWW and Rhasspy implementation is based heaviy on the existing [Docker
 
 The following python script and configuration file can be used to receive the UDP stream to a remote OWW server.  The script monitors the stream for enabled Wake-Words.  When detected, it streams the audio data to Rhasspy via  an external Hermes-MQTT server.  Monitoring of all saltellites is disabled when any sattelite is Streaming.  The script can forward status beeps to the Rhasspy base unit if required. _NOTE: If using Home-Assistant as an Intent Handler, you can use a mqtt sensor and automations to send audio (play_media) or visual indicators (led_vu / dmx) to the satellites_ 
 
-[detect.py](../components/adc/test/detect.py) [config.yaml](../components/test/config.yaml)
+[detect.py](../components/adc/test/detect.py) [config.yaml](../components/adc/test/config.yaml)
 
 # Rhasspy Configuration
 The following notes can be used to configure your base Rhasspy settings.
