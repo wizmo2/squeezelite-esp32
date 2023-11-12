@@ -3,7 +3,7 @@
 ## Forewords
 This branch is an independant fork of [Squeezelite-ESP32](https://github.com/sle118/squeezelite-esp32).  If you want up-to-date code and information refer to that project.
 **The PURE build excludes CSpot, AirPlay, and BT (sink) modes.  NOTE: Additionally, the new generation ESP32S3 do not support BT output (source).**  
-There is a [web-installer page](https://wizmo2.github.io/TAudio-Case/) available to flash selected builds, but they are not regularily maintained.  
+See the [Setup Guide](docs/setup.md) for specif instructions.  There is a [web-installer page](https://wizmo2.github.io/TAudio-Case/) available to flash selected builds, but they are not regularily maintained.  
 
 **More and more people seems to use this without a LMS server, just for BT, AirPlay or Spotify. It's fine but understand that squeezeliteESP32 is primarily a Logitech Media Server player and has been designed around that concept. All the others are add-ons stitched to it, so other modes have their shortcomings. So please make sure you read [this](#Additional-configuration-notes-from-the-Web-UI) before opening an issue**
 
@@ -550,6 +550,20 @@ The option to use multiple GPIOs is very limited on esp32 and the esp-idf 4.3.x 
 - ESP32-S3: 0-21.
 
 Some have asked for a soft power on/off option. Although this is not built-in, it's easy to create yours as long as the regulator/power supply of the board can be controlled by Vcc or GND. Depending on how it is active, add a pull-up/down resistor to the regulator's control and connect it also to one GPIO of the esp32. Then using set_GPIO, set that GPIO to Vcc or GND. Use a hardware button that forces the regulator on with a pull- up/down and once the esp32 has booted, it will force the GPIO to the desired value maintaining the board on by software. To power it off by software, just use the deep sleep option which will suspend all GPIO hence switching off the regulator.
+
+### ADC
+The NVS parameter "adc_config" set the gpio used for i2s communication with an additional DAC that can be used for audio ADC input. You can define the defaults at compile time but nvs parameter takes precedence except for named configurations
+```
+bck=<gpio>,ws=<gpio>,do=<gpio>[,mck=<gpio>][,mute=<gpio>[:0|1][,model=TAS57xx|TAS5713|AC101|WM8978|ES8388|ES7210|I2S][,sda=<gpio>,scl=<gpio>[,i2c=<addr>]]
+```
+for setup information see [DAC configuration]{#DAC}
+
+Set the NVS parameter "adc_stream" to configure audio streaming patameters.
+```
+host=<server>,port=<port>,rate=<sample_rate> 
+```
+for configuration and examples, see [Voice Assistant Configuration][docs/voice_assistant.md) 
+
 
 # Software configuration
 

@@ -1,0 +1,31 @@
+# Configuration for using Open Wake Work with Rhasspy voice assistant
+
+# MQTT broker config
+# If running Rhasspy in Docker you'll need to run your own MQTT broker
+# and set Rhasspy MQTT to `external`.
+mqtt:
+  broker: <broker_ip>
+  port: 1883
+  username: <username>  # Login to broker. Delete if not required
+  password: <password>  # Login to broker. Delete if not required
+
+# Open Wake Word config
+oww:
+  base_name: base
+  enable_stream: True
+  enabled_models:  # From https://github.com/dscripka/openWakeWord/blob/main/openwakeword/__init__.py
+    - alexa  # Delete to ignore this wake-word
+  activation_samples: 3  # Number of samples in moving average
+  activation_threshold: 0.9  # Trigger wakeword when average above this threshold
+  deactivation_threshold: 0.2  # Do not trigger again until average falls below this threshold
+  # OWW config, see https://github.com/dscripka/openWakeWord#recommendations-for-usage
+  vad_threshold: 0.5
+  enable_speex_noise_suppression: false
+
+# Rhasspy microphone UDP ports, 1 per device/satellite
+# Firewall / Docker ip config required
+# https://rhasspy.readthedocs.io/en/latest/tutorials/#udp-audio-streaming
+udp_ports: 
+  base: 12202  
+  squeezelite-xxxa: 12203  # Delete or change as needed
+  squeezelite-xxxb: 12204  # Delete or change as needed

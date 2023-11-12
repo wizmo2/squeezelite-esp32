@@ -13,9 +13,6 @@ OWW_FRAMES = 1280  # 80 ms window @ 16 kHz = 1280 frames
 BAR_SIZE = 50
 BAR_MAX = 0xffff / 2
 
-msgFromServer       = "Hello Back!"
-bytesToSend         = str.encode(msgFromServer)
-
 # Create a datagram socket
 UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 print("created socket ", UDPServerSocket)

@@ -126,12 +126,17 @@ const DefaultStringVal defaultStringVals[] = {
     {"a2dp_ctmt", STR(CONFIG_A2DP_CONNECT_TIMEOUT_MS)},
     {"a2dp_ctrld", STR(CONFIG_A2DP_CONTROL_DELAY_MS)},
     {"a2dp_sink_name", CONFIG_A2DP_SINK_NAME},
-	{"autoexec", "1"},
 #endif
 #ifdef CONFIG_AIRPLAY_SINK
 	{"airplay_port", CONFIG_AIRPLAY_PORT},
 	{"enable_airplay", STR(CONFIG_AIRPLAY_SINK)},
 #endif
+#ifdef CONFIG_ADC_SINK
+	{"enable_adc", STR(CONFIG_ADC_SINK)},
+	{"adc_config", CONFIG_ADC_CONFIG},
+	{"adc_stream", ""},
+#endif
+	{"autoexec", "1"},
 	{"autoexec1",CONFIG_DEFAULT_COMMAND_LINE},
 	{"autoexec1_2",CONFIG_DEFAULT_COMMAND_2_LINE},	
 	{"autoexec1_3",CONFIG_DEFAULT_COMMAND_3_LINE}
