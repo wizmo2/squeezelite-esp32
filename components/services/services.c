@@ -361,7 +361,7 @@ void services_init(void) {
 	}
 #endif
 
-	// set potential power GPIO on chip first in case expanders are power using these
+	// set potential power GPIO on chip first in case expanders are powered using these
 	parse_set_GPIO(set_chip_power_gpio);
 
 	// shared I2C bus
