@@ -62,26 +62,27 @@ static void inline _delayed_free(TimerHandle_t xTimer) {
 const struct adac_s *aadc;
 
 typedef struct adc_ctx_s {
-	uint32_t host;
-	uint16_t port;
-	uint16_t channels;
-	int sock;               // socket of listener
+	uint32_t host;			// ip address of udp server/receiver
+	uint16_t port;			// stream port
+	uint16_t channels;		// stream output channels
+	adc_fmt_t format;		// stream format (currently raw and wav chunks.  TODO:  mp3/flac streams)
+	int sock;               // stream socket
 	
-	bool running; // recieve i2s data
-	bool speaker; // send to dac
-	adac_src_e source; // use microphone over line in
-	bool stream; // stream over socket
+	bool running; 			// recieve i2s data
+	bool speaker; 			// send to dac
+	adac_src_e source; 		// use microphone over line in
+	bool stream; 			// sedn udp stream
 	
 	TaskHandle_t thread, joiner;
 	StaticTask_t *xTaskBuffer;
 	StackType_t xStack[ADC_STACK_SIZE] __attribute__ ((aligned (4)));
 
 	bool abort;
-	uint16_t i2s_ch;
-	uint16_t sample_rate;
-	int16_t *input_buff;
+	uint16_t i2s_ch;		
+	uint16_t sample_rate;	// input, output, and stream rate (Hz)
+	int16_t *input_buff;	
 	int16_t *stream_buff;
-	size_t bytes_read;
+	size_t bytes_read;		
 	adc_cmd_cb_t	cmd_cb;
 	adc_data_cb_t	data_cb;
 	void *owner;
@@ -115,6 +116,7 @@ struct adc_ctx_s *adc_create(adc_cmd_cb_t cmd_cb, adc_data_cb_t data_cb) {
 	PARSE_PARAM(config, "port",'=', ctx->port);
 	ctx->channels = ADC_CHANNELS_OUT;
 	PARSE_PARAM(config, "ch",'=', ctx->channels);
+	PARSE_PARAM(config, "fmt", '=', ctx->format);
 	PARSE_PARAM(config, "source",'=', ctx->source);
 	free(config);
 
@@ -309,7 +311,8 @@ bool adc_cmd(struct adc_ctx_s *ctx, adc_event_t event, void *param) {
 	return success;
 }
 
-#define WAVE_HEADER_SIZE   44
+#define MAX_HEADER_SIZE		128
+#define WAVE_HEADER_SIZE	44
 /*----------------------------------------------------------------------------
    Fills in the header based on sample size                                 
 */
@@ -348,7 +351,8 @@ static uint16_t encode_wav_data(int16_t* dst, int16_t* src, uint32_t offset, siz
     int p = offset/s; // start of frame data
 
 	if (ADC_CHANNELS_IN == channels) {
-		memcpy(&dst[offset], src, size*s);
+		memcpy(&dst[p], src, size*s);
+		p+=size;
 	} else {
 		for (int i=0; i < size; i+=2) {
 			dst[p++] = (src[i] / 2) + (src[i+1] / 2); 
@@ -375,20 +379,26 @@ static void adc_thread(void *arg) {
 	// TODO:  This initiates buffer based on pre-configured sample rate and channels
 	//  When sharing DAC chip, we need to match sample_rates, so this will need to be dynamic
 	size_t stream_size_bytes = ADC_STREAM_FRAME_SIZE;
-	ctx->stream_buff = (int16_t *)malloc(WAVE_HEADER_SIZE + stream_size_bytes);
+	ctx->stream_buff = (int16_t *)malloc(MAX_HEADER_SIZE + stream_size_bytes);
     if (ctx->stream_buff == NULL) {
 		ESP_LOGE(TAG, "Stream buffer Memory Allocation Failed!");
 		ctx->stream = false;
     }
 	char *buf_ptr_stream = (char *)ctx->stream_buff;
-	int stream_byte_ptr = generate_wav_header(buf_ptr_stream, stream_size_bytes, ctx->sample_rate, ctx->channels);
+	
+	int stream_byte_ptr = 0; 
+	size_t header_size = 0;
+	if (ctx->format == ADC_FMT_WAV) { 
+		stream_byte_ptr = generate_wav_header(buf_ptr_stream, stream_size_bytes, ctx->sample_rate, ctx->channels);
+		header_size = (size_t)stream_byte_ptr;
+	}
 
 	struct sockaddr_in dest_addr;
 	dest_addr.sin_addr.s_addr = ctx->host;
     dest_addr.sin_family = AF_INET;
     dest_addr.sin_port = htons(ctx->port); 
 	
-	ESP_LOGI(TAG, "Initialized ADC stream: rate:%u (%ums), chnls:%u frames:%u" , ctx->sample_rate, buffer_size * 1000 / (ctx->sample_rate * ADC_CHANNELS_IN), ctx->channels, stream_size_bytes);
+	ESP_LOGI(TAG, "Initialized ADC stream: rate:%u (%ums), channels:%u bytes:%u" , ctx->sample_rate, buffer_size * 1000 / (ctx->sample_rate * ADC_CHANNELS_IN), ctx->channels, stream_size_bytes);
 
 	int stream_err = 0;
 
@@ -407,17 +417,17 @@ static void adc_thread(void *arg) {
 			{
             	stream_byte_ptr = encode_wav_data(ctx->stream_buff, ctx->input_buff, (size_t)stream_byte_ptr, buffer_size, ctx->channels);
 				
-				//ESP_LOGI(TAG, "%d,%db %u Read, Sending bytes to Stream %s:%d",ctx->bytes_read, stream_byte_ptr, buffer_size, inet_ntoa(dest_addr.sin_addr), htons (dest_addr.sin_port));
+				//ESP_LOGD(TAG, "%d,%db %u Read, Sending bytes to Stream %s:%d",ctx->bytes_read, stream_byte_ptr, buffer_size, inet_ntoa(dest_addr.sin_addr), htons (dest_addr.sin_port));
 				int err = sendto(ctx->sock, buf_ptr_stream, (size_t)stream_byte_ptr, 0, (struct sockaddr *) &dest_addr, sizeof(dest_addr));
 				if (stream_byte_ptr >= stream_size_bytes) {
             		if (err < 0 && stream_err++ > 10) {
                 		ESP_LOGE(TAG, "Multiple errors occurred during sending: errno %d. Check 'CONFIG_LWIP_IP4_FRAG=y'", errno);
 						stream_err = 0;
-						//const TickType_t xDelay = 50 / portTICK_PERIOD_MS;
+						//const TickType_t xDelay = 10 / portTICK_PERIOD_MS;
 						//vTaskDelay(xDelay);
             		} else {
 						stream_err = 0;
-						stream_byte_ptr = WAVE_HEADER_SIZE;
+						stream_byte_ptr = header_size;
 					}
 				}
 			}
