@@ -45,7 +45,7 @@ __attribute__( ( always_inline ) ) static inline void SwapInt( int* a, int* b ) 
 }
 
 void IRAM_ATTR GDS_DrawPixelFast( struct GDS_Device* Device, int X, int Y, int Color ) {
-	DrawPixelFast( Device, X, Y, Color );
+	Device->DrawPixelFast( Device, X, Y, Color );
 }
 
 void IRAM_ATTR GDS_DrawPixel( struct GDS_Device* Device, int X, int Y, int Color ) {
@@ -63,7 +63,7 @@ void GDS_DrawHLine( struct GDS_Device* Device, int x, int y, int Width, int Colo
 	if (y < 0) y = 0;
 	else if (y >= Device->Height) y = Device->Height - 1;
 
-    for ( ; x < XEnd; x++ ) DrawPixelFast( Device, x, y, Color );
+    for ( ; x < XEnd; x++ ) Device->DrawPixelFast( Device, x, y, Color );
 }
 
 void GDS_DrawVLine( struct GDS_Device* Device, int x, int y, int Height, int Color ) {
@@ -97,7 +97,7 @@ static inline void DrawWideLine( struct GDS_Device* Device, int x0, int y0, int 
 
     for ( ; x < x1; x++ ) {
         if ( IsPixelVisible( Device, x, y ) == true ) {
-            DrawPixelFast( Device, x, y, Color );
+            Device->DrawPixelFast( Device, x, y, Color );
         }
 
         if ( Error > 0 ) {
@@ -126,7 +126,7 @@ static inline void DrawTallLine( struct GDS_Device* Device, int x0, int y0, int 
 
     for ( ; y < y1; y++ ) {
         if ( IsPixelVisible( Device, x, y ) == true ) {
-            DrawPixelFast( Device, x, y, Color );
+            Device->DrawPixelFast( Device, x, y, Color );
         }
 
         if ( Error > 0 ) {
@@ -348,14 +348,14 @@ void GDS_DrawBitmapCBR(struct GDS_Device* Device, uint8_t *Data, int Width, int 
 		// don't know bitdepth, use brute-force solution
 		for (int i = Width * Height, r = 0, c = 0; --i >= 0;) {
 			uint8_t Byte = *Data++;
-			DrawPixelFast( Device, c, (r << 3) + 7, (Byte & 0x01) * Color ); Byte >>= 1;
-			DrawPixelFast( Device, c, (r << 3) + 6, (Byte & 0x01) * Color ); Byte >>= 1;
-			DrawPixelFast( Device, c, (r << 3) + 5, (Byte & 0x01) * Color ); Byte >>= 1;
-			DrawPixelFast( Device, c, (r << 3) + 4, (Byte & 0x01) * Color ); Byte >>= 1;
-			DrawPixelFast( Device, c, (r << 3) + 3, (Byte & 0x01) * Color ); Byte >>= 1;
-			DrawPixelFast( Device, c, (r << 3) + 2, (Byte & 0x01) * Color ); Byte >>= 1;
-			DrawPixelFast( Device, c, (r << 3) + 1, (Byte & 0x01) * Color ); Byte >>= 1;
-			DrawPixelFast( Device, c, (r << 3) + 0, (Byte & 0x01) * Color ); 
+			Device->DrawPixelFast( Device, c, (r << 3) + 7, (Byte & 0x01) * Color ); Byte >>= 1;
+			Device->DrawPixelFast( Device, c, (r << 3) + 6, (Byte & 0x01) * Color ); Byte >>= 1;
+			Device->DrawPixelFast( Device, c, (r << 3) + 5, (Byte & 0x01) * Color ); Byte >>= 1;
+			Device->DrawPixelFast( Device, c, (r << 3) + 4, (Byte & 0x01) * Color ); Byte >>= 1;
+			Device->DrawPixelFast( Device, c, (r << 3) + 3, (Byte & 0x01) * Color ); Byte >>= 1;
+			Device->DrawPixelFast( Device, c, (r << 3) + 2, (Byte & 0x01) * Color ); Byte >>= 1;
+			Device->DrawPixelFast( Device, c, (r << 3) + 1, (Byte & 0x01) * Color ); Byte >>= 1;
+			Device->DrawPixelFast( Device, c, (r << 3) + 0, (Byte & 0x01) * Color ); 
 			if (++r == Height) { c++; r = 0; }			
 		}
 		/* for better understanding, here is the mundane version 

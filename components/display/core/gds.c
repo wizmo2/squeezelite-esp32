@@ -109,7 +109,7 @@ void GDS_ClearWindow( struct GDS_Device* Device, int x1, int y1, int x2, int y2,
 				int c = x1;
 				// for a row that is not on a boundary, no optimization possible
 				while (r & 0x07 && r <= y2) {
-					for (c = x1; c <= x2; c++) DrawPixelFast( Device, c, r, Color );
+					for (c = x1; c <= x2; c++) Device->DrawPixelFast( Device, c, r, Color );
 					r++;
 				}
 				// go fast if we have more than 8 lines to write
@@ -117,7 +117,7 @@ void GDS_ClearWindow( struct GDS_Device* Device, int x1, int y1, int x2, int y2,
 					memset(optr + Width * r + x1, _Color, x2 - x1 + 1);
 					r += 8;
 				} else while (r <= y2) {
-					for (c = x1; c <= x2; c++) DrawPixelFast( Device, c, r, Color );
+					for (c = x1; c <= x2; c++) Device->DrawPixelFast( Device, c, r, Color );
 					r++;
 				}
 			}
@@ -133,10 +133,10 @@ void GDS_ClearWindow( struct GDS_Device* Device, int x1, int y1, int x2, int y2,
 			// try to do byte processing as much as possible
 			for (int r = y1; r <= y2; r++) {
 				int c = x1;
-				if (c & 0x01) DrawPixelFast( Device, c++, r, Color);
+				if (c & 0x01) Device->DrawPixelFast( Device, c++, r, Color);
 				int chunk = (x2 - c + 1) >> 1;
 				memset(optr + ((r * Width + c)  >> 1), _Color, chunk);
-				if (c + chunk <= x2) DrawPixelFast( Device, x2, r, Color);
+				if (c + chunk <= x2) Device->DrawPixelFast( Device, x2, r, Color);
 			}
 		}	
 	} else if (Device->Depth == 8) {
@@ -148,7 +148,7 @@ void GDS_ClearWindow( struct GDS_Device* Device, int x1, int y1, int x2, int y2,
 	} else {
 		for (int y = y1; y <= y2; y++) {
 			for (int x = x1; x <= x2; x++) {
-				DrawPixelFast( Device, x, y, Color);
+				Device->DrawPixelFast( Device, x, y, Color);
 			}
 		}
 	}
@@ -171,10 +171,76 @@ bool GDS_Reset( struct GDS_Device* Device ) {
     return true;
 }
 
+static void IRAM_ATTR DrawPixel1Fast( struct GDS_Device* Device, int X, int Y, int Color ) {
+    uint32_t YBit = ( Y & 0x07 );
+    uint8_t* FBOffset;
+
+    /* 
+     * We only need to modify the Y coordinate since the pitch
+     * of the screen is the same as the width.
+     * Dividing Y by 8 gives us which row the pixel is in but not
+     * the bit position.
+     */
+    Y>>= 3;
+
+    FBOffset = Device->Framebuffer + ( ( Y * Device->Width ) + X );
+
+    if ( Color == GDS_COLOR_XOR ) {
+        *FBOffset ^= BIT( YBit );
+    } else {
+        *FBOffset = ( Color == GDS_COLOR_BLACK ) ? *FBOffset & ~BIT( YBit ) : *FBOffset | BIT( YBit );
+    }
+}
+
+static void IRAM_ATTR DrawPixel4Fast( struct GDS_Device* Device, int X, int Y, int Color ) {
+	uint8_t* FBOffset = Device->Framebuffer + ( (Y * Device->Width >> 1) + (X >> 1));
+	*FBOffset = X & 0x01 ? (*FBOffset & 0x0f) | ((Color & 0x0f) << 4) : ((*FBOffset & 0xf0) | (Color & 0x0f));
+}
+
+static void IRAM_ATTR DrawPixel4FastHigh( struct GDS_Device* Device, int X, int Y, int Color ) {
+    uint8_t* FBOffset = Device->Framebuffer + ( (Y * Device->Width >> 1) + (X >> 1));
+	*FBOffset = X & 0x01 ? ((*FBOffset & 0xf0) | (Color & 0x0f)) : (*FBOffset & 0x0f) | ((Color & 0x0f) << 4);
+}
+
+static void IRAM_ATTR DrawPixel8Fast( struct GDS_Device* Device, int X, int Y, int Color ) {
+	Device->Framebuffer[Y * Device->Width + X] = Color;
+}
+
+// assumes that Color is 16 bits R..RG..GB..B from MSB to LSB and FB wants 1st serialized byte to start with R
+static void IRAM_ATTR DrawPixel16Fast( struct GDS_Device* Device, int X, int Y, int Color ) {
+	uint16_t* FBOffset = (uint16_t*) Device->Framebuffer + Y * Device->Width + X;
+	*FBOffset = __builtin_bswap16(Color);
+}
+
+// assumes that Color is 18 bits RGB from MSB to LSB RRRRRRGGGGGGBBBBBB, so byte[0] is B 
+// FB is 3-bytes packets and starts with R for serialization so 0,1,2 ... = xxRRRRRR xxGGGGGG xxBBBBBB 
+static void IRAM_ATTR DrawPixel18Fast( struct GDS_Device* Device, int X, int Y, int Color ) {
+	uint8_t* FBOffset = Device->Framebuffer + (Y * Device->Width + X) * 3;
+	*FBOffset++ = Color >> 12; *FBOffset++ = (Color >> 6) & 0x3f; *FBOffset = Color & 0x3f;
+}
+
+// assumes that Color is 24 bits RGB from MSB to LSB RRRRRRRRGGGGGGGGBBBBBBBB, so byte[0] is B 
+// FB is 3-bytes packets and starts with R for serialization so 0,1,2 ... = RRRRRRRR GGGGGGGG BBBBBBBB 
+static void IRAM_ATTR DrawPixel24Fast( struct GDS_Device* Device, int X, int Y, int Color ) {
+	uint8_t* FBOffset = Device->Framebuffer + (Y * Device->Width + X) * 3;
+	*FBOffset++ = Color >> 16; *FBOffset++ = Color >> 8; *FBOffset = Color;
+}
+
 bool GDS_Init( struct GDS_Device* Device ) {
 	
 	if (Device->Depth > 8) Device->FramebufferSize = Device->Width * Device->Height * ((8 + Device->Depth - 1) / 8);
 	else Device->FramebufferSize = (Device->Width * Device->Height) / (8 / Device->Depth);
+    
+    // set the proper DrawPixel function if not already set by driver
+    if (!Device->DrawPixelFast) {
+        if (Device->Depth == 1) Device->DrawPixelFast = DrawPixel1Fast;
+        else if (Device->Depth == 4 && Device->HighNibble) Device->DrawPixelFast = DrawPixel4FastHigh;
+        else if (Device->Depth == 4) Device->DrawPixelFast = DrawPixel4Fast;
+        else if (Device->Depth == 8) Device->DrawPixelFast = DrawPixel8Fast;	
+        else if (Device->Depth == 16) Device->DrawPixelFast = DrawPixel16Fast;	
+        else if (Device->Depth == 24 && Device->Mode == GDS_RGB666) Device->DrawPixelFast = DrawPixel18Fast;	
+        else if (Device->Depth == 24 && Device->Mode == GDS_RGB888) Device->DrawPixelFast = DrawPixel24Fast;	
+    }	
 	
 	// allocate FB unless explicitely asked not to
 	if (!(Device->Alloc & GDS_ALLOC_NONE)) {

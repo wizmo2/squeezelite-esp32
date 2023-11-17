@@ -88,11 +88,6 @@ static void Update( struct GDS_Device* Device ) {
 #endif	
 }
 
-static void DrawPixelFast4( struct GDS_Device* Device, int X, int Y, int Color ) {
-    uint8_t* FBOffset = Device->Framebuffer + ( (Y * Device->Width >> 1) + (X >> 1));
-	*FBOffset = X & 0x01 ? ((*FBOffset & 0xf0) | (Color & 0x0f)) : (*FBOffset & 0x0f) | ((Color & 0x0f) << 4);
-}
-
 static void SetLayout( struct GDS_Device* Device, struct GDS_Layout *Layout ) { 
     if (Layout->HFlip) {
         Device->WriteCommand( Device, 0x40 + 0x20 );
@@ -165,7 +160,6 @@ static bool Init( struct GDS_Device* Device ) {
 
 static const struct GDS_Device SH1122 = {
 	.DisplayOn = DisplayOn, .DisplayOff = DisplayOff, .SetContrast = SetContrast,
-    .DrawPixelFast = DrawPixelFast4, 
 	.SetLayout = SetLayout,
 	.Update = Update, .Init = Init,
 	.Mode = GDS_GRAYSCALE, .Depth = 4,
