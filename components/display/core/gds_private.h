@@ -98,6 +98,7 @@ struct GDS_Device {
 	uint16_t Width, TextWidth;
     uint16_t Height;
 	uint8_t Depth, Mode;
+    bool HighNibble;
 	
 	uint8_t	Alloc;	
 	uint8_t* Framebuffer;

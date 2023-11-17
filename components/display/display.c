@@ -63,6 +63,7 @@ static EXT_RAM_ATTR struct {
 } displayer;
 
 static const char *known_drivers[] = {"SH1106",
+        "SH1122",
 		"SSD1306",
 		"SSD1322",
 		"SSD1326",
@@ -79,8 +80,8 @@ static void displayer_task(void *args);
 static void display_sleep(void);
 
 struct GDS_Device *display;   
-extern GDS_DetectFunc SSD1306_Detect, SSD132x_Detect, SH1106_Detect, SSD1675_Detect, SSD1322_Detect, SSD1351_Detect, ST77xx_Detect, ILI9341_Detect;
-GDS_DetectFunc *drivers[] = { SH1106_Detect, SSD1306_Detect, SSD132x_Detect, SSD1675_Detect, SSD1322_Detect, SSD1351_Detect, ST77xx_Detect, ILI9341_Detect, NULL };
+extern GDS_DetectFunc SSD1306_Detect, SSD132x_Detect, SH1106_Detect, SH1122_Detect, SSD1675_Detect, SSD1322_Detect, SSD1351_Detect, ST77xx_Detect, ILI9341_Detect;
+GDS_DetectFunc *drivers[] = { SH1106_Detect, SH1122_Detect, SSD1306_Detect, SSD132x_Detect, SSD1675_Detect, SSD1322_Detect, SSD1351_Detect, ST77xx_Detect, ILI9341_Detect, NULL };
 
 /****************************************************************************************
  * 

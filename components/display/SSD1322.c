@@ -71,8 +71,8 @@ static void Update( struct GDS_Device* Device ) {
 			if (dirty) {
 				uint16_t *optr = (uint16_t*) Private->iRAM, *iptr = (uint16_t*) (Private->Shadowbuffer + (r - page + 1) * Device->Width / 2);
 				SetRowAddress( Device, r - page + 1, r );
+                // need byte swapping
 				for (int i = page * Device->Width / 2 / 2; --i >= 0; iptr++) *optr++ = (*iptr >> 8) | (*iptr << 8);
-				//memcpy(Private->iRAM, Private->Shadowbuffer + (r - page + 1) * Device->Width / 2, page * Device->Width / 2 );
 				Device->WriteCommand( Device, 0x5c );
 				Device->WriteData( Device, Private->iRAM, Device->Width * page / 2 );
 				dirty = false;
@@ -84,14 +84,10 @@ static void Update( struct GDS_Device* Device ) {
 	for (int r = 0; r < Device->Height; r += Private->PageSize) {
 		SetRowAddress( Device, r, r + Private->PageSize - 1 );
 		Device->WriteCommand( Device, 0x5c );
-		if (Private->iRAM) {
-			uint16_t *optr = (uint16_t*) Private->iRAM, *iptr = (uint16_t*) (Device->Framebuffer + r * Device->Width / 2);
-			for (int i = Private->PageSize * Device->Width / 2 / 2; --i >= 0; iptr++) *optr++ = (*iptr >> 8) | (*iptr << 8);
-			//memcpy(Private->iRAM, Device->Framebuffer + r * Device->Width / 2, Private->PageSize * Device->Width / 2 );
-			Device->WriteData( Device, Private->iRAM, Private->PageSize * Device->Width / 2 );
-		} else	{
-			Device->WriteData( Device, Device->Framebuffer + r * Device->Width / 2, Private->PageSize * Device->Width / 2 );
-		}	
+        // need byte swapping
+		uint16_t *optr = (uint16_t*) Private->iRAM, *iptr = (uint16_t*) (Device->Framebuffer + r * Device->Width / 2);
+		for (int i = Private->PageSize * Device->Width / 2 / 2; --i >= 0; iptr++) *optr++ = (*iptr >> 8) | (*iptr << 8);
+		Device->WriteData( Device, Private->iRAM, Private->PageSize * Device->Width / 2 );
 	}	
 #endif	
 }
