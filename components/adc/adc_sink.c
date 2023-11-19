@@ -27,15 +27,6 @@ static const char TAG[] = "adc_sink";
 static struct adc_ctx_s *adc_i2s;
 static adc_cmd_vcb_t cmd_handler_chain;
 
-void adc_linein_start(uint16_t sample_rate) {
-	ESP_LOGI(TAG, "ADC Start (setup)");
-    adc_cmd(adc_i2s, ADC_SETUP, sample_rate);
-	ESP_LOGI(TAG, "ADC Start (play)");
-    adc_cmd(adc_i2s, ADC_PLAY, NULL);
-	ESP_LOGI(TAG, "ADC Start (done)");
-    
-}
-
 /****************************************************************************************
  * Command handler
  */
@@ -80,7 +71,8 @@ static bool cmd_handler(adc_event_t event, ...) {
 }
 
 /****************************************************************************************
- * Airplay sink de-initialization
+ * ADC sink de-initialization
+ *  Called after slimproto is terminated
  */
 void adc_sink_deinit(void) {
     adc_delete(adc_i2s);
@@ -119,5 +111,18 @@ void adc_disconnect(void) {
 	ESP_LOGI(TAG, "forced disconnection");
 	displayer_control(DISPLAYER_SHUTDOWN);
 	adc_cmd(adc_i2s, ADC_CLOSE, NULL);
+}
+/****************************************************************************************
+ * ADC restart
+ *   Called by slimproto when SB wants to play a song
+ *   For background streaming we only want to stop playing, but leave the service running
+ */
+void adc_restart(uint16_t sample_rate) {
+	ESP_LOGI(TAG, "ADC Restart (setup)");
+    if (adc_cmd(adc_i2s, ADC_SETUP, sample_rate)) {
+		ESP_LOGI(TAG, "ADC Restart (play)");
+		adc_cmd(adc_i2s, ADC_PLAY, NULL);
+	}
+	ESP_LOGI(TAG, "ADC Restart (done)");
 }
 

@@ -14,7 +14,7 @@
 #include "driver/i2c.h"
 
 typedef enum { ADAC_ON = 0, ADAC_STANDBY, ADAC_OFF } adac_power_e;
-typedef enum { ADAC_LOOPBACK, ADAC_LINEIN, ADAC_MIC } adac_src_e;
+typedef enum { ADAC_NONE, ADAC_LINEIN, ADAC_MIC, ADAC_AUX } adac_src_e;
 
 #define BIN(a,b,c,d)	0b##a##b##c##d
 

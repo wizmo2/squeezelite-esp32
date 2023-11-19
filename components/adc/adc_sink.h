@@ -13,8 +13,8 @@
 #include <stdarg.h>
 
 
-typedef enum { 	ADC_SETUP, ADC_STREAM, ADC_PLAY, ADC_FLUSH, ADC_STOP, ADC_STALLED, 
-				ADC_TOGGLE, ADC_CLOSE, ADC_METADATA, ADC_GAIN } adc_event_t ;  // , ADC_VOLUME_UP, ADC_VOLUME_DOWN, 
+typedef enum { 	ADC_SETUP, ADC_STREAM, ADC_PLAY, ADC_STOP, ADC_FLUSH, ADC_CLOSE, ADC_STALLED, 
+				ADC_METADATA, ADC_GAIN } adc_event_t ;  // , ADC_VOLUME_UP, ADC_VOLUME_DOWN, 
 
 typedef bool (*adc_cmd_cb_t)(adc_event_t event, ...);
 typedef bool (*adc_cmd_vcb_t)(adc_event_t event, va_list args);
@@ -34,6 +34,6 @@ void adc_sink_deinit(void);
  * @brief     force disconnection
  */
 void adc_disconnect(void);
-void adc_linein_start(uint16_t sample_rate);
+void adc_restart(uint16_t sample_rate);
 
 #endif /* ADC_SINK_H*/

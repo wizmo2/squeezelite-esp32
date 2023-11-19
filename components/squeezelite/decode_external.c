@@ -520,13 +520,15 @@ static bool adc_cmd_handler(adc_event_t cmd, va_list args)
 
 static bool (*slimp_handler_chain)(u8_t *data, int len);
 
+/**********************************************************************
+* ADC listener
+*/ 
 static bool adc_slimp_handler(u8_t *data, int len){
 	bool res = true;
 
 	if (!strncmp((char*) data, "audp", 4)) {
 		struct audp_packet *pkt = (struct audp_packet*) data;
-		// 0 = start? 
-		adc_linein_start(output.current_sample_rate);
+		adc_restart(output.current_sample_rate);
 		LOG_INFO("got AUDP %02x", pkt->config);
 		LOG_SDEBUG("ADC audp: output %d, frames %d, threshold: %d, state %d external %d", output.current_sample_rate, output.frames_played, output.threshold, output.state, output.external);
 	} else {

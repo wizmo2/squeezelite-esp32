@@ -113,6 +113,8 @@ static struct {
     struct arg_int *rate;
 	struct arg_str *host;
     struct arg_int *port;
+	struct arg_int *channels;
+	struct arg_str *format;
 	struct arg_lit *clear;
     struct arg_end *end;
 } adc_args;
@@ -851,6 +853,7 @@ static int do_adc_cmd(int argc, char **argv)
 	}
 	else {
 #ifndef CONFIG_ADC_LOCKED
+		// TODO:  Need to allow balnks and add test fro bad configs.  
 		strncpy(i2s_dac_pin.model,adc_args.model_name->sval[0],sizeof(i2s_dac_pin.model));
 		i2s_dac_pin.model[sizeof(i2s_dac_pin.model) - 1] = '\0';
 		i2s_dac_pin.pin.data_out_num = -1;
@@ -882,6 +885,13 @@ static int do_adc_cmd(int argc, char **argv)
 		if (adc_args.port->count > 0) {
 			adcout.port = adc_args.port->ival[0];
 		}
+		if (adc_args.channels->count > 0) {
+			adcout.ch = (adc_args.channels->ival[0]==2)?2:1;
+		}
+		if (adc_args.format->count > 0) {
+			adcout.fmt = (strcmp(adc_args.format->sval[0],"PCM") == 0)?0:1;
+		}
+
 		if (!nerrors) {
 			fprintf(f, "Storing adc stream parameters.\n");
 			nerrors += (config_adcout_set(&adcout) != ESP_OK);
@@ -995,11 +1005,13 @@ cJSON * adc_cb(){
 	}
 #endif
 	cJSON_AddNumberToObject(values,adc_args.rate->hdr.longopts,adcout->rate);
-	cJSON_AddNumberToObject(values,adc_args.port->hdr.longopts,adcout->port);
 	if(strlen(adcout->host)>0){
 		cJSON_AddStringToObject(values,adc_args.host->hdr.longopts,adcout->host);
 	}
-
+	cJSON_AddNumberToObject(values,adc_args.port->hdr.longopts,adcout->port);
+	cJSON_AddNumberToObject(values,adc_args.channels->hdr.longopts,adcout->ch);
+	cJSON_AddStringToObject(values,adc_args.format->hdr.longopts,adcout->fmt>0?"WAV":"PCM");
+	
 	return values;
 }
 #endif
@@ -1542,6 +1554,8 @@ void register_adc_config(void){
     adc_args.rate = arg_int0(NULL,"rate","<Hz>","Sample Rate of output stream (use 16000 for Rhasspy)");
 	adc_args.host = arg_str0(NULL,"host","<ip>","Output stream destination address (use 0.0.0.0 for multi-cast)");
     adc_args.port = arg_int0(NULL,"port","<n>","Output stream port number");
+    adc_args.channels = arg_int0(NULL,"channels","1|2","Output stream channels (mono = 1, stereo = 2) [default: 1]");
+    adc_args.format = arg_str0(NULL,"format","PCM|WAV","Output stream format (use WAV for Rhasspy, use PCM for raw stream) [default: WAV]");
 	adc_args.clear = arg_lit0(NULL, "clear", "Clear configuration (factory)");
     adc_args.end = arg_end(6);
 

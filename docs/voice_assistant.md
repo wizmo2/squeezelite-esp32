@@ -2,7 +2,7 @@
 
 The ADC sink service can be used with [openWakeWord](https://github.com/dscripka/openWakeWord) (OWW) as a [Rhasspy Satelite](https://rhasspy.readthedocs.io/en/latest/).
 
-Enable the "ADC Sink" service and set the host and port in "Hardware-ADC_Options"  for the OWW compatibility, the rate must be 16000Hz (default).  In WAV mode, An encoder converts the stream to 16bit mono. _NOTE: use the [UDP test Server script]{../components/adc/test/udp_test_server.py} to verify functionality._
+Enable the "ADC Sink" service and set the host and port in "Hardware-ADC_Options".  See [README](/README.md#Line-in-Microphone) for details on configuring the ADC hardware and output stream.  For OWW compatibility use WAV format.  The rate must be 16000Hz with 16bit mono (1 channel) output (default). _NOTE: use the [UDP test Server script]{../components/adc/test/udp_test_server.py} to verify functionality._
 
 _NOTE The OWW and Rhasspy implementation is based heaviy on the existing [Docker Image](https://github.com/dalehumby/openWakeWord-rhasspy) by @dalehumpy_  
 
@@ -40,33 +40,9 @@ sudo docker run -it \
 
 ```
 
-# ADC configuration reference
-**THIS IS AN EARLY RELEASE OF ADC LINE-IN FUNCTIONALITY FOR SQUEEZELITE-ESP32. The initial release only supports the T-Embed-S3 development board. There are likely breaking changes to come!**
-
-ADC Sink can function with a independant I2S chip.
-
-When using a dedicated I2C chip
-- Include the model and pin configuration for the second I2C in `adc_config`
-
-`model=es7210,bck=47,ws=21,di=14,mck=48,i2c=64,sda=18,scl=8`
-
-When sharing the DAC chip - **!DO NOT USE! It is highly likely that shared mode will never be released, and if it does will not support audio streaming**
+# Development Notes
+Sharing the DAC chip - **!DO NOT USE! It is highly likely that DAC shared mode will never be released, and if it does will not support audio streaming**
+- Use model="DAC" and ommit the I2S and I2C hardware parameters in the adc_config.
 - Only Generic I2S, and AC101 codecs currently support ADC input (need help for extra support).  set source=1 for 'mic' input, source=2 for 'linein' input
 - If Generic I2C is used, the `dac_control_set` must be modified to initilaize the ADC input and 'micon' / 'lineinon' / 'lineinoff' can be added to set mixer controls for local playback.  
-- In some case, the ADC and DAC must run at the same sample rate.  In this case, you will have to set the rate option in the Squeezelite Audio settings to 16kHz (-Z 16000) for OWW compatibility.
-
-`source=(0|1|2)`
- where source(DAC sharing only) 0=adc_loopback,1=line-in bypass,2=microphone bypass.
-
-The stream configuration is stored in `adc_stream`
-
-`port=<port_num>,host=<destinatiopn_ip>[,rate=<sample_rate][,ch=(1|2)]`
- where ch 1=mono, 2=stereo.
-
-sample_rate frequencies are limited to those supported by the chip.  channel and source selection requires supported chips, and/or custom dac_controlset confgiuration.
-
-# Reommended LMS Plugins
-
-Add `LineIn' to allow LMS control local playback.
-
-Add 'WaveInput for Linux` to allow LMS access to the audio stream. (in development)
+- For AC101 (and most geeric I2S chips), the ADC and DAC must run at the same sample rate.  In this case, you will have to set the rate option in the Squeezelite Audio settings to 16kHz (-Z 16000) for OWW compatibility.

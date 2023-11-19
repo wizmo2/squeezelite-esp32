@@ -314,8 +314,13 @@ esp_err_t config_adcout_set(adcout_struct_t * adcout){
 	int buffer_size=512;
 	esp_err_t err=ESP_OK;
 	char * config_buffer=malloc_init_external(buffer_size);
+	char * config_buffer2=malloc_init_external(buffer_size);
 	if(config_buffer)  {
-		snprintf(config_buffer,buffer_size,"rate=%u,host=%s,port=%u",adcout->rate, adcout->host, adcout->port);
+		snprintf(config_buffer,buffer_size,"rate=%u,host=%s,port=%u,ch=%u",adcout->rate, adcout->host, adcout->port, adcout->ch);
+		if (adcout->fmt > 0) {
+			snprintf(config_buffer2,buffer_size,"%s,fmt=%u",config_buffer, adcout->fmt);
+			strcpy(config_buffer,config_buffer2);		
+		}
 		log_send_messaging(MESSAGING_INFO,"Updating adc output configuration to %s",config_buffer);
 		err = config_set_value(NVS_TYPE_STR, "adc_stream", config_buffer);
 		if(err!=ESP_OK){
@@ -325,6 +330,7 @@ esp_err_t config_adcout_set(adcout_struct_t * adcout){
 	else {
 		err = ESP_ERR_NO_MEM;
 	}
+	FREE_AND_NULL(config_buffer2);
 	FREE_AND_NULL(config_buffer);
 	return err;	
 }
@@ -793,6 +799,8 @@ const adcout_struct_t * config_adcout_get() {
 		PARSE_PARAM(config, "rate", '=', adcout.rate);
 		PARSE_PARAM_STR(config, "host", '=', adcout.host, 32);
 		PARSE_PARAM(config, "port", '=', adcout.port);
+		PARSE_PARAM(config, "ch", '=', adcout.ch);
+		PARSE_PARAM(config, "fmt", '=', adcout.fmt);
 		free(config);
 	}
 	return &adcout;

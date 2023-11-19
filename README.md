@@ -551,19 +551,24 @@ The option to use multiple GPIOs is very limited on esp32 and the esp-idf 4.3.x 
 
 Some have asked for a soft power on/off option. Although this is not built-in, it's easy to create yours as long as the regulator/power supply of the board can be controlled by Vcc or GND. Depending on how it is active, add a pull-up/down resistor to the regulator's control and connect it also to one GPIO of the esp32. Then using set_GPIO, set that GPIO to Vcc or GND. Use a hardware button that forces the regulator on with a pull- up/down and once the esp32 has booted, it will force the GPIO to the desired value maintaining the board on by software. To power it off by software, just use the deep sleep option which will suspend all GPIO hence switching off the regulator.
 
-### ADC
-The NVS parameter "adc_config" set the gpio used for i2s communication with an additional DAC that can be used for audio ADC input. You can define the defaults at compile time but nvs parameter takes precedence except for named configurations
+### Line-in Microphone
+**THIS IS AN EARLY RELEASE OF ADC LINE-IN FUNCTIONALITY FOR SQUEEZELITE-ESP32. The initial release only supports the T-Embed-S3 development board. There are likely breaking changes to come!**
+
+Squeezelite-ESP32 can function, with a independant I2S chip, as a line-in or microphone input streamer.  The ADC Sink service must be enabled.
+
+The NVS parameter "adc_config" set the gpio used for i2s communication with an additional DAC that can be used for audio ADC input. You can define the defaults at compile time but nvs parameter takes precedence.
 ```
-bck=<gpio>,ws=<gpio>,do=<gpio>[,mck=<gpio>][,mute=<gpio>[:0|1][,model=TAS57xx|TAS5713|AC101|WM8978|ES8388|ES7210|I2S][,sda=<gpio>,scl=<gpio>[,i2c=<addr>]]
+bck=<gpio>,ws=<gpio>,do=<gpio>[,mck=<gpio>][,mute=<gpio>[:0|1][,model=AC101|I2S][,sda=<gpio>,scl=<gpio>[,i2c=<addr>]]
 ```
 for setup information see [DAC configuration]{#DAC}
 
 Set the NVS parameter "adc_stream" to configure audio streaming patameters.
 ```
-host=<server>,port=<port>,rate=<sample_rate> 
+host=<server>,port=<port>[,rate=<sample_rate>][,ch=<1|2>][,fmt=<PCM|WAV>] 
 ```
-for configuration and examples, see [Voice Assistant Configuration][docs/voice_assistant.md) 
+ where ch 1=mono, 2=stereo.  Sample_rate frequencies are limited to those supported by the chip.  channel and source selection requires supported chips, and/or custom dac_controlset confgiuration.
 
+for configuration and examples, see [Voice Assistant Configuration][docs/voice_assistant.md), or [WaveInput Stream Configuration] 
 
 # Software configuration
 

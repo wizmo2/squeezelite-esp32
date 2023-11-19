@@ -3,6 +3,7 @@ import io
 import wave
 import pyaudio
 import numpy as np
+import time
 
 
 localIP     = "0.0.0.0"
@@ -30,13 +31,21 @@ stream = player.open(format = 8, channels = channels, rate = rate, output = True
 
 print("UDP server up and listening")
 # Listen for incoming datagrams
-
+start = time.time()
+total_bytes = 0;
+bps = 0;
 while(True):
-
     message, addr = UDPServerSocket.recvfrom(MAX_BYTES)
-    audio = wave.open(io.BytesIO(message))
-    
     bytesReceived = len(message)
+    total_bytes+=bytesReceived
+    now = time.time()
+    delta = now-start
+    if delta > 2:
+        bps = int(total_bytes / delta);
+        start = now
+        total_bytes = 0
+
+    ms = int((now - start) * 1000 * bytesReceived)
     flow = "\x1b[A"
     substr = message[:4]
     if substr == b'RIFF':
@@ -68,7 +77,7 @@ while(True):
         #sampleData =  ":".join("{:02x}".format(c) for c in data[:40])
         #sampleData =  ":".join("{:06d}".format(c) for c in int_data[:20])
         wav_fmt_str = "type:{},channels:{},rate:{},frames{}".format(wav_fmt,audio.getnchannels(),audio.getframerate(), audio.getnframes())
-        print(flow + "Frame {},{} ({},{},{})".format(wav_fmt_str, sampleData, bytesReceived, i, int(volume)))
+        print(flow + "Frame {},{} ({},{},{},{})".format(wav_fmt_str, sampleData, bytesReceived, i, int(volume), bps))
 
         # Play the sound by writing the audio message to the stream
         while data != b'':
@@ -78,7 +87,9 @@ while(True):
             
     else:
         sampleData =  ":".join("{:02x}".format(c) for c in message[:40])
-        print(flow + "{}-({}) {}".format(i, bytesReceived, sampleData))
+        print(flow + "{}-({}) {} ({}) ".format(i, bytesReceived, sampleData, bps))
+        i+=1
+
 
 # Close and terminate the stream
 stream.close()

@@ -99,6 +99,8 @@ typedef struct {
 	int rate;
 	char host[32];
 	int port;
+	int ch;
+	int fmt;
 } adcout_struct_t;
 #endif
 typedef struct {

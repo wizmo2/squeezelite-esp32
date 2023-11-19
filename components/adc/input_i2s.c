@@ -44,7 +44,7 @@
 //#define BYTES_PER_FRAME					4 // 4 (2x16bit) or 8 (2x32bit)
 
 #define ADC_I2C_PORT					1 
-#define ADC_I2S_CH                      I2S_NUM_1
+#define ADC_I2S_NUM                      I2S_NUM_1
 
 #define ADC_STACK_SIZE 	(4*1024)
 
@@ -68,17 +68,16 @@ typedef struct adc_ctx_s {
 	adc_fmt_t format;		// stream format (currently raw and wav chunks.  TODO:  mp3/flac streams)
 	int sock;               // stream socket
 	
-	bool running; 			// recieve i2s data
+	bool running; 			// thread running
+	bool pause;				// stop i2s read
 	bool speaker; 			// send to dac
-	adac_src_e source; 		// use microphone over line in
 	bool stream; 			// sedn udp stream
 	
 	TaskHandle_t thread, joiner;
 	StaticTask_t *xTaskBuffer;
 	StackType_t xStack[ADC_STACK_SIZE] __attribute__ ((aligned (4)));
 
-	bool abort;
-	uint16_t i2s_ch;		
+	uint16_t i2s_num;		
 	uint16_t sample_rate;	// input, output, and stream rate (Hz)
 	int16_t *input_buff;	
 	int16_t *stream_buff;
@@ -117,14 +116,13 @@ struct adc_ctx_s *adc_create(adc_cmd_cb_t cmd_cb, adc_data_cb_t data_cb) {
 	ctx->channels = ADC_CHANNELS_OUT;
 	PARSE_PARAM(config, "ch",'=', ctx->channels);
 	PARSE_PARAM(config, "fmt", '=', ctx->format);
-	PARSE_PARAM(config, "source",'=', ctx->source);
 	free(config);
 
 	config = config_alloc_get_str("adc_config", NULL, CONFIG_ADC_CONFIG);
 	char model[32] = "\0";
 	PARSE_PARAM_STR(config, "model", '=', model, 31);
 	if (model[0] != 0) {
-		ctx->i2s_ch = ADC_I2S_CH;
+		ctx->i2s_num = ADC_I2S_NUM;
 		aadc  = &dac_external;
 	} 
 		
@@ -135,6 +133,7 @@ struct adc_ctx_s *adc_create(adc_cmd_cb_t cmd_cb, adc_data_cb_t data_cb) {
 		PARSE_PARAM(config, "do",'=', pin_config.data_out_num);
 		PARSE_PARAM(config, "di",'=', pin_config.data_in_num);
 		PARSE_PARAM(config, "mck",'=', pin_config.mck_io_num);
+
 		ESP_LOGI( TAG, "%s ADC using I2S ch %d bck:%u, ws:%u, di:%u (mlk:%u)", model, ADC_CHANNELS_IN, pin_config.bck_io_num, pin_config.ws_io_num, pin_config.data_in_num, pin_config.mck_io_num);
 
 		i2s_config_t i2s_config = {
@@ -190,9 +189,9 @@ struct adc_ctx_s *adc_create(adc_cmd_cb_t cmd_cb, adc_data_cb_t data_cb) {
 		      i2s_config.sample_rate, i2s_config.bits_per_sample, i2s_config.dma_buf_count, i2s_config.dma_buf_len) ;
 
 		/* Start I2s for read */
-		i2s_driver_install(ADC_I2S_CH, &i2s_config, 0, NULL);
-		i2s_set_pin(ADC_I2S_CH, &pin_config);
-		i2s_zero_dma_buffer(ADC_I2S_CH);
+		i2s_driver_install(ADC_I2S_NUM, &i2s_config, 0, NULL);
+		i2s_set_pin(ADC_I2S_NUM, &pin_config);
+		i2s_zero_dma_buffer(ADC_I2S_NUM);
 
 	} else {
 		// No dedicated ADC chip
@@ -226,7 +225,7 @@ struct adc_ctx_s *adc_create(adc_cmd_cb_t cmd_cb, adc_data_cb_t data_cb) {
 		
 		ctx->sock = sock;
 	
-		ESP_LOGI(TAG, "Configured ADC stream %s:%d fmt:%s src:%u", host, ctx->port, "WAVE",  ctx->source);
+		ESP_LOGI(TAG, "Configured ADC stream to %s:%d fmt:%s", host, ctx->port, ctx->format?"WAVE":"RAW");
 	}
 
 	ctx->running = true;
@@ -236,15 +235,13 @@ struct adc_ctx_s *adc_create(adc_cmd_cb_t cmd_cb, adc_data_cb_t data_cb) {
 	ctx->thread = xTaskCreateStaticPinnedToCore( (TaskFunction_t) adc_thread, "ADC", ADC_STACK_SIZE, ctx, 
 												 ESP_TASK_PRIO_MIN + 2, ctx->xStack, ctx->xTaskBuffer, CONFIG_PTHREAD_TASK_CORE_DEFAULT);
 
-	ctx->stream = true;
-
 	return ctx;
 }
 
 /*----------------------------------------------------------------------------*/
 void adc_abort(struct adc_ctx_s *ctx) {
 	ESP_LOGI(TAG, "[%p]: aborting ADC session at next select() wakeup", ctx);
-	ctx->abort = true;
+	ctx->running = false;
 }	
 
 /*----------------------------------------------------------------------------*/
@@ -276,7 +273,7 @@ bool adc_cmd(struct adc_ctx_s *ctx, adc_event_t event, void *param) {
 
 	ESP_LOGI(TAG, "ADC_cmd %d", event );
 
-	bool success = false;
+	bool success = true;
 
 	// first notify the remote controller (if any)
 	switch(event) {
@@ -376,8 +373,6 @@ static void adc_thread(void *arg) {
     }
 	char *buf_ptr_read = (char *)ctx->input_buff;
 
-	// TODO:  This initiates buffer based on pre-configured sample rate and channels
-	//  When sharing DAC chip, we need to match sample_rates, so this will need to be dynamic
 	size_t stream_size_bytes = ADC_STREAM_FRAME_SIZE;
 	ctx->stream_buff = (int16_t *)malloc(MAX_HEADER_SIZE + stream_size_bytes);
     if (ctx->stream_buff == NULL) {
@@ -400,13 +395,13 @@ static void adc_thread(void *arg) {
 	
 	ESP_LOGI(TAG, "Initialized ADC stream: rate:%u (%ums), channels:%u bytes:%u" , ctx->sample_rate, buffer_size * 1000 / (ctx->sample_rate * ADC_CHANNELS_IN), ctx->channels, stream_size_bytes);
 
-	int stream_err = 0;
+	int stream_errs = 0;
 
 	while (ctx->running) {
         
-		// TODO: This does not work with shared chip!  Blocks when selecting new track and creates errors (but recovers) 
-		//   issues associated with resetting i2s and sample_rate requirements.
-        if (i2s_read(ctx->i2s_ch, buf_ptr_read, buffer_size_bytes, &ctx->bytes_read, portMAX_DELAY) == ESP_OK) {
+		// TODO: This does not work with shared chip!  (but recovers) 
+		//   issues associated modifying sample_rate that is used by both adc and dac.
+        if (i2s_read(ctx->i2s_num, buf_ptr_read, buffer_size_bytes, &ctx->bytes_read, portMAX_DELAY) == ESP_OK) {
 			if (ctx->speaker && ctx->bytes_read > 0)
 			{
 				ctx->data_cb((const uint8_t*) ctx->input_buff, ctx->bytes_read);
@@ -420,13 +415,13 @@ static void adc_thread(void *arg) {
 				//ESP_LOGD(TAG, "%d,%db %u Read, Sending bytes to Stream %s:%d",ctx->bytes_read, stream_byte_ptr, buffer_size, inet_ntoa(dest_addr.sin_addr), htons (dest_addr.sin_port));
 				int err = sendto(ctx->sock, buf_ptr_stream, (size_t)stream_byte_ptr, 0, (struct sockaddr *) &dest_addr, sizeof(dest_addr));
 				if (stream_byte_ptr >= stream_size_bytes) {
-            		if (err < 0 && stream_err++ > 10) {
-                		ESP_LOGE(TAG, "Multiple errors occurred during sending: errno %d. Check 'CONFIG_LWIP_IP4_FRAG=y'", errno);
-						stream_err = 0;
+            		if (err < 0 && stream_errs++ > 10) {
+                		ESP_LOGE(TAG, "Multiple errors occurred during sending: check 'CONFIG_LWIP_IP4_FRAG=y'");
+						stream_errs = 0;
 						//const TickType_t xDelay = 10 / portTICK_PERIOD_MS;
 						//vTaskDelay(xDelay);
             		} else {
-						stream_err = 0;
+						stream_errs = 0;
 						stream_byte_ptr = header_size;
 					}
 				}
