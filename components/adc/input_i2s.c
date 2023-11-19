@@ -224,6 +224,7 @@ struct adc_ctx_s *adc_create(adc_cmd_cb_t cmd_cb, adc_data_cb_t data_cb) {
 		}
 		
 		ctx->sock = sock;
+		ctx->stream = true;
 	
 		ESP_LOGI(TAG, "Configured ADC stream to %s:%d fmt:%s", host, ctx->port, ctx->format?"WAVE":"RAW");
 	}
@@ -278,6 +279,7 @@ bool adc_cmd(struct adc_ctx_s *ctx, adc_event_t event, void *param) {
 	// first notify the remote controller (if any)
 	switch(event) {
 		case ADC_SETUP:
+			if (!ctx) return false;
 			ESP_LOGI(TAG, "ADC Setup");
 			ctx->stream = true;
 			ctx->cmd_cb(ADC_SETUP, ctx->sample_rate);

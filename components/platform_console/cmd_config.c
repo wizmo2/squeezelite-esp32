@@ -110,6 +110,11 @@ static struct {
     struct arg_int *dac_scl;
     struct arg_int *dac_i2c;
 #endif
+	struct arg_str *source;
+	struct arg_lit *clear;
+    struct arg_end *end;
+} adc_args;
+static struct {
     struct arg_int *rate;
 	struct arg_str *host;
     struct arg_int *port;
@@ -117,7 +122,7 @@ static struct {
 	struct arg_str *format;
 	struct arg_lit *clear;
     struct arg_end *end;
-} adc_args;
+} adcout_args;
 #endif
 static struct {
 	struct arg_str *model_config;
@@ -830,7 +835,6 @@ static int do_adc_cmd(int argc, char **argv)
 		.mute_gpio = -1,
 		.mute_level = -1
 	};
-	adcout_struct_t adcout;
 
 	ESP_LOGD(TAG,"Processing adc command %s with %d parameters",argv[0],argc);
 
@@ -877,19 +881,53 @@ static int do_adc_cmd(int argc, char **argv)
 			nerrors += (config_i2s_set(&i2s_dac_pin, "adc_config") != ESP_OK);
 		}
 #endif
-		if (adc_args.rate->count > 0) {
-			adcout.rate= adc_args.rate->ival[0];
+	}
+	if(!nerrors ){
+		fprintf(f,"Done.\n");
+	}
+	fflush (f);
+	cmd_send_messaging(argv[0],nerrors>0?MESSAGING_ERROR:MESSAGING_INFO,"%s", buf);
+	fclose(f);
+	FREE_AND_NULL(buf);
+	return (nerrors==0 && err==ESP_OK)?0:1;
+}
+static int do_adcout_cmd(int argc, char **argv)
+{
+	adcout_struct_t adcout;
+
+	ESP_LOGD(TAG,"Processing adc stream command %s with %d parameters",argv[0],argc);
+
+	esp_err_t err=ESP_OK;
+	int nerrors = arg_parse(argc, argv,(void **)&adcout_args);
+	if (adcout_args.clear->count) {
+		cmd_send_messaging(argv[0],MESSAGING_WARNING,"ADC stream cleared\n");
+		config_set_value(NVS_TYPE_STR, "adc_stream", CONFIG_ADC_CONFIG);
+		return 0;
+	}
+	char *buf = NULL;
+	size_t buf_size = 0;
+	FILE *f = system_open_memstream(argv[0],&buf, &buf_size);
+	if (f == NULL) {
+		return 1;
+	}
+	if(nerrors >0){
+		ESP_LOGE(TAG,"do_adc_cmd: %d errors parsing arguments",nerrors);
+		arg_print_errors(f,adcout_args.end,desc_adc);
+	}
+	else {
+		if (adcout_args.rate->count > 0) {
+			adcout.rate= adcout_args.rate->ival[0];
 		} 
-		strncpy(adcout.host,adc_args.host->sval[0],sizeof(adcout.host));
+		strncpy(adcout.host,adcout_args.host->sval[0],sizeof(adcout.host));
 		adcout.host[sizeof(adcout.host) - 1] = '\0';
-		if (adc_args.port->count > 0) {
-			adcout.port = adc_args.port->ival[0];
+		if (adcout_args.port->count > 0) {
+			adcout.port = adcout_args.port->ival[0];
 		}
-		if (adc_args.channels->count > 0) {
-			adcout.ch = (adc_args.channels->ival[0]==2)?2:1;
+		if (adcout_args.channels->count > 0) {
+			adcout.ch = (adcout_args.channels->ival[0]==2)?2:1;
 		}
-		if (adc_args.format->count > 0) {
-			adcout.fmt = (strcmp(adc_args.format->sval[0],"PCM") == 0)?0:1;
+		if (adcout_args.format->count > 0) {
+			adcout.fmt = (strcmp(adcout_args.format->sval[0],"PCM") == 0)?0:1;
 		}
 
 		if (!nerrors) {
@@ -983,7 +1021,6 @@ cJSON * i2s_cb(){
 #if CONFIG_ADC_SINK
 cJSON * adc_cb(){
 	cJSON * values = cJSON_CreateObject();
-	const adcout_struct_t *adcout=config_adcout_get();
 #ifndef CONFIG_ADC_LOCKED
 	const i2s_platform_config_t *i2s_conf=config_adc_get();
 	cJSON_AddNumberToObject(values,adc_args.clock->hdr.longopts,i2s_conf->pin.bck_io_num);
@@ -1004,13 +1041,18 @@ cJSON * adc_cb(){
 		cJSON_AddStringToObject(values,adc_args.model_name->hdr.longopts,"I2S");
 	}
 #endif
-	cJSON_AddNumberToObject(values,adc_args.rate->hdr.longopts,adcout->rate);
+	return values;
+}
+cJSON * adcout_cb(){
+	cJSON * values = cJSON_CreateObject();
+	const adcout_struct_t *adcout=config_adcout_get();
+	cJSON_AddNumberToObject(values,adcout_args.rate->hdr.longopts,adcout->rate);
 	if(strlen(adcout->host)>0){
-		cJSON_AddStringToObject(values,adc_args.host->hdr.longopts,adcout->host);
+		cJSON_AddStringToObject(values,adcout_args.host->hdr.longopts,adcout->host);
 	}
-	cJSON_AddNumberToObject(values,adc_args.port->hdr.longopts,adcout->port);
-	cJSON_AddNumberToObject(values,adc_args.channels->hdr.longopts,adcout->ch);
-	cJSON_AddStringToObject(values,adc_args.format->hdr.longopts,adcout->fmt>0?"WAV":"PCM");
+	cJSON_AddNumberToObject(values,adcout_args.port->hdr.longopts,adcout->port);
+	cJSON_AddNumberToObject(values,adcout_args.channels->hdr.longopts,adcout->ch);
+	cJSON_AddStringToObject(values,adcout_args.format->hdr.longopts,adcout->fmt>0?"WAV":"PCM");
 	
 	return values;
 }
@@ -1551,11 +1593,7 @@ void register_adc_config(void){
     adc_args.dac_scl = arg_int0(NULL,"dac_scl", "<n>", "I2C SCL GPIO pin (e.g. 26)");
     adc_args.dac_i2c = arg_int0(NULL,"dac_i2c", "<n>", "I2C device address pin (e.g. 106)");
 #endif
-    adc_args.rate = arg_int0(NULL,"rate","<Hz>","Sample Rate of output stream (use 16000 for Rhasspy)");
-	adc_args.host = arg_str0(NULL,"host","<ip>","Output stream destination address (use 0.0.0.0 for multi-cast)");
-    adc_args.port = arg_int0(NULL,"port","<n>","Output stream port number");
-    adc_args.channels = arg_int0(NULL,"channels","1|2","Output stream channels (mono = 1, stereo = 2) [default: 1]");
-    adc_args.format = arg_str0(NULL,"format","PCM|WAV","Output stream format (use WAV for Rhasspy, use PCM for raw stream) [default: WAV]");
+    adc_args.source = arg_str0(NULL,"source", "LINEIN|MIC|AUX", "Stream source, if supported by chipset)");	
 	adc_args.clear = arg_lit0(NULL, "clear", "Clear configuration (factory)");
     adc_args.end = arg_end(6);
 
@@ -1567,6 +1605,25 @@ void register_adc_config(void){
         .argtable = &adc_args
     };
     cmd_to_json_with_cb(&cmd,&adc_cb);
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
+}
+void register_adcout_config(void){
+    adcout_args.rate = arg_int0(NULL,"rate","<Hz>","Sample Rate of output stream (use 16000 for Rhasspy)");
+	adcout_args.host = arg_str0(NULL,"host","<ip>","Output stream destination address (use 0.0.0.0 for multi-cast)");
+    adcout_args.port = arg_int0(NULL,"port","<n>","Output stream port number");
+    adcout_args.channels = arg_int0(NULL,"channels","1|2","Output stream channels (mono = 1, stereo = 2) [default: 1]");
+    adcout_args.format = arg_str0(NULL,"format","PCM|WAV","Output stream format (use WAV for Rhasspy, use PCM for raw stream) [default: WAV]");
+	adcout_args.clear = arg_lit0(NULL, "clear", "Clear configuration (factory)");
+    adcout_args.end = arg_end(6);
+
+	const esp_console_cmd_t cmd = {
+        .command = CFG_TYPE_SYST("adc"),
+        .help = desc_adc,
+        .hint = NULL,
+        .func = &do_adcout_cmd,
+        .argtable = &adcout_args
+    };
+    cmd_to_json_with_cb(&cmd,&adcout_cb);
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
 #endif
