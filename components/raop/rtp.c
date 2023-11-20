@@ -461,7 +461,7 @@ static void buffer_put_packet(rtp_t *ctx, seq_t seqno, unsigned rtptime, bool fi
 			return;
 		}
 	}
-
+    
 	if (seqno == (u16_t) (ctx->ab_write+1)) {
 		// expected packet
 		abuf = ctx->audio_buffer + BUFIDX(seqno);
@@ -572,17 +572,25 @@ static void buffer_push_packet(rtp_t *ctx) {
 	}
 
 	LOG_SDEBUG("playtime %u %d [W:%hu R:%hu] %d", playtime, playtime - now, ctx->ab_write, ctx->ab_read, curframe->ready);
+   
+    // try to request resend missing packet in order, explore up to 32 frames
+    for (int step = max((ctx->ab_write - ctx->ab_read + 1) / 32, 1), 
+         i = 0, first = 0; 
+         seq_order(ctx->ab_read + i, ctx->ab_write); i += step) {
+             
+        abuf_t* frame = ctx->audio_buffer + BUFIDX(ctx->ab_read + i);
 
-	// each missing packet will be requested up to (latency_frames / 16) times
-	for (int i = 0; seq_order(ctx->ab_read + i, ctx->ab_write); i += 16) {
-		abuf_t *frame = ctx->audio_buffer + BUFIDX(ctx->ab_read + i);
-		if (!frame->ready && now - frame->last_resend > RESEND_TO) {
-            // stop if one fails
-			if (!rtp_request_resend(ctx, ctx->ab_read + i, ctx->ab_read + i)) break;
-			frame->last_resend = now;
-		}
-	}
-}
+        // stop when we reach a ready frame or a recent pending resend
+        if (first && (frame->ready || now - frame->last_resend <= RESEND_TO)) {
+            if (!rtp_request_resend(ctx, first, ctx->ab_read + i - 1)) break;
+            first = 0;
+            i += step - 1;
+        } else if (!frame->ready && now - frame->last_resend > RESEND_TO) {
+            if (!first) first = ctx->ab_read + i;
+            frame->last_resend = now;
+        }
+    }
+}
 
 
 /*---------------------------------------------------------------------------*/

@@ -1,3 +1,11 @@
+2023-11-19
+ - more robust (?) airplay RTP frame recovery
+ - initialize of scratch string in monitor (trying to figure out random reboot)
+
+2023-11-16
+ - add SH1122 support
+ - optimize GDS DrawPixel function
+ 
 2023-11-09
  - force gpio_pad_select_gpio in dac_controlset in case somebody uses UART gpio's (or other pre-programmed)
  

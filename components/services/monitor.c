@@ -62,7 +62,7 @@ static void task_stats( cJSON* top ) {
 	current.n = uxTaskGetSystemState( current.tasks, current.n, &current.total );
 	cJSON_AddNumberToObject(top,"ntasks",current.n);
 
-	char scratch[SCRATCH_SIZE] = { };
+	char scratch[SCRATCH_SIZE] = {0};
 
 #ifdef CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
 #pragma message("Compiled with runtime stats")
@@ -143,11 +143,13 @@ static void monitor_trace(uint32_t now) {
 			heap_caps_get_minimum_free_size(MALLOC_CAP_DMA));
 
 	task_stats(top);
+
 	char * top_a= cJSON_PrintUnformatted(top);
 	if(top_a){
 		messaging_post_message(MESSAGING_INFO, MESSAGING_CLASS_STATS,top_a);
 		FREE_AND_NULL(top_a);
 	}
+
 	cJSON_Delete(top);
 }
 
