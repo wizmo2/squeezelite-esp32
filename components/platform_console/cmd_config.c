@@ -864,8 +864,9 @@ static int do_adc_cmd(int argc, char **argv)
 		nerrors += is_output_gpio(adc_args.clock, f, &i2s_dac_pin.pin.bck_io_num, true);
 		nerrors += is_output_gpio(adc_args.wordselect, f, &i2s_dac_pin.pin.ws_io_num, true);
 		nerrors += is_output_gpio(adc_args.data, f, &i2s_dac_pin.pin.data_in_num, true);
+		#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
 		nerrors += is_output_gpio(adc_args.mclk, f, &i2s_dac_pin.pin.mck_io_num, true);
-		
+		#endif
 		if (adc_args.dac_sda->count > 0 && adc_args.dac_sda->ival[0] >= 0) {
 			// if SDA specified, then SDA and SCL are both mandatory
 			nerrors += is_output_gpio(adc_args.dac_sda, f, &i2s_dac_pin.sda, false);
@@ -1026,9 +1027,11 @@ cJSON * adc_cb(){
 	cJSON_AddNumberToObject(values,adc_args.clock->hdr.longopts,i2s_conf->pin.bck_io_num);
 	cJSON_AddNumberToObject(values,adc_args.wordselect->hdr.longopts,i2s_conf->pin.ws_io_num);
 	cJSON_AddNumberToObject(values,adc_args.data->hdr.longopts,i2s_conf->pin.data_in_num);
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
 	if(i2s_conf->pin.mck_io_num>=0 ) {
 		cJSON_AddNumberToObject(values,adc_args.mclk->hdr.longopts,i2s_conf->pin.mck_io_num);
 	}
+#endif
 	if(i2s_conf->sda>=0 ) {
 		cJSON_AddNumberToObject(values,adc_args.dac_sda->hdr.longopts,i2s_conf->sda);
 		cJSON_AddNumberToObject(values,adc_args.dac_scl->hdr.longopts,i2s_conf->scl);
