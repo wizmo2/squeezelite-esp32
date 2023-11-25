@@ -907,9 +907,11 @@ cJSON * get_ADC_GPIO(cJSON * list){
 		cJSON_AddItemToArray(llist,get_gpio_entry("bck","adc",i2s_config->pin.bck_io_num,fixed));
 		cJSON_AddItemToArray(llist,get_gpio_entry("ws","adc",i2s_config->pin.ws_io_num,fixed));
 		cJSON_AddItemToArray(llist,get_gpio_entry("di","adc",i2s_config->pin.data_in_num,fixed));
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
 		if(i2s_config->pin.mck_io_num>=0){
 			cJSON_AddItemToArray(llist,get_gpio_entry("mck","adc",i2s_config->pin.mck_io_num,fixed));
 		}
+#endif
 		if(i2s_config->sda>=0){
 			cJSON_AddItemToArray(llist,get_gpio_entry("sda","adc",i2s_config->sda,fixed));
 			cJSON_AddItemToArray(llist,get_gpio_entry("scl","adc",i2s_config->scl,fixed));

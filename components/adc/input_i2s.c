@@ -127,14 +127,15 @@ struct adc_ctx_s *adc_create(adc_cmd_cb_t cmd_cb, adc_data_cb_t data_cb) {
 	} 
 		
 	if (aadc) {
-		i2s_pin_config_t pin_config = {.bck_io_num=-1, .ws_io_num=-1, .data_out_num=-1, .data_in_num=-1, .mck_io_num=-1 };
+		i2s_pin_config_t pin_config = {.bck_io_num=-1, .ws_io_num=-1, .data_out_num=-1, .data_in_num=-1};
 		PARSE_PARAM(config, "bck",'=', pin_config.bck_io_num);
 		PARSE_PARAM(config, "ws",'=', pin_config.ws_io_num);
 		PARSE_PARAM(config, "do",'=', pin_config.data_out_num);
 		PARSE_PARAM(config, "di",'=', pin_config.data_in_num);
-		PARSE_PARAM(config, "mck",'=', pin_config.mck_io_num);
+		int mck_io_num = -1;
+		PARSE_PARAM(config, "mck",'=', mck_io_num);
 
-		ESP_LOGI( TAG, "%s ADC using I2S ch %d bck:%u, ws:%u, di:%u (mlk:%u)", model, ADC_CHANNELS_IN, pin_config.bck_io_num, pin_config.ws_io_num, pin_config.data_in_num, pin_config.mck_io_num);
+		ESP_LOGI( TAG, "%s ADC using I2S ch %d bck:%u, ws:%u, di:%u", model, ADC_CHANNELS_IN, pin_config.bck_io_num, pin_config.ws_io_num, pin_config.data_in_num);
 
 		i2s_config_t i2s_config = {
 			.mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
@@ -148,8 +149,10 @@ struct adc_ctx_s *adc_create(adc_cmd_cb_t cmd_cb, adc_data_cb_t data_cb) {
 			.use_apll = true,
 			.tx_desc_auto_clear = true,
 			.fixed_mclk = 0,
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
 			.mclk_multiple = I2S_MCLK_MULTIPLE_256,
 			.bits_per_chan = I2S_BITS_PER_CHAN_16BIT,
+#endif
 #ifndef CONFIG_IDF_TARGET_ESP32
 			.chan_mask = (i2s_channel_t)(I2S_TDM_ACTIVE_CH0 | I2S_TDM_ACTIVE_CH1),
 #endif
@@ -161,13 +164,10 @@ struct adc_ctx_s *adc_create(adc_cmd_cb_t cmd_cb, adc_data_cb_t data_cb) {
 		if (res != ESP_OK) {
 			ESP_LOGE(TAG, "Error initializing i2c on ADC");
 		}
-#ifdef CONFIG_IDF_TARGET_ESP32
+
+		if (mck_required && mck_io_num == -1) mck_io_num = 0;
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4, 4, 0)        
-		int mck_io_num = strcasestr(dac_config, "mck") || mck_required ? 0 : -1;
-		PARSE_PARAM(dac_config, "mck", '=', mck_io_num);
-
 		ESP_LOGI(TAG, "configuring MCLK on GPIO %d", mck_io_num);
-
 		if (mck_io_num == GPIO_NUM_0) {
 			PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0_CLK_OUT1);
 			WRITE_PERI_REG(PIN_CTRL, CONFIG_DAC_I2S_NUM == I2S_NUM_0 ? 0xFFF0 : 0xFFFF);
@@ -178,12 +178,11 @@ struct adc_ctx_s *adc_create(adc_cmd_cb_t cmd_cb, adc_data_cb_t data_cb) {
 			PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0RXD_U, FUNC_U0RXD_CLK_OUT2);
 			WRITE_PERI_REG(PIN_CTRL, CONFIG_DAC_I2S_NUM == I2S_NUM_0 ? 0xFF00 : 0xFF0F);
 		} else {
-			LOG_WARN("invalid MCK gpio %d", mck_io_num);
+			ESP_LOGW(TAG, "invalid MCK gpio %d", mck_io_num);
 		}
 #else
-		if (mck_required && pin_config.mck_io_num == -1) pin_config.mck_io_num = 0;
+		pin_config.mck_io_num = mck_io_num;
 		ESP_LOGI(TAG, "configuring MCLK on GPIO %d", pin_config.mck_io_num);
-#endif
 #endif
 		ESP_LOGI( TAG, "Initializing ADC I2S with rate: %u, bits per sample: %u, buffer frames: %u, number of buffers: %u",
 		      i2s_config.sample_rate, i2s_config.bits_per_sample, i2s_config.dma_buf_count, i2s_config.dma_buf_len) ;
