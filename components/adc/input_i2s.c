@@ -195,6 +195,7 @@ struct adc_ctx_s *adc_create(adc_cmd_cb_t cmd_cb, adc_data_cb_t data_cb) {
 	} else {
 		// No dedicated ADC chip
 		ESP_LOGI( TAG, "ADC sharing not currently available");
+		return NULL;
 	}
 
 	if (ctx->host && ctx->port) {

@@ -76,8 +76,8 @@ while(True):
         sampleData = "[{}{}]".format('#' * percent, '_' * (BAR_SIZE-percent))
         #sampleData =  ":".join("{:02x}".format(c) for c in data[:40])
         #sampleData =  ":".join("{:06d}".format(c) for c in int_data[:20])
-        wav_fmt_str = "type:{},channels:{},rate:{},frames{}".format(wav_fmt,audio.getnchannels(),audio.getframerate(), audio.getnframes())
-        print(flow + "Frame {},{} ({},{},{},{})".format(wav_fmt_str, sampleData, bytesReceived, i, int(volume), bps))
+        wav_fmt_str = "type:{},channels:{},rate:{},frames:{}".format(wav_fmt,audio.getnchannels(),audio.getframerate(), audio.getnframes())
+        print(flow + "Frame {},{} ({},{}B,v={},{}Bps)".format(wav_fmt_str, sampleData, i, bytesReceived, int(volume), bps))
 
         # Play the sound by writing the audio message to the stream
         while data != b'':

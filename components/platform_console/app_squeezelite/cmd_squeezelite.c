@@ -61,6 +61,7 @@ extern void register_i2cget(void);
 extern void register_i2cset(void);
 extern void register_i2cdump(void);
 extern void register_adc_config(void);
+extern void register_adcout_config(void);
 
 extern cJSON * get_gpio_list_handler(bool refresh);
 
@@ -80,6 +81,7 @@ void register_optional_cmd(void) {
 #endif
 #ifdef CONFIG_ADC_SINK
 	register_adc_config();
+	register_adcout_config();
 #endif
     register_i2c_config();
     register_i2cdectect();
