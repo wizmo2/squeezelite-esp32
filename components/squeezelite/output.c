@@ -443,7 +443,7 @@ void output_close_common(void) {
 }
 
 void output_flush(void) {
-	LOG_INFO("flush output buffer");
+	LOG_INFO("flush output buffer (full)");
 	buf_flush(outputbuf);
 	LOCK;
 	output.fade = FADE_INACTIVE;
@@ -456,4 +456,16 @@ void output_flush(void) {
 	}
 	output.frames_played = 0;
 	UNLOCK;
+}
+
+bool output_flush_streaming(void) {
+	LOG_INFO("flush output buffer (streaming)");
+	LOCK;
+	bool flushed = output.track_start != NULL;
+	if (output.track_start) {
+		outputbuf->writep = output.track_start;
+		output.track_start = NULL;
+	}
+	UNLOCK;
+	return flushed;
 }
