@@ -88,7 +88,7 @@ jobs:
         git commit -m "Update prebuilt objects [skip actions]"
         git push  https://${{secrets.github_token}}@github.com/sle118/squeezelite-esp32.git
     - name: Locally store commonly built objects
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: prebuilt_objects
         path: |
@@ -130,7 +130,7 @@ jobs:
         git status
         build_tools.py environment --build ${{ needs.bootstrap.outputs.build_number }} --env_file "$GITHUB_ENV" --node "${{matrix.node}}" --depth ${{matrix.depth}} --major 2 --docker sle118/squeezelite-esp32-idfv435 
         
-    - uses: actions/download-artifact@master
+    - uses: actions/download-artifact@v4
       name: Restore common objects
       with:
         name: prebuilt_objects
