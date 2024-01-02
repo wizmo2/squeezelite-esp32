@@ -1,3 +1,7 @@
+2024-01-01
+ - ogg stream are parsed to foward metadata to LMS
+ - fix some ogg parsing on multi-stream containers
+ 
 2023-11-19
  - more robust (?) airplay RTP frame recovery
  - initialize of scratch string in monitor (trying to figure out random reboot)
