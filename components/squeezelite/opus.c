@@ -227,6 +227,7 @@ static int read_opus_header(void) {
 		} else if (u->status == OGG_COMMENT_HEADER) {
 			// don't consume VorbisComment which could be a huge packet, just skip it
 			if (!OG(&go, page_packets, &u->page)) continue;
+            LOG_INFO("[%p]: comment skipped successfully", ctx);
 			done = 1;
 		}
 	}

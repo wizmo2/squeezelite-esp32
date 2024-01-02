@@ -59,7 +59,7 @@ is enough and much faster than a mutex
 static bool polling;
 static sockfd fd;
 
-struct streamstate stream;
+struct EXT_RAM_ATTR streamstate stream;
 
 #if USE_SSL
 static SSL_CTX *SSLctx;
@@ -148,8 +148,8 @@ static bool running = true;
 static void _disconnect(stream_state state, disconnect_code disconnect) {
 	stream.state = state;
 	stream.disconnect = disconnect;
-    if (stream.ogg.state == STREAM_OGG_HEADER && stream.ogg.data) free(stream.ogg.data);
-	stream.ogg.data = NULL;
+    if (stream.ogg.state == STREAM_OGG_PAGE && stream.ogg.data) free(stream.ogg.data);
+    stream.ogg.data = NULL;
 #if USE_SSL
 	if (ssl) {
 		SSL_shutdown(ssl);
@@ -205,7 +205,7 @@ static void stream_ogg(size_t n) {
 		case STREAM_OGG_HEADER:
 			if (!memcmp(stream.ogg.header.pattern, "OggS", 4)) {
 				stream.ogg.miss = stream.ogg.want = stream.ogg.header.count;
-				stream.ogg.data = malloc(stream.ogg.miss);
+				stream.ogg.data = stream.ogg.segments;
 				stream.ogg.state = STREAM_OGG_SEGMENTS;
 			} else {
 				stream.ogg.state = STREAM_OGG_SYNC;
@@ -220,11 +220,10 @@ static void stream_ogg(size_t n) {
 			if (stream.ogg.header.granule == 0) {
 				// granule 0 means a new stream, so let's look into it
 				stream.ogg.state = STREAM_OGG_PAGE;
-				stream.ogg.data = realloc(stream.ogg.data, stream.ogg.want);
+				stream.ogg.data = malloc(stream.ogg.want);
 			} else {
 				// otherwise, jump over data
 				stream.ogg.state = STREAM_OGG_SYNC;
-				free(stream.ogg.data);
 				stream.ogg.data = NULL;
 			}
 			break;
@@ -726,8 +725,8 @@ bool stream_disconnect(void) {
 		disc = true;
 	}
 	stream.state = STOPPED;
-    if (stream.ogg.state == STREAM_OGG_HEADER && stream.ogg.data) free(stream.ogg.data);
-	stream.ogg.data = NULL;
+    if (stream.ogg.state == STREAM_OGG_PAGE && stream.ogg.data) free(stream.ogg.data);
+    stream.ogg.data = NULL;
 	UNLOCK;
 	return disc;
 }

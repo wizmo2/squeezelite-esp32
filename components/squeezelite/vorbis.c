@@ -242,7 +242,7 @@ static int read_vorbis_header(void) {
 			OV(&gv, comment_init, &v->comment);
 			v->comment.vendor = "N/A";
 			fetch = true;
-			LOG_INFO("comment skipped succesfully");
+			LOG_INFO("comment skipped successfully");
 
 			// because of lack of page alignment, we might have the setup page already fully in
 			if (packets == 1) continue;
