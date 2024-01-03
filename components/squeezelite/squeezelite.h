@@ -580,20 +580,6 @@ struct streamstate {
 	u32_t meta_next;
 	u32_t meta_left;
 	bool  meta_send;
-    struct {
-		enum { STREAM_OGG_OFF, STREAM_OGG_SYNC, STREAM_OGG_HEADER, STREAM_OGG_SEGMENTS, STREAM_OGG_PAGE } state;
-		u32_t want, miss, match;
-		u8_t* data, segments[255];
-#pragma pack(push, 1)
-		struct {
-			char pattern[4];
-			u8_t version, type;
-			u64_t granule;
-			u32_t serial, page, checksum;
-			u8_t count;
-		} header;
-    } ogg;
-#pragma pack(pop)
 };
 
 void stream_init(log_level level, unsigned stream_buf_size);
