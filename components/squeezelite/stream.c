@@ -63,7 +63,7 @@ struct EXT_RAM_ATTR streamstate stream;
 
 static EXT_RAM_ATTR struct {
 	enum { OGG_OFF, OGG_SYNC, OGG_HEADER, OGG_SEGMENTS, OGG_PAGE } state;
-	u32_t want, miss, match;
+	size_t want, miss, match;
     u64_t granule;
 	u8_t* data, segments[255];
 #pragma pack(push, 1)    
@@ -177,8 +177,8 @@ static void _disconnect(stream_state state, disconnect_code disconnect) {
 	wake_controller();
 }
 
-static u32_t memfind(const u8_t* haystack, u32_t n, const char* needle, u32_t len, u32_t *offset) {
-	int i;
+static size_t memfind(const u8_t* haystack, size_t n, const char* needle, size_t len, size_t* offset) {
+	size_t i;
 	for (i = 0; i < n && *offset != len; i++) *offset = (haystack[i] == needle[*offset]) ? *offset + 1 : 0;
 	return i;
 }
@@ -204,7 +204,7 @@ static void stream_ogg(size_t n) {
 			if (consumed) break;
 
 			// we have to memorize position in case any of last 3 bytes match...
-			int pos = memfind(p, n, "OggS", 4, &ogg.match);
+			size_t pos = memfind(p, n, "OggS", 4, &ogg.match);
 			if (ogg.match == 4) {
 				consumed = pos - ogg.match;
 				ogg.state = OGG_HEADER;
@@ -212,7 +212,9 @@ static void stream_ogg(size_t n) {
 				ogg.data = (u8_t*) &ogg.header;
 				ogg.match = 0;
 			} else {
-				LOG_INFO("OggS not at expected position");
+                if (!ogg.match) {
+                    LOG_INFO("OggS not at expected position %zu/%zu", pos, n);
+                }
 				return;
 			}
 			break;
@@ -229,7 +231,7 @@ static void stream_ogg(size_t n) {
 			break;
 		case OGG_SEGMENTS:
 			// calculate size of page using lacing values
-			for (int i = 0; i < ogg.want; i++) ogg.miss += ogg.data[i];
+			for (size_t i = 0; i < ogg.want; i++) ogg.miss += ogg.data[i];
 			ogg.want = ogg.miss;
 
             if (ogg.header.granule == 0 || (ogg.header.granule == -1 && ogg.granule == 0)) {
@@ -246,11 +248,11 @@ static void stream_ogg(size_t n) {
             if (ogg.header.granule != -1) ogg.granule = ogg.header.granule;            
 			break;
 		case OGG_PAGE: {
-			u32_t offset = 0;
+			size_t offset = 0;
 
 			// try to find one of valid Ogg pattern (vorbis, opus)
 			for (char** tag = (char*[]) { "\x3vorbis", "OpusTags", NULL }; *tag; tag++, offset = 0) {
-				u32_t pos = memfind(ogg.data, ogg.want, *tag, strlen(*tag), &offset);
+				size_t pos = memfind(ogg.data, ogg.want, *tag, strlen(*tag), &offset);
 				if (offset != strlen(*tag)) continue;
 				
 				// u32:len,char[]:vendorId, u32:N, N x (u32:len,char[]:comment)
