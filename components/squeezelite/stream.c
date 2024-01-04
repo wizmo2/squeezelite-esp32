@@ -64,6 +64,7 @@ struct EXT_RAM_ATTR streamstate stream;
 static EXT_RAM_ATTR struct {
 	enum { OGG_OFF, OGG_SYNC, OGG_HEADER, OGG_SEGMENTS, OGG_PAGE } state;
 	u32_t want, miss, match;
+    u64_t granule;
 	u8_t* data, segments[255];
 #pragma pack(push, 1)    
 	struct {
@@ -127,7 +128,6 @@ static int _poll(SSL *ssl, struct pollfd *pollinfo, int timeout) {
 	return poll(pollinfo, 1, timeout);
 }
 #endif
-
 
 static bool send_header(void) {
 	char *ptr = stream.header;
@@ -232,7 +232,7 @@ static void stream_ogg(size_t n) {
 			for (int i = 0; i < ogg.want; i++) ogg.miss += ogg.data[i];
 			ogg.want = ogg.miss;
 
-			if (ogg.header.granule == 0) {
+            if (ogg.header.granule == 0 || (ogg.header.granule == -1 && ogg.granule == 0)) {
 				// granule 0 means a new stream, so let's look into it
 				ogg.state = OGG_PAGE;
 				ogg.data = malloc(ogg.want);
@@ -240,6 +240,7 @@ static void stream_ogg(size_t n) {
 				// otherwise, jump over data
 				ogg.state = OGG_SYNC;
 				ogg.data = NULL;
+                ogg.granule = ogg.header.granule;
 			}
 			break;
 		case OGG_PAGE: {
@@ -271,6 +272,7 @@ static void stream_ogg(size_t n) {
 						stream.header[stream.header_len++] = len;
 						memcpy(stream.header + stream.header_len, p, len);
 						stream.header_len += len;
+                        LOG_INFO("metadata: %.*s", len, p);
 					}
 				}
 
@@ -280,6 +282,7 @@ static void stream_ogg(size_t n) {
 				break;
 			}
 			free(ogg.data);
+            ogg.data = NULL;
 			ogg.state = OGG_SYNC;
 			break;
 		}
