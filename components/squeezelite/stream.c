@@ -240,8 +240,10 @@ static void stream_ogg(size_t n) {
 				// otherwise, jump over data
 				ogg.state = OGG_SYNC;
 				ogg.data = NULL;
-                ogg.granule = ogg.header.granule;
 			}
+
+            // memorize granule for next page
+            if (ogg.header.granule != -1) ogg.granule = ogg.header.granule;            
 			break;
 		case OGG_PAGE: {
 			u32_t offset = 0;
