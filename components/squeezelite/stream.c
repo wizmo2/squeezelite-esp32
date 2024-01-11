@@ -288,6 +288,7 @@ static void stream_ogg(size_t n) {
 					}
 				}
 
+                ogg.flac = false;
 				stream.meta_send = true;
 				wake_controller();
 				LOG_INFO("Ogg metadata length: %u", stream.header_len - 3);
