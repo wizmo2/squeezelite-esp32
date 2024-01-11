@@ -637,7 +637,11 @@ You can install IDF manually on Linux or Windows (using the Subsystem for Linux)
 **Use the esp-idf 4.3.5 https://github.com/espressif/esp-idf/tree/release/v4.3.5 ** or the 4.4.5 (and above version) if you want to build for esp32-s3
 
 ## Building SqueezeESP32
-When initially cloning the repo, make sure you do it recursively. For example: `git clone --recursive https://github.com/sle118/squeezelite-esp32.git`
+When initially cloning the repo, make sure you do it recursively. For example: `git clone --recursive https://github.com/sle118/squeezelite-esp32.git`. You also should install cspot additional components for protobuf use.
+```
+$ sudo pip3 install protobuf grpcio-tools
+```
+NB: I need to check on a fresh installation, but you might also require "protoc". You should do that within the esp32 local Python environment.
 	
 Don't forget to choose one of the config files in build_scripts/ and rename it sdkconfig.defaults or sdkconfig as many important WiFi/BT options are set there. **The codecs libraries will not be rebuilt by these scripts (it's a tedious process - see below)**
 
