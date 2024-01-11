@@ -121,6 +121,9 @@ static FLAC__StreamDecoderReadStatus read_cb(const FLAC__StreamDecoder *decoder,
 	_buf_inc_readp(streambuf, bytes);
 	UNLOCK_S;
 
+    // give some time for stream to acquire data otherwise flac will hammer us
+    if (!end && !bytes) usleep(100 * 1000);
+
 	*want = bytes;
 
 	return end ? FLAC__STREAM_DECODER_READ_STATUS_END_OF_STREAM : FLAC__STREAM_DECODER_READ_STATUS_CONTINUE;

@@ -139,8 +139,11 @@ static int _write_frames(frames_t out_frames, bool silence, s32_t gainL, s32_t g
 		u8_t *buf = silencebuf;
 		memcpy(btout + oframes * BYTES_PER_FRAME, buf, out_frames * BYTES_PER_FRAME);
 	}
-	
-	output_visu_export(btout + oframes * BYTES_PER_FRAME, out_frames, output.current_sample_rate, silence, (gainL  + gainR) / 2);
+
+    // don't update visu if we don't have enough data in buffer (500 ms)
+    if (silence || _buf_used(outputbuf) >  BYTES_PER_FRAME * output.current_sample_rate / 2) {
+    	output_visu_export(btout + oframes * BYTES_PER_FRAME, out_frames, output.current_sample_rate, silence, (gainL  + gainR) / 2);
+    }
 	
 	oframes += out_frames;
 

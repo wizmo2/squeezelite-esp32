@@ -62,6 +62,7 @@ static sockfd fd;
 struct EXT_RAM_ATTR streamstate stream;
 
 static EXT_RAM_ATTR struct {
+    bool flac;
 	enum { OGG_OFF, OGG_SYNC, OGG_HEADER, OGG_SEGMENTS, OGG_PAGE } state;
 	size_t want, miss, match;
     u64_t granule;
@@ -183,6 +184,10 @@ static size_t memfind(const u8_t* haystack, size_t n, const char* needle, size_t
 	return i;
 }
 
+/* https://xiph.org/ogg/doc/framing.html 
+ * https://xiph.org/flac/ogg_mapping.html
+ * https://xiph.org/vorbis/doc/Vorbis_I_spec.html#x1-610004.2 */
+ 
 static void stream_ogg(size_t n) {
 	if (ogg.state == OGG_OFF) return;
 	u8_t* p = streambuf->writep;
@@ -212,9 +217,8 @@ static void stream_ogg(size_t n) {
 				ogg.data = (u8_t*) &ogg.header;
 				ogg.match = 0;
 			} else {
-                if (!ogg.match) {
-                    LOG_INFO("OggS not at expected position %zu/%zu", pos, n);
-                }
+                if (!ogg.match) LOG_INFO("OggS not at expected position %zu/%zu", pos, n);
+                LOG_INFO("OggS not at expected position %zu/%zu", pos, n);
 				return;
 			}
 			break;
@@ -248,15 +252,19 @@ static void stream_ogg(size_t n) {
             if (ogg.header.granule != -1) ogg.granule = ogg.header.granule;            
 			break;
 		case OGG_PAGE: {
-			size_t offset = 0;
+			char** tag = (char* []){ "\x3vorbis", "OpusTags", NULL };
+			size_t ofs = 0;
 
-			// try to find one of valid Ogg pattern (vorbis, opus)
-			for (char** tag = (char*[]) { "\x3vorbis", "OpusTags", NULL }; *tag; tag++, offset = 0) {
-				size_t pos = memfind(ogg.data, ogg.want, *tag, strlen(*tag), &offset);
-				if (offset != strlen(*tag)) continue;
-				
+			/* with OggFlac, we need the next page (packet) - VorbisComment is wrapped into a FLAC_METADATA
+			 * and except with vorbis, comment packet starts a new page but even in vorbis, it won't span
+			 * accross multiple pages */
+			if (ogg.flac) ofs = 4;
+			else if (!memcmp(ogg.data, "\x7f""FLAC", 5)) ogg.flac = true;
+			else for (size_t n = 0; *tag; tag++, ofs = 0) if ((ofs = memfind(ogg.data, ogg.want, *tag, strlen(*tag), &n)) && n == strlen(*tag)) break;
+	
+			if (ofs) {			
 				// u32:len,char[]:vendorId, u32:N, N x (u32:len,char[]:comment)
-				char* p = (char*) ogg.data + pos;
+				char* p = (char*) ogg.data + ofs;
 				p += *p + 4;
 				u32_t count = *p;
 				p += 4;
@@ -283,7 +291,6 @@ static void stream_ogg(size_t n) {
 				stream.meta_send = true;
 				wake_controller();
 				LOG_INFO("Ogg metadata length: %u", stream.header_len - 3);
-				break;
 			}
 			free(ogg.data);
             ogg.data = NULL;
@@ -625,7 +632,7 @@ void stream_file(const char *header, size_t header_len, unsigned threshold) {
 	UNLOCK;
 }
 
-void stream_sock(u32_t ip, u16_t port, char codec, const char *header, size_t header_len, unsigned threshold, bool cont_wait) {
+void stream_sock(u32_t ip, u16_t port, bool use_ssl, bool use_ogg, const char *header, size_t header_len, unsigned threshold, bool cont_wait) {
 	struct sockaddr_in addr;
 
 #if EMBEDDED
@@ -726,7 +733,8 @@ void stream_sock(u32_t ip, u16_t port, char codec, const char *header, size_t he
 	stream.threshold = threshold;
     
     ogg.miss = ogg.match = 0;
-	ogg.state = (codec == 'o' || codec == 'p') ? OGG_SYNC : OGG_OFF;
+	ogg.state = use_ogg ? OGG_SYNC : OGG_OFF;
+    ogg.flac = false;
 
 	UNLOCK;
 }

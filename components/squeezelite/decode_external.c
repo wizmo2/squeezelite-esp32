@@ -288,6 +288,7 @@ static bool raop_sink_cmd_handler(raop_event_t event, va_list args)
 			output.frames_played = 0;
 			output.external = DECODE_RAOP;
 			output.state = OUTPUT_STOPPED;
+
 			if (decode.state != DECODE_STOPPED) decode.state = DECODE_ERROR;
 			LOG_INFO("resizing buffer %u", outputbuf->size);
 			break;
@@ -377,6 +378,7 @@ static bool cspot_cmd_handler(cspot_event_t cmd, va_list args)
 		output.state = OUTPUT_STOPPED;
         sink_state = SINK_ABORT;
 		_buf_flush(outputbuf);
+        _buf_limit(outputbuf, 0);
 		if (decode.state != DECODE_STOPPED) decode.state = DECODE_ERROR;
 		LOG_INFO("CSpot start track");
 		break;
