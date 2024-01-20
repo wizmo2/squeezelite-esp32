@@ -1,8 +1,13 @@
+2024-01-19
+ - fixed libflac with OggFlac
+ - AirPlay missed frame logging
+ 
 2024-01-16
  - catch-up with cspot latest
  - refactor airplay flush/first packet
  - new libFLAC that supports multi-stream OggFlac
  - fix output threshold
+ - log missed frames
  
 2024-01-10
  - add OggFlac to stream metadata

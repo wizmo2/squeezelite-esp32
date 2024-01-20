@@ -96,6 +96,7 @@ typedef struct __attribute__((__packed__)) audio_buffer_entry {   // decoded aud
     u16_t len;    
     u8_t ready;
     u8_t allocated;
+    u8_t missed;
 } abuf_t;
 
 typedef struct rtp_s {
@@ -477,10 +478,11 @@ static void buffer_put_packet(rtp_t *ctx, seq_t seqno, unsigned rtptime, bool fi
         u32_t playtime = ctx->synchro.time + ((rtptime - ctx->synchro.rtp) * 10) / (RAOP_SAMPLE_RATE / 100);            
 		ctx->cmd_cb(RAOP_PLAY, playtime);         
 	}   
+    
+    abuf = ctx->audio_buffer + BUFIDX(seqno);
 
 	if (seqno == (u16_t) (ctx->ab_write+1)) {
 		// expected packet
-		abuf = ctx->audio_buffer + BUFIDX(seqno);
 		ctx->ab_write = seqno;
 		LOG_SDEBUG("packet expected seqno:%hu rtptime:%u (W:%hu R:%hu)", seqno, rtptime, ctx->ab_write, ctx->ab_read);
 	} else if (seq_order(ctx->ab_write, seqno)) {
@@ -504,16 +506,15 @@ static void buffer_put_packet(rtp_t *ctx, seq_t seqno, unsigned rtptime, bool fi
             LOG_DEBUG("[%p]: packet newer seqno:%hu rtptime:%u (W:%hu R:%hu)", ctx, seqno, rtptime, ctx->ab_write, ctx->ab_read);            
         }        
 
-		abuf = ctx->audio_buffer + BUFIDX(seqno);
 		ctx->ab_write = seqno;
 	} else if (seq_order(ctx->ab_read, seqno + 1)) {
 		// recovered packet, not yet sent
-		abuf = ctx->audio_buffer + BUFIDX(seqno);
 		ctx->resent_rec++;
 		LOG_DEBUG("[%p]: packet recovered seqno:%hu rtptime:%u (W:%hu R:%hu)", ctx, seqno, rtptime, ctx->ab_write, ctx->ab_read);
 	} else {
-		// too late
-		LOG_DEBUG("[%p]: packet too late seqno:%hu rtptime:%u (W:%hu R:%hu)", ctx, seqno, rtptime, ctx->ab_write, ctx->ab_read);
+        // too late
+		if (abuf->missed) LOG_INFO("[%p]: packet too late seqno:%hu rtptime:%u (W:%hu R:%hu)", ctx, seqno, rtptime, ctx->ab_write, ctx->ab_read);
+        abuf = NULL;
 	}
 
 	if (ctx->in_frames++ > 1000) {
@@ -524,6 +525,7 @@ static void buffer_put_packet(rtp_t *ctx, seq_t seqno, unsigned rtptime, bool fi
 	if (abuf) {
 		alac_decode(ctx, abuf->data, data, len, &abuf->len);
 		abuf->ready = 1;
+        abuf->missed = 0;
 		// this is the local rtptime when this frame is expected to play
 		abuf->rtptime = rtptime;
 		buffer_push_packet(ctx);
@@ -567,6 +569,7 @@ static void buffer_push_packet(rtp_t *ctx) {
 				LOG_DEBUG("[%p]: created zero frame (W:%hu R:%hu)", ctx, ctx->ab_write, ctx->ab_read);
 				ctx->data_cb(silence_frame, ctx->frame_size * 4, playtime);
 				ctx->silent_frames++;
+                curframe->missed = 1;
 			}
 		} else if (curframe->ready) {
 			ctx->data_cb((const u8_t*) curframe->data, curframe->len, playtime);
