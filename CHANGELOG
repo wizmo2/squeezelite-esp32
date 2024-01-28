@@ -1,3 +1,7 @@
+2024-01-27
+ - complete libflac fix and add chaining enablement
+ - fixed stream Ogg demux issue with unknown granule
+ 
 2024-01-19
  - fixed libflac with OggFlac
  - AirPlay missed frame logging
@@ -31,7 +35,7 @@
  - force gpio_pad_select_gpio in dac_controlset in case somebody uses UART gpio's (or other pre-programmed)
  
 2023-11-08
- - execute dac_controlset even whne there is no i2s (for gpio)
+ - execute dac_controlset even when there is no i2s (for gpio)
  
 2023-11-07
  - led-vu gain + misc fixes

@@ -63,9 +63,9 @@ struct EXT_RAM_ATTR streamstate stream;
 
 static EXT_RAM_ATTR struct {
     bool flac;
+    u64_t serial;
 	enum { OGG_OFF, OGG_SYNC, OGG_HEADER, OGG_SEGMENTS, OGG_PAGE } state;
 	size_t want, miss, match;
-    u64_t granule;
 	u8_t* data, segments[255];
 #pragma pack(push, 1)    
 	struct {
@@ -237,19 +237,22 @@ static void stream_ogg(size_t n) {
 			// calculate size of page using lacing values
 			for (size_t i = 0; i < ogg.want; i++) ogg.miss += ogg.data[i];
 			ogg.want = ogg.miss;
+            
+            // acquire serial number when we are looking for headers and hit a bos
+			if (ogg.serial == ULLONG_MAX && (ogg.header.type & 0x02)) ogg.serial = ogg.header.serial;
 
-            if (ogg.header.granule == 0 || (ogg.header.granule == -1 && ogg.granule == 0)) {
-				// granule 0 means a new stream, so let's look into it
-				ogg.state = OGG_PAGE;
-				ogg.data = malloc(ogg.want);
-			} else {
+			// we have overshot and missed header, reset serial number to restart search (O and -1 are le/be)
+			if (ogg.header.serial == ogg.serial && ogg.header.granule && ogg.header.granule != -1) ogg.serial = ULLONG_MAX;
+
+			// not our serial (the above protected us from granule > 0)
+			if (ogg.header.serial != ogg.serial) {
 				// otherwise, jump over data
 				ogg.state = OGG_SYNC;
 				ogg.data = NULL;
+			} else {
+				ogg.state = OGG_PAGE;
+				ogg.data = malloc(ogg.want);
 			}
-
-            // memorize granule for next page
-            if (ogg.header.granule != -1) ogg.granule = ogg.header.granule;            
 			break;
 		case OGG_PAGE: {
 			char** tag = (char* []){ "\x3vorbis", "OpusTags", NULL };
@@ -289,6 +292,7 @@ static void stream_ogg(size_t n) {
 				}
 
                 ogg.flac = false;
+                ogg.serial = ULLONG_MAX;
 				stream.meta_send = true;
 				wake_controller();
 				LOG_INFO("Ogg metadata length: %u", stream.header_len - 3);
@@ -736,6 +740,7 @@ void stream_sock(u32_t ip, u16_t port, bool use_ssl, bool use_ogg, const char *h
     ogg.miss = ogg.match = 0;
 	ogg.state = use_ogg ? OGG_SYNC : OGG_OFF;
     ogg.flac = false;
+    ogg.serial = ULLONG_MAX;
 
 	UNLOCK;
 }

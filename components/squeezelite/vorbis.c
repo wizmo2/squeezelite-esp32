@@ -201,7 +201,7 @@ static int read_vorbis_header(void) {
 		// nothing has been found and we have no more bytes, come back later
 		if (status <= 0) break;
 
-		// always set stream serialno if we have a new one
+		// always set stream serialno if we have a new one (no multiplexed streams)
 		if (OG(&go, page_bos, &v->page)) OG(&go, stream_reset_serialno, &v->state, OG(&go, page_serialno, &v->page));
 
 		// bring new page in if we want it (otherwise we're just skipping)
