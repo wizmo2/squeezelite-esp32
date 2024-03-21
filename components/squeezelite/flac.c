@@ -141,8 +141,8 @@ static FLAC__StreamDecoderWriteStatus write_cb(const FLAC__StreamDecoder *decode
 	FLAC__int32 *rptr = (FLAC__int32 *)buffer[channels > 1 ? 1 : 0];
 	
 	if (decode.new_stream) {
+		LOG_INFO("setting track_start");        
 		LOCK_O;
-		LOG_INFO("setting track_start");
 		output.track_start = outputbuf->writep;
 		decode.new_stream = false;
 

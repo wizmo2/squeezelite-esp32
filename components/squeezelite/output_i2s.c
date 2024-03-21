@@ -439,7 +439,7 @@ void output_init_i2s(log_level level, char *device, unsigned output_buf_size, ch
 		static DRAM_ATTR StaticTask_t xTaskBuffer __attribute__ ((aligned (4)));
 		static EXT_RAM_ATTR StackType_t xStack[OUTPUT_THREAD_STACK_SIZE] __attribute__ ((aligned (4)));
 		output_i2s_task = xTaskCreateStaticPinnedToCore( (TaskFunction_t) output_thread_i2s, "output_i2s", OUTPUT_THREAD_STACK_SIZE, 
-											  NULL, CONFIG_ESP32_PTHREAD_TASK_PRIO_DEFAULT + 1, xStack, &xTaskBuffer, 0 );
+											  NULL, CONFIG_ESP32_PTHREAD_TASK_PRIO_DEFAULT + 10, xStack, &xTaskBuffer, 0 );
 	}
 }
 
