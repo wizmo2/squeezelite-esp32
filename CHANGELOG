@@ -1,3 +1,5 @@
+2024-05-05
+ - Fix crash when led_vu is configured without display
 2024-01-27
  - complete libflac fix and add chaining enablement
  - fixed stream Ogg demux issue with unknown granule

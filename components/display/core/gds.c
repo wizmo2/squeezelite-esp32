@@ -54,6 +54,7 @@ struct GDS_Device* GDS_AutoDetect( char *Driver, GDS_DetectFunc* DetectFunc[], s
 }
 
 void GDS_ClearExt(struct GDS_Device* Device, bool full, ...) {
+	GDS_CHECK_FOR_DEVICE(Device,return);
 	bool commit = true;
 	
 	if (full) {
@@ -74,6 +75,7 @@ void GDS_ClearExt(struct GDS_Device* Device, bool full, ...) {
 }	
 
 void GDS_Clear( struct GDS_Device* Device, int Color ) {
+	GDS_CHECK_FOR_DEVICE(Device,return);
 	if (Color == GDS_COLOR_BLACK) memset( Device->Framebuffer, 0, Device->FramebufferSize );
 	else if (Device->Depth == 1) memset( Device->Framebuffer, 0xff, Device->FramebufferSize );
 	else if (Device->Depth == 4) memset( Device->Framebuffer, Color | (Color << 4), Device->FramebufferSize );
@@ -89,6 +91,7 @@ void GDS_Clear( struct GDS_Device* Device, int Color ) {
 	}
 
 void GDS_ClearWindow( struct GDS_Device* Device, int x1, int y1, int x2, int y2, int Color ) {
+	GDS_CHECK_FOR_DEVICE(Device,return);
 	// -1 means up to width/height
 	if (x2 < 0) x2 = Device->Width - 1;
 	if (y2 < 0) y2 = Device->Height - 1;
@@ -158,11 +161,13 @@ void GDS_ClearWindow( struct GDS_Device* Device, int x1, int y1, int x2, int y2,
 }
 
 void GDS_Update( struct GDS_Device* Device ) {
+	GDS_CHECK_FOR_DEVICE(Device,return);
 	if (Device->Dirty) Device->Update( Device );
 	Device->Dirty = false;
 }
 
 bool GDS_Reset( struct GDS_Device* Device ) {
+	GDS_CHECK_FOR_DEVICE(Device,return false);
 	if ( Device->RSTPin >= 0 ) {
 		gpio_set_level( Device->RSTPin, 0 );
 		vTaskDelay( pdMS_TO_TICKS( 100 ) );
@@ -227,7 +232,7 @@ static void IRAM_ATTR DrawPixel24Fast( struct GDS_Device* Device, int X, int Y, 
 }
 
 bool GDS_Init( struct GDS_Device* Device ) {
-	
+	GDS_CHECK_FOR_DEVICE(Device,return false);
 	if (Device->Depth > 8) Device->FramebufferSize = Device->Width * Device->Height * ((8 + Device->Depth - 1) / 8);
 	else Device->FramebufferSize = (Device->Width * Device->Height) / (8 / Device->Depth);
     
@@ -274,6 +279,7 @@ bool GDS_Init( struct GDS_Device* Device ) {
 }
 
 int GDS_GrayMap( struct GDS_Device* Device, uint8_t Level) {
+	GDS_CHECK_FOR_DEVICE(Device,return -1);
 	switch(Device->Mode) {
 		case GDS_MONO: return Level;
 		case GDS_GRAYSCALE: return Level >> (8 - Device->Depth);
@@ -300,6 +306,7 @@ int GDS_GrayMap( struct GDS_Device* Device, uint8_t Level) {
 }
 
 void GDS_SetContrast( struct GDS_Device* Device, uint8_t Contrast ) { 
+	GDS_CHECK_FOR_DEVICE(Device,return);
 	if (Device->SetContrast) Device->SetContrast( Device, Contrast ); 
 	else if (Device->Backlight.Pin >= 0) {
 		Device->Backlight.PWM = PWMConfig.Max * powf(Contrast / 255.0, 3);
@@ -308,12 +315,12 @@ void GDS_SetContrast( struct GDS_Device* Device, uint8_t Contrast ) {
 	}
 }
 
-void GDS_SetLayout( struct GDS_Device* Device, struct GDS_Layout *Layout ) { if (Device->SetLayout) Device->SetLayout( Device, Layout ); }
-void GDS_SetDirty( struct GDS_Device* Device ) { Device->Dirty = true; }
+void GDS_SetLayout( struct GDS_Device* Device, struct GDS_Layout *Layout ) { if (Device && Device->SetLayout) Device->SetLayout( Device, Layout ); }
+void GDS_SetDirty( struct GDS_Device* Device ) { GDS_CHECK_FOR_DEVICE(Device,return);  Device->Dirty = true; }
 int	 GDS_GetWidth( struct GDS_Device* Device ) { return Device ? Device->Width : 0; }
-void GDS_SetTextWidth( struct GDS_Device* Device, int TextWidth ) { Device->TextWidth = Device && TextWidth && TextWidth < Device->Width ? TextWidth : Device->Width; }
+void GDS_SetTextWidth( struct GDS_Device* Device, int TextWidth ) { GDS_CHECK_FOR_DEVICE(Device,return);  Device->TextWidth = Device && TextWidth && TextWidth < Device->Width ? TextWidth : Device->Width; }
 int	 GDS_GetHeight( struct GDS_Device* Device ) { return Device ? Device->Height : 0; }
 int	 GDS_GetDepth( struct GDS_Device* Device ) { return Device ? Device->Depth : 0; }
 int	 GDS_GetMode( struct GDS_Device* Device ) { return Device ? Device->Mode : 0; }
-void GDS_DisplayOn( struct GDS_Device* Device ) { if (Device->DisplayOn) Device->DisplayOn( Device ); }
-void GDS_DisplayOff( struct GDS_Device* Device ) { if (Device->DisplayOff) Device->DisplayOff( Device ); }
+void GDS_DisplayOn( struct GDS_Device* Device ) { if (Device && Device->DisplayOn) Device->DisplayOn( Device ); }
+void GDS_DisplayOff( struct GDS_Device* Device ) { if (Device && Device->DisplayOff) Device->DisplayOff( Device ); }

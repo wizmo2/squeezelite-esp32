@@ -52,5 +52,6 @@ int 	GDS_GrayMap( struct GDS_Device* Device, uint8_t Level );
 void 	GDS_ClearExt( struct GDS_Device* Device, bool full, ...);
 void 	GDS_Clear( struct GDS_Device* Device, int Color );
 void 	GDS_ClearWindow( struct GDS_Device* Device, int x1, int y1, int x2, int y2, int Color );
+#define GDS_CHECK_FOR_DEVICE(dev,ret_act) if(!dev) ret_act
 
 #endif
